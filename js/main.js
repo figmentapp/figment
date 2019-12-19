@@ -85,30 +85,52 @@ class Node {
   }
 
   triggerIn(name) {
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
     const inPort = new Port(this, name, PORT_TYPE_TRIGGER);
     this.inPorts.push(inPort);
     return inPort;
   }
 
   inFloat(name, value) {
-    const inPort = new Port(this, name, PORT_TYPE_FLOAT, value);
-    this.inPorts.push(inPort);
-    return inPort;
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      oldPort.value = value;
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_FLOAT, value);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
   }
 
   inPoint(name, value) {
-    const inPort = new Port(this, name, PORT_TYPE_POINT, value && value.clone());
-    this.inPorts.push(inPort);
-    return inPort;
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      oldPort.value = value;
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_POINT, value && value.clone());
+      this.inPorts.push(inPort);
+      return inPort;
+    }
   }
 
   inColor(name, value) {
-    const inPort = new Port(this, name, PORT_TYPE_COLOR, value);
-    this.inPorts.push(inPort);
-    return inPort;
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      oldPort.value = value;
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_COLOR, value);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
   }
 
   triggerOut(name) {
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_TRIGGER);
     this.outPorts.push(outPort);
     return outPort;
@@ -136,7 +158,7 @@ class Network {
       const node = new Node(this, nodeObj.id, nodeObj.name, nodeObj.type, nodeObj.x, nodeObj.y);
       node.source = nodeObj.source.trim();
       node.function = new Function('node', node.source);
-      node.function.call({ Point }, node);
+      node.function.call(window, node);
       this.nodes.push(node);
     }
     for (const connObj of obj.connections) {
@@ -150,6 +172,23 @@ class Network {
         node.onStart(node);
       }
     }
+  }
+
+  stop() {
+    for (const node of this.nodes) {
+      if (node.onStop) {
+        node.onStop(node);
+      }
+    }
+  }
+
+  restart() {
+    this.stop();
+    for (const node of this.nodes) {
+      node.function = new Function('node', node.source);
+      node.function.call(window, node);
+    }
+    this.start();
   }
 }
 
@@ -304,6 +343,11 @@ class CodeEditor extends Component {
   constructor(props) {
     super(props);
     this.state = { source: props.node.source };
+    this._onKeyDown = this._onKeyDown.bind(this);
+  }
+
+  _onKeyDown(e) {
+    console.log('E', e);
   }
 
   componentDidUpdate(prevProps) {
@@ -318,6 +362,11 @@ class CodeEditor extends Component {
       lineNumbers: true,
       mode: 'javascript',
       theme: 'darcula'
+    });
+    this.editor.setOption('extraKeys', {
+      'Shift-Enter': () => {
+        this.props.onChangeSource(this.props.node, this.editor.getValue());
+      }
     });
   }
 
@@ -394,7 +443,10 @@ class Editor extends Component {
     this.setState({ activeTabIndex: index });
   }
 
-  render({ network, selection, onSelectNode, onClearSelection }, { tabs, activeTabIndex }) {
+  render(
+    { network, selection, onSelectNode, onClearSelection, onChangeSource },
+    { tabs, activeTabIndex }
+  ) {
     return (
       <div class="editor">
         <div class="editor__tabs">
@@ -422,7 +474,9 @@ class Editor extends Component {
             onOpenCode={this._onOpenCode}
           />
         )}
-        {activeTabIndex >= 0 && <CodeEditor node={tabs[activeTabIndex]} />}
+        {activeTabIndex >= 0 && (
+          <CodeEditor node={tabs[activeTabIndex]} onChangeSource={onChangeSource} />
+        )}
       </div>
     );
   }
@@ -436,6 +490,7 @@ class App extends Component {
     this.state = { network, selection: new Set() };
     this._onSelectNode = this._onSelectNode.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
+    this._onChangeSource = this._onChangeSource.bind(this);
   }
 
   componentDidMount() {
@@ -461,6 +516,13 @@ class App extends Component {
     this.forceUpdate();
   }
 
+  _onChangeSource(node, source) {
+    node.source = source;
+    //node.function = new Function('node', node.source);
+    //node.function.call(window, node);
+    this.state.network.restart();
+  }
+
   render(_, { network, selection }) {
     return (
       <div class="app">
@@ -469,6 +531,7 @@ class App extends Component {
           selection={selection}
           onSelectNode={this._onSelectNode}
           onClearSelection={this._onClearSelection}
+          onChangeSource={this._onChangeSource}
         />
         <div class="viewer" id="viewer"></div>
         <ParamsEditor selection={selection} />

@@ -1,5 +1,6 @@
 export const sourceCanvas = `
 const triggerOut = node.triggerOut('out');
+
 node.onStart = (props) => {
   console.log('STARTING DA NODE.');
    const canvas = document.createElement('canvas');
@@ -32,6 +33,7 @@ const triggerOut = node.triggerOut('out');
 const inColor = node.inColor('color', [150, 50, 150, 1]);
 const inPosition = node.inPoint('position', new g.Point(100, 100));
 const inRadius = node.inFloat('radius', 50, { min: 0, max: 1000 });
+
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
   const pos = inPosition.value;
