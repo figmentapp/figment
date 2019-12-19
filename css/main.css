@@ -1,3 +1,7 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
   --gray100: #f7fafc;
   --gray200: #edf2f7;
@@ -89,14 +93,18 @@ body {
   --pink700: #b83280;
   --pink800: #97266d;
   --pink900: #702459;
+
+  --font-mono: 'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace;
 }
 
-html, body {
+html,
+body {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
   font-size: 12px;
-  font-family: 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
+  background-color: var(--gray800);
 }
 
 /**** EDITOR ****/
@@ -104,51 +112,68 @@ html, body {
 .editor {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  width: 500px;
+  border-right: 2px solid var(--gray700);
 }
 
 .editor__tabs {
   display: flex;
   flex-direction: row;
   align-items: center;
+  height: 30px;
+  background: var(--gray900);
 }
 
 .editor__tab {
-  color: var(--gray800);
-  padding: 0.5rem 1rem;
+  color: var(--gray500);
+  padding: 0 1rem;
+  line-height: 30px;
+  height: 30px;
+  cursor: pointer;
 }
 
 .editor__tab--active {
   color: var(--gray200);
-  font-weight: bold;
+  background-color: var(--gray800);
+  border-right: 1px solid var(--gray900);
 }
 
-
+/**** NETWORK ****/
 
 .network {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 500px;
-  border-right: 1px solid var(--gray800);
+  width: 100%;
+  height: 100%;
 }
 
-.code, .CodeMirror {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 500px;
-  border-right: 1px solid var(--gray800);
+/**** CODE ****/
+
+.code,
+.CodeMirror {
+  width: 100%;
+  height: 100%;
+  border-top: 2px solid var(--gray800);
+}
+
+.CodeMirror {
+  background-color: var(--gray800) !important;
+}
+
+.CodeMirror-gutters {
+  background-color: var(--gray900) !important;
+}
+
+.CodeMirror-selected {
+  background: var(--gray700) !important;
 }
 
 .CodeMirror-code {
-  font-size: 0.8rem;
-
+  font-size: 1rem;
+  font-family: var(--font-mono);
 }
 
 .code textarea {
-  font: 14px 'SF Mono', Menlo, monospace;
+  font: 15px var(--font-mono);
   width: 100%;
   height: 100%;
   outline: none;
@@ -162,14 +187,13 @@ html, body {
   height: 100vh;
 }
 
-
 .params {
   position: absolute;
   top: 0;
   right: 0;
   height: 100vh;
   width: 300px;
-  border-left: 1px solid var(--gray800);
+  border-left: 2px solid var(--gray700);
 }
 
 .params__empty {
@@ -180,10 +204,12 @@ html, body {
 
 .params__title {
   color: var(--gray500);
-  padding: 0.5rem 1rem;
+  background-color: var(--gray700);
+  padding: 0 1rem;
+  height: 30px;
+  line-height: 30px;
   font-size: 0.75rem;
 }
-
 
 .params__header {
   color: var(--gray700);
@@ -197,5 +223,3 @@ html, body {
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
 }
-
-

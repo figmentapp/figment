@@ -10,6 +10,8 @@ import * as g from './g';
 const NODE_PORT_SIZE = 15;
 const NODE_WIDTH = NODE_PORT_SIZE * 5;
 const NODE_HEIGHT = NODE_PORT_SIZE * 2;
+const EDITOR_TABS_HEIGHT = 30;
+const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace`;
 
 const DEFAULT_NETWORK = {
   nodes: [
@@ -40,8 +42,8 @@ const DEFAULT_NETWORK = {
   ],
   connections: [
     { outNode: 1, inNode: 2, outPort: 'out', inPort: 'in' },
-    { outNode: 2, inNode: 3, outPort: 'out', inPort: 'in' },
-  ],
+    { outNode: 2, inNode: 3, outPort: 'out', inPort: 'in' }
+  ]
 };
 
 function _hitTest(node, x, y) {
@@ -69,7 +71,6 @@ class Port {
     this.node._triggerOut(this, props);
   }
 }
-
 
 class Node {
   constructor(network, id, name, type, x, y) {
@@ -133,9 +134,8 @@ class Network {
   parse(obj) {
     for (const nodeObj of obj.nodes) {
       const node = new Node(this, nodeObj.id, nodeObj.name, nodeObj.type, nodeObj.x, nodeObj.y);
-      node.source = nodeObj.source;
+      node.source = nodeObj.source.trim();
       node.function = new Function('node', node.source);
-      //const fn = NODE_FUNCTIONS[node.type];
       node.function.call({ Point }, node);
       this.nodes.push(node);
     }
@@ -153,65 +153,6 @@ class Network {
   }
 }
 
-const coreCanvas = (node) => {
-  const triggerOut = node.triggerOut('out');
-  node.onStart = (props) => {
-    console.log('STARTING DA NODE.');
-     const canvas = document.createElement('canvas');
-     canvas.width = 400;
-     canvas.height = 400;
-     const viewer = document.getElementById('viewer');
-     viewer.innerHTML = '';
-     viewer.appendChild(canvas);
-     const ctx = canvas.getContext('2d');
-     triggerOut.trigger({ canvas, ctx });
-  };
-};
-
-const coreBackgroundColor = (node) => {
-  const triggerIn = node.triggerIn('in');
-  const triggerOut = node.triggerOut('out');
-  const inColor = node.inColor('color', [200, 200, 200, 1]);
-
-  triggerIn.onTrigger = (props) => {
-    const { canvas, ctx } = props;
-    ctx.fillStyle = _rgbToHex(...inColor.value);
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    triggerOut.trigger(props);
-  };
-};
-
-const coreBlend = (node) => {
-  const triggerIn = node.triggerIn('in');
-  const triggerOut = node.triggerOut('out');
-};
-
-const coreRect = (node) => {
-  const triggerIn = node.triggerIn('in');
-  const triggerOut = node.triggerOut('out');
-  const inColor = node.inColor('color', [50, 50, 150, 1]);
-  const inPosition = node.inPoint('position', new Point(100, 100));
-  const inRadius = node.inFloat('radius', 50, { min: 0, max: 1000 });
-  triggerIn.onTrigger = (props) => {
-    const { canvas, ctx } = props;
-    const pos = inPosition.value;
-    const r = inRadius.value;
-    ctx.save();
-    ctx.fillStyle = _rgbToHex(...inColor.value);
-    ctx.translate(pos.x, pos.y);
-    ctx.fillRect(-r, -r, r * 2, r * 2);
-    ctx.restore();
-  }
-}
-
-const NODE_FUNCTIONS = {
-  'core.canvas': coreCanvas,
-  'core.backgroundColor': coreBackgroundColor,
-  'core.blend': coreBlend,
-  'core.rect': coreRect,
-}
-
-
 class NetworkEditor extends Component {
   constructor(props) {
     super(props);
@@ -219,6 +160,7 @@ class NetworkEditor extends Component {
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
+    this._onDoubleClick = this._onDoubleClick.bind(this);
   }
 
   componentDidMount() {
@@ -227,15 +169,20 @@ class NetworkEditor extends Component {
     const bounds = this.canvas.parentNode.getBoundingClientRect();
     this.canvas.style.width = `${bounds.width}px`;
     this.canvas.style.height = `${bounds.height}px`;
-    this.canvas.width = bounds.width * 2;
-    this.canvas.height = bounds.height * 2;
+    this.canvas.width = bounds.width * window.devicePixelRatio;
+    this.canvas.height = bounds.height * window.devicePixelRatio;
     this._draw();
   }
 
   render() {
     return (
       <div class="network">
-        <canvas class="network__canvas" id="network" onMouseDown={this._onMouseDown} />
+        <canvas
+          class="network__canvas"
+          id="network"
+          onMouseDown={this._onMouseDown}
+          onDblClick={this._onDoubleClick}
+        />
       </div>
     );
   }
@@ -244,33 +191,59 @@ class NetworkEditor extends Component {
     this._draw();
   }
 
+  _findNode(x, y) {
+    for (const node of this.props.network.nodes) {
+      if (_hitTest(node, x, y)) {
+        return node;
+      }
+    }
+  }
+
+  _networkPosition(e) {
+    const mouseX = e.clientX;
+    const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
+    const networkX = mouseX - this.state.x;
+    const networkY = mouseY - this.state.y;
+    return [networkX, networkY];
+  }
+
   _onMouseDown(e) {
     window.addEventListener('mousemove', this._onMouseMove);
     window.addEventListener('mouseup', this._onMouseUp);
-    this.prevX = e.clientX;
-    this.prevY = e.clientY;
-    const mouseX = e.clientX - this.state.x;
-    const mouseY = e.clientY - this.state.y;
-    for (const node of this.props.network.nodes) {
-      if (_hitTest(node, mouseX, mouseY)) {
-        this.props.onSelectNode(node);
-        return;
-      }
+    const mouseX = e.clientX;
+    const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
+    this.prevX = mouseX;
+    this.prevY = mouseY;
+    const [networkX, networkY] = this._networkPosition(e);
+    const node = this._findNode(networkX, networkY);
+    if (node) {
+      this.props.onSelectNode(node);
+    } else {
+      this.props.onClearSelection();
     }
-    this.props.onClearSelection();
   }
 
   _onMouseMove(e) {
-    const dx = e.clientX - this.prevX;
-    const dy = e.clientY - this.prevY;
+    const mouseX = e.clientX;
+    const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
+    const dx = mouseX - this.prevX;
+    const dy = mouseY - this.prevY;
     this.setState({ x: this.state.x + dx, y: this.state.y + dy });
-    this.prevX = e.clientX;
-    this.prevY = e.clientY;
+    this.prevX = mouseX;
+    this.prevY = mouseY;
   }
 
   _onMouseUp() {
     window.removeEventListener('mousemove', this._onMouseMove);
     window.removeEventListener('mouseup', this._onMouseUp);
+  }
+
+  _onDoubleClick(e) {
+    const [networkX, networkY] = this._networkPosition(e);
+    const node = this._findNode(networkX, networkY);
+    if (node) {
+      this.props.onOpenCode(node);
+    }
   }
 
   _draw() {
@@ -293,14 +266,19 @@ class NetworkEditor extends Component {
       }
       for (let i = 0; i < node.outPorts.length; i++) {
         ctx.fillStyle = nodeColors[(i + 1) % nodeColors.length];
-        ctx.fillRect(node.x + i * NODE_PORT_SIZE, node.y + NODE_PORT_SIZE, NODE_PORT_SIZE, NODE_PORT_SIZE);
+        ctx.fillRect(
+          node.x + i * NODE_PORT_SIZE,
+          node.y + NODE_PORT_SIZE,
+          NODE_PORT_SIZE,
+          NODE_PORT_SIZE
+        );
       }
       ctx.fillRect(node.x, node.y + NODE_PORT_SIZE, NODE_PORT_SIZE, NODE_PORT_SIZE);
     }
     ctx.fillStyle = COLORS.gray300;
-    ctx.font = '12px SF Mono';
+    ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
-      ctx.fillText(node.name, node.x  + NODE_PORT_SIZE * 6 , node.y + NODE_PORT_SIZE * 1.3);
+      ctx.fillText(node.name, node.x + NODE_PORT_SIZE * 6, node.y + NODE_PORT_SIZE * 1.3);
     }
     ctx.strokeStyle = COLORS.gray200;
     ctx.strokeWidth = 2;
@@ -325,8 +303,13 @@ class NetworkEditor extends Component {
 class CodeEditor extends Component {
   constructor(props) {
     super(props);
-    console.log(props);
-    this.state = { source: props.node.source }
+    this.state = { source: props.node.source };
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.node !== this.props.node) {
+      this.editor.setValue(this.props.node.source);
+    }
   }
 
   componentDidMount() {
@@ -339,7 +322,11 @@ class CodeEditor extends Component {
   }
 
   render() {
-    return (<div class="code"><textarea class="code__area" id="code" value={this.state.source}/></div>)
+    return (
+      <div class="code">
+        <textarea class="code__area" id="code" value={this.state.source} />
+      </div>
+    );
   }
 }
 
@@ -349,29 +336,43 @@ class ParamsEditor extends Component {
   }
   render({ selection }) {
     if (selection.size === 0) {
-      return (<div class="params"><p class="params__empty">Nothing selected</p></div>);
+      return (
+        <div class="params">
+          <p class="params__empty">Nothing selected</p>
+        </div>
+      );
     }
     if (selection.size > 1) {
-     return (<div class="params"><p class="params__empty">Many nodes selected</p></div>);
+      return (
+        <div class="params">
+          <p class="params__empty">Many nodes selected</p>
+        </div>
+      );
     }
     const node = Array.from(selection)[0];
     return (
       <div class="params">
         <div class="params__title">{node.name}</div>
         <div class="params__header">IN</div>
-        { node.inPorts.map(port => <div class="params__port">{port.name}</div>) }
+        {node.inPorts.map(port => (
+          <div class="params__port">{port.name}</div>
+        ))}
         <div class="params__header">OUT</div>
-        { node.outPorts.map(port => <div class="params__port">{port.name}</div>) }
+        {node.outPorts.map(port => (
+          <div class="params__port">{port.name}</div>
+        ))}
       </div>
-     );
+    );
   }
 }
 
 class Editor extends Component {
   constructor(props) {
     super(props);
-    this.state = { tabs: [props.network.nodes[0]], activeTabIndex: -1 };
+    this.state = { tabs: [props.network.nodes[1]], activeTabIndex: -1 };
     this._addTab = this._addTab.bind(this);
+    this._onSelectTab = this._onSelectTab.bind(this);
+    this._onOpenCode = this._onOpenCode.bind(this);
   }
 
   _addTab(node) {
@@ -380,15 +381,48 @@ class Editor extends Component {
     this.setState({ tabs });
   }
 
+  _onOpenCode(node) {
+    if (this.state.tabs.includes(node)) {
+      this.setState({ activeTabIndex: this.state.tabs.indexOf(node) });
+      return;
+    }
+    this._addTab(node);
+    this.setState({ activeTabIndex: this.state.tabs.length - 1 });
+  }
+
+  _onSelectTab(index) {
+    this.setState({ activeTabIndex: index });
+  }
+
   render({ network, selection, onSelectNode, onClearSelection }, { tabs, activeTabIndex }) {
     return (
       <div class="editor">
         <div class="editor__tabs">
-          <div class={'editor__tab' + activeTabIndex === -1 ? ' editor__tab--active' : '' }>Network</div>
-          { tabs.map((node, i) => <div class={'editor__tab' + activeTabIndex === i ? ' editor__tab--active' : ''}>{node.name}</div>) }
-          { activeTabIndex === -1 && <NetworkEditor network={network} selection={selection} onSelectNode={onSelectNode} onClearSelection={onClearSelection} /> }
-          { activeTabIndex >= 0 && <CodeEditor node={tabs[activeTabIndex]} /> }
+          <div
+            class={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')}
+            onClick={() => this._onSelectTab(-1)}
+          >
+            Network
+          </div>
+          {tabs.map((node, i) => (
+            <div
+              class={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')}
+              onClick={() => this._onSelectTab(i)}
+            >
+              {node.name}
+            </div>
+          ))}
         </div>
+        {activeTabIndex === -1 && (
+          <NetworkEditor
+            network={network}
+            selection={selection}
+            onSelectNode={onSelectNode}
+            onClearSelection={onClearSelection}
+            onOpenCode={this._onOpenCode}
+          />
+        )}
+        {activeTabIndex >= 0 && <CodeEditor node={tabs[activeTabIndex]} />}
       </div>
     );
   }
@@ -430,7 +464,12 @@ class App extends Component {
   render(_, { network, selection }) {
     return (
       <div class="app">
-        <Editor network={network} selection={selection} onSelectNode={this._onSelectNode}  onClearSelection={this._onClearSelection} />
+        <Editor
+          network={network}
+          selection={selection}
+          onSelectNode={this._onSelectNode}
+          onClearSelection={this._onClearSelection}
+        />
         <div class="viewer" id="viewer"></div>
         <ParamsEditor selection={selection} />
       </div>

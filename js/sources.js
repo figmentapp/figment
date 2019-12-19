@@ -16,7 +16,7 @@ node.onStart = (props) => {
 export const sourceBackgroundColor = `
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
-const inColor = node.inColor('color', [200, 200, 200, 1]);
+const inColor = node.inColor('color', [20, 20, 30, 1]);
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
@@ -29,7 +29,7 @@ triggerIn.onTrigger = (props) => {
 export const sourceRect = `
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
-const inColor = node.inColor('color', [50, 50, 150, 1]);
+const inColor = node.inColor('color', [150, 50, 150, 1]);
 const inPosition = node.inPoint('position', new g.Point(100, 100));
 const inRadius = node.inFloat('radius', 50, { min: 0, max: 1000 });
 triggerIn.onTrigger = (props) => {
