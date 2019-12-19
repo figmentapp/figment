@@ -39,7 +39,7 @@ triggerIn.onTrigger = (props) => {
   const pos = inPosition.value;
   const r = inRadius.value;
   ctx.save();
-  ctx.fillStyle = g.rgbToHex(...inColor.value);
+  ctx.fillStyle = \`rgba(\${inColor.value.join(',')})\`;
   ctx.translate(pos.x, pos.y);
   ctx.fillRect(-r, -r, r * 2, r * 2);
   ctx.restore();
