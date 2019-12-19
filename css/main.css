@@ -95,7 +95,34 @@ html, body {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
+  font-size: 12px;
+  font-family: 'SF Mono', Menlo, monospace;
 }
+
+/**** EDITOR ****/
+
+.editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor__tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.editor__tab {
+  color: var(--gray800);
+  padding: 0.5rem 1rem;
+}
+
+.editor__tab--active {
+  color: var(--gray200);
+  font-weight: bold;
+}
+
+
 
 .network {
   position: absolute;
@@ -104,6 +131,27 @@ html, body {
   height: 100vh;
   width: 500px;
   border-right: 1px solid var(--gray800);
+}
+
+.code, .CodeMirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 500px;
+  border-right: 1px solid var(--gray800);
+}
+
+.CodeMirror-code {
+  font-size: 0.8rem;
+
+}
+
+.code textarea {
+  font: 14px 'SF Mono', Menlo, monospace;
+  width: 100%;
+  height: 100%;
+  outline: none;
 }
 
 .viewer {
@@ -149,3 +197,5 @@ html, body {
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
 }
+
+

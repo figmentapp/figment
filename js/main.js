@@ -1,5 +1,11 @@
 import { h, Component, render } from 'preact';
+import CodeMirror from 'codemirror';
+import 'codemirror/mode/javascript/javascript.js';
+import 'codemirror/theme/darcula.css';
 import { COLORS } from './colors';
+import { sourceCanvas, sourceBackgroundColor, sourceRect } from './sources';
+import { Point, rgbToHex } from './g';
+import * as g from './g';
 
 const NODE_PORT_SIZE = 15;
 const NODE_WIDTH = NODE_PORT_SIZE * 5;
@@ -11,6 +17,7 @@ const DEFAULT_NETWORK = {
       id: 1,
       name: 'Canvas',
       type: 'core.canvas',
+      source: sourceCanvas,
       x: 50,
       y: 50
     },
@@ -18,6 +25,7 @@ const DEFAULT_NETWORK = {
       id: 2,
       name: 'Background Color',
       type: 'core.backgroundColor',
+      source: sourceBackgroundColor,
       x: 50,
       y: 150
     },
@@ -25,6 +33,7 @@ const DEFAULT_NETWORK = {
       id: 3,
       name: 'Rectangle',
       type: 'core.rect',
+      source: sourceRect,
       x: 100,
       y: 300
     }
@@ -32,7 +41,7 @@ const DEFAULT_NETWORK = {
   connections: [
     { outNode: 1, inNode: 2, outPort: 'out', inPort: 'in' },
     { outNode: 2, inNode: 3, outPort: 'out', inPort: 'in' },
-  ]
+  ],
 };
 
 function _hitTest(node, x, y) {
@@ -43,26 +52,10 @@ function _hitTest(node, x, y) {
   return x >= x1 && x <= x2 && y >= y1 && y <= y2;
 }
 
-const _rgbToHex = (r, g, b) => '#' + [r, g, b].map(x => {
-  const hex = x.toString(16)
-  return hex.length === 1 ? '0' + hex : hex
-}).join('');
-
 const PORT_TYPE_TRIGGER = 'trigger';
 const PORT_TYPE_FLOAT = 'float';
 const PORT_TYPE_COLOR = 'color';
 const PORT_TYPE_POINT = 'point';
-
-class Point {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  clone() {
-    return new Point(this.x, this.y);
-  }
-}
 
 class Port {
   constructor(node, name, type, value) {
@@ -140,8 +133,10 @@ class Network {
   parse(obj) {
     for (const nodeObj of obj.nodes) {
       const node = new Node(this, nodeObj.id, nodeObj.name, nodeObj.type, nodeObj.x, nodeObj.y);
-      const fn = NODE_FUNCTIONS[node.type];
-      fn(node);
+      node.source = nodeObj.source;
+      node.function = new Function('node', node.source);
+      //const fn = NODE_FUNCTIONS[node.type];
+      node.function.call({ Point }, node);
       this.nodes.push(node);
     }
     for (const connObj of obj.connections) {
@@ -207,7 +202,6 @@ const coreRect = (node) => {
     ctx.fillRect(-r, -r, r * 2, r * 2);
     ctx.restore();
   }
-
 }
 
 const NODE_FUNCTIONS = {
@@ -328,6 +322,27 @@ class NetworkEditor extends Component {
   }
 }
 
+class CodeEditor extends Component {
+  constructor(props) {
+    super(props);
+    console.log(props);
+    this.state = { source: props.node.source }
+  }
+
+  componentDidMount() {
+    const $code = document.getElementById('code');
+    this.editor = CodeMirror.fromTextArea($code, {
+      lineNumbers: true,
+      mode: 'javascript',
+      theme: 'darcula'
+    });
+  }
+
+  render() {
+    return (<div class="code"><textarea class="code__area" id="code" value={this.state.source}/></div>)
+  }
+}
+
 class ParamsEditor extends Component {
   constructor(props) {
     super(props);
@@ -349,6 +364,33 @@ class ParamsEditor extends Component {
         { node.outPorts.map(port => <div class="params__port">{port.name}</div>) }
       </div>
      );
+  }
+}
+
+class Editor extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { tabs: [props.network.nodes[0]], activeTabIndex: -1 };
+    this._addTab = this._addTab.bind(this);
+  }
+
+  _addTab(node) {
+    const { tabs } = this.state;
+    tabs.push(node);
+    this.setState({ tabs });
+  }
+
+  render({ network, selection, onSelectNode, onClearSelection }, { tabs, activeTabIndex }) {
+    return (
+      <div class="editor">
+        <div class="editor__tabs">
+          <div class={'editor__tab' + activeTabIndex === -1 ? ' editor__tab--active' : '' }>Network</div>
+          { tabs.map((node, i) => <div class={'editor__tab' + activeTabIndex === i ? ' editor__tab--active' : ''}>{node.name}</div>) }
+          { activeTabIndex === -1 && <NetworkEditor network={network} selection={selection} onSelectNode={onSelectNode} onClearSelection={onClearSelection} /> }
+          { activeTabIndex >= 0 && <CodeEditor node={tabs[activeTabIndex]} /> }
+        </div>
+      </div>
+    );
   }
 }
 
@@ -388,12 +430,14 @@ class App extends Component {
   render(_, { network, selection }) {
     return (
       <div class="app">
-        <NetworkEditor network={network} selection={selection} onSelectNode={this._onSelectNode}  onClearSelection={this._onClearSelection} />
+        <Editor network={network} selection={selection} onSelectNode={this._onSelectNode}  onClearSelection={this._onClearSelection} />
         <div class="viewer" id="viewer"></div>
         <ParamsEditor selection={selection} />
       </div>
     );
   }
 }
+
+window.g = g;
 
 render(<App />, document.getElementById('root'));

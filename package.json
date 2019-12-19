@@ -4,10 +4,11 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "parcel serve index.html",
+    "start": "parcel serve index.html",
     "build": "parcel build index.html"
   },
   "dependencies": {
+    "codemirror": "5.49.2",
     "preact": "10.1.1"
   },
   "devDependencies": {
