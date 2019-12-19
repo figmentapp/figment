@@ -4,7 +4,6 @@ import 'codemirror/mode/javascript/javascript.js';
 import 'codemirror/theme/darcula.css';
 import { COLORS } from './colors';
 import { sourceCanvas, sourceBackgroundColor, sourceRect } from './sources';
-import { Point, rgbToHex } from './g';
 import * as g from './g';
 
 const NODE_PORT_SIZE = 15;
