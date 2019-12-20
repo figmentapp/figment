@@ -3,14 +3,22 @@ const triggerOut = node.triggerOut('out');
 
 node.onStart = (props) => {
   console.log('STARTING DA NODE.');
-   const canvas = document.createElement('canvas');
-   canvas.width = 400;
-   canvas.height = 400;
-   const viewer = document.getElementById('viewer');
-   viewer.innerHTML = '';
-   viewer.appendChild(canvas);
-   const ctx = canvas.getContext('2d');
-   triggerOut.trigger({ canvas, ctx });
+  const canvas = document.createElement('canvas');
+  node._canvas = canvas;
+  canvas.width = 400;
+  canvas.height = 400;
+  const viewer = document.getElementById('viewer');
+  viewer.innerHTML = '';
+  viewer.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  node._ctx = ctx;
+  triggerOut.trigger({ canvas, ctx });
+};
+
+node.onFrame = () => {
+  const canvas = node._canvas;
+  const ctx = node._ctx;
+  triggerOut.trigger({ canvas, ctx });
 };
 `;
 

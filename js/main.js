@@ -189,6 +189,27 @@ class Network {
     }
     this.start();
   }
+
+  doFrame() {
+    for (const node of this.nodes) {
+      if (node.onFrame) {
+        node.onFrame(node);
+      }
+    }
+  }
+
+  setNodeSource(node, source) {
+    if (node.onStop) {
+      node.onStop(node);
+    }
+    node.source = source;
+    node.function = new Function('node', node.source);
+    node.function.call(window, node);
+    if (node.onStart) {
+      node.onStart(node);
+    }
+    this.doFrame();
+  }
 }
 
 class NetworkEditor extends Component {
@@ -364,7 +385,12 @@ class CodeEditor extends Component {
     });
     this.editor.setOption('extraKeys', {
       'Shift-Enter': () => {
-        this.props.onChangeSource(this.props.node, this.editor.getValue());
+        try {
+          this.props.onChangeSource(this.props.node, this.editor.getValue());
+        } catch (e) {
+          console.error(e);
+        }
+        return false;
       }
     });
   }
@@ -516,10 +542,7 @@ class App extends Component {
   }
 
   _onChangeSource(node, source) {
-    node.source = source;
-    //node.function = new Function('node', node.source);
-    //node.function.call(window, node);
-    this.state.network.restart();
+    this.state.network.setNodeSource(node, source);
   }
 
   render(_, { network, selection }) {
