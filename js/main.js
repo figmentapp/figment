@@ -58,8 +58,11 @@ const PORT_TYPE_FLOAT = 'float';
 const PORT_TYPE_COLOR = 'color';
 const PORT_TYPE_POINT = 'point';
 
+let gPortId = 0;
+
 class Port {
   constructor(node, name, type, value) {
+    this.__id = ++gPortId;
     this.node = node;
     this.name = name;
     this.type = type;
@@ -71,8 +74,12 @@ class Port {
   }
 }
 
+let gNodeId = 0;
+
 class Node {
   constructor(network, id, name, type, x, y) {
+    console.log('NEW ', name, x, y);
+    this.__id = ++gNodeId;
     this.network = network;
     this.id = id;
     this.name = name;
@@ -148,6 +155,7 @@ class Node {
 
 class Network {
   constructor() {
+    console.log('CONSTRUCT NETWORK');
     this.nodes = [];
     this.connections = [];
   }
@@ -208,6 +216,14 @@ class Network {
     if (node.onStart) {
       node.onStart(node);
     }
+    this.doFrame();
+  }
+
+  setPortValue(node, portName, value) {
+    const port = node.inPorts.find(p => p.name === portName);
+    console.assert(port, `Port ${name} does not exist.`);
+    //console.log(node.name, node.__id, portName, port.__id, value);
+    port.value = value;
     this.doFrame();
   }
 }
@@ -404,10 +420,79 @@ class CodeEditor extends Component {
   }
 }
 
+class NumberDrag extends Component {
+  constructor(props) {
+    super(props);
+    this._onMouseDown = this._onMouseDown.bind(this);
+    this._onMouseMove = this._onMouseMove.bind(this);
+    this._onMouseUp = this._onMouseUp.bind(this);
+  }
+
+  _onMouseDown(e) {
+    e.target.requestPointerLock();
+    window.addEventListener('mousemove', this._onMouseMove);
+    window.addEventListener('mouseup', this._onMouseUp);
+  }
+
+  _onMouseMove(e) {
+    this.props.onChange(this.props.value + e.movementX);
+  }
+
+  _onMouseUp(e) {
+    window.removeEventListener('mousemove', this._onMouseMove);
+    window.removeEventListener('mouseup', this._onMouseUp);
+    document.exitPointerLock();
+  }
+
+  render({ label, value }) {
+    return (
+      <span class="params__label" onMouseDown={this._onMouseDown}>
+        {label}
+      </span>
+    );
+  }
+}
+
+class FloatParam extends Component {
+  constructor(props) {
+    super(props);
+    this._onChange = this._onChange.bind(this);
+  }
+
+  _onChange(e) {
+    const value = parseInt(e.target.value);
+    if (isNaN(value)) return;
+    this.props.onChange(value);
+  }
+
+  render({ label, value, onChange }) {
+    return (
+      <div class="params__row">
+        <NumberDrag label={label} value={value} onChange={onChange} />
+        <input
+          type="text"
+          spellcheck="false"
+          class="params__field"
+          value={value}
+          onChange={this._onChange}
+        />
+      </div>
+    );
+  }
+}
+
 class ParamsEditor extends Component {
   constructor(props) {
     super(props);
+    this._onChangePortValue = this._onChangePortValue.bind(this);
   }
+
+  _onChangePortValue(portName, value) {
+    this.props.selection.forEach(node => {
+      this.props.onChangePortValue(node, portName, value);
+    })
+  }
+
   render({ selection }) {
     if (selection.size === 0) {
       return (
@@ -428,15 +513,30 @@ class ParamsEditor extends Component {
       <div class="params">
         <div class="params__title">{node.name}</div>
         <div class="params__header">IN</div>
-        {node.inPorts.map(port => (
-          <div class="params__port">{port.name}</div>
-        ))}
+        {node.inPorts.map(port => this._renderPort(node, port))}
         <div class="params__header">OUT</div>
         {node.outPorts.map(port => (
           <div class="params__port">{port.name}</div>
         ))}
       </div>
     );
+  }
+
+  _renderPort(node, port) {
+    let field;
+    if (port.type === 'float') {
+      field = <FloatParam label={port.name} value={port.value} onChange={value => this._onChangePortValue(port.name, value)} />;
+    } else {
+      field = <div class="params__row"><span class="params__label">{port.name}</span><span class="params__field">{port.value}</span></div>;
+    }
+    return field;
+    // (
+    //   <div class="params__row">
+    //   {field}
+    //     <div class="params__label">{port.name}</div>
+    //     <div class="params__field">{field}</div>
+    //   </div>
+    // );
   }
 }
 
@@ -516,6 +616,7 @@ class App extends Component {
     this._onSelectNode = this._onSelectNode.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
+    this._onChangePortValue = this._onChangePortValue.bind(this);
   }
 
   componentDidMount() {
@@ -543,6 +644,12 @@ class App extends Component {
 
   _onChangeSource(node, source) {
     this.state.network.setNodeSource(node, source);
+    this.forceUpdate();
+  }
+
+  _onChangePortValue(node, portName, value) {
+    this.state.network.setPortValue(node, portName, value);
+    this.forceUpdate();
   }
 
   render(_, { network, selection }) {
@@ -555,8 +662,8 @@ class App extends Component {
           onClearSelection={this._onClearSelection}
           onChangeSource={this._onChangeSource}
         />
-        <div class="viewer" id="viewer"></div>
-        <ParamsEditor selection={selection} />
+        <div class="viewer" id="viewer" />
+        <ParamsEditor network={network} selection={selection} onChangePortValue={this._onChangePortValue} />
       </div>
     );
   }

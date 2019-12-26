@@ -223,3 +223,33 @@ body {
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
 }
+
+.params__row {
+  display: flex;
+  margin-bottom: 0.75rem;
+  align-items: baseline;
+}
+
+.params__field {
+  color: var(--gray300);
+}
+
+input.params__field {
+  border: 1px solid var(--gray500);
+  background: transparent;
+  color: var(--gray300);
+  padding: 0.25rem;
+  outline: none;
+}
+
+input.params__field:focus {
+  border-color: var(--blue500);
+}
+
+.params__label {
+  width: 100px;
+  text-align: right;
+  margin-right: 1rem;
+  cursor: ew-resize;
+  color: var(--gray600);
+}
