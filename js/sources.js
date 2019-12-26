@@ -2,7 +2,6 @@ export const sourceCanvas = `
 const triggerOut = node.triggerOut('out');
 
 node.onStart = (props) => {
-  console.log('STARTING DA NODE.');
   const canvas = document.createElement('canvas');
   node._canvas = canvas;
   canvas.width = 400;

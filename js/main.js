@@ -78,7 +78,6 @@ let gNodeId = 0;
 
 class Node {
   constructor(network, id, name, type, x, y) {
-    console.log('NEW ', name, x, y);
     this.__id = ++gNodeId;
     this.network = network;
     this.id = id;
@@ -155,7 +154,6 @@ class Node {
 
 class Network {
   constructor() {
-    console.log('CONSTRUCT NETWORK');
     this.nodes = [];
     this.connections = [];
   }
@@ -222,7 +220,6 @@ class Network {
   setPortValue(node, portName, value) {
     const port = node.inPorts.find(p => p.name === portName);
     console.assert(port, `Port ${name} does not exist.`);
-    //console.log(node.name, node.__id, portName, port.__id, value);
     port.value = value;
     this.doFrame();
   }
@@ -379,15 +376,12 @@ class CodeEditor extends Component {
   constructor(props) {
     super(props);
     this.state = { source: props.node.source };
-    this._onKeyDown = this._onKeyDown.bind(this);
-  }
-
-  _onKeyDown(e) {
-    console.log('E', e);
+    //this._onKeyDown = this._onKeyDown.bind(this);
   }
 
   componentDidUpdate(prevProps) {
     if (prevProps.node !== this.props.node) {
+      this.setState({ source: this.props.node.source });
       this.editor.setValue(this.props.node.source);
     }
   }
@@ -490,7 +484,7 @@ class ParamsEditor extends Component {
   _onChangePortValue(portName, value) {
     this.props.selection.forEach(node => {
       this.props.onChangePortValue(node, portName, value);
-    })
+    });
   }
 
   render({ selection }) {
@@ -525,9 +519,20 @@ class ParamsEditor extends Component {
   _renderPort(node, port) {
     let field;
     if (port.type === 'float') {
-      field = <FloatParam label={port.name} value={port.value} onChange={value => this._onChangePortValue(port.name, value)} />;
+      field = (
+        <FloatParam
+          label={port.name}
+          value={port.value}
+          onChange={value => this._onChangePortValue(port.name, value)}
+        />
+      );
     } else {
-      field = <div class="params__row"><span class="params__label">{port.name}</span><span class="params__field">{port.value}</span></div>;
+      field = (
+        <div class="params__row">
+          <span class="params__label">{port.name}</span>
+          <span class="params__field">{port.value}</span>
+        </div>
+      );
     }
     return field;
     // (
@@ -568,7 +573,8 @@ class Editor extends Component {
     this.setState({ activeTabIndex: index });
   }
 
-  _onCloseTab(index) {
+  _onCloseTab(e, index) {
+    e.stopPropagation();
     const { tabs } = this.state;
     tabs.splice(index, 1);
     this.setState({ tabs, activeTabIndex: tabs.length - 1 });
@@ -593,7 +599,11 @@ class Editor extends Component {
               onClick={() => this._onSelectTab(i)}
             >
               <span class="editor__tab-name">{node.name}</span>
-              <a class="editor__tab-close" onClick={() => this._onCloseTab(i)}><svg viewBox="0 0 16 16" width="16" height="16"><path d="M4 4L12 12M12 4L4 12"/></svg></a>
+              <a class="editor__tab-close" onClick={e => this._onCloseTab(e, i)}>
+                <svg viewBox="0 0 16 16" width="16" height="16">
+                  <path d="M4 4L12 12M12 4L4 12" />
+                </svg>
+              </a>
             </div>
           ))}
         </div>
@@ -670,7 +680,11 @@ class App extends Component {
           onChangeSource={this._onChangeSource}
         />
         <div class="viewer" id="viewer" />
-        <ParamsEditor network={network} selection={selection} onChangePortValue={this._onChangePortValue} />
+        <ParamsEditor
+          network={network}
+          selection={selection}
+          onChangePortValue={this._onChangePortValue}
+        />
       </div>
     );
   }
