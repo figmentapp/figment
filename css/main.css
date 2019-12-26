@@ -122,21 +122,44 @@ body {
   flex-direction: row;
   align-items: center;
   height: 30px;
-  background: var(--gray900);
+  background: #0d1017;
 }
 
 .editor__tab {
+  font-size: 0.9rem;
+  background: var(--gray900);
   color: var(--gray500);
   padding: 0 1rem;
   line-height: 30px;
   height: 30px;
   cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-right: 1px solid #0d1017;
 }
 
 .editor__tab--active {
   color: var(--gray200);
   background-color: var(--gray800);
   border-right: 1px solid var(--gray900);
+}
+
+.editor__tab-close {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-left: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.editor__tab:hover .editor__tab-close {
+  opacity: 1;
+}
+
+.editor__tab-close path {
+  stroke: var(--gray200);
 }
 
 /**** NETWORK ****/

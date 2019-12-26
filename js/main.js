@@ -568,6 +568,12 @@ class Editor extends Component {
     this.setState({ activeTabIndex: index });
   }
 
+  _onCloseTab(index) {
+    const { tabs } = this.state;
+    tabs.splice(index, 1);
+    this.setState({ tabs, activeTabIndex: tabs.length - 1 });
+  }
+
   render(
     { network, selection, onSelectNode, onClearSelection, onChangeSource },
     { tabs, activeTabIndex }
@@ -586,7 +592,8 @@ class Editor extends Component {
               class={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')}
               onClick={() => this._onSelectTab(i)}
             >
-              {node.name}
+              <span class="editor__tab-name">{node.name}</span>
+              <a class="editor__tab-close" onClick={() => this._onCloseTab(i)}><svg viewBox="0 0 16 16" width="16" height="16"><path d="M4 4L12 12M12 4L4 12"/></svg></a>
             </div>
           ))}
         </div>
