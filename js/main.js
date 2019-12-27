@@ -226,6 +226,11 @@ class Network {
   }
 }
 
+const DRAG_MODE_IDLE = 'idle';
+const DRAG_MODE_PANNING = 'panning';
+const DRAG_MODE_DRAGGING = 'dragging';
+const DRAG_MODE_SELECTING = 'selecting';
+
 class NetworkEditor extends Component {
   constructor(props) {
     super(props);
@@ -234,6 +239,7 @@ class NetworkEditor extends Component {
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
     this._onDoubleClick = this._onDoubleClick.bind(this);
+    this._dragMode = DRAG_MODE_IDLE;
   }
 
   componentDidMount() {
@@ -255,6 +261,7 @@ class NetworkEditor extends Component {
           id="network"
           onMouseDown={this._onMouseDown}
           onDblClick={this._onDoubleClick}
+          onContextMenu={e => e.preventDefault()}
         />
       </div>
     );
@@ -281,34 +288,52 @@ class NetworkEditor extends Component {
   }
 
   _onMouseDown(e) {
-    window.addEventListener('mousemove', this._onMouseMove);
-    window.addEventListener('mouseup', this._onMouseUp);
+    e.preventDefault();
+    if (e.button === 2 || e.button === 1) {
+      this._dragMode = DRAG_MODE_PANNING;
+    } else if (e.button === 0) {
+      this._dragMode = DRAG_MODE_SELECTING;
+    } else {
+      this._dragMode = DRAG_MODE_IDLE;
+      return;
+    }
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
     this.prevX = mouseX;
     this.prevY = mouseY;
-    const [networkX, networkY] = this._networkPosition(e);
-    const node = this._findNode(networkX, networkY);
-    if (node) {
-      this.props.onSelectNode(node);
-    } else {
-      this.props.onClearSelection();
+    if (this._dragMode === DRAG_MODE_SELECTING) {
+      const [networkX, networkY] = this._networkPosition(e);
+      const node = this._findNode(networkX, networkY);
+      if (node) {
+        this.props.onSelectNode(node);
+      } else {
+        this.props.onClearSelection();
+      }
     }
+    window.addEventListener('mousemove', this._onMouseMove);
+    window.addEventListener('mouseup', this._onMouseUp);
   }
 
   _onMouseMove(e) {
+    e.preventDefault();
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
     const dx = mouseX - this.prevX;
     const dy = mouseY - this.prevY;
-    this.setState({ x: this.state.x + dx, y: this.state.y + dy });
+    if (this._dragMode === DRAG_MODE_PANNING) {
+      this.setState({ x: this.state.x + dx, y: this.state.y + dy });
+    } else if (this._dragMode === DRAG_MODE_SELECTING) {
+      // FIXME implement box selections
+    }
     this.prevX = mouseX;
     this.prevY = mouseY;
   }
 
-  _onMouseUp() {
+  _onMouseUp(e) {
+    e.preventDefault();
     window.removeEventListener('mousemove', this._onMouseMove);
     window.removeEventListener('mouseup', this._onMouseUp);
+    this._dragMode = DRAG_MODE_IDLE;
   }
 
   _onDoubleClick(e) {
@@ -493,9 +518,9 @@ class ColorParam extends Component {
     return (
       <div class="params__row">
         <label class="params__label">{label}</label>
-        <input type="color" value={value} onChange={this._onChange}/>
+        <input type="color" value={value} onChange={this._onChange} />
       </div>
-    )
+    );
   }
 }
 
@@ -551,7 +576,13 @@ class ParamsEditor extends Component {
         />
       );
     } else if (port.type === 'color') {
-      field = (<ColorParam label={port.name} value={port.value} onChange={value =>this._onChangePortValue(port.name, value)}/>)
+      field = (
+        <ColorParam
+          label={port.name}
+          value={port.value}
+          onChange={value => this._onChangePortValue(port.name, value)}
+        />
+      );
     } else {
       field = (
         <div class="params__row">
