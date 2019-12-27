@@ -8,6 +8,7 @@
     "build": "parcel build index.html"
   },
   "dependencies": {
+    "chroma-js": "2.1.0",
     "codemirror": "5.49.2",
     "preact": "10.1.1"
   },

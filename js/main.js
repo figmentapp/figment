@@ -2,6 +2,7 @@ import { h, Component, render } from 'preact';
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/javascript/javascript.js';
 import 'codemirror/theme/darcula.css';
+import chroma from 'chroma-js';
 import { COLORS } from './colors';
 import { sourceCanvas, sourceBackgroundColor, sourceRect } from './sources';
 import * as g from './g';
@@ -475,6 +476,29 @@ class FloatParam extends Component {
   }
 }
 
+class ColorParam extends Component {
+  constructor(props) {
+    super(props);
+    this._onChange = this._onChange.bind(this);
+  }
+
+  _onChange(e) {
+    let value = e.target.value;
+    value = chroma(value).rgb();
+    this.props.onChange(value);
+  }
+
+  render({ label, value }) {
+    value = chroma(value).hex();
+    return (
+      <div class="params__row">
+        <label class="params__label">{label}</label>
+        <input type="color" value={value} onChange={this._onChange}/>
+      </div>
+    )
+  }
+}
+
 class ParamsEditor extends Component {
   constructor(props) {
     super(props);
@@ -526,6 +550,8 @@ class ParamsEditor extends Component {
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
+    } else if (port.type === 'color') {
+      field = (<ColorParam label={port.name} value={port.value} onChange={value =>this._onChangePortValue(port.name, value)}/>)
     } else {
       field = (
         <div class="params__row">
