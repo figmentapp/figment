@@ -34,6 +34,18 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+export const sourceSequence = `
+const triggerIn = node.triggerIn('in');
+for (let i = 1; i <= 10; i++) {
+  node.triggerOut(\`out\${i}\`)
+}
+triggerIn.onTrigger = (props) => {
+  for (const outPort of node.outPorts) {
+    outPort.trigger(props);
+  }
+};
+`;
+
 export const sourceRect = `
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');

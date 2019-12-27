@@ -4,7 +4,7 @@ import 'codemirror/mode/javascript/javascript.js';
 import 'codemirror/theme/darcula.css';
 import chroma from 'chroma-js';
 import { COLORS } from './colors';
-import { sourceCanvas, sourceBackgroundColor, sourceRect } from './sources';
+import * as sources from './sources';
 import * as g from './g';
 
 const NODE_PORT_SIZE = 15;
@@ -19,7 +19,7 @@ const DEFAULT_NETWORK = {
       id: 1,
       name: 'Canvas',
       type: 'core.canvas',
-      source: sourceCanvas,
+      source: sources.sourceCanvas,
       x: 50,
       y: 50
     },
@@ -27,28 +27,56 @@ const DEFAULT_NETWORK = {
       id: 2,
       name: 'Background Color',
       type: 'core.backgroundColor',
-      source: sourceBackgroundColor,
+      source: sources.sourceBackgroundColor,
+      x: 50,
+      y: 100
+    },
+    {
+      id: 3,
+      name: 'Sequence',
+      type: 'core.sequence',
+      source: sources.sourceSequence,
       x: 50,
       y: 150
     },
     {
-      id: 3,
+      id: 4,
       name: 'Rectangle',
       type: 'core.rect',
-      source: sourceRect,
-      x: 100,
+      source: sources.sourceRect,
+      x: 50,
       y: 300
+    },
+    {
+      id: 5,
+      name: 'Rectangle',
+      type: 'core.rect',
+      source: sources.sourceRect,
+      x: 250,
+      y: 300,
+      values: {
+        position: [150, 150],
+        color: [200, 200, 200, 1]
+      }
     }
   ],
   connections: [
     { outNode: 1, inNode: 2, outPort: 'out', inPort: 'in' },
-    { outNode: 2, inNode: 3, outPort: 'out', inPort: 'in' }
+    { outNode: 2, inNode: 3, outPort: 'out', inPort: 'in' },
+    { outNode: 3, inNode: 4, outPort: 'out1', inPort: 'in' },
+    { outNode: 3, inNode: 5, outPort: 'out2', inPort: 'in' }
   ]
 };
 
+function _nodeWidth(node) {
+  let portCount = Math.max(node.inPorts.length, node.outPorts.length);
+  portCount = Math.max(5, portCount);
+  return portCount * NODE_PORT_SIZE;
+}
+
 function _hitTest(node, x, y) {
   const x1 = node.x;
-  const x2 = x1 + NODE_WIDTH;
+  const x2 = x1 + _nodeWidth(node);
   const y1 = node.y;
   const y2 = y1 + NODE_HEIGHT;
   return x >= x1 && x <= x2 && y >= y1 && y <= y2;
@@ -165,6 +193,21 @@ class Network {
       node.source = nodeObj.source.trim();
       node.function = new Function('node', node.source);
       node.function.call(window, node);
+      if (nodeObj.values) {
+        for (const portName of Object.keys(nodeObj.values)) {
+          const value = nodeObj.values[portName];
+          const port = node.inPorts.find(p => p.name === portName);
+          if (port.type === 'float') {
+            port.value = value;
+          } else if (port.type === 'point') {
+            port.value = new g.Point(value[0], value[1]);
+          } else if (port.type === 'color') {
+            port.value = value.slice();
+          } else {
+            throw new Error(`Unsupported port type ${port.name} ${port.type} ${value}`);
+          }
+        }
+      }
       this.nodes.push(node);
     }
     for (const connObj of obj.connections) {
@@ -352,12 +395,13 @@ class NetworkEditor extends Component {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const nodeColors = [COLORS.gray400, COLORS.gray500, COLORS.gray600];
     for (const node of network.nodes) {
+      const nodeWidth = _nodeWidth(node);
       if (selection.has(node)) {
         ctx.fillStyle = COLORS.gray600;
-        ctx.fillRect(node.x - 3, node.y - 3, NODE_WIDTH + 6, NODE_HEIGHT + 6);
+        ctx.fillRect(node.x - 3, node.y - 3, nodeWidth + 6, NODE_HEIGHT + 6);
       }
       ctx.fillStyle = COLORS.gray700;
-      ctx.fillRect(node.x, node.y, NODE_PORT_SIZE * 5, NODE_PORT_SIZE * 2);
+      ctx.fillRect(node.x, node.y, nodeWidth, NODE_PORT_SIZE * 2);
       for (let i = 0; i < node.inPorts.length; i++) {
         ctx.fillStyle = nodeColors[i % nodeColors.length];
         ctx.fillRect(node.x + i * NODE_PORT_SIZE, node.y, NODE_PORT_SIZE, NODE_PORT_SIZE);
@@ -376,7 +420,8 @@ class NetworkEditor extends Component {
     ctx.fillStyle = COLORS.gray300;
     ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
-      ctx.fillText(node.name, node.x + NODE_PORT_SIZE * 6, node.y + NODE_PORT_SIZE * 1.3);
+      const nodeWidth = _nodeWidth(node);
+      ctx.fillText(node.name, node.x + nodeWidth + NODE_PORT_SIZE, node.y + NODE_PORT_SIZE * 1.3);
     }
     ctx.strokeStyle = COLORS.gray200;
     ctx.strokeWidth = 2;
