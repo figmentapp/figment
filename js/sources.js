@@ -36,7 +36,7 @@ triggerIn.onTrigger = (props) => {
 
 export const sourceSequence = `
 const triggerIn = node.triggerIn('in');
-for (let i = 1; i <= 10; i++) {
+for (let i = 1; i <= 8; i++) {
   node.triggerOut(\`out\${i}\`)
 }
 triggerIn.onTrigger = (props) => {
