@@ -7,9 +7,9 @@ import { COLORS } from './colors';
 import * as sources from './sources';
 import * as g from './g';
 
-const NODE_PORT_SIZE = 15;
-const NODE_WIDTH = NODE_PORT_SIZE * 5;
-const NODE_HEIGHT = NODE_PORT_SIZE * 2;
+const NODE_PORT_WIDTH = 15;
+const NODE_PORT_HEIGHT = 5;
+const NODE_HEIGHT = NODE_PORT_WIDTH * 2;
 const EDITOR_TABS_HEIGHT = 30;
 const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace`;
 
@@ -70,8 +70,9 @@ const DEFAULT_NETWORK = {
 
 function _nodeWidth(node) {
   let portCount = Math.max(node.inPorts.length, node.outPorts.length);
-  portCount = Math.max(5, portCount);
-  return portCount * NODE_PORT_SIZE;
+  portCount = Math.max(4, portCount);
+  portCount++;
+  return portCount * NODE_PORT_WIDTH;
 }
 
 function _hitTest(node, x, y) {
@@ -86,6 +87,13 @@ const PORT_TYPE_TRIGGER = 'trigger';
 const PORT_TYPE_FLOAT = 'float';
 const PORT_TYPE_COLOR = 'color';
 const PORT_TYPE_POINT = 'point';
+
+const PORT_COLORS = {
+  [PORT_TYPE_TRIGGER]: COLORS.yellow300,
+  [PORT_TYPE_FLOAT]: COLORS.gray500,
+  [PORT_TYPE_COLOR]: COLORS.gray600,
+  [PORT_TYPE_POINT]: COLORS.gray700
+};
 
 let gPortId = 0;
 
@@ -401,39 +409,42 @@ class NetworkEditor extends Component {
         ctx.fillRect(node.x - 3, node.y - 3, nodeWidth + 6, NODE_HEIGHT + 6);
       }
       ctx.fillStyle = COLORS.gray700;
-      ctx.fillRect(node.x, node.y, nodeWidth, NODE_PORT_SIZE * 2);
+      ctx.fillRect(node.x, node.y, nodeWidth, NODE_PORT_WIDTH * 2);
       for (let i = 0; i < node.inPorts.length; i++) {
-        ctx.fillStyle = nodeColors[i % nodeColors.length];
-        ctx.fillRect(node.x + i * NODE_PORT_SIZE, node.y, NODE_PORT_SIZE, NODE_PORT_SIZE);
+        const port = node.inPorts[i];
+        ctx.fillStyle = PORT_COLORS[port.type];
+        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y, NODE_PORT_WIDTH - 2, NODE_PORT_HEIGHT);
       }
       for (let i = 0; i < node.outPorts.length; i++) {
-        ctx.fillStyle = nodeColors[(i + 1) % nodeColors.length];
+        const port = node.outPorts[i];
+        ctx.fillStyle = PORT_COLORS[port.type];
         ctx.fillRect(
-          node.x + i * NODE_PORT_SIZE,
-          node.y + NODE_PORT_SIZE,
-          NODE_PORT_SIZE,
-          NODE_PORT_SIZE
+          node.x + i * NODE_PORT_WIDTH,
+          node.y + NODE_HEIGHT - NODE_PORT_HEIGHT,
+          NODE_PORT_WIDTH - 2,
+          NODE_PORT_HEIGHT
         );
       }
-      ctx.fillRect(node.x, node.y + NODE_PORT_SIZE, NODE_PORT_SIZE, NODE_PORT_SIZE);
     }
     ctx.fillStyle = COLORS.gray300;
     ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
       const nodeWidth = _nodeWidth(node);
-      ctx.fillText(node.name, node.x + nodeWidth + NODE_PORT_SIZE, node.y + NODE_PORT_SIZE * 1.3);
+      ctx.fillText(node.name, node.x + nodeWidth + NODE_PORT_WIDTH, node.y + NODE_PORT_WIDTH * 1.3);
     }
-    ctx.strokeStyle = COLORS.gray200;
-    ctx.strokeWidth = 2;
+    //ctx.strokeStyle = COLORS.gray200;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     for (const conn of network.connections) {
       const outNode = network.nodes.find(node => node.id === conn.outNode);
       const outPortIndex = outNode.outPorts.findIndex(port => port.name === conn.outPort);
       const inNode = network.nodes.find(node => node.id === conn.inNode);
       const inPortIndex = inNode.inPorts.findIndex(port => port.name === conn.inPort);
-      const outX = outNode.x + outPortIndex * NODE_PORT_SIZE + NODE_PORT_SIZE / 2;
-      const outY = outNode.y + NODE_PORT_SIZE * 2;
-      const inX = inNode.x + inPortIndex * NODE_PORT_SIZE + NODE_PORT_SIZE / 2;
+      const outPort = outNode.outPorts.find(port => port.name === conn.outPort);
+      ctx.strokeStyle = PORT_COLORS[outPort.type];
+      const outX = outNode.x + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+      const outY = outNode.y + NODE_PORT_WIDTH * 2;
+      const inX = inNode.x + inPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
       const inY = inNode.y;
       const halfDy = Math.abs(inY - outY) / 2.0;
       ctx.moveTo(outX, outY);
