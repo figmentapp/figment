@@ -258,10 +258,10 @@ body {
 }
 
 input.params__field {
-  border: 1px solid var(--gray500);
-  background: transparent;
+  border: none;
+  background: var(--gray700);
   color: var(--gray300);
-  padding: 0.25rem;
+  padding: 0.5rem;
   outline: none;
 }
 
