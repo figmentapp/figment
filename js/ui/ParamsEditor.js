@@ -154,7 +154,10 @@ export default class ParamsEditor extends Component {
     const node = Array.from(selection)[0];
     return (
       <div class="params">
-        <div class="text-gray-200 p-4 bg-gray-700 mb-5">{node.name}</div>
+        <div class=" p-4 bg-gray-700 mb-5 flex justify-between items-baseline">
+          <span class="text-gray-200">{node.name}</span>
+          <span class="text-gray-500 text-xs ml-3">{node.type}</span>
+        </div>
         {node.inPorts.map(port => this._renderPort(node, port))}
       </div>
     );
