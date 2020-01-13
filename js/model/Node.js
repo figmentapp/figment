@@ -23,7 +23,7 @@ export default class Node {
     return inPort;
   }
 
-  inFloat(name, value) {
+  floatIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       oldPort.value = value;
@@ -35,7 +35,7 @@ export default class Node {
     }
   }
 
-  inPoint(name, value) {
+  pointIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       oldPort.value = value;
@@ -47,7 +47,7 @@ export default class Node {
     }
   }
 
-  inColor(name, value) {
+  colorIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       oldPort.value = value;
