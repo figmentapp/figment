@@ -198,5 +198,6 @@ export default class Network {
       inPort: inPort.name
     };
     this.connections.push(conn);
+    this.doFrame();
   }
 }

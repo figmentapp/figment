@@ -17,6 +17,8 @@ core.custom = `// Empty custom node.
 const triggerIn = node.triggerIn('in');
 
 triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+  ctx.fillStyle = 'red';
   ctx.fillRect(10, 20, 30, 40);
 };
 `;
