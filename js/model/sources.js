@@ -21,7 +21,6 @@ widthIn.onChange = resize;
 heightIn.onChange = resize;
 
 node.onFrame = () => {
-  console.log('graphics.canvas.onFrame()');
   const canvas = node._canvas;
   const ctx = node._ctx;
   triggerOut.trigger({ canvas, ctx });
