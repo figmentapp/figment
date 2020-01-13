@@ -9,6 +9,11 @@ export default class Library {
       source: core.sequence
     });
     this.nodeTypes.push({
+      name: 'Time',
+      type: 'core.time',
+      source: core.time
+    });
+    this.nodeTypes.push({
       name: 'Custom',
       type: 'core.custom',
       source: core.custom

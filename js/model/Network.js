@@ -18,6 +18,13 @@ export const DEFAULT_NETWORK = {
       y: 50
     },
     {
+      id: 6,
+      name: 'Time',
+      type: 'core.time',
+      x: 250,
+      y: 50
+    },
+    {
       id: 2,
       name: 'Background Color',
       type: 'graphics.backgroundColor',

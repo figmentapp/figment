@@ -13,6 +13,23 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+core.time = `// Get the current time (in frames and seconds).
+const triggerIn = node.triggerIn('in');
+const frameOut = node.numberOut('frame', 0);
+const secondsOut = node.numberOut('seconds', 0);
+
+node.onStart = (props) => {
+  node._frame = 0;
+  node._startTime = Date.now();
+}
+
+triggerIn.onTrigger = (props) => {
+  node._frame++;
+  frameOut.set(node._frame);
+  secondsOut.set((Date.now() - node._startTime) / 1000);
+}
+`;
+
 core.custom = `// Empty custom node.
 const triggerIn = node.triggerIn('in');
 
