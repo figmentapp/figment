@@ -25,6 +25,7 @@ export default class App extends Component {
       showNodeDialog: false,
       lastNetworkPoint
     };
+    this.state.selection.add(network.nodes.find(n => n.name === 'Rectangle'));
     this._onSelectNode = this._onSelectNode.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);

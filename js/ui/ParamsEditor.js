@@ -25,9 +25,9 @@ class NumberDrag extends Component {
     document.exitPointerLock();
   }
 
-  render({ label, value }) {
+  render({ label }) {
     return (
-      <span class="params__label" onMouseDown={this._onMouseDown}>
+      <span class="w-32 text-right text-gray-200 mr-4" onMouseDown={this._onMouseDown}>
         {label}
       </span>
     );
@@ -48,12 +48,12 @@ class FloatParam extends Component {
 
   render({ label, value, onChange }) {
     return (
-      <div class="params__row">
+      <div class="flex items-center">
         <NumberDrag label={label} value={value} onChange={onChange} />
         <input
           type="text"
           spellcheck="false"
-          class="params__field"
+          class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
           value={value}
           onChange={this._onChange}
         />
@@ -78,8 +78,41 @@ class ColorParam extends Component {
     value = chroma(value).hex();
     return (
       <div class="params__row">
-        <label class="params__label">{label}</label>
-        <input type="color" value={value} onChange={this._onChange} />
+        <label class="w-32 text-right text-gray-200 mr-4">{label}</label>
+        <input class="w-16 bg-gray-700 p-2" type="color" value={value} onChange={this._onChange} />
+      </div>
+    );
+  }
+}
+
+class PointParam extends Component {
+  constructor(props) {
+    super(props);
+    this._onChange = this._onChange.bind(this);
+  }
+
+  _onChange(e) {
+    // let value = e.target.value;
+    // value = chroma(value).rgb();
+    // this.props.onChange(value);
+  }
+
+  render({ label, value }) {
+    return (
+      <div class="params__row">
+        <label class="w-32 text-right text-gray-200 mr-4">{label}</label>
+        <input
+          class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
+          type="number"
+          value={value.x}
+          onChange={this._onChange}
+        />
+        <input
+          class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
+          type="number"
+          value={value.y}
+          onChange={this._onChange}
+        />
       </div>
     );
   }
@@ -115,22 +148,27 @@ export default class ParamsEditor extends Component {
     const node = Array.from(selection)[0];
     return (
       <div class="params">
-        <div class="params__title">{node.name}</div>
-        <div class="params__header">IN</div>
+        <div class="text-gray-200 p-4 bg-gray-700 mb-5">{node.name}</div>
         {node.inPorts.map(port => this._renderPort(node, port))}
-        <div class="params__header">OUT</div>
-        {node.outPorts.map(port => (
-          <div class="params__port">{port.name}</div>
-        ))}
       </div>
     );
   }
 
   _renderPort(node, port) {
     let field;
-    if (port.type === 'float') {
+    if (port.type === 'trigger') {
+      return;
+    } else if (port.type === 'float') {
       field = (
         <FloatParam
+          label={port.name}
+          value={port.value}
+          onChange={value => this._onChangePortValue(port.name, value)}
+        />
+      );
+    } else if (port.type === 'point') {
+      field = (
+        <PointParam
           label={port.name}
           value={port.value}
           onChange={value => this._onChangePortValue(port.name, value)}
