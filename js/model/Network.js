@@ -170,6 +170,9 @@ export default class Network {
     const port = node.inPorts.find(p => p.name === portName);
     console.assert(port, `Port ${name} does not exist.`);
     port.value = value;
+    if (port.onChange) {
+      port.onChange();
+    }
     this.doFrame();
   }
 }

@@ -1,20 +1,27 @@
 export const sourceCanvas = `// Initialize a new canvas and triggers the render every frame.
+const widthIn = node.floatIn('width', 500);
+const heightIn = node.floatIn('height', 500);
 const triggerOut = node.triggerOut('out');
 
-node.onStart = (props) => {
+function resize() {
   const canvas = document.createElement('canvas');
   node._canvas = canvas;
-  canvas.width = 400;
-  canvas.height = 400;
+  canvas.width = widthIn.value;
+  canvas.height = heightIn.value;
   const viewer = document.getElementById('viewer');
   viewer.innerHTML = '';
   viewer.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   node._ctx = ctx;
   triggerOut.trigger({ canvas, ctx });
-};
+}
+
+node.onStart = resize;
+widthIn.onChange = resize;
+heightIn.onChange = resize;
 
 node.onFrame = () => {
+  console.log('graphics.canvas.onFrame()');
   const canvas = node._canvas;
   const ctx = node._ctx;
   triggerOut.trigger({ canvas, ctx });
