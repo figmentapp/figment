@@ -50,10 +50,15 @@ export default class NetworkEditor extends Component {
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
     this._onDoubleClick = this._onDoubleClick.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
+    this._onKeyUp = this._onKeyUp.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
+    this._spaceDown = false;
   }
 
   componentDidMount() {
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keyup', this._onKeyUp);
     this.canvas = document.getElementById('network');
     this.ctx = this.canvas.getContext('2d');
     const bounds = this.canvas.parentNode.getBoundingClientRect();
@@ -62,6 +67,11 @@ export default class NetworkEditor extends Component {
     this.canvas.width = bounds.width * window.devicePixelRatio;
     this.canvas.height = bounds.height * window.devicePixelRatio;
     this._draw();
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('keyup', this._onKeyUp);
   }
 
   render() {
@@ -100,7 +110,7 @@ export default class NetworkEditor extends Component {
 
   _onMouseDown(e) {
     e.preventDefault();
-    if (e.button === 2 || e.button === 1) {
+    if (e.button === 2 || e.button === 1 || this._spaceDown) {
       this._dragMode = DRAG_MODE_PANNING;
     } else if (e.button === 0) {
       this._dragMode = DRAG_MODE_SELECTING;
@@ -161,6 +171,20 @@ export default class NetworkEditor extends Component {
       this.props.onOpenCode(node);
     } else {
       this.props.onShowNodeDialog(new Point(networkX, networkY));
+    }
+  }
+
+  _onKeyDown(e) {
+    if (e.keyCode === 32) {
+      e.preventDefault();
+      this._spaceDown = true;
+    }
+  }
+
+  _onKeyUp(e) {
+    if (e.keyCode === 32) {
+      e.preventDefault();
+      this._spaceDown = false;
     }
   }
 
