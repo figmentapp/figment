@@ -1,5 +1,4 @@
-export const sourceCanvas = `
-// Initialize a new canvas and triggers the render every frame.
+export const sourceCanvas = `// Initialize a new canvas and triggers the render every frame.
 const triggerOut = node.triggerOut('out');
 
 node.onStart = (props) => {
@@ -22,8 +21,7 @@ node.onFrame = () => {
 };
 `;
 
-export const sourceBackgroundColor = `
-// Fill the entire canvas with the background color.
+export const sourceBackgroundColor = `// Fill the entire canvas with the background color.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
 const inColor = node.inColor('color', [20, 20, 30, 1]);
@@ -36,8 +34,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-export const sourceSequence = `
-// Execute the connected nodes in the correct order. 
+export const sourceSequence = `// Execute the connected nodes in the correct order. 
 const triggerIn = node.triggerIn('in');
 for (let i = 1; i <= 8; i++) {
   node.triggerOut(\`out\${i}\`)
@@ -49,8 +46,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-export const sourceRect = `
-// Draw a rectangle on the canvas.
+export const sourceRect = `// Draw a rectangle on the canvas.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
 const inColor = node.inColor('color', [150, 50, 150, 1]);
