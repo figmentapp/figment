@@ -55,7 +55,7 @@ export default class NodeDialog extends Component {
               autofocus
             ></input>
             <span
-              class="bg-gray-600 text-gray-700 p-6 text-xl  flex items-center justify-center font-bold cursor-pointer"
+              class="bg-gray-600 text-gray-700 p-6 text-xl flex items-center justify-center font-bold cursor-pointer"
               onClick={() => this.props.hideNodeDialog()}
             >
               x
@@ -69,7 +69,10 @@ export default class NodeDialog extends Component {
 
   _renderNodeType(nodeType) {
     return (
-      <div class="bg-gray-800 p-4 flex" onDblClick={() => this._onCreateNode(nodeType)}>
+      <div
+        class="bg-gray-800 p-4 flex items-center border-t border-gray-700"
+        onDblClick={() => this._onCreateNode(nodeType)}
+      >
         <div class="flex-grow">
           <h4 class="text-xl text-gray-200">
             {nodeType.name} <span class="text-sm text-gray-700">{nodeType.type}</span>
