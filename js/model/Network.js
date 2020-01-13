@@ -44,10 +44,10 @@ export const DEFAULT_NETWORK = {
     }
   ],
   connections: [
-    { outNode: 1, inNode: 2, outPort: 'out', inPort: 'in' },
-    { outNode: 2, inNode: 3, outPort: 'out', inPort: 'in' },
-    { outNode: 3, inNode: 4, outPort: 'out1', inPort: 'in' },
-    { outNode: 3, inNode: 5, outPort: 'out2', inPort: 'in' }
+    { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
+    { outNode: 3, outPort: 'out1', inNode: 4, inPort: 'in' },
+    { outNode: 3, outPort: 'out2', inNode: 5, inPort: 'in' }
   ]
 };
 
@@ -174,5 +174,15 @@ export default class Network {
       port.onChange();
     }
     this.doFrame();
+  }
+
+  connect(outNode, outPort, inNode, inPort) {
+    const conn = {
+      outNode: outNode.id,
+      outPort: outPort.name,
+      inNode: inNode.id,
+      inPort: inPort.name
+    };
+    this.connections.push(conn);
   }
 }

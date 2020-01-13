@@ -2,6 +2,7 @@ import { h, Component } from 'preact';
 
 import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
+import { PORT_IN, PORT_OUT } from '../model/Port';
 import Editor from './Editor';
 import ParamsEditor from './ParamsEditor';
 import NodeDialog from './NodeDialog';
@@ -33,6 +34,7 @@ export default class App extends Component {
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
     this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
+    this._onConnect = this._onConnect.bind(this);
   }
 
   componentDidMount() {
@@ -87,6 +89,20 @@ export default class App extends Component {
     this.setState({ showNodeDialog: false });
   }
 
+  _onConnect(port1, port2) {
+    let inPort, outPort;
+    if (port1.direction === PORT_OUT) {
+      if (port2.direction !== PORT_IN) return;
+      outPort = port1;
+      inPort = port2;
+    } else {
+      if (port2.direction !== PORT_OUT) return;
+      inPort = port2;
+      outPort = port1;
+    }
+    this.state.network.connect(outPort.node, outPort, inPort.node, inPort);
+  }
+
   render(_, { library, network, selection, showNodeDialog }) {
     return (
       <div class="app">
@@ -99,6 +115,7 @@ export default class App extends Component {
             onClearSelection={this._onClearSelection}
             onChangeSource={this._onChangeSource}
             onShowNodeDialog={this._onShowNodeDialog}
+            onConnect={this._onConnect}
           />
           <ParamsEditor
             network={network}

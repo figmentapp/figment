@@ -49,7 +49,7 @@ export default class NodeDialog extends Component {
             <input
               id="node-dialog-search"
               type="search"
-              class="bg-gray-500 flex-grow p-6 placeholder-gray-700"
+              class="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none"
               placeholder="Type to search"
               onInput={this._onSearch}
               autofocus

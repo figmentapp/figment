@@ -1,4 +1,11 @@
-import Port, { PORT_TYPE_TRIGGER, PORT_TYPE_FLOAT, PORT_TYPE_POINT, PORT_TYPE_COLOR } from './Port';
+import Port, {
+  PORT_TYPE_TRIGGER,
+  PORT_TYPE_FLOAT,
+  PORT_TYPE_POINT,
+  PORT_TYPE_COLOR,
+  PORT_IN,
+  PORT_OUT
+} from './Port';
 
 let gNodeId = 0;
 
@@ -18,7 +25,7 @@ export default class Node {
   triggerIn(name) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
-    const inPort = new Port(this, name, PORT_TYPE_TRIGGER);
+    const inPort = new Port(this, name, PORT_TYPE_TRIGGER, PORT_IN);
     this.inPorts.push(inPort);
     return inPort;
   }
@@ -32,7 +39,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_FLOAT, value);
+      const inPort = new Port(this, name, PORT_TYPE_FLOAT, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }
@@ -47,7 +54,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_POINT, value && value.clone());
+      const inPort = new Port(this, name, PORT_TYPE_POINT, PORT_IN, value && value.clone());
       this.inPorts.push(inPort);
       return inPort;
     }
@@ -62,7 +69,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_COLOR, value);
+      const inPort = new Port(this, name, PORT_TYPE_COLOR, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }
@@ -71,7 +78,7 @@ export default class Node {
   triggerOut(name) {
     const oldPort = this.outPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
-    const outPort = new Port(this, name, PORT_TYPE_TRIGGER);
+    const outPort = new Port(this, name, PORT_TYPE_TRIGGER, PORT_OUT);
     this.outPorts.push(outPort);
     return outPort;
   }

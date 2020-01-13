@@ -74,6 +74,7 @@ export default class Editor extends Component {
             onClearSelection={onClearSelection}
             onOpenCode={this._onOpenCode}
             onShowNodeDialog={this.props.onShowNodeDialog}
+            onConnect={this.props.onConnect}
           />
         )}
         {activeTabIndex >= 0 && (

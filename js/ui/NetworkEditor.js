@@ -5,7 +5,9 @@ import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_FLOAT,
   PORT_TYPE_COLOR,
-  PORT_TYPE_POINT
+  PORT_TYPE_POINT,
+  PORT_IN,
+  PORT_OUT
 } from '../model/Port';
 
 const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace`;
@@ -17,7 +19,8 @@ const EDITOR_TABS_HEIGHT = 30;
 
 const DRAG_MODE_IDLE = 'idle';
 const DRAG_MODE_PANNING = 'panning';
-const DRAG_MODE_DRAGGING = 'dragging';
+const DRAG_MODE_DRAG_NODE = 'drag_node';
+const DRAG_MODE_DRAG_PORT = 'drag_port';
 const DRAG_MODE_SELECTING = 'selecting';
 
 const PORT_COLORS = {
@@ -54,6 +57,8 @@ export default class NetworkEditor extends Component {
     this._onKeyUp = this._onKeyUp.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
+    this._dragPort = null;
+    this._dragX = this._dragY = 0;
   }
 
   componentDidMount() {
@@ -100,6 +105,17 @@ export default class NetworkEditor extends Component {
     }
   }
 
+  _findPort(node, x, y) {
+    const dx = x - node.x;
+    const dy = y - node.y;
+    const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
+    if (dy < NODE_HEIGHT / 2) {
+      return node.inPorts[portIndex];
+    } else {
+      return node.outPorts[portIndex];
+    }
+  }
+
   _networkPosition(e) {
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
@@ -125,9 +141,17 @@ export default class NetworkEditor extends Component {
     if (this._dragMode === DRAG_MODE_SELECTING) {
       const [networkX, networkY] = this._networkPosition(e);
       const node = this._findNode(networkX, networkY);
-      if (node) {
-        this._dragMode = DRAG_MODE_DRAGGING;
+      const port = node && this._findPort(node, networkX, networkY);
+      if (port) {
+        this._dragMode = DRAG_MODE_DRAG_PORT;
+        this._dragPort = port;
+        const [x, y] = this._networkPosition(e);
+        this._dragX = x;
+        this._dragY = y;
+      } else if (node) {
+        this._dragMode = DRAG_MODE_DRAG_NODE;
         this.props.onSelectNode(node);
+        this._draw();
       } else {
         this.props.onClearSelection();
       }
@@ -146,11 +170,16 @@ export default class NetworkEditor extends Component {
       this.setState({ x: this.state.x + dx, y: this.state.y + dy });
     } else if (this._dragMode === DRAG_MODE_SELECTING) {
       // FIXME implement box selections
-    } else if (this._dragMode === DRAG_MODE_DRAGGING) {
+    } else if (this._dragMode === DRAG_MODE_DRAG_NODE) {
       this.props.selection.forEach(node => {
         node.x += dx * this.state.scale;
         node.y += dy * this.state.scale;
       });
+      this._draw();
+    } else if (this._dragMode === DRAG_MODE_DRAG_PORT) {
+      const [x, y] = this._networkPosition(e);
+      this._dragX = x;
+      this._dragY = y;
       this._draw();
     }
     this.prevX = mouseX;
@@ -159,9 +188,16 @@ export default class NetworkEditor extends Component {
 
   _onMouseUp(e) {
     e.preventDefault();
+    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
+      const [networkX, networkY] = this._networkPosition(e);
+      const node = this._findNode(networkX, networkY);
+      const port = node && this._findPort(node, networkX, networkY);
+      if (port) this.props.onConnect(this._dragPort, port);
+    }
     window.removeEventListener('mousemove', this._onMouseMove);
     window.removeEventListener('mouseup', this._onMouseUp);
     this._dragMode = DRAG_MODE_IDLE;
+    this._draw();
   }
 
   _onDoubleClick(e) {
@@ -192,8 +228,8 @@ export default class NetworkEditor extends Component {
     const { canvas, ctx } = this;
     const { network, selection } = this.props;
     const ratio = window.devicePixelRatio;
-    ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
     const nodeColors = [COLORS.gray400, COLORS.gray500, COLORS.gray600];
     for (const node of network.nodes) {
       const nodeWidth = _nodeWidth(node);
@@ -227,22 +263,52 @@ export default class NetworkEditor extends Component {
     }
     //ctx.strokeStyle = COLORS.gray200;
     ctx.lineWidth = 2;
-    ctx.beginPath();
     for (const conn of network.connections) {
       const outNode = network.nodes.find(node => node.id === conn.outNode);
       const outPortIndex = outNode.outPorts.findIndex(port => port.name === conn.outPort);
       const inNode = network.nodes.find(node => node.id === conn.inNode);
       const inPortIndex = inNode.inPorts.findIndex(port => port.name === conn.inPort);
       const outPort = outNode.outPorts.find(port => port.name === conn.outPort);
-      ctx.strokeStyle = PORT_COLORS[outPort.type];
       const outX = outNode.x + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
       const outY = outNode.y + NODE_PORT_WIDTH * 2;
       const inX = inNode.x + inPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
       const inY = inNode.y;
-      const halfDy = Math.abs(inY - outY) / 2.0;
-      ctx.moveTo(outX, outY);
-      ctx.bezierCurveTo(outX, outY + halfDy, inX, inY - halfDy, inX, inY);
+      ctx.strokeStyle = PORT_COLORS[outPort.type];
+      this._drawConnectionLine(ctx, outX, outY, inX, inY);
     }
+    ctx.strokeStyle = COLORS.gray300;
+    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
+      const port = this._dragPort;
+      let portIndex;
+      if (port.direction === PORT_IN) {
+        portIndex = port.node.inPorts.findIndex(p => p === this._dragPort);
+      } else {
+        portIndex = port.node.outPorts.findIndex(p => p === this._dragPort);
+      }
+      ctx.beginPath();
+      let x1, y1, x2, y2;
+      if (port.direction === PORT_OUT) {
+        x1 = port.node.x + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+        y1 = port.direction === PORT_IN ? port.node.y : port.node.y + NODE_PORT_WIDTH * 2;
+        x2 = this._dragX;
+        y2 = this._dragY;
+      } else {
+        x2 = port.node.x + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+        y2 = port.direction === PORT_IN ? port.node.y : port.node.y + NODE_PORT_WIDTH * 2;
+        x1 = this._dragX;
+        y1 = this._dragY;
+      }
+      ctx.beginPath();
+      this._drawConnectionLine(ctx, x1, y1, x2, y2);
+      ctx.stroke();
+    }
+  }
+
+  _drawConnectionLine(ctx, x1, y1, x2, y2) {
+    const halfDy = Math.abs(y2 - y1) / 2.0;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(x1, y1 + halfDy, x2, y2 - halfDy, x2, y2);
     ctx.stroke();
   }
 }
