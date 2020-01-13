@@ -40,6 +40,7 @@ export default class Node {
   }
 
   numberIn(name, value) {
+    if (!value) value = 0;
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
@@ -55,6 +56,7 @@ export default class Node {
   }
 
   pointIn(name, value) {
+    if (!value) value = new g.Point(0, 0);
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
@@ -70,6 +72,7 @@ export default class Node {
   }
 
   colorIn(name, value) {
+    if (!value) value = [0, 0, 0, 1];
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
