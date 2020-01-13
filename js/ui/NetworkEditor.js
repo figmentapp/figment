@@ -199,7 +199,7 @@ export default class NetworkEditor extends Component {
     ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
       const nodeWidth = _nodeWidth(node);
-      ctx.fillText(node.name, node.x + nodeWidth + NODE_PORT_WIDTH, node.y + NODE_PORT_WIDTH * 1.3);
+      ctx.fillText(node.name, node.x + nodeWidth + 10, node.y + NODE_PORT_WIDTH * 1.3);
     }
     //ctx.strokeStyle = COLORS.gray200;
     ctx.lineWidth = 2;
