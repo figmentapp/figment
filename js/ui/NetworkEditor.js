@@ -116,6 +116,7 @@ export default class NetworkEditor extends Component {
       const [networkX, networkY] = this._networkPosition(e);
       const node = this._findNode(networkX, networkY);
       if (node) {
+        this._dragMode = DRAG_MODE_DRAGGING;
         this.props.onSelectNode(node);
       } else {
         this.props.onClearSelection();
@@ -135,6 +136,12 @@ export default class NetworkEditor extends Component {
       this.setState({ x: this.state.x + dx, y: this.state.y + dy });
     } else if (this._dragMode === DRAG_MODE_SELECTING) {
       // FIXME implement box selections
+    } else if (this._dragMode === DRAG_MODE_DRAGGING) {
+      this.props.selection.forEach(node => {
+        node.x += dx * this.state.scale;
+        node.y += dy * this.state.scale;
+      });
+      this._draw();
     }
     this.prevX = mouseX;
     this.prevY = mouseY;
