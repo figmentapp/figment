@@ -1,5 +1,12 @@
 import Node from './Node';
 import * as sources from './sources';
+import Port, {
+  PORT_TYPE_TRIGGER,
+  PORT_TYPE_BUTTON,
+  PORT_TYPE_NUMBER,
+  PORT_TYPE_POINT,
+  PORT_TYPE_COLOR,
+} from './Port';
 
 export const DEFAULT_NETWORK = {
   nodes: [
@@ -97,11 +104,11 @@ export default class Network {
         for (const portName of Object.keys(nodeObj.values)) {
           const value = nodeObj.values[portName];
           const port = node.inPorts.find(p => p.name === portName);
-          if (port.type === 'float') {
+          if (port.type === PORT_TYPE_NUMBER) {
             port.value = value;
-          } else if (port.type === 'point') {
+          } else if (port.type === PORT_TYPE_POINT) {
             port.value = new g.Point(value[0], value[1]);
-          } else if (port.type === 'color') {
+          } else if (port.type === PORT_TYPE_COLOR) {
             port.value = value.slice();
           } else {
             throw new Error(`Unsupported port type ${port.name} ${port.type} ${value}`);

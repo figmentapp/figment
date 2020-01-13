@@ -4,7 +4,7 @@ import { Point } from '../g';
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_BUTTON,
-  PORT_TYPE_FLOAT,
+  PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR
 } from '../model/Port';
@@ -190,7 +190,7 @@ export default class ParamsEditor extends Component {
       return;
     } else if (port.type === PORT_TYPE_BUTTON) {
       field =  <div class="params__row"><span class="w-32 mr-4"></span><button class="bg-gray-600 text-gray-200 w-16 p-2" onClick={value => this._onTriggerButton(port)}>{port.name}</button></div>
-    } else if (port.type === PORT_TYPE_FLOAT) {
+    } else if (port.type === PORT_TYPE_NUMBER) {
       field = (
         <FloatParam
           label={port.name}

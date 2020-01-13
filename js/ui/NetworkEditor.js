@@ -3,7 +3,7 @@ import { COLORS } from '../colors';
 import { Point } from '../g';
 import {
   PORT_TYPE_TRIGGER,
-  PORT_TYPE_FLOAT,
+  PORT_TYPE_NUMBER,
   PORT_TYPE_COLOR,
   PORT_TYPE_POINT,
   PORT_IN,
@@ -25,7 +25,7 @@ const DRAG_MODE_SELECTING = 'selecting';
 
 const PORT_COLORS = {
   [PORT_TYPE_TRIGGER]: COLORS.yellow300,
-  [PORT_TYPE_FLOAT]: COLORS.gray500,
+  [PORT_TYPE_NUMBER]: COLORS.gray500,
   [PORT_TYPE_COLOR]: COLORS.gray600,
   [PORT_TYPE_POINT]: COLORS.gray700
 };

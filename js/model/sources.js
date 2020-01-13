@@ -22,8 +22,8 @@ triggerIn.onTrigger = (props) => {
 `;
 
 graphics.canvas = `// Initialize a new canvas and triggers the render every frame.
-const widthIn = node.floatIn('width', 500);
-const heightIn = node.floatIn('height', 500);
+const widthIn = node.numberIn('width', 500);
+const heightIn = node.numberIn('height', 500);
 const triggerOut = node.triggerOut('out');
 
 function resize() {
@@ -65,7 +65,7 @@ triggerIn.onTrigger = (props) => {
 
 graphics.clone = `// Clone and transform the shapes.
 const triggerIn = node.triggerIn('in');
-const amount = node.floatIn('amount', 5);
+const amount = node.numberIn('amount', 5);
 const translateIn = node.pointIn('translate', new g.Point(20, 20));
 const triggerOut = node.triggerOut('out');
 
@@ -85,7 +85,7 @@ const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
 const colorIn = node.colorIn('color', [150, 50, 150, 1]);
 const positionIn = node.pointIn('position', new g.Point(100, 100));
-const radiusIn = node.floatIn('radius', 50, { min: 0, max: 1000 });
+const radiusIn = node.numberIn('radius', 50, { min: 0, max: 1000 });
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;

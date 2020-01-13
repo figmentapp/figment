@@ -1,7 +1,7 @@
 import Port, {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_BUTTON,
-  PORT_TYPE_FLOAT,
+  PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_IN,
@@ -39,7 +39,7 @@ export default class Node {
     return inPort;
   }
 
-  floatIn(name, value) {
+  numberIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
@@ -48,7 +48,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_FLOAT, PORT_IN, value);
+      const inPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }
