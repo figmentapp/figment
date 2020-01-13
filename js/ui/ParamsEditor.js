@@ -11,15 +11,18 @@ class NumberDrag extends Component {
 
   _onMouseDown(e) {
     e.target.requestPointerLock();
+    e.preventDefault();
     window.addEventListener('mousemove', this._onMouseMove);
     window.addEventListener('mouseup', this._onMouseUp);
   }
 
   _onMouseMove(e) {
+    e.preventDefault();
     this.props.onChange(this.props.value + e.movementX);
   }
 
   _onMouseUp(e) {
+    e.preventDefault();
     window.removeEventListener('mousemove', this._onMouseMove);
     window.removeEventListener('mouseup', this._onMouseUp);
     document.exitPointerLock();
@@ -27,7 +30,10 @@ class NumberDrag extends Component {
 
   render({ label }) {
     return (
-      <span class="w-32 text-right text-gray-500 mr-4" onMouseDown={this._onMouseDown}>
+      <span
+        class="w-32 text-right text-gray-500 mr-4 cursor-ew-resize"
+        onMouseDown={this._onMouseDown}
+      >
         {label}
       </span>
     );
