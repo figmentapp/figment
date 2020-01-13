@@ -7,6 +7,7 @@ export default class NodeDialog extends Component {
     this.library = new Library();
     this.state = { q: '', results: this.library.nodeTypes };
     this._onSearch = this._onSearch.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
   }
 
   _onSearch(e) {
@@ -21,17 +22,44 @@ export default class NodeDialog extends Component {
     this.props.onCreateNode(nodeType);
   }
 
+  componentDidMount() {
+    window.addEventListener('keydown', this._onKeyDown);
+    document.getElementById('node-dialog-search').focus();
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._onKeyDown);
+  }
+
+  _onKeyDown(e) {
+    if (e.keyCode === 27) {
+      this.props.hideNodeDialog();
+    } else if (e.keyCode === 13) {
+      if (this.state.results.length > 0) {
+        this.props.onCreateNode(this.state.results[0]);
+      }
+    }
+  }
+
   render({}, { results }) {
     return (
       <div class="dialog-wrapper">
         <div class="dialog node-dialog shadow-xl w-1/2 h-1/2">
           <div class="flex">
             <input
+              id="node-dialog-search"
               type="search"
               class="bg-gray-500 flex-grow p-6 placeholder-gray-700"
               placeholder="Type to search"
               onInput={this._onSearch}
+              autofocus
             ></input>
+            <span
+              class="bg-gray-600 text-gray-700 p-6 text-xl  flex items-center justify-center font-bold cursor-pointer"
+              onClick={() => this.props.hideNodeDialog()}
+            >
+              x
+            </span>
           </div>
           <div class="flex flex-col">{results.map(nodeType => this._renderNodeType(nodeType))}</div>
         </div>
@@ -49,7 +77,7 @@ export default class NodeDialog extends Component {
           <p class="text-gray-500 text-sm">{nodeType.description}</p>
         </div>
         <div class="ml-5">
-          <div class="block rounded-sm bg-gray-700 text-gray-800 text-xl w-8 h-8 flex items-center justify-center font-bold  cursor-pointer">
+          <div class="block rounded-sm bg-gray-700 text-gray-600 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
             <div onClick={() => this._onCreateNode(nodeType)}>+</div>
           </div>
         </div>

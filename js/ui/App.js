@@ -31,6 +31,7 @@ export default class App extends Component {
     this._onChangeSource = this._onChangeSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
+    this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
   }
 
@@ -75,6 +76,10 @@ export default class App extends Component {
     this.setState({ showNodeDialog: true, lastNetworkPoint: pt });
   }
 
+  _onHideNodeDialog() {
+    this.setState({ showNodeDialog: false });
+  }
+
   _onCreateNode(nodeType) {
     console.assert(typeof nodeType === 'object');
     const pt = this.state.lastNetworkPoint;
@@ -100,7 +105,9 @@ export default class App extends Component {
           selection={selection}
           onChangePortValue={this._onChangePortValue}
         />
-        {showNodeDialog && <NodeDialog onCreateNode={this._onCreateNode} />}
+        {showNodeDialog && (
+          <NodeDialog onCreateNode={this._onCreateNode} hideNodeDialog={this._onHideNodeDialog} />
+        )}
       </div>
     );
   }
