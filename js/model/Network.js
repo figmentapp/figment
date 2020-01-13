@@ -6,16 +6,14 @@ export const DEFAULT_NETWORK = {
     {
       id: 1,
       name: 'Canvas',
-      type: 'core.canvas',
-      source: sources.sourceCanvas,
+      type: 'graphics.canvas',
       x: 50,
       y: 50
     },
     {
       id: 2,
       name: 'Background Color',
-      type: 'core.backgroundColor',
-      source: sources.sourceBackgroundColor,
+      type: 'graphics.backgroundColor',
       x: 50,
       y: 100
     },
@@ -23,23 +21,20 @@ export const DEFAULT_NETWORK = {
       id: 3,
       name: 'Sequence',
       type: 'core.sequence',
-      source: sources.sourceSequence,
       x: 50,
       y: 150
     },
     {
       id: 4,
       name: 'Rectangle',
-      type: 'core.rect',
-      source: sources.sourceRect,
+      type: 'graphics.rect',
       x: 50,
       y: 300
     },
     {
       id: 5,
       name: 'Rectangle',
-      type: 'core.rect',
-      source: sources.sourceRect,
+      type: 'graphics.rect',
       x: 250,
       y: 300,
       values: {
@@ -57,17 +52,47 @@ export const DEFAULT_NETWORK = {
 };
 
 export default class Network {
-  constructor() {
+  constructor(library) {
+    this.library = library;
     this.nodes = [];
     this.connections = [];
+    this._id = 0;
+  }
+
+  _nextId() {
+    return ++this._id;
+  }
+
+  createNode(typeId, x, y, options) {
+    if (typeof typeId !== 'string') {
+      debugger;
+    }
+    console.assert(typeof typeId === 'string');
+    options = options || {};
+    let id;
+    if (typeof options.id === 'number') {
+      id = options.id;
+      this._id = Math.max(this._id, id);
+    } else {
+      id = this._nextId();
+    }
+    const nodeType = this.library.findByType(typeId);
+    const node = new Node(this, id, nodeType.name, nodeType.type, x, y);
+    const source = nodeType.source;
+    const fn = new Function('node', source);
+    fn.call(window, node);
+    this.nodes.push(node);
+    return node;
   }
 
   parse(obj) {
     for (const nodeObj of obj.nodes) {
-      const node = new Node(this, nodeObj.id, nodeObj.name, nodeObj.type, nodeObj.x, nodeObj.y);
-      node.source = nodeObj.source.trim();
-      node.function = new Function('node', node.source);
-      node.function.call(window, node);
+      const node = this.createNode(nodeObj.type, nodeObj.x, nodeObj.y, { id: nodeObj.id });
+      node.name = nodeObj.name;
+      // const node = new Node(this, nodeObj.id, nodeObj.name, nodeObj.type, nodeObj.x, nodeObj.y);
+      // node.source = nodeObj.source.trim();
+      // node.function = new Function('node', node.source);
+      // node.function.call(window, node);
       if (nodeObj.values) {
         for (const portName of Object.keys(nodeObj.values)) {
           const value = nodeObj.values[portName];
@@ -83,7 +108,6 @@ export default class Network {
           }
         }
       }
-      this.nodes.push(node);
     }
     for (const connObj of obj.connections) {
       this.connections.push(connObj);
@@ -106,14 +130,14 @@ export default class Network {
     }
   }
 
-  restart() {
-    this.stop();
-    for (const node of this.nodes) {
-      node.function = new Function('node', node.source);
-      node.function.call(window, node);
-    }
-    this.start();
-  }
+  // restart() {
+  //   this.stop();
+  //   for (const node of this.nodes) {
+  //     node.function = new Function('node', node.source);
+  //     node.function.call(window, node);
+  //   }
+  //   this.start();
+  // }
 
   doFrame() {
     for (const node of this.nodes) {
@@ -123,16 +147,22 @@ export default class Network {
     }
   }
 
-  setNodeSource(node, source) {
-    if (node.onStop) {
-      node.onStop(node);
+  setNodeTypeSource(nodeType, source) {
+    console.assert(typeof nodeType === 'object');
+    // Find all nodes with this source type.
+    const nodes = this.nodes.filter(n => n.type === nodeType.type);
+    nodeType.source = source;
+    const fn = new Function('node', nodeType.source);
+    for (const node of nodes) {
+      if (node.onStop) {
+        node.onStop(node);
+      }
+      fn.call(window, node);
+      if (node.onStart) {
+        node.onStart(node);
+      }
     }
-    node.source = source;
-    node.function = new Function('node', node.source);
-    node.function.call(window, node);
-    if (node.onStart) {
-      node.onStart(node);
-    }
+
     this.doFrame();
   }
 

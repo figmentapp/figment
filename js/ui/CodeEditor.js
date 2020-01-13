@@ -6,14 +6,14 @@ import 'codemirror/theme/darcula.css';
 export default class CodeEditor extends Component {
   constructor(props) {
     super(props);
-    this.state = { source: props.node.source };
+    this.state = { source: props.nodeType.source };
     //this._onKeyDown = this._onKeyDown.bind(this);
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.node !== this.props.node) {
-      this.setState({ source: this.props.node.source });
-      this.editor.setValue(this.props.node.source);
+    if (prevProps.nodeType !== this.props.nodeType) {
+      this.setState({ source: this.props.nodeType.source });
+      this.editor.setValue(this.props.nodeType.source);
     }
   }
 
@@ -24,11 +24,11 @@ export default class CodeEditor extends Component {
       mode: 'javascript',
       theme: 'darcula'
     });
-    const mod = /Mac/.test(navigator.platform) ? "Cmd" : "Ctrl"
+    const mod = /Mac/.test(navigator.platform) ? 'Cmd' : 'Ctrl';
     this.editor.setOption('extraKeys', {
       [`${mod}-Enter`]: () => {
         try {
-          this.props.onChangeSource(this.props.node, this.editor.getValue());
+          this.props.onChangeSource(this.props.nodeType, this.editor.getValue());
         } catch (e) {
           console.error(e);
         }

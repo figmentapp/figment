@@ -6,24 +6,25 @@ import CodeEditor from './CodeEditor';
 export default class Editor extends Component {
   constructor(props) {
     super(props);
-    this.state = { tabs: [props.network.nodes[1]], activeTabIndex: -1 };
+    this.state = { tabs: [], activeTabIndex: -1 };
     this._addTab = this._addTab.bind(this);
     this._onSelectTab = this._onSelectTab.bind(this);
     this._onOpenCode = this._onOpenCode.bind(this);
   }
 
-  _addTab(node) {
+  _addTab(nodeType) {
     const { tabs } = this.state;
-    tabs.push(node);
+    tabs.push(nodeType);
     this.setState({ tabs });
   }
 
   _onOpenCode(node) {
-    if (this.state.tabs.includes(node)) {
-      this.setState({ activeTabIndex: this.state.tabs.indexOf(node) });
+    const nodeType = this.props.library.findByType(node.type);
+    if (this.state.tabs.includes(nodeType)) {
+      this.setState({ activeTabIndex: this.state.tabs.indexOf(nodeType) });
       return;
     }
-    this._addTab(node);
+    this._addTab(nodeType);
     this.setState({ activeTabIndex: this.state.tabs.length - 1 });
   }
 
@@ -72,10 +73,11 @@ export default class Editor extends Component {
             onSelectNode={onSelectNode}
             onClearSelection={onClearSelection}
             onOpenCode={this._onOpenCode}
+            onShowNodeDialog={this.props.onShowNodeDialog}
           />
         )}
         {activeTabIndex >= 0 && (
-          <CodeEditor node={tabs[activeTabIndex]} onChangeSource={onChangeSource} />
+          <CodeEditor nodeType={tabs[activeTabIndex]} onChangeSource={onChangeSource} />
         )}
       </div>
     );

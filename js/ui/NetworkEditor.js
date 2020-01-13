@@ -1,5 +1,6 @@
 import { h, Component } from 'preact';
 import { COLORS } from '../colors';
+import { Point } from '../g';
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_FLOAT,
@@ -151,6 +152,8 @@ export default class NetworkEditor extends Component {
     const node = this._findNode(networkX, networkY);
     if (node) {
       this.props.onOpenCode(node);
+    } else {
+      this.props.onShowNodeDialog(new Point(networkX, networkY));
     }
   }
 
