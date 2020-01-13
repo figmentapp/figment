@@ -24,8 +24,9 @@ export default class CodeEditor extends Component {
       mode: 'javascript',
       theme: 'darcula'
     });
+    const mod = /Mac/.test(navigator.platform) ? "Cmd" : "Ctrl"
     this.editor.setOption('extraKeys', {
-      'Cmd-Enter': () => {
+      [`${mod}-Enter`]: () => {
         try {
           this.props.onChangeSource(this.props.node, this.editor.getValue());
         } catch (e) {
