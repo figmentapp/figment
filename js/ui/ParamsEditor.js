@@ -1,5 +1,6 @@
 import { h, Component } from 'preact';
 import chroma from 'chroma-js';
+import { Point } from '../g';
 
 class NumberDrag extends Component {
   constructor(props) {
@@ -18,7 +19,12 @@ class NumberDrag extends Component {
 
   _onMouseMove(e) {
     e.preventDefault();
-    this.props.onChange(this.props.value + e.movementX);
+    if (this.props.direction === 'xy') {
+      const value = this.props.value;
+      this.props.onChange(new Point(value.x + e.movementX, value.y + e.movementY));
+    } else {
+      this.props.onChange(this.props.value + e.movementX);
+    }
   }
 
   _onMouseUp(e) {
@@ -28,10 +34,12 @@ class NumberDrag extends Component {
     document.exitPointerLock();
   }
 
-  render({ label }) {
+  render({ label, direction }) {
     return (
       <span
-        class="w-32 text-right text-gray-500 mr-4 cursor-ew-resize"
+        class={`w-32 text-right text-gray-500 mr-4 ${
+          direction === 'xy' ? 'cursor-move' : 'cursor-col-resize'
+        }`}
         onMouseDown={this._onMouseDown}
       >
         {label}
@@ -106,18 +114,18 @@ class PointParam extends Component {
   render({ label, value }) {
     return (
       <div class="params__row">
-        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <NumberDrag label={label} value={value} onChange={this.props.onChange} direction="xy" />
         <input
           class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.x}
-          onChange={this._onChange}
+          onChange={e => this.props.onChange(new Point(parseFloat(e.target.value), value.y))}
         />
         <input
           class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.y}
-          onChange={this._onChange}
+          onChange={e => this.props.onChange(new Point(value.x, parseFloat(e.target.value)))}
         />
       </div>
     );

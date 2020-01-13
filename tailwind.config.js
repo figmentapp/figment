@@ -1,7 +1,8 @@
 module.exports = {
   theme: {
     cursor: {
-      'ew-resize': 'ew-resize'
+      'col-resize': 'col-resize',
+      move: 'move'
     }
   },
   variants: {},
