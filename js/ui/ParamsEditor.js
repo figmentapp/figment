@@ -27,7 +27,7 @@ class NumberDrag extends Component {
 
   render({ label }) {
     return (
-      <span class="w-32 text-right text-gray-200 mr-4" onMouseDown={this._onMouseDown}>
+      <span class="w-32 text-right text-gray-500 mr-4" onMouseDown={this._onMouseDown}>
         {label}
       </span>
     );
@@ -48,7 +48,7 @@ class FloatParam extends Component {
 
   render({ label, value, onChange }) {
     return (
-      <div class="flex items-center">
+      <div class="flex items-center mb-2">
         <NumberDrag label={label} value={value} onChange={onChange} />
         <input
           type="text"
@@ -78,7 +78,7 @@ class ColorParam extends Component {
     value = chroma(value).hex();
     return (
       <div class="params__row">
-        <label class="w-32 text-right text-gray-200 mr-4">{label}</label>
+        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
         <input class="w-16 bg-gray-700 p-2" type="color" value={value} onChange={this._onChange} />
       </div>
     );
@@ -100,7 +100,7 @@ class PointParam extends Component {
   render({ label, value }) {
     return (
       <div class="params__row">
-        <label class="w-32 text-right text-gray-200 mr-4">{label}</label>
+        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
         <input
           class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
           type="number"
