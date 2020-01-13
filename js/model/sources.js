@@ -1,4 +1,27 @@
-export const sourceCanvas = `// Initialize a new canvas and triggers the render every frame.
+export const core = {};
+export const graphics = {};
+
+core.sequence = `// Execute the connected nodes in the correct order. 
+const triggerIn = node.triggerIn('in');
+for (let i = 1; i <= 8; i++) {
+  node.triggerOut(\`out\${i}\`)
+}
+triggerIn.onTrigger = (props) => {
+  for (const outPort of node.outPorts) {
+    outPort.trigger(props);
+  }
+};
+`;
+
+core.custom = `// Empty custom node.
+const triggerIn = node.triggerIn('in');
+
+triggerIn.onTrigger = (props) => {
+  ctx.fillRect(10, 20, 30, 40);
+};
+`;
+
+graphics.canvas = `// Initialize a new canvas and triggers the render every frame.
 const widthIn = node.floatIn('width', 500);
 const heightIn = node.floatIn('height', 500);
 const triggerOut = node.triggerOut('out');
@@ -27,7 +50,7 @@ node.onFrame = () => {
 };
 `;
 
-export const sourceBackgroundColor = `// Fill the entire canvas with the background color.
+graphics.backgroundColor = `// Fill the entire canvas with the background color.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
 const colorIn = node.colorIn('color', [20, 20, 30, 1]);
@@ -40,19 +63,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-export const sourceSequence = `// Execute the connected nodes in the correct order. 
-const triggerIn = node.triggerIn('in');
-for (let i = 1; i <= 8; i++) {
-  node.triggerOut(\`out\${i}\`)
-}
-triggerIn.onTrigger = (props) => {
-  for (const outPort of node.outPorts) {
-    outPort.trigger(props);
-  }
-};
-`;
-
-export const sourceRect = `// Draw a rectangle on the canvas.
+graphics.rect = `// Draw a rectangle on the canvas.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
 const colorIn = node.colorIn('color', [150, 50, 150, 1]);
@@ -70,3 +81,5 @@ triggerIn.onTrigger = (props) => {
   ctx.restore();
 };
 `;
+
+export default { core, graphics };

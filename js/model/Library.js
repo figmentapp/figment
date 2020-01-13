@@ -1,4 +1,4 @@
-import * as sources from './sources';
+import { core, graphics } from './sources';
 
 export default class Library {
   constructor() {
@@ -6,16 +6,20 @@ export default class Library {
     this.nodeTypes.push({
       name: 'Sequence',
       type: 'core.sequence',
-      source: sources.sourceSequence
+      source: core.sequence
     });
-
-    this.nodeTypes.push({ name: 'Canvas', type: 'graphics.canvas', source: sources.sourceCanvas });
+    this.nodeTypes.push({
+      name: 'Custom',
+      type: 'core.custom',
+      source: core.custom
+    });
+    this.nodeTypes.push({ name: 'Canvas', type: 'graphics.canvas', source: graphics.canvas });
     this.nodeTypes.push({
       name: 'Background Color',
       type: 'graphics.backgroundColor',
-      source: sources.sourceBackgroundColor
+      source: graphics.backgroundColor
     });
-    this.nodeTypes.push({ name: 'Rect', type: 'graphics.rect', source: sources.sourceRect });
+    this.nodeTypes.push({ name: 'Rect', type: 'graphics.rect', source: graphics.rect });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {
