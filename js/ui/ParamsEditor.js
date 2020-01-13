@@ -116,7 +116,7 @@ class PointParam extends Component {
       <div class="params__row">
         <NumberDrag label={label} value={value} onChange={this.props.onChange} direction="xy" />
         <input
-          class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
+          class="w-16 mr-2 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.x}
           onChange={e => this.props.onChange(new Point(parseFloat(e.target.value), value.y))}
