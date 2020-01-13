@@ -31,6 +31,7 @@ export default class App extends Component {
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
+    this._onTriggerButton = this._onTriggerButton.bind(this);
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
     this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
@@ -68,6 +69,11 @@ export default class App extends Component {
 
   _onChangePortValue(node, portName, value) {
     this.state.network.setPortValue(node, portName, value);
+    this.forceUpdate();
+  }
+
+  _onTriggerButton(node, port) {
+    this.state.network.triggerButton(node, port);
     this.forceUpdate();
   }
 
@@ -121,6 +127,7 @@ export default class App extends Component {
             network={network}
             selection={selection}
             onChangePortValue={this._onChangePortValue}
+            onTriggerButton={this._onTriggerButton}
           />
         </div>
         <div class="viewer" id="viewer" />

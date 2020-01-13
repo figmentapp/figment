@@ -1,5 +1,6 @@
 import Port, {
   PORT_TYPE_TRIGGER,
+  PORT_TYPE_BUTTON,
   PORT_TYPE_FLOAT,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
@@ -26,6 +27,14 @@ export default class Node {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
     const inPort = new Port(this, name, PORT_TYPE_TRIGGER, PORT_IN);
+    this.inPorts.push(inPort);
+    return inPort;
+  }
+
+  triggerButtonIn(name) {
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const inPort = new Port(this, name, PORT_TYPE_BUTTON, PORT_IN);
     this.inPorts.push(inPort);
     return inPort;
   }

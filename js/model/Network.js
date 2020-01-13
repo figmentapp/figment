@@ -176,6 +176,13 @@ export default class Network {
     this.doFrame();
   }
 
+  triggerButton(node, port) {
+    if (port.onTrigger) {
+      port.onTrigger();
+    }
+    this.doFrame();
+  }
+
   connect(outNode, outPort, inNode, inPort) {
     const conn = {
       outNode: outNode.id,

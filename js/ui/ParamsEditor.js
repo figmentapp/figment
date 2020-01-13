@@ -1,6 +1,13 @@
 import { h, Component } from 'preact';
 import chroma from 'chroma-js';
 import { Point } from '../g';
+import {
+  PORT_TYPE_TRIGGER,
+  PORT_TYPE_BUTTON,
+  PORT_TYPE_FLOAT,
+  PORT_TYPE_POINT,
+  PORT_TYPE_COLOR
+} from '../model/Port';
 
 class NumberDrag extends Component {
   constructor(props) {
@@ -144,6 +151,12 @@ export default class ParamsEditor extends Component {
     });
   }
 
+  _onTriggerButton(port) {
+    this.props.selection.forEach(node => {
+      this.props.onTriggerButton(node, port);
+    })
+  }
+
   render({ selection }) {
     if (selection.size === 0) {
       return (
@@ -173,9 +186,11 @@ export default class ParamsEditor extends Component {
 
   _renderPort(node, port) {
     let field;
-    if (port.type === 'trigger') {
+    if (port.type === PORT_TYPE_TRIGGER) {
       return;
-    } else if (port.type === 'float') {
+    } else if (port.type === PORT_TYPE_BUTTON) {
+      field =  <div class="params__row"><span class="w-32 mr-4"></span><button class="bg-gray-600 text-gray-200 w-16 p-2" onClick={value => this._onTriggerButton(port)}>{port.name}</button></div>
+    } else if (port.type === PORT_TYPE_FLOAT) {
       field = (
         <FloatParam
           label={port.name}
@@ -183,7 +198,7 @@ export default class ParamsEditor extends Component {
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
-    } else if (port.type === 'point') {
+    } else if (port.type === PORT_TYPE_POINT) {
       field = (
         <PointParam
           label={port.name}
@@ -191,7 +206,7 @@ export default class ParamsEditor extends Component {
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
-    } else if (port.type === 'color') {
+    } else if (port.type === PORT_TYPE_COLOR) {
       field = (
         <ColorParam
           label={port.name}

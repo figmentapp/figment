@@ -78,7 +78,7 @@ triggerIn.onTrigger = (props) => {
   }
   ctx.restore();
 };
-`
+`;
 
 graphics.rect = `// Draw a rectangle on the canvas.
 const triggerIn = node.triggerIn('in');
