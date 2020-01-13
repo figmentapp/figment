@@ -19,7 +19,7 @@ export default class Library {
       type: 'graphics.backgroundColor',
       source: graphics.backgroundColor
     });
-    this.nodeTypes.push({ name: 'Rect', type: 'graphics.rect', source: graphics.rect });
+    this.nodeTypes.push({ name: 'Rectangle', type: 'graphics.rect', source: graphics.rect });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {
