@@ -95,6 +95,15 @@ export default class Node {
     return outPort;
   }
 
+  numberOut(name, value) {
+    if (!value) value = 0;
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const outPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_OUT, value);
+    this.outPorts.push(outPort);
+    return outPort;
+  }
+
   _triggerOut(outPort, props) {
     // Find if this node is connected.
     const connections = this.network.connections.filter(conn => conn.outNode === this.id);
@@ -102,6 +111,19 @@ export default class Node {
       const inNode = this.network.nodes.find(node => node.id === conn.inNode);
       const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
       inPort && inPort.onTrigger && inPort.onTrigger(props);
+    }
+  }
+
+  _valueOut(outPort, value) {
+    // Find if this node is connected.
+    const connections = this.network.connections.filter(conn => conn.outNode === this.id);
+    for (const conn of connections) {
+      const inNode = this.network.nodes.find(node => node.id === conn.inNode);
+      const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
+      if (inPort) {
+        inPort.value = value;
+        inPort.onChange && inPort.onChange(value);
+      }
     }
   }
 }

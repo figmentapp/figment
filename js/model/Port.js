@@ -28,4 +28,9 @@ export default class Port {
   trigger(props) {
     this.node._triggerOut(this, props);
   }
+
+  set(value) {
+    this.value = value;
+    this.node._valueOut(this, value);
+  }
 }
