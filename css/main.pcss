@@ -31,12 +31,18 @@ body {
   background-color: var(--gray800);
 }
 
+.app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
 /**** EDITOR ****/
 
 .editor {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 3;
   width: 500px;
   border-right: 2px solid var(--gray700);
 }
@@ -127,20 +133,14 @@ body {
 }
 
 .viewer {
-  position: absolute;
-  top: 0;
-  left: 500px;
-  width: 50vw;
-  height: 100vh;
+  flex: 1;
 }
 
 .params {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  width: 300px;
-  border-left: 2px solid var(--gray700);
+  flex: 2;
+  border-top: 2px solid var(--gray700);
+
+  border-right: 2px solid var(--gray700);
 }
 
 .params__empty {

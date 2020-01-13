@@ -25,7 +25,7 @@ export default class App extends Component {
       showNodeDialog: false,
       lastNetworkPoint
     };
-    this.state.selection.add(network.nodes.find(n => n.name === 'Rectangle'));
+    this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
     this._onSelectNode = this._onSelectNode.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
@@ -90,21 +90,24 @@ export default class App extends Component {
   render(_, { library, network, selection, showNodeDialog }) {
     return (
       <div class="app">
-        <Editor
-          library={library}
-          network={network}
-          selection={selection}
-          onSelectNode={this._onSelectNode}
-          onClearSelection={this._onClearSelection}
-          onChangeSource={this._onChangeSource}
-          onShowNodeDialog={this._onShowNodeDialog}
-        />
+        <div class="flex flex-col h-screen">
+          <Editor
+            library={library}
+            network={network}
+            selection={selection}
+            onSelectNode={this._onSelectNode}
+            onClearSelection={this._onClearSelection}
+            onChangeSource={this._onChangeSource}
+            onShowNodeDialog={this._onShowNodeDialog}
+          />
+          <ParamsEditor
+            network={network}
+            selection={selection}
+            onChangePortValue={this._onChangePortValue}
+          />
+        </div>
         <div class="viewer" id="viewer" />
-        <ParamsEditor
-          network={network}
-          selection={selection}
-          onChangePortValue={this._onChangePortValue}
-        />
+
         {showNodeDialog && (
           <NodeDialog onCreateNode={this._onCreateNode} hideNodeDialog={this._onHideNodeDialog} />
         )}
