@@ -93,7 +93,7 @@ class ColorParam extends Component {
     return (
       <div class="params__row">
         <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
-        <input class="w-16 bg-gray-700 p-2" type="color" value={value} onChange={this._onChange} />
+        <input class="w-16 bg-gray-700" type="color" value={value} onChange={this._onChange} />
       </div>
     );
   }
