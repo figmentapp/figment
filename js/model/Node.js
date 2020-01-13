@@ -26,7 +26,10 @@ export default class Node {
   floatIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
-      oldPort.value = value;
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_FLOAT, value);
@@ -38,7 +41,10 @@ export default class Node {
   pointIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
-      oldPort.value = value;
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_POINT, value && value.clone());
@@ -50,7 +56,10 @@ export default class Node {
   colorIn(name, value) {
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
-      oldPort.value = value;
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_COLOR, value);

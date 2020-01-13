@@ -14,6 +14,11 @@ export default class Port {
     this.name = name;
     this.type = type;
     this.value = value;
+    this.defaultValue = value;
+  }
+
+  hasDefaultValue() {
+    return JSON.stringify(this.defaultValue) === JSON.stringify(this.value);
   }
 
   trigger(props) {
