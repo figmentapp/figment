@@ -6,6 +6,7 @@ import { PORT_IN, PORT_OUT } from '../model/Port';
 import Editor from './Editor';
 import ParamsEditor from './ParamsEditor';
 import NodeDialog from './NodeDialog';
+import Splitter from './Splitter';
 import Library from '../model/Library';
 
 function randInt(min, max) {
@@ -24,7 +25,9 @@ export default class App extends Component {
       network,
       selection: new Set(),
       showNodeDialog: false,
-      lastNetworkPoint
+      lastNetworkPoint,
+      mainSplitterWidth: 500,
+      editorSplitterHeight: window.innerHeight / 2
     };
     this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
     this._onSelectNode = this._onSelectNode.bind(this);
@@ -109,11 +112,15 @@ export default class App extends Component {
     this.state.network.connect(outPort.node, outPort, inPort.node, inPort);
   }
 
-  render(_, { library, network, selection, showNodeDialog }) {
+  render(
+    _,
+    { library, network, selection, showNodeDialog, mainSplitterWidth, editorSplitterHeight }
+  ) {
     return (
       <div class="app">
-        <div class="flex flex-col h-screen">
+        <div class="flex flex-col h-screen" style={`width: ${mainSplitterWidth}px`}>
           <Editor
+            style={`height: ${editorSplitterHeight}px`}
             library={library}
             network={network}
             selection={selection}
@@ -123,6 +130,12 @@ export default class App extends Component {
             onShowNodeDialog={this._onShowNodeDialog}
             onConnect={this._onConnect}
           />
+          <Splitter
+            direction="horizontal"
+            size={editorSplitterHeight}
+            onChange={height => this.setState({ editorSplitterHeight: height })}
+          />
+
           <ParamsEditor
             network={network}
             selection={selection}
@@ -130,6 +143,11 @@ export default class App extends Component {
             onTriggerButton={this._onTriggerButton}
           />
         </div>
+        <Splitter
+          direction="vertical"
+          size={mainSplitterWidth}
+          onChange={width => this.setState({ mainSplitterWidth: width })}
+        />
         <div class="viewer" id="viewer" />
 
         {showNodeDialog && (

@@ -175,7 +175,7 @@ export default class ParamsEditor extends Component {
     const node = Array.from(selection)[0];
     return (
       <div class="params">
-        <div class=" p-4 bg-gray-700 mb-5 flex justify-between items-baseline">
+        <div class=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
           <span class="text-gray-200">{node.name}</span>
           <span class="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>

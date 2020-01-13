@@ -40,11 +40,11 @@ export default class Editor extends Component {
   }
 
   render(
-    { network, selection, onSelectNode, onClearSelection, onChangeSource },
+    { network, selection, onSelectNode, onClearSelection, onChangeSource, style },
     { tabs, activeTabIndex }
   ) {
     return (
-      <div class="editor">
+      <div class="editor" style={style}>
         <div class="editor__tabs">
           <div
             class={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')}

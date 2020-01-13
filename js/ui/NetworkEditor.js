@@ -55,6 +55,7 @@ export default class NetworkEditor extends Component {
     this._onDoubleClick = this._onDoubleClick.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
+    this._onResize = this._onResize.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
     this._dragPort = null;
@@ -64,19 +65,16 @@ export default class NetworkEditor extends Component {
   componentDidMount() {
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
+    window.addEventListener('resize', this._onResize);
     this.canvas = document.getElementById('network');
     this.ctx = this.canvas.getContext('2d');
-    const bounds = this.canvas.parentNode.getBoundingClientRect();
-    this.canvas.style.width = `${bounds.width}px`;
-    this.canvas.style.height = `${bounds.height}px`;
-    this.canvas.width = bounds.width * window.devicePixelRatio;
-    this.canvas.height = bounds.height * window.devicePixelRatio;
     this._draw();
   }
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
+    window.removeEventListener('resize', this._onResize);
   }
 
   render() {
@@ -224,10 +222,19 @@ export default class NetworkEditor extends Component {
     }
   }
 
+  _onResize() {
+    this._draw();
+  }
+
   _draw() {
     const { canvas, ctx } = this;
     const { network, selection } = this.props;
+
     const ratio = window.devicePixelRatio;
+    const bounds = canvas.getBoundingClientRect();
+    canvas.width = bounds.width * ratio;
+    canvas.height = bounds.height * ratio;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
     const nodeColors = [COLORS.gray400, COLORS.gray500, COLORS.gray600];
