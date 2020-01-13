@@ -1,7 +1,7 @@
 export const core = {};
 export const graphics = {};
 
-core.sequence = `// Execute the connected nodes in the correct order. 
+core.sequence = `// Execute the connected nodes in the correct order.
 const triggerIn = node.triggerIn('in');
 for (let i = 1; i <= 8; i++) {
   node.triggerOut(\`out\${i}\`)
@@ -62,6 +62,23 @@ triggerIn.onTrigger = (props) => {
   triggerOut.trigger(props);
 };
 `;
+
+graphics.clone = `// Clone and transform the shapes.
+const triggerIn = node.triggerIn('in');
+const amount = node.floatIn('amount', 5);
+const translateIn = node.pointIn('translate', new g.Point(20, 20));
+const triggerOut = node.triggerOut('out');
+
+triggerIn.onTrigger = (props) => {
+  const { ctx } = props;
+  ctx.save();
+  for (let i = 0; i < amount.value; i++) {
+    triggerOut.trigger(props);
+    ctx.translate(translateIn.value.x, translateIn.value.y);
+  }
+  ctx.restore();
+};
+`
 
 graphics.rect = `// Draw a rectangle on the canvas.
 const triggerIn = node.triggerIn('in');
