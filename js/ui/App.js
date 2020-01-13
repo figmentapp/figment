@@ -27,7 +27,7 @@ export default class App extends Component {
       showNodeDialog: false,
       lastNetworkPoint,
       mainSplitterWidth: 500,
-      editorSplitterHeight: window.innerHeight / 2
+      editorSplitterHeight: window.innerHeight * 2 / 3
     };
     this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
     this._onSelectNode = this._onSelectNode.bind(this);
