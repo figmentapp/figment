@@ -219,6 +219,10 @@ export default class NetworkEditor extends Component {
     if (e.keyCode === 32) {
       e.preventDefault();
       this._spaceDown = false;
+    } else if (e.keyCode === 46 || e.keyCode === 8) {
+      // Delete or backspace;
+      e.preventDefault();
+      this.props.onDeleteSelection();
     }
   }
 

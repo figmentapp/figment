@@ -38,6 +38,7 @@ export default class App extends Component {
     this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
     this._onSelectNode = this._onSelectNode.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
+    this._onDeleteSelection = this._onDeleteSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
     this._onTriggerButton = this._onTriggerButton.bind(this);
@@ -142,6 +143,12 @@ export default class App extends Component {
     this.forceUpdate();
   }
 
+  _onDeleteSelection() {
+    const { selection } = this.state;
+    this.state.network.deleteNodes(Array.from(selection));
+    this.setState({ selection: new Set() });
+  }
+
   _onChangeSource(nodeType, source) {
     console.assert(typeof nodeType === 'object');
     this.state.network.setNodeTypeSource(nodeType, source);
@@ -204,6 +211,7 @@ export default class App extends Component {
             selection={selection}
             onSelectNode={this._onSelectNode}
             onClearSelection={this._onClearSelection}
+            onDeleteSelection={this._onDeleteSelection}
             onChangeSource={this._onChangeSource}
             onShowNodeDialog={this._onShowNodeDialog}
             onConnect={this._onConnect}

@@ -274,4 +274,13 @@ export default class Network {
     this.connections.push(conn);
     this.doFrame();
   }
+
+  deleteNodes(nodes) {
+    const nodeIds = nodes.map(node => node.id);
+    this.nodes = this.nodes.filter(node => !nodes.includes(node));
+    this.connections = this.connections.filter(
+      conn => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode))
+    );
+    this.doFrame();
+  }
 }

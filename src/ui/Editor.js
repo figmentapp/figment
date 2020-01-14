@@ -40,7 +40,15 @@ export default class Editor extends Component {
   }
 
   render(
-    { network, selection, onSelectNode, onClearSelection, onChangeSource, style },
+    {
+      network,
+      selection,
+      onSelectNode,
+      onClearSelection,
+      onDeleteSelection,
+      onChangeSource,
+      style
+    },
     { tabs, activeTabIndex }
   ) {
     return (
@@ -72,6 +80,7 @@ export default class Editor extends Component {
             selection={selection}
             onSelectNode={onSelectNode}
             onClearSelection={onClearSelection}
+            onDeleteSelection={onDeleteSelection}
             onOpenCode={this._onOpenCode}
             onShowNodeDialog={this.props.onShowNodeDialog}
             onConnect={this.props.onConnect}
