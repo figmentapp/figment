@@ -1,11 +1,12 @@
 {
   "name": "figment",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "main.js",
   "license": "MIT",
   "scripts": {
-    "start": "parcel serve index.html",
-    "build": "NODE_ENV=production parcel build index.html",
+    "start": "cross-env NODE_ENV=development electron .",
+    "build": "cross-env NODE_ENV=production parcel build -d build --public-url . src/ui/index.html",
+    "dist": "rimraf dist && yarn run build && electron-builder build",
     "format": "prettier --write js/**/*.js"
   },
   "dependencies": {
@@ -17,7 +18,11 @@
   },
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "1.3.0",
+    "cross-env": "^6.0.3",
+    "electron": "^7.1.9",
+    "electron-builder": "^21.2.0",
     "parcel-bundler": "1.12.4",
-    "prettier": "1.19.1"
+    "prettier": "1.19.1",
+    "rimraf": "^3.0.0"
   }
 }
