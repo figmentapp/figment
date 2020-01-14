@@ -68,6 +68,7 @@ export const DEFAULT_NETWORK = {
 
 export default class Network {
   constructor(library) {
+    this.started = false;
     this.library = library;
     this.nodes = [];
     this.connections = [];
@@ -97,6 +98,9 @@ export default class Network {
     const fn = new Function('node', source);
     fn.call(window, node);
     this.nodes.push(node);
+    if (this.started && node.onStart) {
+      node.onStart(node);
+    }
     return node;
   }
 
@@ -197,6 +201,7 @@ export default class Network {
         node.onStart(node);
       }
     }
+    this.started = true;
   }
 
   stop() {
@@ -205,6 +210,7 @@ export default class Network {
         node.onStop(node);
       }
     }
+    this.started = false;
   }
 
   // restart() {
