@@ -101,7 +101,7 @@ const colorIn = node.colorIn('color', [20, 20, 30, 1]);
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
-  ctx.fillStyle = g.rgbToHex(...colorIn.value);
+  ctx.fillStyle = g.rgba(...colorIn.value);
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   triggerOut.trigger(props);
 };
@@ -137,7 +137,7 @@ triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
   const r = radiusIn.value;
   ctx.save();
-  ctx.fillStyle = \`rgba(\${colorIn.value.join(',')})\`;
+  ctx.fillStyle = g.rgba(...colorIn.value);
   ctx.translate(xIn.value, yIn.value);
   ctx.fillRect(-r, -r, r * 2, r * 2);
   ctx.restore();
