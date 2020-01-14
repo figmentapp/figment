@@ -35,17 +35,11 @@ export default class Splitter extends Component {
   render({ direction }) {
     if (direction === VERTICAL) {
       return (
-        <div
-          class="h-full w-2 bg-gray-800 cursor-col-resize"
-          onMouseDown={this._onMouseDown}
-        />
+        <div class="h-full w-1 bg-gray-700 cursor-col-resize" onMouseDown={this._onMouseDown} />
       );
     } else {
       return (
-        <div
-          class="v-full h-2 bg-gray-800 cursor-row-resize"
-          onMouseDown={this._onMouseDown}
-        />
+        <div class="v-full h-1 bg-gray-700 cursor-row-resize" onMouseDown={this._onMouseDown} />
       );
     }
   }
