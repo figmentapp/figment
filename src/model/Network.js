@@ -52,7 +52,8 @@ export const DEFAULT_NETWORK = {
       x: 250,
       y: 300,
       values: {
-        position: [150, 150],
+        x: 150,
+        y: 150,
         color: [200, 200, 200, 1]
       }
     }
@@ -100,6 +101,7 @@ export default class Network {
   }
 
   parse(obj) {
+    const warnings = [];
     for (const nodeObj of obj.nodes) {
       const node = this.createNode(nodeObj.type, nodeObj.x, nodeObj.y, { id: nodeObj.id });
       node.name = nodeObj.name;
@@ -111,6 +113,10 @@ export default class Network {
         for (const portName of Object.keys(nodeObj.values)) {
           const value = nodeObj.values[portName];
           const port = node.inPorts.find(p => p.name === portName);
+          if (!port) {
+            warnings.push(`Node ${node.name} (${node.id}): Could not find port ${portName}.`);
+            continue;
+          }
           if (port.type === PORT_TYPE_NUMBER) {
             port.value = value;
           } else if (port.type === PORT_TYPE_POINT) {
@@ -118,14 +124,40 @@ export default class Network {
           } else if (port.type === PORT_TYPE_COLOR) {
             port.value = value.slice();
           } else {
-            throw new Error(`Unsupported port type ${port.name} ${port.type} ${value}`);
+            warnings.push(
+              `Node ${node.name} (${node.id}) - port ${portName}: unsupported port type ${port.type} ${value}.`
+            );
           }
         }
       }
     }
     for (const connObj of obj.connections) {
+      const outNode = this.nodes.find(node => node.id === connObj.outNode);
+      if (!outNode) {
+        warnings.push(`Connection ${JSON.stringify(connObj)}: output node does not exist.`);
+        continue;
+      }
+      const inNode = this.nodes.find(node => node.id === connObj.inNode);
+      if (!inNode) {
+        warnings.push(`Connection ${JSON.stringify(connObj)}: input node does not exist.`);
+        continue;
+      }
+      const outPort = outNode.outPorts.find(port => port.name === connObj.outPort);
+      if (!outPort) {
+        warnings.push(`Connection ${JSON.stringify(connObj)}: output port does not exist.`);
+        continue;
+      }
+      const inPort = inNode.inPorts.find(port => port.name === connObj.inPort);
+      if (!outPort) {
+        warnings.push(`Connection ${JSON.stringify(connObj)}: input port does not exist.`);
+        continue;
+      }
       this.connections.push(connObj);
     }
+    if (warnings.length) {
+      console.warn(warnings);
+    }
+    return warnings;
   }
 
   serialize() {

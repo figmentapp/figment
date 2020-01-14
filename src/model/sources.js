@@ -110,7 +110,8 @@ triggerIn.onTrigger = (props) => {
 graphics.clone = `// Clone and transform the shapes.
 const triggerIn = node.triggerIn('in');
 const amount = node.numberIn('amount', 5);
-const translateIn = node.pointIn('translate', new g.Point(20, 20));
+const translateX = node.pointIn('translateX', 20);
+const translateY = node.pointIn('translateY', 20);
 const triggerOut = node.triggerOut('out');
 
 triggerIn.onTrigger = (props) => {
@@ -118,7 +119,7 @@ triggerIn.onTrigger = (props) => {
   ctx.save();
   for (let i = 0; i < amount.value; i++) {
     triggerOut.trigger(props);
-    ctx.translate(translateIn.value.x, translateIn.value.y);
+    ctx.translate(translateX.value, translateY.value);
   }
   ctx.restore();
 };
@@ -127,17 +128,17 @@ triggerIn.onTrigger = (props) => {
 graphics.rect = `// Draw a rectangle on the canvas.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
+const xIn = node.numberIn('x', 100);
+const yIn = node.numberIn('y', 100);
 const colorIn = node.colorIn('color', [150, 50, 150, 1]);
-const positionIn = node.pointIn('position', new g.Point(100, 100));
 const radiusIn = node.numberIn('radius', 50, { min: 0, max: 1000 });
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
-  const pos = positionIn.value;
   const r = radiusIn.value;
   ctx.save();
   ctx.fillStyle = \`rgba(\${colorIn.value.join(',')})\`;
-  ctx.translate(pos.x, pos.y);
+  ctx.translate(xIn.value, yIn.value);
   ctx.fillRect(-r, -r, r * 2, r * 2);
   ctx.restore();
 };
