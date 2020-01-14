@@ -33,7 +33,7 @@ export default class NodeDialog extends Component {
 
   _onKeyDown(e) {
     if (e.keyCode === 27) {
-      this.props.hideNodeDialog();
+      this.props.onCancel();
     } else if (e.keyCode === 13) {
       if (this.state.results.length > 0) {
         this.props.onCreateNode(this.state.results[0]);
@@ -49,14 +49,14 @@ export default class NodeDialog extends Component {
             <input
               id="node-dialog-search"
               type="search"
-              class="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none"
+              class="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none text-lg"
               placeholder="Type to search"
               onInput={this._onSearch}
               autofocus
             ></input>
             <span
               class="bg-gray-600 text-gray-700 p-6 text-xl flex items-center justify-center font-bold cursor-pointer"
-              onClick={() => this.props.hideNodeDialog()}
+              onClick={() => this.props.onCancel()}
             >
               x
             </span>

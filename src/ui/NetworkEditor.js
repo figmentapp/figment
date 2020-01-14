@@ -221,6 +221,7 @@ export default class NetworkEditor extends Component {
       this._spaceDown = false;
     } else if (e.keyCode === 46 || e.keyCode === 8) {
       // Delete or backspace;
+      if (e.target.localName === 'input' || e.target.localName === 'textarea') return;
       e.preventDefault();
       this.props.onDeleteSelection();
     }

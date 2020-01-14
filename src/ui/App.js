@@ -10,6 +10,7 @@ import ParamsEditor from './ParamsEditor';
 import NodeDialog from './NodeDialog';
 import Splitter from './Splitter';
 import Library from '../model/Library';
+import ForkDialog from './ForkDialog';
 
 const FILE_FILTERS = [{ name: 'Figment Project', extensions: ['fgmt'] }];
 
@@ -31,6 +32,8 @@ export default class App extends Component {
       network,
       selection: new Set(),
       showNodeDialog: false,
+      showForkDialog: false,
+      forkDialogNodeType: null,
       lastNetworkPoint,
       mainSplitterWidth: 500,
       editorSplitterHeight: (window.innerHeight * 2) / 3
@@ -44,6 +47,9 @@ export default class App extends Component {
     this._onTriggerButton = this._onTriggerButton.bind(this);
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
     this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
+    this._onShowForkDialog = this._onShowForkDialog.bind(this);
+    this._onHideForkDialog = this._onHideForkDialog.bind(this);
+    this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onConnect = this._onConnect.bind(this);
   }
@@ -176,6 +182,18 @@ export default class App extends Component {
     this.setState({ showNodeDialog: false });
   }
 
+  _onShowForkDialog(nodeType) {
+    this.setState({ showForkDialog: true, forkDialogNodeType: nodeType });
+  }
+
+  _onHideForkDialog() {
+    this.setState({ showForkDialog: false });
+  }
+  _onForkNodeType(nodeType, newTypeName) {
+    // FIXME: implement
+    this.setState({ showForkDialog: false });
+  }
+
   _onCreateNode(nodeType) {
     console.assert(typeof nodeType === 'object');
     const pt = this.state.lastNetworkPoint;
@@ -199,7 +217,16 @@ export default class App extends Component {
 
   render(
     _,
-    { library, network, selection, showNodeDialog, mainSplitterWidth, editorSplitterHeight }
+    {
+      library,
+      network,
+      selection,
+      showNodeDialog,
+      showForkDialog,
+      forkDialogNodeType,
+      mainSplitterWidth,
+      editorSplitterHeight
+    }
   ) {
     return (
       <div class="app">
@@ -214,6 +241,7 @@ export default class App extends Component {
             onDeleteSelection={this._onDeleteSelection}
             onChangeSource={this._onChangeSource}
             onShowNodeDialog={this._onShowNodeDialog}
+            onShowForkDialog={this._onShowForkDialog}
             onConnect={this._onConnect}
           />
           <Splitter
@@ -237,7 +265,16 @@ export default class App extends Component {
         <div class="viewer" id="viewer" />
 
         {showNodeDialog && (
-          <NodeDialog onCreateNode={this._onCreateNode} hideNodeDialog={this._onHideNodeDialog} />
+          <NodeDialog onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />
+        )}
+        {showForkDialog && (
+          <ForkDialog
+            network={network}
+            selection={selection}
+            nodeType={forkDialogNodeType}
+            onForkNodeType={this._onForkNodeType}
+            onCancel={this._onHideForkDialog}
+          />
         )}
       </div>
     );

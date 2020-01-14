@@ -47,6 +47,7 @@ export default class Editor extends Component {
       onClearSelection,
       onDeleteSelection,
       onChangeSource,
+      onShowForkDialog,
       style
     },
     { tabs, activeTabIndex }
@@ -87,7 +88,11 @@ export default class Editor extends Component {
           />
         )}
         {activeTabIndex >= 0 && (
-          <CodeEditor nodeType={tabs[activeTabIndex]} onChangeSource={onChangeSource} />
+          <CodeEditor
+            nodeType={tabs[activeTabIndex]}
+            onChangeSource={onChangeSource}
+            onShowForkDialog={onShowForkDialog}
+          />
         )}
       </div>
     );

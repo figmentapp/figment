@@ -20,6 +20,7 @@ export default class CodeEditor extends Component {
     const $code = document.getElementById('code');
     this.editor = CodeMirror.fromTextArea($code, {
       lineNumbers: true,
+      readOnly: true,
       mode: 'javascript',
       theme: 'darcula'
     });
@@ -38,8 +39,19 @@ export default class CodeEditor extends Component {
 
   render() {
     return (
-      <div class="code">
-        <textarea class="code__area" id="code" value={this.state.source} />
+      <div class="code flex-grow flex flex-col">
+        <div class="h-full w-full opacity-50">
+          <textarea class="code__area" id="code" value={this.state.source} />
+        </div>
+        <div class="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
+          <span class="text-gray-500">Code is read-only. Fork the code.</span>{' '}
+          <button
+            onClick={() => this.props.onShowForkDialog(this.props.nodeType)}
+            class="bg-gray-700 px-4 py-1 rounded text-gray-500"
+          >
+            Fork
+          </button>
+        </div>
       </div>
     );
   }
