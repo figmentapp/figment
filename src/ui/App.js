@@ -1,5 +1,7 @@
 import { h, Component } from 'preact';
-
+import { remote, ipcRenderer } from 'electron';
+import { promises } from 'fs';
+const fs = promises;
 import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
 import { PORT_IN, PORT_OUT } from '../model/Port';
@@ -8,6 +10,8 @@ import ParamsEditor from './ParamsEditor';
 import NodeDialog from './NodeDialog';
 import Splitter from './Splitter';
 import Library from '../model/Library';
+
+const FILE_FILTERS = [{ name: 'Figment Project', extensions: ['fgmt'] }];
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -21,13 +25,15 @@ export default class App extends Component {
     network.parse(DEFAULT_NETWORK);
     const lastNetworkPoint = new Point(0, 0);
     this.state = {
+      filePath: null,
+      dirty: false,
       library,
       network,
       selection: new Set(),
       showNodeDialog: false,
       lastNetworkPoint,
       mainSplitterWidth: 500,
-      editorSplitterHeight: window.innerHeight * 2 / 3
+      editorSplitterHeight: (window.innerHeight * 2) / 3
     };
     this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
     this._onSelectNode = this._onSelectNode.bind(this);
@@ -43,6 +49,70 @@ export default class App extends Component {
 
   componentDidMount() {
     this.state.network.start();
+    ipcRenderer.on('menu-event', (_, { name }) => this._onMenuEvent(name));
+  }
+
+  _onMenuEvent(name) {
+    switch (name) {
+      case 'open':
+        this._onOpenFile();
+        break;
+      case 'save':
+        this._onSaveFile();
+        break;
+      case 'quit':
+        remote.app.quit();
+        break;
+    }
+  }
+
+  async _onOpenFile() {
+    const window = remote.BrowserWindow.getFocusedWindow();
+    const result = await remote.dialog.showOpenDialog(window, {
+      properties: ['openFile'],
+      filters: FILE_FILTERS
+    });
+    if (result.canceled) return;
+    const filePath = result.filePaths[0];
+    const contents = await fs.readFile(filePath, 'utf-8');
+    const json = JSON.parse(contents);
+    const network = new Network(this.state.library);
+    network.parse(json);
+    network.start();
+    network.doFrame();
+    this.setState({ network });
+    this._setFilePath(filePath);
+  }
+
+  async _onSaveFile() {
+    if (!this.state.filePath) return this._onSaveFileAs();
+    await this._saveFile(this.state.filePath);
+    this.setState({ dirty: false });
+  }
+
+  async _onSaveFileAs() {
+    const window = remote.BrowserWindow.getFocusedWindow();
+    const result = await remote.dialog.showSaveDialog(window, {
+      filters: FILE_FILTERS
+    });
+    if (result.canceled) return;
+    const filePath = result.filePath;
+    console.log(filePath);
+    await this._saveFile(filePath);
+    this._setFilePath(filePath);
+  }
+
+  async _saveFile(filePath) {
+    const json = this.state.network.serialize();
+    const contents = JSON.stringify(json, null, 2);
+    await fs.writeFile(filePath, contents);
+  }
+
+  _setFilePath(filePath, dirty = false) {
+    const window = remote.BrowserWindow.getFocusedWindow();
+    window.setRepresentedFilename(filePath);
+    window.setDocumentEdited(!dirty);
+    this.setState({ filePath, dirty });
   }
 
   _onSelectNode(node) {

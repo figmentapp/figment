@@ -18,7 +18,7 @@ function createMainWindow() {
     show: false,
     icon: path.join(__dirname, 'assets/icons/app-icon-512.png'),
     webPreferences: {
-      nodeIntegration: false
+      nodeIntegration: true
     }
   });
 
@@ -27,7 +27,8 @@ function createMainWindow() {
     const Bundler = require('parcel-bundler');
     const entryFiles = path.join(__dirname, 'src/ui/index.html');
     const options = {
-      outDir: path.join(__dirname, 'build')
+      outDir: path.join(__dirname, 'build'),
+      target: 'electron'
     };
     const bundler = new Bundler(entryFiles, options);
     bundler.serve().then(x => {

@@ -5,7 +5,7 @@ import Port, {
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
-  PORT_TYPE_COLOR,
+  PORT_TYPE_COLOR
 } from './Port';
 
 export const DEFAULT_NETWORK = {
@@ -126,6 +126,37 @@ export default class Network {
     for (const connObj of obj.connections) {
       this.connections.push(connObj);
     }
+  }
+
+  serialize() {
+    const json = {
+      version: 1,
+      nodes: [],
+      connections: []
+    };
+    for (const node of this.nodes) {
+      const values = {};
+      for (const port of node.inPorts) {
+        if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
+          let value;
+          if (port.type === PORT_TYPE_NUMBER) {
+            value = port.value;
+          } else if (port.type === PORT_TYPE_POINT) {
+            value = [port.value.x, port.value.y];
+          } else if (port.type === PORT_TYPE_COLOR) {
+            value = port.value.slice();
+          }
+          values[port.name] = value;
+        }
+      }
+      const nodeObj = { id: node.id, name: node.name, type: node.type, x: node.x, y: node.y };
+      if (Object.keys(values).length > 0) {
+        nodeObj.values = values;
+      }
+      json.nodes.push(nodeObj);
+    }
+    json.connections = JSON.parse(JSON.stringify(this.connections));
+    return json;
   }
 
   start() {
