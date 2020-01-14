@@ -107,9 +107,9 @@ export default class NetworkEditor extends Component {
     const dx = x - node.x;
     const dy = y - node.y;
     const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
-    if (dy < NODE_HEIGHT / 2) {
+    if (dy <= 10) {
       return node.inPorts[portIndex];
-    } else {
+    } else if (dy >= NODE_HEIGHT - 10) {
       return node.outPorts[portIndex];
     }
   }
