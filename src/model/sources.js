@@ -90,6 +90,7 @@ node.onFrame = () => {
   const canvas = node._canvas;
   const ctx = node._ctx;
   triggerOut.trigger({ canvas, ctx });
+  window.requestAnimationFrame(node.onFrame);
 };
 `;
 
