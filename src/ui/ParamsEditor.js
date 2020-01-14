@@ -205,7 +205,7 @@ export default class ParamsEditor extends Component {
       field = (
         <div class="params__row">
           <span class="w-32 mr-4"></span>
-          <label class="bg-gray-700 p-2">
+          <label class="w-32 bg-gray-700 p-2">
             <input
               type="checkbox"
               checked={port.value}
