@@ -2,6 +2,7 @@ import Node from './Node';
 import * as sources from './sources';
 import Port, {
   PORT_TYPE_TRIGGER,
+  PORT_TYPE_TOGGLE,
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
@@ -121,7 +122,9 @@ export default class Network {
             warnings.push(`Node ${node.name} (${node.id}): Could not find port ${portName}.`);
             continue;
           }
-          if (port.type === PORT_TYPE_NUMBER) {
+          if (port.type === PORT_TYPE_TOGGLE) {
+            port.value = value;
+          } else if (port.type === PORT_TYPE_NUMBER) {
             port.value = value;
           } else if (port.type === PORT_TYPE_POINT) {
             port.value = new g.Point(value[0], value[1]);
@@ -175,7 +178,9 @@ export default class Network {
       for (const port of node.inPorts) {
         if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
           let value;
-          if (port.type === PORT_TYPE_NUMBER) {
+          if (port.type === PORT_TYPE_TOGGLE) {
+            value = port.value;
+          } else if (port.type === PORT_TYPE_NUMBER) {
             value = port.value;
           } else if (port.type === PORT_TYPE_POINT) {
             value = [port.value.x, port.value.y];

@@ -3,6 +3,7 @@ import chroma from 'chroma-js';
 import { Point } from '../g';
 import {
   PORT_TYPE_TRIGGER,
+  PORT_TYPE_TOGGLE,
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
@@ -154,7 +155,7 @@ export default class ParamsEditor extends Component {
   _onTriggerButton(port) {
     this.props.selection.forEach(node => {
       this.props.onTriggerButton(node, port);
-    })
+    });
   }
 
   render({ selection }) {
@@ -189,7 +190,31 @@ export default class ParamsEditor extends Component {
     if (port.type === PORT_TYPE_TRIGGER) {
       return;
     } else if (port.type === PORT_TYPE_BUTTON) {
-      field =  <div class="params__row"><span class="w-32 mr-4"></span><button class="bg-gray-600 text-gray-200 w-16 p-2" onClick={value => this._onTriggerButton(port)}>{port.name}</button></div>
+      field = (
+        <div class="params__row">
+          <span class="w-32 mr-4"></span>
+          <button
+            class="bg-gray-600 text-gray-200 w-16 p-2"
+            onClick={() => this._onTriggerButton(port)}
+          >
+            {port.name}
+          </button>
+        </div>
+      );
+    } else if (port.type === PORT_TYPE_TOGGLE) {
+      field = (
+        <div class="params__row">
+          <span class="w-32 mr-4"></span>
+          <label class="bg-gray-700 p-2">
+            <input
+              type="checkbox"
+              checked={port.value}
+              onChange={e => this._onChangePortValue(port.name, e.target.checked)}
+            />
+            <span class="ml-2 text-gray-500">{port.name}</span>
+          </label>
+        </div>
+      );
     } else if (port.type === PORT_TYPE_NUMBER) {
       field = (
         <FloatParam

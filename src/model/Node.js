@@ -1,6 +1,7 @@
 import Port, {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_BUTTON,
+  PORT_TYPE_TOGGLE,
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
@@ -37,6 +38,21 @@ export default class Node {
     const inPort = new Port(this, name, PORT_TYPE_BUTTON, PORT_IN);
     this.inPorts.push(inPort);
     return inPort;
+  }
+
+  toggleIn(name, value = true) {
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_TOGGLE, PORT_IN, value);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
   }
 
   numberIn(name, value) {
