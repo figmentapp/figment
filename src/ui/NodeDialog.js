@@ -44,7 +44,7 @@ export default class NodeDialog extends Component {
   render({}, { results }) {
     return (
       <div class="dialog-wrapper">
-        <div class="dialog node-dialog shadow-xl w-1/2 h-1/2">
+        <div class="dialog node-dialog shadow-xl w-1/2 flex flex-col" style="height: 80vh">
           <div class="flex">
             <input
               id="node-dialog-search"
@@ -61,7 +61,9 @@ export default class NodeDialog extends Component {
               x
             </span>
           </div>
-          <div class="flex flex-col">{results.map(nodeType => this._renderNodeType(nodeType))}</div>
+          <div class="flex flex-col h-full overflow-y-auto flex-grow">
+            {results.map(nodeType => this._renderNodeType(nodeType))}
+          </div>
         </div>
       </div>
     );
