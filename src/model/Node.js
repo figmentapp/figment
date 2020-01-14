@@ -116,7 +116,9 @@ export default class Node {
 
   _valueOut(outPort, value) {
     // Find if this node is connected.
-    const connections = this.network.connections.filter(conn => conn.outNode === this.id);
+    const connections = this.network.connections.filter(
+      conn => conn.outNode === this.id && conn.outPort === outPort.name
+    );
     for (const conn of connections) {
       const inNode = this.network.nodes.find(node => node.id === conn.inNode);
       const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
