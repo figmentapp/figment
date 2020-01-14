@@ -65,33 +65,40 @@ node.onStop = (props) => {
 `;
 
 graphics.canvas = `// Initialize a new canvas and triggers the render every frame.
+const playingIn = node.toggleIn('playing', true);
 const widthIn = node.numberIn('width', 500);
 const heightIn = node.numberIn('height', 500);
 const triggerOut = node.triggerOut('out');
 
 function resize() {
-  const canvas = document.createElement('canvas');
+  const viewer = document.getElementById('viewer');
+  let canvas = viewer.querySelector('canvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    viewer.appendChild(canvas);
+  }
   node._canvas = canvas;
   canvas.width = widthIn.value;
   canvas.height = heightIn.value;
-  const viewer = document.getElementById('viewer');
-  viewer.innerHTML = '';
-  viewer.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   node._ctx = ctx;
   triggerOut.trigger({ canvas, ctx });
 }
 
-node.onStart = resize;
-widthIn.onChange = resize;
-heightIn.onChange = resize;
-
-node.onFrame = () => {
+function doFrame() {
   const canvas = node._canvas;
   const ctx = node._ctx;
   triggerOut.trigger({ canvas, ctx });
-  window.requestAnimationFrame(node.onFrame);
-};
+  if (playingIn.value) {
+    window.requestAnimationFrame(node.onFrame);
+  }
+}
+
+node.onStart = resize;
+widthIn.onChange = resize;
+heightIn.onChange = resize;
+node.onFrame = doFrame;
+playingIn.onChange = doFrame;
 `;
 
 graphics.backgroundColor = `// Fill the entire canvas with the background color.
