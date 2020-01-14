@@ -73,6 +73,7 @@ export default class App extends Component {
       filters: FILE_FILTERS
     });
     if (result.canceled) return;
+    this._close();
     const filePath = result.filePaths[0];
     const contents = await fs.readFile(filePath, 'utf-8');
     const json = JSON.parse(contents);
@@ -80,7 +81,7 @@ export default class App extends Component {
     network.parse(json);
     network.start();
     network.doFrame();
-    this.setState({ network });
+    this.setState({ network, selection: new Set() });
     this._setFilePath(filePath);
   }
 
@@ -106,6 +107,13 @@ export default class App extends Component {
     const json = this.state.network.serialize();
     const contents = JSON.stringify(json, null, 2);
     await fs.writeFile(filePath, contents);
+  }
+
+  _close() {
+    if (this.state.network) {
+      this.state.network.stop();
+      document.getElementById('viewer').innerHTML = '';
+    }
   }
 
   _setFilePath(filePath, dirty = false) {
