@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 3,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 46,
+      "y": 287,
+      "values": {
+        "x": 33,
+        "y": 233,
+        "color": [
+          104,
+          184,
+          16,
+          0.9
+        ],
+        "radius": 10
+      }
+    },
+    {
+      "id": 4,
+      "name": "Mouse",
+      "type": "core.mouse",
+      "x": 124,
+      "y": 210
+    },
+    {
+      "id": 5,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 45,
+      "y": 155,
+      "values": {
+        "color": [
+          19,
+          20,
+          36,
+          0.05
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 4,
+      "outPort": "x",
+      "inNode": 3,
+      "inPort": "x"
+    },
+    {
+      "outNode": 4,
+      "outPort": "y",
+      "inNode": 3,
+      "inPort": "y"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 5,
+      "inPort": "in"
+    },
+    {
+      "outNode": 5,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    }
+  ]
+}
