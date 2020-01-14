@@ -261,6 +261,10 @@ export default class Network {
   }
 
   connect(outNode, outPort, inNode, inPort) {
+    // Remove existing connections.
+    this.connections = this.connections.filter(
+      conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name)
+    );
     const conn = {
       outNode: outNode.id,
       outPort: outPort.name,
