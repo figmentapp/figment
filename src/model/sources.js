@@ -40,6 +40,30 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+core.mouse = `// Read mouse inputs.
+const xOut = node.numberOut('x');
+const yOut = node.numberOut('y');
+
+function onMouseMove(e) {
+  xOut.set(e.offsetX);
+  yOut.set(e.offsetY);
+}
+
+node.onStart = (props) => {
+  let viewer = document.getElementById('viewer');
+  let canvas = viewer.querySelector('canvas');
+  if (!canvas) canvas = viewer;
+  canvas.addEventListener('mousemove', onMouseMove);
+}
+
+node.onStop = (props) => {
+  let viewer = document.getElementById('viewer');
+  let canvas = viewer.querySelector('canvas');
+  if (!canvas) canvas = viewer;
+  canvas.removeEventListener('mousemove', onMouseMove);
+};
+`;
+
 graphics.canvas = `// Initialize a new canvas and triggers the render every frame.
 const widthIn = node.numberIn('width', 500);
 const heightIn = node.numberIn('height', 500);

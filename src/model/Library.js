@@ -14,6 +14,11 @@ export default class Library {
       source: core.time
     });
     this.nodeTypes.push({
+      name: 'Mouse',
+      type: 'core.mouse',
+      source: core.mouse
+    });
+    this.nodeTypes.push({
       name: 'Custom',
       type: 'core.custom',
       source: core.custom
