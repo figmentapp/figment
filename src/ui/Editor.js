@@ -19,7 +19,7 @@ export default class Editor extends Component {
   }
 
   _onOpenCode(node) {
-    const nodeType = this.props.library.findByType(node.type);
+    const nodeType = this.props.network.findNodeType(node.type);
     if (this.state.tabs.includes(nodeType)) {
       this.setState({ activeTabIndex: this.state.tabs.indexOf(nodeType) });
       return;

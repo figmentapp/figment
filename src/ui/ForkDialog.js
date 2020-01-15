@@ -3,28 +3,26 @@ import { h, Component } from 'preact';
 export default class ForkDialog extends Component {
   constructor(props) {
     super(props);
-    this.state = { newTypeName: props.nodeType.type };
+    let [ns, baseName] = props.nodeType.type.split('.');
+    ns = 'project';
+    const currentNodes = props.network.nodes.filter(node => node.type === props.nodeType.type);
+
+    const selectedNodes = new Set();
+    for (const node of currentNodes) {
+      if (props.selection.has(node)) {
+        selectedNodes.add(node);
+      }
+    }
+    this.state = { ns, newBaseName: baseName, currentNodes, selectedNodes };
     this._onKeyDown = this._onKeyDown.bind(this);
-  }
-
-  _onSearch(e) {
-    const q = e.target.value;
-    const results = this.library.nodeTypes.filter(node =>
-      node.name.toLowerCase().includes(q.toLowerCase())
-    );
-    this.setState({ q, results });
-  }
-
-  _onCreateNode(nodeType) {
-    this.props.onCreateNode(nodeType);
   }
 
   componentDidMount() {
     window.addEventListener('keydown', this._onKeyDown);
     document.getElementById('fork-dialog-input').select();
-    this.setState({
-      currentNodes: this.props.network.nodes.filter(node => node.type === this.props.nodeType.type)
-    });
+    // this.setState({
+    //   currentNodes: this.props.network.nodes.filter(node => node.type === this.props.nodeType.type)
+    // });
   }
 
   componentWillUnmount() {
@@ -33,25 +31,46 @@ export default class ForkDialog extends Component {
 
   _onKeyDown(e) {
     if (e.keyCode === 27) {
+      e.preventDefault();
       this.props.onCancel();
     } else if (e.keyCode === 13) {
-      this.props.onForkNodeType(this.props.nodeType, this.state.newTypeName);
+      e.preventDefault();
+      const newBaseName = this.state.newBaseName.trim();
+      if (newBaseName.length === 0) return this.props.onCancel();
+      const newTypeName = this.state.ns + '.' + newBaseName;
+      this.props.onForkNodeType(
+        this.props.nodeType,
+        newTypeName,
+        Array.from(this.state.selectedNodes)
+      );
     }
   }
 
-  render({ nodeType, network }, { newTypeName, currentNodes }) {
+  _toggleSelectedNode(node) {
+    if (this.state.selectedNodes.has(node)) {
+      this.state.selectedNodes.delete(node);
+    } else {
+      this.state.selectedNodes.add(node);
+    }
+    this.forceUpdate();
+  }
+
+  render({ nodeType, network }, { ns, newBaseName, currentNodes, selectedNodes }) {
     return (
       <div class="dialog-wrapper">
         <div class="dialog node-dialog shadow-xl w-1/2 flex flex-col" style="height: 40vh">
           <div class="flex">
-            <input
-              id="fork-dialog-input"
-              type="text"
-              class="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none text-lg"
-              value={newTypeName}
-              onInput={e => this.setState({ newTypeName: e.target.value })}
-              autofocus
-            ></input>
+            <span class="bg-gray-500 p-6 flex-grow">
+              <span class="text-lg">{ns}.</span>
+              <input
+                id="fork-dialog-input"
+                type="text"
+                class="bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
+                value={newBaseName}
+                onInput={e => this.setState({ newBaseName: e.target.value })}
+                autofocus
+              ></input>
+            </span>
             <span
               class="bg-gray-600 text-gray-700 p-6 text-xl flex items-center justify-center font-bold cursor-pointer"
               onClick={() => this.props.onCancel()}
@@ -63,7 +82,12 @@ export default class ForkDialog extends Component {
             {currentNodes &&
               currentNodes.map(node => (
                 <label class="block py-2 ">
-                  <input type="checkbox" /> {node.name}
+                  <input
+                    type="checkbox"
+                    checked={selectedNodes.has(node)}
+                    onChange={() => this._toggleSelectedNode(node)}
+                  />
+                  {node.name}
                 </label>
               ))}
           </div>

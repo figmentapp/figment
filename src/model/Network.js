@@ -73,11 +73,21 @@ export default class Network {
     this.library = library;
     this.nodes = [];
     this.connections = [];
+    this.types = [];
     this._id = 0;
   }
 
   _nextId() {
     return ++this._id;
+  }
+
+  findNodeType(typeId) {
+    let nodeType;
+    nodeType = this.types.find(type => type.type === typeId);
+    if (nodeType) return nodeType;
+    nodeType = this.library.findByType(typeId);
+    if (nodeType) return nodeType;
+    console.warn(`Could not find nodeType ${nodeType}`);
   }
 
   createNode(typeId, x, y, options) {
@@ -93,7 +103,11 @@ export default class Network {
     } else {
       id = this._nextId();
     }
-    const nodeType = this.library.findByType(typeId);
+    const nodeType = this.findNodeType(typeId);
+    if (!nodeType) {
+      console.warn(`Could not find nodeType ${typeId}.`);
+      return;
+    }
     const node = new Node(this, id, nodeType.name, nodeType.type, x, y);
     const source = nodeType.source;
     const fn = new Function('node', source);
@@ -107,6 +121,11 @@ export default class Network {
 
   parse(obj) {
     const warnings = [];
+    if (Array.isArray(obj.types)) {
+      for (const typeObj of obj.types) {
+        this.types.push(typeObj);
+      }
+    }
     for (const nodeObj of obj.nodes) {
       const node = this.createNode(nodeObj.type, nodeObj.x, nodeObj.y, { id: nodeObj.id });
       node.name = nodeObj.name;
@@ -197,6 +216,7 @@ export default class Network {
       json.nodes.push(nodeObj);
     }
     json.connections = JSON.parse(JSON.stringify(this.connections));
+    json.types = JSON.parse(JSON.stringify(this.types));
     return json;
   }
 
@@ -293,5 +313,48 @@ export default class Network {
       conn => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode))
     );
     this.doFrame();
+  }
+
+  forkNodeType(nodeType, newTypeName) {
+    const [ns, baseName] = newTypeName.split('.');
+    if (ns !== 'project') {
+      throw new Exception(
+        `forkNodeType ${newTypeName}: currently only project-level types are supported.`
+      );
+    }
+    // Check if a type with this name already exists.
+    this.types = this.types || [];
+    if (this.types.find(nodeType => nodeType.type == newTypeName)) {
+      throw new Exception(`A nodeType with the name ${newTypeName} already exists.`);
+    }
+    const newNodeType = {
+      name: nodeType.name,
+      type: newTypeName,
+      source: nodeType.source
+    };
+    this.types.push(newNodeType);
+    console.log(newNodeType);
+    return newNodeType;
+  }
+
+  changeNodeType(node, nodeType) {
+    console.assert(typeof nodeType === 'object');
+    // Stop the node and remove it from the network.
+    if (node.onStop) {
+      node.onStop();
+    }
+    this.nodes = this.nodes.filter(n => n !== node);
+    // Create a new node with the new type.
+    const newNode = this.createNode(nodeType.type, node.x, node.y, { id: node.id });
+    // Copy over parameters.
+    for (const oldPort of node.inPorts) {
+      if (oldPort.hasDefaultValue()) continue;
+      const newPort = newNode.inPorts.find(p => p.name === oldPort.name);
+      if (!newPort) continue;
+      if (newPort.type !== oldPort.type) continue;
+      newPort.value = oldPort.cloneValue();
+    }
+    console.log(this.nodes);
+    console.log(this.connections);
   }
 }

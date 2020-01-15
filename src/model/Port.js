@@ -34,4 +34,8 @@ export default class Port {
     this.value = value;
     this.node._valueOut(this, value);
   }
+
+  cloneValue() {
+    return JSON.parse(JSON.stringify(this.value));
+  }
 }

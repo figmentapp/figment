@@ -125,8 +125,10 @@ export default class App extends Component {
 
   _setFilePath(filePath, dirty = false) {
     const window = remote.BrowserWindow.getFocusedWindow();
-    window.setRepresentedFilename(filePath);
-    window.setDocumentEdited(!dirty);
+    if (window) {
+      window.setRepresentedFilename(filePath);
+      window.setDocumentEdited(!dirty);
+    }
     this.setState({ filePath, dirty });
   }
 
@@ -189,9 +191,17 @@ export default class App extends Component {
   _onHideForkDialog() {
     this.setState({ showForkDialog: false });
   }
-  _onForkNodeType(nodeType, newTypeName) {
-    // FIXME: implement
+
+  _onForkNodeType(nodeType, newTypeName, nodes = []) {
+    const { network } = this.state;
+    console.log(nodeType, newTypeName);
+    const newNodeType = network.forkNodeType(nodeType, newTypeName);
+    console.log(nodes);
+    for (const node of nodes) {
+      network.changeNodeType(node, newNodeType);
+    }
     this.setState({ showForkDialog: false });
+    return newNodeType;
   }
 
   _onCreateNode(nodeType) {

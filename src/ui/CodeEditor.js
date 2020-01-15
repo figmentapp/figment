@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import { h, Component, Fragment } from 'preact';
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/javascript/javascript.js';
 
@@ -9,18 +9,17 @@ export default class CodeEditor extends Component {
     //this._onKeyDown = this._onKeyDown.bind(this);
   }
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.nodeType !== this.props.nodeType) {
-      this.setState({ source: this.props.nodeType.source });
-      this.editor.setValue(this.props.nodeType.source);
-    }
+  isReadOnly() {
+    const ns = this.props.nodeType.type.split('.')[0];
+    const readOnly = ns !== 'project';
+    return readOnly;
   }
 
   componentDidMount() {
     const $code = document.getElementById('code');
     this.editor = CodeMirror.fromTextArea($code, {
       lineNumbers: true,
-      readOnly: true,
+      readOnly: this.isReadOnly(),
       mode: 'javascript',
       theme: 'darcula'
     });
@@ -37,20 +36,35 @@ export default class CodeEditor extends Component {
     });
   }
 
+  componentDidUpdate(prevProps) {
+    if (prevProps.nodeType !== this.props.nodeType) {
+      this.setState({ source: this.props.nodeType.source, readOnly });
+      this.editor.setValue(this.props.nodeType.source);
+      this.editor.setOption('readOnly', this.isReadOnly());
+    }
+  }
+
   render() {
+    const readOnly = this.isReadOnly();
     return (
       <div class="code flex-grow flex flex-col">
-        <div class="h-full w-full opacity-50">
+        <div class={'h-full w-full ' + (readOnly ? 'opacity-50' : '')}>
           <textarea class="code__area" id="code" value={this.state.source} />
         </div>
         <div class="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
-          <span class="text-gray-500">Code is read-only. Fork the code.</span>{' '}
-          <button
-            onClick={() => this.props.onShowForkDialog(this.props.nodeType)}
-            class="bg-gray-700 px-4 py-1 rounded text-gray-500"
-          >
-            Fork
-          </button>
+          {readOnly && (
+            <Fragment>
+              {' '}
+              <span class="text-gray-500">Code is read-only. Fork the code.</span>
+              <button
+                onClick={() => this.props.onShowForkDialog(this.props.nodeType)}
+                class="bg-gray-700 px-4 py-1 rounded text-gray-500"
+              >
+                Fork
+              </button>
+            </Fragment>
+          )}
+          {!readOnly && <span class="text-gray-400">{this.props.nodeType.type}</span>}
         </div>
       </div>
     );
