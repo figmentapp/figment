@@ -148,18 +148,19 @@ triggerIn.onTrigger = (props) => {
   ctx.translate(xIn.value, yIn.value);
   ctx.fillRect(-r, -r, r * 2, r * 2);
   ctx.restore();
+  triggerOut.trigger(props);
 };
 `;
 
 graphics.line = `// Draw a line between two points.
 const triggerIn = node.triggerIn('in');
+const triggerOut = node.triggerOut('out');
 const x1In = node.numberIn('x1', 0);
 const y1In = node.numberIn('y1', 0);
 const x2In = node.numberIn('x2', 100);
 const y2In = node.numberIn('y2', 100);
 const colorIn = node.colorIn('color', [150, 50, 150, 1]);
 const lineWidthIn = node.numberIn('lineWidth', 1);
-
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
@@ -169,6 +170,7 @@ triggerIn.onTrigger = (props) => {
   ctx.moveTo(x1In.value, y1In.value);
   ctx.lineTo(x2In.value, y2In.value);
   ctx.stroke();
+  triggerOut.trigger(props);
 }
 `;
 
