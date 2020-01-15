@@ -30,6 +30,7 @@ export default class Library {
       source: graphics.backgroundColor
     });
     this.nodeTypes.push({ name: 'Rectangle', type: 'graphics.rect', source: graphics.rect });
+    this.nodeTypes.push({ name: 'Line', type: 'graphics.line', source: graphics.line });
     this.nodeTypes.push({ name: 'Clone', type: 'graphics.clone', source: graphics.clone });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);

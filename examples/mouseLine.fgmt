@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 7,
+      "name": "Line",
+      "type": "graphics.line",
+      "x": 79,
+      "y": 229,
+      "values": {
+        "x1": 250,
+        "y1": 250,
+        "x2": 15,
+        "y2": 233,
+        "color": [
+          213,
+          234,
+          201,
+          1
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "name": "Mouse",
+      "type": "core.mouse",
+      "x": 146,
+      "y": 143
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 7,
+      "inPort": "in"
+    },
+    {
+      "outNode": 8,
+      "outPort": "x",
+      "inNode": 7,
+      "inPort": "x2"
+    },
+    {
+      "outNode": 8,
+      "outPort": "y",
+      "inNode": 7,
+      "inPort": "y2"
+    }
+  ]
+}

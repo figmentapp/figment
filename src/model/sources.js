@@ -151,4 +151,25 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+graphics.line = `// Draw a line between two points.
+const triggerIn = node.triggerIn('in');
+const x1In = node.numberIn('x1', 0);
+const y1In = node.numberIn('y1', 0);
+const x2In = node.numberIn('x2', 100);
+const y2In = node.numberIn('y2', 100);
+const colorIn = node.colorIn('color', [150, 50, 150, 1]);
+const lineWidthIn = node.numberIn('lineWidth', 1);
+
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.lineWidth = lineWidthIn.value;
+  ctx.beginPath();
+  ctx.moveTo(x1In.value, y1In.value);
+  ctx.lineTo(x2In.value, y2In.value);
+  ctx.stroke();
+}
+`;
+
 export default { core, graphics };
