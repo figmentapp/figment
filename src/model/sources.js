@@ -117,8 +117,8 @@ triggerIn.onTrigger = (props) => {
 graphics.clone = `// Clone and transform the shapes.
 const triggerIn = node.triggerIn('in');
 const amount = node.numberIn('amount', 5);
-const translateX = node.pointIn('translateX', 20);
-const translateY = node.pointIn('translateY', 20);
+const translateX = node.numberIn('translateX', 20);
+const translateY = node.numberIn('translateY', 20);
 const triggerOut = node.triggerOut('out');
 
 triggerIn.onTrigger = (props) => {
