@@ -53,6 +53,7 @@ export default class NetworkEditor extends Component {
     this.state = { x: 0, y: 0, scale: 1.0 };
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
+    this._onMouseDrag = this._onMouseDrag.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
     this._onDoubleClick = this._onDoubleClick.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
@@ -61,6 +62,7 @@ export default class NetworkEditor extends Component {
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
     this._dragPort = null;
+    this._networkX = this._networkY = 0;
     this._dragX = this._dragY = 0;
   }
 
@@ -86,6 +88,7 @@ export default class NetworkEditor extends Component {
           class="network__canvas"
           id="network"
           onMouseDown={this._onMouseDown}
+          onMouseMove={this._onMouseMove}
           onDblClick={this._onDoubleClick}
           onContextMenu={e => e.preventDefault()}
         />
@@ -156,16 +159,22 @@ export default class NetworkEditor extends Component {
         this.props.onClearSelection();
       }
     }
-    window.addEventListener('mousemove', this._onMouseMove);
+    window.addEventListener('mousemove', this._onMouseDrag);
     window.addEventListener('mouseup', this._onMouseUp);
   }
 
   _onMouseMove(e) {
+    [this._networkX, this._networkY] = this._networkPosition(e);
+    this._draw();
+  }
+
+  _onMouseDrag(e) {
     e.preventDefault();
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
     const dx = mouseX - this.prevX;
     const dy = mouseY - this.prevY;
+    [this._networkX, this._networkY] = this._networkPosition(e);
     if (this._dragMode === DRAG_MODE_PANNING) {
       this.setState({ x: this.state.x + dx, y: this.state.y + dy });
     } else if (this._dragMode === DRAG_MODE_SELECTING) {
@@ -194,7 +203,7 @@ export default class NetworkEditor extends Component {
       const port = node && this._findPort(node, networkX, networkY);
       if (port) this.props.onConnect(this._dragPort, port);
     }
-    window.removeEventListener('mousemove', this._onMouseMove);
+    window.removeEventListener('mousemove', this._onMouseDrag);
     window.removeEventListener('mouseup', this._onMouseUp);
     this._dragMode = DRAG_MODE_IDLE;
     this._draw();
