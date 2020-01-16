@@ -242,9 +242,11 @@ export default class NetworkEditor extends Component {
     canvas.width = bounds.width * ratio;
     canvas.height = bounds.height * ratio;
 
+    // Set up the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
-    const nodeColors = [COLORS.gray400, COLORS.gray500, COLORS.gray600];
+
+    // Draw nodes
     for (const node of network.nodes) {
       const nodeWidth = _nodeWidth(node);
       if (selection.has(node)) {
@@ -275,7 +277,8 @@ export default class NetworkEditor extends Component {
       const nodeWidth = _nodeWidth(node);
       ctx.fillText(node.name, node.x + nodeWidth + 10, node.y + NODE_PORT_WIDTH * 1.3);
     }
-    //ctx.strokeStyle = COLORS.gray200;
+
+    // Draw connections
     ctx.lineWidth = 2;
     for (const conn of network.connections) {
       const outNode = network.nodes.find(node => node.id === conn.outNode);
@@ -290,8 +293,10 @@ export default class NetworkEditor extends Component {
       ctx.strokeStyle = PORT_COLORS[outPort.type];
       this._drawConnectionLine(ctx, outX, outY, inX, inY);
     }
-    ctx.strokeStyle = COLORS.gray300;
+
+    // Draw connection line when dragging
     if (this._dragMode === DRAG_MODE_DRAG_PORT) {
+      ctx.strokeStyle = COLORS.gray300;
       const port = this._dragPort;
       let portIndex;
       if (port.direction === PORT_IN) {
