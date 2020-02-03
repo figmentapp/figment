@@ -111,7 +111,6 @@ export default class App extends Component {
     });
     if (result.canceled) return;
     const filePath = result.filePath;
-    console.log(filePath);
     await this._saveFile(filePath);
     this._setFilePath(filePath);
   }
@@ -138,7 +137,7 @@ export default class App extends Component {
     this.setState({ filePath, dirty });
   }
 
-  _onNewCodeTab(node) {
+  _onNewCodeTab(node, callback) {
     const nodeType = this.state.network.findNodeType(node.type);
     if (this.state.tabs.includes(nodeType)) {
       this.setState({ activeTabIndex: this.state.tabs.indexOf(nodeType) });

@@ -355,7 +355,6 @@ export default class Network {
       source: nodeType.source
     };
     this.types.push(newNodeType);
-    console.log(newNodeType);
     return newNodeType;
   }
 
@@ -376,7 +375,5 @@ export default class Network {
       if (newPort.type !== oldPort.type) continue;
       newPort.value = oldPort.cloneValue();
     }
-    console.log(this.nodes);
-    console.log(this.connections);
   }
 }
