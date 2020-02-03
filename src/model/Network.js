@@ -340,14 +340,14 @@ export default class Network {
   forkNodeType(nodeType, newTypeName) {
     const [ns, baseName] = newTypeName.split('.');
     if (ns !== 'project') {
-      throw new Exception(
+      throw new Error(
         `forkNodeType ${newTypeName}: currently only project-level types are supported.`
       );
     }
     // Check if a type with this name already exists.
     this.types = this.types || [];
     if (this.types.find(nodeType => nodeType.type == newTypeName)) {
-      throw new Exception(`A nodeType with the name ${newTypeName} already exists.`);
+      throw new Error(`A nodeType with the name ${newTypeName} already exists.`);
     }
     const newNodeType = {
       name: nodeType.name,
