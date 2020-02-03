@@ -63,7 +63,10 @@ export default class ForkDialog extends Component {
   render({ nodeType, network }, { ns, newBaseName, currentNodes, selectedNodes }) {
     return (
       <div class="dialog-wrapper">
-        <div class="dialog node-dialog shadow-xl w-1/2 flex flex-col" style="height: 40vh">
+        <div
+          class="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2"
+          style="height: 40vh"
+        >
           <div class="flex">
             <span class="bg-gray-500 p-6 flex-grow">
               <span class="text-lg">{ns}.</span>
@@ -78,13 +81,13 @@ export default class ForkDialog extends Component {
             </span>
             <div class="flex">
               <span
-                class="bg-gray-800 text-gray-200 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
+                class="bg-gray-600 text-gray-100 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
                 onClick={this._onFork}
               >
                 Fork
               </span>
               <span
-                class="bg-gray-600 text-gray-700 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
+                class="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
                 onClick={this.props.onCancel}
               >
                 &times;

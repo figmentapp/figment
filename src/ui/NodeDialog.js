@@ -44,7 +44,10 @@ export default class NodeDialog extends Component {
   render({}, { results }) {
     return (
       <div class="dialog-wrapper">
-        <div class="dialog node-dialog shadow-xl w-1/2 flex flex-col" style="height: 80vh">
+        <div
+          class="dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
+          style="height: 80vh"
+        >
           <div class="flex">
             <input
               id="node-dialog-search"
@@ -55,7 +58,7 @@ export default class NodeDialog extends Component {
               autofocus
             ></input>
             <span
-              class="bg-gray-600 text-gray-700 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
+              class="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
               onClick={() => this.props.onCancel()}
             >
               &times;
@@ -82,7 +85,7 @@ export default class NodeDialog extends Component {
           <p class="text-gray-500 text-sm">{nodeType.description}</p>
         </div>
         <div class="ml-5">
-          <div class="block rounded-sm bg-gray-700 text-gray-600 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
+          <div class="block rounded-sm bg-gray-700 text-gray-400 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
             <div onClick={() => this._onCreateNode(nodeType)}>+</div>
           </div>
         </div>
