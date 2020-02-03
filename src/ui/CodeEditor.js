@@ -38,7 +38,7 @@ export default class CodeEditor extends Component {
 
   componentDidUpdate(prevProps) {
     if (prevProps.nodeType !== this.props.nodeType) {
-      this.setState({ source: this.props.nodeType.source, readOnly });
+      this.setState({ source: this.props.nodeType.source });
       this.editor.setValue(this.props.nodeType.source);
       this.editor.setOption('readOnly', this.isReadOnly());
     }
