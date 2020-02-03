@@ -47,7 +47,7 @@ export default class CodeEditor extends Component {
   render() {
     const readOnly = this.isReadOnly();
     return (
-      <div class="code flex-grow flex flex-col">
+      <div class="code flex-grow flex flex-col overflow-hidden">
         <div class={'h-full w-full ' + (readOnly ? 'opacity-50' : '')}>
           <textarea class="code__area" id="code" value={this.state.source} />
         </div>
