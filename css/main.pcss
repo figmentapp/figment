@@ -29,6 +29,24 @@ body {
   font-size: 12px;
   font-family: var(--font-mono);
   background-color: var(--gray800);
+  user-select: none;
+  -webkit-user-drag: none;
+  cursor: default;
+}
+
+.is-selectable,
+pre,
+code {
+  user-select: text;
+  cursor: auto;
+}
+
+button {
+  cursor: default;
+}
+
+img {
+  -webkit-user-drag: none;
 }
 
 .app {

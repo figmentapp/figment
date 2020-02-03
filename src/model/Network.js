@@ -6,7 +6,9 @@ import Port, {
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
-  PORT_TYPE_COLOR
+  PORT_TYPE_COLOR,
+  PORT_IN,
+  PORT_OUT
 } from './Port';
 
 export const DEFAULT_NETWORK = {
@@ -218,6 +220,18 @@ export default class Network {
     json.connections = JSON.parse(JSON.stringify(this.connections));
     json.types = JSON.parse(JSON.stringify(this.types));
     return json;
+  }
+
+  isConnected(port) {
+    if (port.direction === PORT_IN) {
+      return !!this.connections.find(
+        conn => conn.inNode === port.node.id && conn.inPort === port.name
+      );
+    } else {
+      return !!this.connections.find(
+        conn => conn.inNode === port.node.id && conn.inPort === port.name
+      );
+    }
   }
 
   start() {

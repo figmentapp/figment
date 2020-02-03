@@ -19,8 +19,9 @@ class NumberDrag extends Component {
   }
 
   _onMouseDown(e) {
-    e.target.requestPointerLock();
     e.preventDefault();
+    if (this.props.disabled) return;
+    e.target.requestPointerLock();
     window.addEventListener('mousemove', this._onMouseMove);
     window.addEventListener('mouseup', this._onMouseUp);
   }
@@ -42,11 +43,17 @@ class NumberDrag extends Component {
     document.exitPointerLock();
   }
 
-  render({ label, direction }) {
+  render({ label, direction, disabled }) {
+    let cursor;
+    if (disabled) {
+      cursor = 'cursor-default';
+    } else {
+      cursor = direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
+    }
     return (
       <span
-        class={`w-32 text-right text-gray-500 mr-4 ${
-          direction === 'xy' ? 'cursor-move' : 'cursor-col-resize'
+        class={`w-32 text-right mr-4 py-2 ${cursor} ${
+          disabled ? 'text-gray-700' : 'text-gray-500'
         }`}
         onMouseDown={this._onMouseDown}
       >
@@ -68,14 +75,18 @@ class FloatParam extends Component {
     this.props.onChange(value);
   }
 
-  render({ label, value, onChange }) {
+  render({ label, value, disabled, onChange }) {
     return (
       <div class="flex items-center mb-2">
-        <NumberDrag label={label} value={value} onChange={onChange} />
+        <NumberDrag label={label} value={value} disabled={disabled} onChange={onChange} />
         <input
           type="text"
           spellcheck="false"
-          class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
+          disabled={disabled}
+          class={
+            'w-16 mr-4 p-2 ' +
+            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
+          }
           value={value}
           onChange={this._onChange}
         />
@@ -158,7 +169,7 @@ export default class ParamsEditor extends Component {
     });
   }
 
-  render({ selection }) {
+  render({ network, selection }) {
     if (selection.size === 0) {
       return (
         <div class="params">
@@ -180,12 +191,12 @@ export default class ParamsEditor extends Component {
           <span class="text-gray-200">{node.name}</span>
           <span class="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
-        {node.inPorts.map(port => this._renderPort(node, port))}
+        {node.inPorts.map(port => this._renderPort(network, node, port))}
       </div>
     );
   }
 
-  _renderPort(node, port) {
+  _renderPort(network, node, port) {
     let field;
     if (port.type === PORT_TYPE_TRIGGER) {
       return;
@@ -195,6 +206,7 @@ export default class ParamsEditor extends Component {
           <span class="w-32 mr-4"></span>
           <button
             class="bg-gray-600 text-gray-200 w-16 p-2"
+            disabled={network.isConnected(port)}
             onClick={() => this._onTriggerButton(port)}
           >
             {port.name}
@@ -208,6 +220,7 @@ export default class ParamsEditor extends Component {
           <label class="w-32 bg-gray-700 p-2">
             <input
               type="checkbox"
+              disabled={network.isConnected(port)}
               checked={port.value}
               onChange={e => this._onChangePortValue(port.name, e.target.checked)}
             />
@@ -220,6 +233,7 @@ export default class ParamsEditor extends Component {
         <FloatParam
           label={port.name}
           value={port.value}
+          disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
@@ -228,6 +242,7 @@ export default class ParamsEditor extends Component {
         <PointParam
           label={port.name}
           value={port.value}
+          disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
@@ -236,6 +251,7 @@ export default class ParamsEditor extends Component {
         <ColorParam
           label={port.name}
           value={port.value}
+          disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
