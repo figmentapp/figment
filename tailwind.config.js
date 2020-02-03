@@ -3,7 +3,8 @@ module.exports = {
     cursor: {
       'col-resize': 'col-resize',
       'row-resize': 'row-resize',
-      move: 'move'
+      move: 'move',
+      pointer: 'pointer'
     }
   },
   variants: {},

@@ -72,7 +72,7 @@ export default class NodeDialog extends Component {
   _renderNodeType(nodeType) {
     return (
       <div
-        class="bg-gray-800 p-4 flex items-center border-t border-gray-700"
+        class="bg-gray-800 p-4 flex items-center border-t border-gray-700 cursor-pointer"
         onDblClick={() => this._onCreateNode(nodeType)}
       >
         <div class="flex-grow">
