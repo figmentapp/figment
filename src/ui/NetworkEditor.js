@@ -227,7 +227,7 @@ export default class NetworkEditor extends Component {
     const [networkX, networkY] = this._networkPosition(e);
     const node = this._findNode(networkX, networkY);
     if (node) {
-      this.props.onOpenCode(node);
+      this.props.onNewCodeTab(node);
     } else {
       this.props.onShowNodeDialog(new Point(networkX, networkY));
     }

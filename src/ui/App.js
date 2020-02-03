@@ -30,6 +30,8 @@ export default class App extends Component {
       dirty: false,
       library,
       network,
+      tabs: [],
+      activeTabIndex: -1,
       selection: new Set(),
       showNodeDialog: false,
       showForkDialog: false,
@@ -39,6 +41,9 @@ export default class App extends Component {
       editorSplitterHeight: (window.innerHeight * 2) / 3
     };
     this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
+    this._onNewCodeTab = this._onNewCodeTab.bind(this);
+    this._onSelectTab = this._onSelectTab.bind(this);
+    this._onCloseTab = this._onCloseTab.bind(this);
     this._onSelectNode = this._onSelectNode.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onDeleteSelection = this._onDeleteSelection.bind(this);
@@ -131,6 +136,27 @@ export default class App extends Component {
       window.setDocumentEdited(!dirty);
     }
     this.setState({ filePath, dirty });
+  }
+
+  _onNewCodeTab(node) {
+    const nodeType = this.state.network.findNodeType(node.type);
+    if (this.state.tabs.includes(nodeType)) {
+      this.setState({ activeTabIndex: this.state.tabs.indexOf(nodeType) });
+      return;
+    }
+    const { tabs } = this.state;
+    tabs.push(nodeType);
+    this.setState({ tabs, activeTabIndex: tabs.length - 1 });
+  }
+
+  _onSelectTab(index) {
+    this.setState({ activeTabIndex: index });
+  }
+
+  _onCloseTab(index) {
+    const { tabs } = this.state;
+    tabs.splice(index, 1);
+    this.setState({ tabs, activeTabIndex: tabs.length - 1 });
   }
 
   _onSelectNode(node) {
@@ -226,6 +252,8 @@ export default class App extends Component {
       library,
       network,
       selection,
+      tabs,
+      activeTabIndex,
       showNodeDialog,
       showForkDialog,
       forkDialogNodeType,
@@ -237,10 +265,15 @@ export default class App extends Component {
       <div class="app">
         <div class="flex flex-col h-screen" style={`width: ${mainSplitterWidth}px`}>
           <Editor
+            tabs={tabs}
+            activeTabIndex={activeTabIndex}
             style={`height: ${editorSplitterHeight}px`}
             library={library}
             network={network}
             selection={selection}
+            onNewCodeTab={this._onNewCodeTab}
+            onSelectTab={this._onSelectTab}
+            onCloseTab={this._onCloseTab}
             onSelectNode={this._onSelectNode}
             onClearSelection={this._onClearSelection}
             onDeleteSelection={this._onDeleteSelection}
