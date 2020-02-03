@@ -55,10 +55,10 @@ export default class NodeDialog extends Component {
               autofocus
             ></input>
             <span
-              class="bg-gray-600 text-gray-700 p-6 text-xl flex items-center justify-center font-bold cursor-pointer"
+              class="bg-gray-600 text-gray-700 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
               onClick={() => this.props.onCancel()}
             >
-              x
+              &times;
             </span>
           </div>
           <div class="flex flex-col h-full overflow-y-auto flex-grow">
