@@ -52,6 +52,7 @@ export default class App extends Component {
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onConnect = this._onConnect.bind(this);
+    this._onDisconnect = this._onDisconnect.bind(this);
   }
 
   componentDidMount() {
@@ -211,18 +212,12 @@ export default class App extends Component {
     this.setState({ showNodeDialog: false });
   }
 
-  _onConnect(port1, port2) {
-    let inPort, outPort;
-    if (port1.direction === PORT_OUT) {
-      if (port2.direction !== PORT_IN) return;
-      outPort = port1;
-      inPort = port2;
-    } else {
-      if (port2.direction !== PORT_OUT) return;
-      inPort = port2;
-      outPort = port1;
-    }
-    this.state.network.connect(outPort.node, outPort, inPort.node, inPort);
+  _onConnect(outPort, inPort) {
+    this.state.network.connect(outPort, inPort);
+  }
+
+  _onDisconnect(inPort) {
+    this.state.network.disconnect(inPort);
   }
 
   render(
@@ -253,6 +248,7 @@ export default class App extends Component {
             onShowNodeDialog={this._onShowNodeDialog}
             onShowForkDialog={this._onShowForkDialog}
             onConnect={this._onConnect}
+            onDisconnect={this._onDisconnect}
           />
           <Splitter
             direction="horizontal"

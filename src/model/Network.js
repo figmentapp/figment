@@ -291,11 +291,11 @@ export default class Network {
     this.doFrame();
   }
 
-  connect(outNode, outPort, inNode, inPort) {
+  connect(outPort, inPort) {
+    const outNode = outPort.node;
+    const inNode = inPort.node;
     // Remove existing connections.
-    this.connections = this.connections.filter(
-      conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name)
-    );
+    this.disconnect(inPort);
     const conn = {
       outNode: outNode.id,
       outPort: outPort.name,
@@ -303,6 +303,14 @@ export default class Network {
       inPort: inPort.name
     };
     this.connections.push(conn);
+    this.doFrame();
+  }
+
+  disconnect(inPort) {
+    const inNode = inPort.node;
+    this.connections = this.connections.filter(
+      conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name)
+    );
     this.doFrame();
   }
 

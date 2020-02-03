@@ -145,12 +145,26 @@ export default class NetworkEditor extends Component {
       const [networkX, networkY] = this._networkPosition(e);
       const node = this._findNode(networkX, networkY);
       const port = node && this._findPort(node, networkX, networkY);
-      if (port) {
+      if (port && port.direction === PORT_OUT) {
         this._dragMode = DRAG_MODE_DRAG_PORT;
         this._dragPort = port;
         const [x, y] = this._networkPosition(e);
         this._dragX = x;
         this._dragY = y;
+      } else if (port && port.direction === PORT_IN) {
+        const conn = this.props.network.connections.find(
+          conn => conn.inNode === port.node.id && conn.inPort === port.name
+        );
+        if (conn) {
+          this.props.onDisconnect(port);
+          this._dragMode = DRAG_MODE_DRAG_PORT;
+          const outNode = this.props.network.nodes.find(node => node.id === conn.outNode);
+          const outPort = outNode.outPorts.find(port => port.name === conn.outPort);
+          this._dragPort = outPort;
+          const [x, y] = this._networkPosition(e);
+          this._dragX = x;
+          this._dragY = y;
+        }
       } else if (node) {
         this._dragMode = DRAG_MODE_DRAG_NODE;
         this.props.onSelectNode(node);
@@ -315,12 +329,7 @@ export default class NetworkEditor extends Component {
     if (this._dragMode === DRAG_MODE_DRAG_PORT) {
       ctx.strokeStyle = COLORS.gray300;
       const port = this._dragPort;
-      let portIndex;
-      if (port.direction === PORT_IN) {
-        portIndex = port.node.inPorts.findIndex(p => p === this._dragPort);
-      } else {
-        portIndex = port.node.outPorts.findIndex(p => p === this._dragPort);
-      }
+      const portIndex = port.node.outPorts.findIndex(p => p === this._dragPort);
       ctx.beginPath();
       let x1, y1, x2, y2;
       if (port.direction === PORT_OUT) {
@@ -343,11 +352,7 @@ export default class NetworkEditor extends Component {
   _drawPortTooltip(ctx, overNode, overPort) {
     if (!overPort) return;
     if (this._dragMode !== DRAG_MODE_IDLE && this._dragMode !== DRAG_MODE_DRAG_PORT) return;
-    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
-      if (!this._dragPort) return;
-      if (this._dragPort.direction === PORT_IN && overPort.direction !== PORT_OUT) return;
-      if (this._dragPort.direction === PORT_OUT && overPort.direction !== PORT_IN) return;
-    }
+    if (this._dragMode === DRAG_MODE_DRAG_PORT && overPort.direction !== PORT_IN) return;
     let toolTipX = overNode.x;
     let toolTipY = overNode.y;
     if (overPort.direction === PORT_IN) {

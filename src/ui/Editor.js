@@ -46,6 +46,9 @@ export default class Editor extends Component {
       onSelectNode,
       onClearSelection,
       onDeleteSelection,
+      onShowNodeDialog,
+      onConnect,
+      onDisconnect,
       onChangeSource,
       onShowForkDialog,
       style
@@ -83,8 +86,9 @@ export default class Editor extends Component {
             onClearSelection={onClearSelection}
             onDeleteSelection={onDeleteSelection}
             onOpenCode={this._onOpenCode}
-            onShowNodeDialog={this.props.onShowNodeDialog}
-            onConnect={this.props.onConnect}
+            onShowNodeDialog={onShowNodeDialog}
+            onConnect={onConnect}
+            onDisconnect={onDisconnect}
           />
         )}
         {activeTabIndex >= 0 && (
