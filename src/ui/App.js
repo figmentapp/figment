@@ -145,7 +145,7 @@ export default class App extends Component {
     }
     const { tabs } = this.state;
     tabs.push(nodeType);
-    this.setState({ tabs, activeTabIndex: tabs.length - 1 });
+    this.setState({ tabs, activeTabIndex: tabs.length - 1 }, callback);
   }
 
   _onSelectTab(index) {
@@ -220,14 +220,18 @@ export default class App extends Component {
 
   _onForkNodeType(nodeType, newTypeName, nodes = []) {
     const { network } = this.state;
-    console.log(nodeType, newTypeName);
     const newNodeType = network.forkNodeType(nodeType, newTypeName);
-    console.log(nodes);
     for (const node of nodes) {
       network.changeNodeType(node, newNodeType);
     }
-    this.setState({ showForkDialog: false });
-    return newNodeType;
+    this._onNewCodeTab(newNodeType, state => {
+      const tabs = this.state.tabs.filter(t => t.type !== nodeType.type);
+      this.setState({
+        tabs,
+        showForkDialog: false,
+        activeTabIndex: tabs.length - 1
+      });
+    });
   }
 
   _onCreateNode(nodeType) {
