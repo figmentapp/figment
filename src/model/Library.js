@@ -14,6 +14,11 @@ export default class Library {
       source: core.time
     });
     this.nodeTypes.push({
+      name: 'Smooth',
+      type: 'core.smooth',
+      source: core.smooth
+    });
+    this.nodeTypes.push({
       name: 'Mouse',
       type: 'core.mouse',
       source: core.mouse

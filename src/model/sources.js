@@ -30,6 +30,28 @@ triggerIn.onTrigger = (props) => {
 }
 `;
 
+core.smooth = `// Smooth values over time.
+const triggerIn = node.triggerIn('in');
+const valueIn = node.numberIn('value');
+const smoothIn = node.numberIn('smooth', 10);
+const valueOut = node.numberOut('value');
+let _currentValue;
+
+triggerIn.onTrigger = () => {
+  if (_currentValue === undefined) {
+    _currentValue = valueIn.value;
+  }
+  _currentValue += (valueIn.value - _currentValue) / (smoothIn.value * 100);
+  valueOut.set(_currentValue);
+};
+
+smoothIn.onChange = () => {
+  if (smoothIn.value <= 0) {
+    smoothIn.value = 1;
+  }
+};
+`;
+
 core.custom = `// Empty custom node.
 const triggerIn = node.triggerIn('in');
 
