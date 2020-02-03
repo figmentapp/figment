@@ -15,7 +15,7 @@ const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono',
 
 const NODE_PORT_WIDTH = 15;
 const NODE_PORT_HEIGHT = 5;
-const NODE_HEIGHT = NODE_PORT_WIDTH * 2;
+const NODE_HEIGHT = 30;
 const EDITOR_TABS_HEIGHT = 30;
 
 const DRAG_MODE_IDLE = 'idle';
@@ -112,7 +112,7 @@ export default class NetworkEditor extends Component {
     const dx = x - node.x;
     const dy = y - node.y;
     const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
-    if (dy <= 10) {
+    if (dy <= 15) {
       return node.inPorts[portIndex];
     } else if (dy >= NODE_HEIGHT - 10) {
       return node.outPorts[portIndex];
@@ -120,8 +120,8 @@ export default class NetworkEditor extends Component {
   }
 
   _networkPosition(e) {
-    const mouseX = e.clientX;
-    const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
+    const mouseX = e.offsetX;
+    const mouseY = e.offsetY;
     const networkX = mouseX - this.state.x;
     const networkY = mouseY - this.state.y;
     return [networkX, networkY];
@@ -251,6 +251,12 @@ export default class NetworkEditor extends Component {
     canvas.width = bounds.width * ratio;
     canvas.height = bounds.height * ratio;
 
+    // Detect if we're hovering over a node.
+    const overNode = this._findNode(this._networkX, this._networkY);
+    const overPort = overNode
+      ? this._findPort(overNode, this._networkX, this._networkY)
+      : undefined;
+
     // Set up the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
@@ -263,7 +269,7 @@ export default class NetworkEditor extends Component {
         ctx.fillRect(node.x - 3, node.y - 3, nodeWidth + 6, NODE_HEIGHT + 6);
       }
       ctx.fillStyle = COLORS.gray700;
-      ctx.fillRect(node.x, node.y, nodeWidth, NODE_PORT_WIDTH * 2);
+      ctx.fillRect(node.x, node.y, nodeWidth, NODE_HEIGHT);
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
@@ -303,6 +309,8 @@ export default class NetworkEditor extends Component {
       this._drawConnectionLine(ctx, outX, outY, inX, inY);
     }
 
+    this._drawPortTooltip(ctx, overNode, overPort);
+
     // Draw connection line when dragging
     if (this._dragMode === DRAG_MODE_DRAG_PORT) {
       ctx.strokeStyle = COLORS.gray300;
@@ -330,6 +338,32 @@ export default class NetworkEditor extends Component {
       this._drawConnectionLine(ctx, x1, y1, x2, y2);
       ctx.stroke();
     }
+  }
+
+  _drawPortTooltip(ctx, overNode, overPort) {
+    if (!overPort) return;
+    if (this._dragMode !== DRAG_MODE_IDLE && this._dragMode !== DRAG_MODE_DRAG_PORT) return;
+    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
+      if (!this._dragPort) return;
+      if (this._dragPort.direction === PORT_IN && overPort.direction !== PORT_OUT) return;
+      if (this._dragPort.direction === PORT_OUT && overPort.direction !== PORT_IN) return;
+    }
+    let toolTipX = overNode.x;
+    let toolTipY = overNode.y;
+    if (overPort.direction === PORT_IN) {
+      const index = overNode.inPorts.indexOf(overPort);
+      toolTipX += index * NODE_PORT_WIDTH;
+      toolTipY += 25;
+    } else {
+      const index = overNode.outPorts.indexOf(overPort);
+      toolTipX += index * NODE_PORT_WIDTH;
+      toolTipY += NODE_HEIGHT + 20;
+    }
+
+    ctx.fillStyle = COLORS.gray500;
+    ctx.fillRect(toolTipX, toolTipY, 10 + overPort.name.length * 8, 25);
+    ctx.fillStyle = COLORS.gray900;
+    ctx.fillText(overPort.name, toolTipX + 5, toolTipY + 17);
   }
 
   _drawConnectionLine(ctx, x1, y1, x2, y2) {
