@@ -26,7 +26,7 @@ export default class App extends Component {
     network.parse(DEFAULT_NETWORK);
     const lastNetworkPoint = new Point(0, 0);
     this.state = {
-      filePath: null,
+      filePath: undefined,
       dirty: false,
       library,
       network,
@@ -67,6 +67,9 @@ export default class App extends Component {
 
   _onMenuEvent(name, filePath) {
     switch (name) {
+      case 'new':
+        this._newProject();
+        break;
       case 'open':
         if (filePath) {
           this._openFile(filePath);
@@ -84,6 +87,17 @@ export default class App extends Component {
         remote.app.quit();
         break;
     }
+  }
+
+  _newProject() {
+    this._close();
+    const library = new Library();
+    const network = new Network(library);
+    network.parse(DEFAULT_NETWORK);
+    network.start();
+    network.doFrame();
+    this.setState({ network, selection: new Set() });
+    this._setFilePath(undefined);
   }
 
   async _onOpenFile() {
@@ -139,12 +153,14 @@ export default class App extends Component {
       this.state.network.stop();
       document.getElementById('viewer').innerHTML = '';
     }
+    // FIXME: check for unsaved changes
   }
 
   _setFilePath(filePath, dirty = false) {
     const window = remote.BrowserWindow.getFocusedWindow();
     if (window) {
-      window.setRepresentedFilename(filePath);
+      // FIXME: how to clear the represented filename?
+      filePath && window.setRepresentedFilename(filePath);
       window.setDocumentEdited(!dirty);
     }
     this.setState({ filePath, dirty });

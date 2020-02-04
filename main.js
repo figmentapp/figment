@@ -132,6 +132,8 @@ function createApplicationMenu() {
     role: 'fileMenu',
     label: 'File',
     submenu: [
+      { label: 'New Project', accelerator: 'CmdOrCtrl+N', click: emit('new') },
+      { type: 'separator' },
       { label: 'Open Project…', accelerator: 'CmdOrCtrl+O', click: emit('open') },
       {
         key: 'recentProjects',
