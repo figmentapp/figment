@@ -61,6 +61,11 @@ function onTouchProject(filePath) {
   createApplicationMenu();
 }
 
+async function onClearRecentProjects() {
+  await gSettings.clearRecentProjects();
+  createApplicationMenu();
+}
+
 ipcMain.on('open-project', (e, filePath) => onTouchProject(filePath));
 ipcMain.on('save-project', (e, filePath) => onTouchProject(filePath));
 
@@ -119,6 +124,8 @@ function createApplicationMenu() {
       label: path.basename(filePath),
       click: emit('open', filePath)
     }));
+    recentItems.push({ type: 'separator' });
+    recentItems.push({ label: 'Clear Recent Projects', click: onClearRecentProjects });
   }
 
   const fileMenu = {
