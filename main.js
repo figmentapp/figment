@@ -1,15 +1,68 @@
 const { app, Menu, BrowserWindow, session, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs').promises;
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 
-let gMainWindow;
+class Settings {
+  settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
-function emit(name) {
+  async load() {
+    try {
+      this._raw = JSON.parse(await fs.readFile(this.settingsPath, 'utf-8'));
+    } catch (e) {
+      this._raw = {};
+    }
+  }
+
+  async save() {
+    await fs.writeFile(this.settingsPath, JSON.stringify(this._raw, null, 2));
+  }
+
+  _assertLoaded() {
+    if (this._raw === undefined) {
+      throw new Error(
+        `Trying to access settings ${this.settingsPath} but they are not loaded yet.`
+      );
+    }
+  }
+
+  getRecentProjects() {
+    this._assertLoaded();
+    return (this._raw.recentProjects || []).slice();
+  }
+
+  async addRecentProject(filePath) {
+    let recents = this._raw.recentProjects || [];
+    recents = recents.filter(r => r !== filePath);
+    recents.unshift(filePath);
+    recents = recents.slice(0, 10);
+    this._raw.recentProjects = recents;
+    await this.save();
+  }
+
+  async clearRecentProjects() {
+    this._raw.recentProjects = [];
+    await this.save();
+  }
+}
+
+let gMainWindow;
+let gSettings = new Settings();
+
+function emit(name, filePath) {
   return () => {
-    gMainWindow.webContents.send('menu-event', { name });
+    gMainWindow.webContents.send('menu-event', { name, filePath });
   };
 }
+
+function onTouchProject(filePath) {
+  gSettings.addRecentProject(filePath);
+  createApplicationMenu();
+}
+
+ipcMain.on('open-project', (e, filePath) => onTouchProject(filePath));
+ipcMain.on('save-project', (e, filePath) => onTouchProject(filePath));
 
 function createMainWindow() {
   gMainWindow = new BrowserWindow({
@@ -51,17 +104,35 @@ function createApplicationMenu() {
     label: app.name,
     submenu: [
       {
-        label: `Quit ${app.name}`,
-        accelerator: 'CmdOrCtrl+Q',
-        click: emit('quit')
+        role: 'quit'
       }
     ]
   };
+
+  const recentProjects = gSettings.getRecentProjects();
+  let recentItems;
+  if (recentProjects.length === 0) {
+    recentItems = [{ key: 'null', label: 'No Recent Projects', enabled: false }];
+  } else {
+    recentItems = recentProjects.map(filePath => ({
+      key: filePath,
+      label: path.basename(filePath),
+      click: emit('open', filePath)
+    }));
+  }
+
   const fileMenu = {
     role: 'fileMenu',
     label: 'File',
     submenu: [
-      { label: 'Open', accelerator: 'CmdOrCtrl+O', click: emit('open') },
+      { label: 'Open Project…', accelerator: 'CmdOrCtrl+O', click: emit('open') },
+      {
+        key: 'recentProjects',
+        role: 'recentDocuments',
+        label: 'Open Recent',
+        submenu: recentItems
+      },
+      { type: 'separator' },
       { label: 'Save', accelerator: 'CmdOrCtrl+S', click: emit('save') },
       {
         label: 'Save As...',
@@ -71,10 +142,9 @@ function createApplicationMenu() {
     ]
   };
   if (!isMac) {
+    fileMenu.submenu.push({ type: 'separator' });
     fileMenu.submenu.push({
-      label: 'Quit',
-      accelerator: isWindows ? 'Alt+F4' : 'CmdOrCtrl+Q',
-      click: emit('quit')
+      role: 'quit'
     });
   }
   const template = [
@@ -88,7 +158,8 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-app.on('ready', () => {
+app.on('ready', async () => {
+  await gSettings.load();
   createApplicationMenu();
   createMainWindow();
 });

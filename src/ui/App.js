@@ -62,16 +62,23 @@ export default class App extends Component {
 
   componentDidMount() {
     this.state.network.start();
-    ipcRenderer.on('menu-event', (_, { name }) => this._onMenuEvent(name));
+    ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
   }
 
-  _onMenuEvent(name) {
+  _onMenuEvent(name, filePath) {
     switch (name) {
       case 'open':
-        this._onOpenFile();
+        if (filePath) {
+          this._openFile(filePath);
+        } else {
+          this._onOpenFile();
+        }
         break;
       case 'save':
         this._onSaveFile();
+        break;
+      case 'save-as':
+        this._onSaveFileAs();
         break;
       case 'quit':
         remote.app.quit();
@@ -86,8 +93,11 @@ export default class App extends Component {
       filters: FILE_FILTERS
     });
     if (result.canceled) return;
+    await this._openFile(result.filePaths[0]);
+  }
+
+  async _openFile(filePath) {
     this._close();
-    const filePath = result.filePaths[0];
     const contents = await fs.readFile(filePath, 'utf-8');
     const json = JSON.parse(contents);
     const network = new Network(this.state.library);
@@ -96,6 +106,8 @@ export default class App extends Component {
     network.doFrame();
     this.setState({ network, selection: new Set() });
     this._setFilePath(filePath);
+    remote.app.addRecentDocument(filePath);
+    ipcRenderer.send('open-project', filePath);
   }
 
   async _onSaveFile() {
@@ -119,6 +131,7 @@ export default class App extends Component {
     const json = this.state.network.serialize();
     const contents = JSON.stringify(json, null, 2);
     await fs.writeFile(filePath, contents);
+    ipcRenderer.send('save-project', filePath);
   }
 
   _close() {
