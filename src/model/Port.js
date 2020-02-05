@@ -6,6 +6,7 @@ export const PORT_TYPE_NUMBER = 'float';
 export const PORT_TYPE_COLOR = 'color';
 export const PORT_TYPE_POINT = 'point';
 export const PORT_TYPE_FILE = 'file';
+export const PORT_TYPE_IMAGE = 'image';
 
 export const PORT_IN = 'in';
 export const PORT_OUT = 'out';

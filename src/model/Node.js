@@ -6,6 +6,7 @@ import Port, {
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
+  PORT_TYPE_IMAGE,
   PORT_IN,
   PORT_OUT
 } from './Port';
@@ -120,6 +121,17 @@ export default class Node {
     }
   }
 
+  imageIn(name) {
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_IMAGE, PORT_IN);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
   triggerOut(name) {
     const oldPort = this.outPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
@@ -133,6 +145,14 @@ export default class Node {
     const oldPort = this.outPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_OUT, value);
+    this.outPorts.push(outPort);
+    return outPort;
+  }
+
+  imageOut(name) {
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const outPort = new Port(this, name, PORT_TYPE_IMAGE, PORT_OUT);
     this.outPorts.push(outPort);
     return outPort;
   }

@@ -7,6 +7,7 @@ import Port, {
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
+  PORT_TYPE_IMAGE,
   PORT_IN,
   PORT_OUT
 } from './Port';
@@ -209,6 +210,7 @@ export default class Network {
     for (const node of this.nodes) {
       const values = {};
       for (const port of node.inPorts) {
+        if (port.type === PORT_TYPE_IMAGE) continue;
         if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
           let value;
           if (port.type === PORT_TYPE_TOGGLE) {
