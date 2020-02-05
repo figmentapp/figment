@@ -219,7 +219,7 @@ export default class NetworkEditor extends Component {
       const [networkX, networkY] = this._networkPosition(e);
       const node = this._findNode(networkX, networkY);
       const port = node && this._findPort(node, networkX, networkY);
-      if (port) this.props.onConnect(this._dragPort, port);
+      if (port && port.direction === PORT_IN) this.props.onConnect(this._dragPort, port);
     }
     window.removeEventListener('mousemove', this._onMouseDrag);
     window.removeEventListener('mouseup', this._onMouseUp);
