@@ -282,6 +282,12 @@ export default class Network {
     // Find all nodes with this source type.
     const nodes = this.nodes.filter(n => n.type === nodeType.type);
     nodeType.source = source;
+    const description = source.match(/\/\/(.*)/);
+    if (description) {
+      nodeType.description = description[1].trim();
+    } else {
+      nodeType.description = '';
+    }
     const fn = new Function('node', nodeType.source);
     for (const node of nodes) {
       this._stopNode(node);
