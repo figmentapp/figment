@@ -238,4 +238,36 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+image.camImage = `// webcam stream
+const imageOut = node.imageOut('image');
+let video;
+let streaming;
+
+node.onStart = () => {
+    video = document.createElement('video');
+    video.autoplay = true;
+  
+ if (navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({
+          video: true
+        })
+        .then(function(stream) {
+          video.srcObject = stream;
+          streaming = stream;
+          imageOut.set(video);
+        })
+        .catch(function(err0r) {
+          console.log("no camera input!");
+        });
+    }
+};
+
+node.onStop = () => {
+  if (streaming.active) {
+    streaming.getTracks().forEach(track => track.stop())
+    video = null;
+  }
+}
+`;
+
 export default { core, graphics, image };
