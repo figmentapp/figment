@@ -1,4 +1,4 @@
-import { core, graphics, image } from './sources';
+import { core, math, graphics, image, ml } from './sources';
 
 export default class Library {
   constructor() {
@@ -28,6 +28,11 @@ export default class Library {
       type: 'core.custom',
       source: core.custom
     });
+    this.nodeTypes.push({
+      name: 'Convert',
+      type: 'math.convert',
+      source: math.convert
+    });
     this.nodeTypes.push({ name: 'Canvas', type: 'graphics.canvas', source: graphics.canvas });
     this.nodeTypes.push({
       name: 'Background Color',
@@ -41,6 +46,11 @@ export default class Library {
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
     this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.camImage', source: image.camImage });
+    this.nodeTypes.push({
+      name: 'Classify Image',
+      type: 'ml.classifyImage',
+      source: ml.classifyImage
+    });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {

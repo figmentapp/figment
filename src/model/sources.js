@@ -1,6 +1,8 @@
 export const core = {};
+export const math = {};
 export const graphics = {};
 export const image = {};
+export const ml = {};
 
 core.sequence = `// Execute the connected nodes in the correct order.
 const triggerIn = node.triggerIn('in');
@@ -85,6 +87,34 @@ node.onStop = (props) => {
   if (!canvas) canvas = viewer;
   canvas.removeEventListener('mousemove', onMouseMove);
 };
+`;
+
+math.convert = `// Convert values from one domain to another.
+const valueIn = node.numberIn('value', 0.5);
+const inMinIn = node.numberIn('inMin', 0);
+const inMaxIn = node.numberIn('inMax', 1);
+const outMinIn = node.numberIn('outMin', 0);
+const outMaxIn = node.numberIn('outMax', 255);
+const valueOut = node.numberOut('value');
+
+const onChange = () => {
+  let v = valueIn.value;
+  // Convert from input to 0-1.
+  try {
+  	v = (v - inMinIn.value) / (inMaxIn.value - inMinIn.value);
+  } catch (e) {
+    v = inMin.value;
+  }
+  // Convert from 0-1 to target domain.
+  v = outMinIn.value + v * (outMaxIn.value - outMinIn.value);
+  valueOut.set(v);
+};
+
+valueIn.onChange = onChange;
+inMinIn.onChange = onChange;
+inMaxIn.onChange = onChange;
+outMinIn.onChange = onChange;
+outMaxIn.onChange = onChange;
 `;
 
 graphics.canvas = `// Initialize a new canvas and triggers the render every frame.
@@ -295,4 +325,28 @@ node.onStop = () => {
 }
 `;
 
-export default { core, graphics, image };
+ml.classifyImage = `// Classify an image.
+const ml5 = require('ml5');
+const imageIn = node.imageIn('image');
+const labelOut = node.stringOut('label');
+const confidenceOut = node.numberOut('confidence');
+
+const classify = () => {
+  if (!imageIn.value) return;
+  classifier.classify(imageIn.value, (err, results) => {
+    if (err) {
+      labelOut.set('');
+      confidenceOut.set(0);
+    } else {
+      const result = results[0];
+      labelOut.set(result.label);
+      confidenceOut.set(result.confidence);
+    }
+  });
+} 
+
+const classifier = ml5.imageClassifier('MobileNet', classify);
+imageIn.onChange = classify;
+`;
+
+export default { core, math, graphics, image, ml };
