@@ -229,11 +229,16 @@ const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
 const xIn = node.numberIn('x');
 const yIn = node.numberIn('y');
+const centeredIn = node.toggleIn('centered', false);
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
   if (imageIn.value) {
-    ctx.drawImage(imageIn.value, xIn.value, yIn.value);
+    if (centeredIn.value) {
+      ctx.drawImage(imageIn.value, xIn.value - imageIn.value.width / 2, yIn.value - imageIn.value.height / 2);
+    } else {
+      ctx.drawImage(imageIn.value, xIn.value, yIn.value);
+    }
   }
 };
 `;
