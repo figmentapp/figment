@@ -3,6 +3,7 @@ import Port, {
   PORT_TYPE_BUTTON,
   PORT_TYPE_TOGGLE,
   PORT_TYPE_NUMBER,
+  PORT_TYPE_STRING,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
@@ -68,6 +69,22 @@ export default class Node {
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_IN, value);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
+  stringIn(name, value) {
+    if (!value) value = '';
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_STRING, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }
@@ -145,6 +162,24 @@ export default class Node {
     const oldPort = this.outPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_OUT, value);
+    this.outPorts.push(outPort);
+    return outPort;
+  }
+
+  stringOut(name, value) {
+    if (!value) value = 0;
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const outPort = new Port(this, name, PORT_TYPE_STRING, PORT_OUT, value);
+    this.outPorts.push(outPort);
+    return outPort;
+  }
+
+  colorOut(name, value) {
+    if (!value) value = [0, 0, 0, 0];
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const outPort = new Port(this, name, PORT_TYPE_COLOR, PORT_OUT, value);
     this.outPorts.push(outPort);
     return outPort;
   }

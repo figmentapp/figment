@@ -37,6 +37,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Rectangle', type: 'graphics.rect', source: graphics.rect });
     this.nodeTypes.push({ name: 'Line', type: 'graphics.line', source: graphics.line });
     this.nodeTypes.push({ name: 'Clone', type: 'graphics.clone', source: graphics.clone });
+    this.nodeTypes.push({ name: 'Text', type: 'graphics.text', source: graphics.text });
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
     this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.camImage', source: image.camImage });

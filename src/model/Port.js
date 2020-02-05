@@ -2,7 +2,8 @@ import { COLORS } from '../colors';
 
 export const PORT_TYPE_TRIGGER = 'trigger';
 export const PORT_TYPE_TOGGLE = 'toggle';
-export const PORT_TYPE_NUMBER = 'float';
+export const PORT_TYPE_NUMBER = 'number';
+export const PORT_TYPE_STRING = 'string';
 export const PORT_TYPE_COLOR = 'color';
 export const PORT_TYPE_POINT = 'point';
 export const PORT_TYPE_FILE = 'file';

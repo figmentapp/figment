@@ -12,6 +12,7 @@
   "dependencies": {
     "chroma-js": "2.1.0",
     "codemirror": "5.49.2",
+    "lodash.throttle": "4.1.1",
     "ml5": "0.4.3",
     "postcss-modules": "1.5.0",
     "preact": "10.1.1",

@@ -5,6 +5,7 @@ import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
   PORT_TYPE_NUMBER,
+  PORT_TYPE_STRING,
   PORT_TYPE_COLOR,
   PORT_TYPE_POINT,
   PORT_TYPE_FILE,
@@ -30,6 +31,7 @@ const PORT_COLORS = {
   [PORT_TYPE_TRIGGER]: COLORS.yellow300,
   [PORT_TYPE_TOGGLE]: COLORS.orange300,
   [PORT_TYPE_NUMBER]: COLORS.gray500,
+  [PORT_TYPE_STRING]: COLORS.indigo600,
   [PORT_TYPE_COLOR]: COLORS.gray600,
   [PORT_TYPE_POINT]: COLORS.gray700,
   [PORT_TYPE_FILE]: COLORS.gray400,
@@ -239,6 +241,7 @@ export default class NetworkEditor extends Component {
 
   _onKeyDown(e) {
     if (e.keyCode === 32) {
+      if (e.target.nodeName === 'INPUT' && e.target.type === 'text') return;
       e.preventDefault();
       this._spaceDown = true;
     }
@@ -246,6 +249,7 @@ export default class NetworkEditor extends Component {
 
   _onKeyUp(e) {
     if (e.keyCode === 32) {
+      if (e.target.nodeName === 'INPUT' && e.target.type === 'text') return;
       e.preventDefault();
       this._spaceDown = false;
     } else if (e.keyCode === 46 || e.keyCode === 8) {

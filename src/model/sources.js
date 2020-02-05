@@ -194,7 +194,25 @@ triggerIn.onTrigger = (props) => {
   ctx.lineTo(x2In.value, y2In.value);
   ctx.stroke();
   triggerOut.trigger(props);
-}
+};
+`;
+
+graphics.text = `// Draw a line of text.
+const triggerIn = node.triggerIn('in');
+const triggerOut = node.triggerOut('out');
+const textIn = node.stringIn('text', 'Hello');
+const xIn = node.numberIn('x', 0);
+const yIn = node.numberIn('y', 50);
+const fontSizeIn = node.numberIn('fontSize', 24);
+const colorIn = node.colorIn('color', [200, 200, 200, 1]);
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+  ctx.font = \`\${fontSizeIn.value}px sans-serif\`;
+  ctx.fillStyle = g.rgba(...colorIn.value);
+  ctx.fillText(textIn.value, xIn.value, yIn.value);
+  triggerOut.trigger(props);
+};
 `;
 
 image.loadImage = `// Load an image from a file.
@@ -226,6 +244,7 @@ fileIn.onChange = exec;
 
 image.drawImage = `// Draw the image on the canvas.
 const triggerIn = node.triggerIn('in');
+const triggerOut = node.triggerOut('out');
 const imageIn = node.imageIn('image');
 const xIn = node.numberIn('x');
 const yIn = node.numberIn('y');
@@ -240,6 +259,7 @@ triggerIn.onTrigger = (props) => {
       ctx.drawImage(imageIn.value, xIn.value, yIn.value);
     }
   }
+  triggerOut.trigger(props);
 };
 `;
 

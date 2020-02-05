@@ -2,11 +2,14 @@ import { h, Component } from 'preact';
 import chroma from 'chroma-js';
 import { Point } from '../g';
 import { remote } from 'electron';
+import throttle from 'lodash.throttle';
+
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
+  PORT_TYPE_STRING,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE
@@ -91,6 +94,37 @@ class FloatParam extends Component {
           }
           value={value}
           onChange={this._onChange}
+        />
+      </div>
+    );
+  }
+}
+
+class StringParam extends Component {
+  constructor(props) {
+    super(props);
+    this._onChange = throttle(this._onChange.bind(this), 200);
+  }
+
+  _onChange(e) {
+    const value = e.target.value;
+    this.props.onChange(value);
+  }
+
+  render({ label, value, disabled, onChange }) {
+    return (
+      <div class="flex items-center mb-2">
+        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <input
+          type="text"
+          spellcheck="false"
+          disabled={disabled}
+          class={
+            'w-64 mr-4 p-2 ' +
+            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
+          }
+          value={value}
+          onInput={this._onChange}
         />
       </div>
     );
@@ -268,6 +302,15 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_NUMBER) {
       field = (
         <FloatParam
+          label={port.name}
+          value={port.value}
+          disabled={network.isConnected(port)}
+          onChange={value => this._onChangePortValue(port.name, value)}
+        />
+      );
+    } else if (port.type === PORT_TYPE_STRING) {
+      field = (
+        <StringParam
           label={port.name}
           value={port.value}
           disabled={network.isConnected(port)}
