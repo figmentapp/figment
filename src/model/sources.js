@@ -1,5 +1,6 @@
 export const core = {};
 export const graphics = {};
+export const image = {};
 
 core.sequence = `// Execute the connected nodes in the correct order.
 const triggerIn = node.triggerIn('in');
@@ -196,4 +197,45 @@ triggerIn.onTrigger = (props) => {
 }
 `;
 
-export default { core, graphics };
+image.loadImage = `// Load an image from a file.
+const url = require('url');
+
+const fileIn = node.fileIn('file', '');
+const imageOut = node.imageOut('image');
+
+function exec() {
+  if (!fileIn.value || fileIn.value.trim().length === 0) return;
+  const imageUrl = url.pathToFileURL(fileIn.value);
+  const image = new Image();
+  function onFinished(e) {
+    const supported = e.type === 'load' && image.width > 0;
+    if (supported) {
+      imageOut.set(image);
+    } else {
+      imageOut.set(null);
+    }
+  }
+  image.onerror = onFinished;
+  image.onload = onFinished;
+  image.src = imageUrl;
+}
+
+node.onStart = exec;
+fileIn.onChange = exec;
+`;
+
+image.drawImage = `// Draw the image on the canvas.
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const xIn = node.numberIn('x');
+const yIn = node.numberIn('y');
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+  if (imageIn.value) {
+    ctx.drawImage(imageIn.value, xIn.value, yIn.value);
+  }
+};
+`;
+
+export default { core, graphics, image };
