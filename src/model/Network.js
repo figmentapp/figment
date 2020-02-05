@@ -128,7 +128,7 @@ export default class Network {
     }
 
     this.nodes.push(node);
-    if (this.started && node.onStart) {
+    if (this.started) {
       this._startNode(node);
     }
     return node;
