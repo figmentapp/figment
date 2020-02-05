@@ -39,6 +39,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Clone', type: 'graphics.clone', source: graphics.clone });
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
     this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
+    this.nodeTypes.push({ name: 'webCam Image', type: 'image.camImage', source: image.camImage });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {
