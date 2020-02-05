@@ -336,7 +336,11 @@ export default class App extends Component {
         <div class="viewer" id="viewer" />
 
         {showNodeDialog && (
-          <NodeDialog onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />
+          <NodeDialog
+            network={network}
+            onCreateNode={this._onCreateNode}
+            onCancel={this._onHideNodeDialog}
+          />
         )}
         {showForkDialog && (
           <ForkDialog

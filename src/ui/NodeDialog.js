@@ -4,15 +4,15 @@ import Library from '../model/Library';
 export default class NodeDialog extends Component {
   constructor(props) {
     super(props);
-    this.library = new Library();
-    this.state = { q: '', results: this.library.nodeTypes };
+    this.nodeTypes = props.network.allNodeTypes();
+    this.state = { q: '', results: this.nodeTypes };
     this._onSearch = this._onSearch.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
 
   _onSearch(e) {
     const q = e.target.value;
-    const results = this.library.nodeTypes.filter(node =>
+    const results = this.nodeTypes.filter(node =>
       node.name.toLowerCase().includes(q.toLowerCase())
     );
     this.setState({ q, results });

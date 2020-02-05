@@ -92,6 +92,13 @@ export default class Network {
     console.warn(`Could not find nodeType ${nodeType}`);
   }
 
+  allNodeTypes() {
+    const nodeTypes = [];
+    nodeTypes.push(...this.types);
+    nodeTypes.push(...this.library.nodeTypes);
+    return nodeTypes;
+  }
+
   createNode(typeId, x, y, options) {
     if (typeof typeId !== 'string') {
       debugger;
