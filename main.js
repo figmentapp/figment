@@ -76,7 +76,8 @@ function createMainWindow() {
     show: false,
     icon: path.join(__dirname, 'assets/icons/app-icon-512.png'),
     webPreferences: {
-      nodeIntegration: true
+      nodeIntegration: true,
+      webSecurity: false
     }
   });
 
