@@ -245,11 +245,19 @@ export default class Network {
 
   stop() {
     for (const node of this.nodes) {
-      if (node.onStop) {
-        node.onStop(node);
-      }
+      this._stopNode(node);
     }
     this.started = false;
+  }
+
+  _stopNode(node) {
+    if (node.onStop) {
+      try {
+        node.onStop(node);
+      } catch (e) {
+        console.error(e && e.stack);
+      }
+    }
   }
 
   // restart() {
@@ -276,9 +284,7 @@ export default class Network {
     nodeType.source = source;
     const fn = new Function('node', nodeType.source);
     for (const node of nodes) {
-      if (node.onStop) {
-        node.onStop(node);
-      }
+      this._stopNode(node);
       fn.call(window, node);
       if (node.onStart) {
         node.onStart(node);
@@ -361,9 +367,7 @@ export default class Network {
   changeNodeType(node, nodeType) {
     console.assert(typeof nodeType === 'object');
     // Stop the node and remove it from the network.
-    if (node.onStop) {
-      node.onStop();
-    }
+    this._stopNode(node);
     this.nodes = this.nodes.filter(n => n !== node);
     // Create a new node with the new type.
     const newNode = this.createNode(nodeType.type, node.x, node.y, { id: node.id });
