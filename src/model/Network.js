@@ -342,6 +342,9 @@ export default class Network {
 
   deleteNodes(nodes) {
     const nodeIds = nodes.map(node => node.id);
+    for (const node of nodes) {
+      this._stopNode(node);
+    }
     this.nodes = this.nodes.filter(node => !nodes.includes(node));
     this.connections = this.connections.filter(
       conn => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode))
