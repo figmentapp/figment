@@ -119,11 +119,16 @@ export default class Network {
     }
     const node = new Node(this, id, nodeType.name, nodeType.type, x, y);
     const source = nodeType.source;
-    const fn = new Function('node', source);
-    fn.call(window, node);
+    try {
+      const fn = new Function('node', source);
+      fn.call(window, node);
+    } catch (e) {
+      console.error(e && e.stack);
+    }
+
     this.nodes.push(node);
     if (this.started && node.onStart) {
-      node.onStart(node);
+      this._startNode(node);
     }
     return node;
   }
@@ -243,11 +248,19 @@ export default class Network {
 
   start() {
     for (const node of this.nodes) {
-      if (node.onStart) {
-        node.onStart(node);
-      }
+      this._startNode(node);
     }
     this.started = true;
+  }
+
+  _startNode(node) {
+    if (node.onStart) {
+      try {
+        node.onStart(node);
+      } catch (e) {
+        console.error(e && e.stack);
+      }
+    }
   }
 
   stop() {
@@ -295,13 +308,15 @@ export default class Network {
     } else {
       nodeType.description = '';
     }
-    const fn = new Function('node', nodeType.source);
-    for (const node of nodes) {
-      this._stopNode(node);
-      fn.call(window, node);
-      if (node.onStart) {
-        node.onStart(node);
+    try {
+      const fn = new Function('node', nodeType.source);
+      for (const node of nodes) {
+        this._stopNode(node);
+        fn.call(window, node);
+        this._startNode(node);
       }
+    } catch (e) {
+      console.error(e && e.stack);
     }
 
     this.doFrame();
