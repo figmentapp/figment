@@ -25,7 +25,7 @@ export default class Port {
   }
 
   hasDefaultValue() {
-    if (this.type === PORT_TYPE_IMAGE) {
+    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE) {
       return true;
     }
     return JSON.stringify(this.defaultValue) === JSON.stringify(this.value);
@@ -41,7 +41,7 @@ export default class Port {
   }
 
   setDefaultValue() {
-    if (this.type === PORT_TYPE_IMAGE) {
+    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE) {
       this.value = undefined;
       return;
     }
@@ -49,7 +49,7 @@ export default class Port {
   }
 
   cloneValue() {
-    if (this.type === PORT_TYPE_IMAGE) {
+    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE) {
       return undefined;
     }
     return JSON.parse(JSON.stringify(this.value));
