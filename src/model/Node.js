@@ -5,6 +5,7 @@ import Port, {
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
+  PORT_TYPE_FILE,
   PORT_IN,
   PORT_OUT
 } from './Port';
@@ -98,6 +99,22 @@ export default class Node {
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_COLOR, PORT_IN, value);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
+  fileIn(name, value) {
+    if (!value) value = '';
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_FILE, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }

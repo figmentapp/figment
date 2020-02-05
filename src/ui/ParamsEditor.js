@@ -1,13 +1,15 @@
 import { h, Component } from 'preact';
 import chroma from 'chroma-js';
 import { Point } from '../g';
+import { remote } from 'electron';
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
-  PORT_TYPE_COLOR
+  PORT_TYPE_COLOR,
+  PORT_TYPE_FILE
 } from '../model/Port';
 
 class NumberDrag extends Component {
@@ -151,6 +153,41 @@ class PointParam extends Component {
   }
 }
 
+class FileParam extends Component {
+  constructor(props) {
+    super(props);
+    this._onSelectFile = this._onSelectFile.bind(this);
+  }
+
+  async _onSelectFile() {
+    const window = remote.BrowserWindow.getFocusedWindow();
+    console.assert(window);
+    const result = await remote.dialog.showOpenDialog(window, {
+      properties: ['openFile']
+    });
+    if (result.canceled || !result.filePaths) return;
+    const file = result.filePaths[0];
+    this.props.onChange(file);
+  }
+
+  render({ label, value }) {
+    return (
+      <div class="params__row">
+        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <div class="flex items-center">
+          <span class="w-64 text-gray-700 overflow-hidden">{value}</span>
+          <button
+            class="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none"
+            onClick={this._onSelectFile}
+          >
+            Open…
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 export default class ParamsEditor extends Component {
   constructor(props) {
     super(props);
@@ -249,6 +286,15 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_COLOR) {
       field = (
         <ColorParam
+          label={port.name}
+          value={port.value}
+          disabled={network.isConnected(port)}
+          onChange={value => this._onChangePortValue(port.name, value)}
+        />
+      );
+    } else if (port.type === PORT_TYPE_FILE) {
+      field = (
+        <FileParam
           label={port.name}
           value={port.value}
           disabled={network.isConnected(port)}

@@ -7,6 +7,7 @@ import {
   PORT_TYPE_NUMBER,
   PORT_TYPE_COLOR,
   PORT_TYPE_POINT,
+  PORT_TYPE_FILE,
   PORT_IN,
   PORT_OUT
 } from '../model/Port';
@@ -29,7 +30,8 @@ const PORT_COLORS = {
   [PORT_TYPE_TOGGLE]: COLORS.orange300,
   [PORT_TYPE_NUMBER]: COLORS.gray500,
   [PORT_TYPE_COLOR]: COLORS.gray600,
-  [PORT_TYPE_POINT]: COLORS.gray700
+  [PORT_TYPE_POINT]: COLORS.gray700,
+  [PORT_TYPE_FILE]: COLORS.gray400
 };
 
 function _nodeWidth(node) {
