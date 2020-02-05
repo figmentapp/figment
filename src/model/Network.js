@@ -162,6 +162,8 @@ export default class Network {
             port.value = value;
           } else if (port.type === PORT_TYPE_NUMBER) {
             port.value = value;
+          } else if (port.type === PORT_TYPE_STRING) {
+            port.value = value;
           } else if (port.type === PORT_TYPE_POINT) {
             port.value = new g.Point(value[0], value[1]);
           } else if (port.type === PORT_TYPE_COLOR) {
@@ -220,6 +222,8 @@ export default class Network {
           if (port.type === PORT_TYPE_TOGGLE) {
             value = port.value;
           } else if (port.type === PORT_TYPE_NUMBER) {
+            value = port.value;
+          } else if (port.type === PORT_TYPE_STRING) {
             value = port.value;
           } else if (port.type === PORT_TYPE_POINT) {
             value = [port.value.x, port.value.y];
