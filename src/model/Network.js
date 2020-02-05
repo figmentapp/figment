@@ -7,6 +7,7 @@ import Port, {
   PORT_TYPE_NUMBER,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
+  PORT_TYPE_FILE,
   PORT_TYPE_IMAGE,
   PORT_IN,
   PORT_OUT
@@ -164,6 +165,8 @@ export default class Network {
             port.value = new g.Point(value[0], value[1]);
           } else if (port.type === PORT_TYPE_COLOR) {
             port.value = value.slice();
+          } else if (port.type === PORT_TYPE_FILE) {
+            port.value = value;
           } else {
             warnings.push(
               `Node ${node.name} (${node.id}) - port ${portName}: unsupported port type ${port.type} ${value}.`
@@ -221,6 +224,8 @@ export default class Network {
             value = [port.value.x, port.value.y];
           } else if (port.type === PORT_TYPE_COLOR) {
             value = port.value.slice();
+          } else if (port.type === PORT_TYPE_FILE) {
+            value = port.value;
           }
           values[port.name] = value;
         }
