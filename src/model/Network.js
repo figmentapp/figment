@@ -358,6 +358,7 @@ export default class Network {
       inPort: inPort.name
     };
     this.connections.push(conn);
+    outNode._valueOut(outPort, outPort.value);
     this.doFrame();
   }
 
@@ -366,6 +367,7 @@ export default class Network {
     this.connections = this.connections.filter(
       conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name)
     );
+    inPort.setDefaultValue();
     this.doFrame();
   }
 

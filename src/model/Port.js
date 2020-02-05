@@ -40,6 +40,14 @@ export default class Port {
     this.node._valueOut(this, value);
   }
 
+  setDefaultValue() {
+    if (this.type === PORT_TYPE_IMAGE) {
+      this.value = undefined;
+      return;
+    }
+    this.value = JSON.parse(JSON.stringify(this.defaultValue));
+  }
+
   cloneValue() {
     if (this.type === PORT_TYPE_IMAGE) {
       return undefined;
