@@ -137,7 +137,6 @@ function createApplicationMenu() {
       { label: 'Open Project…', accelerator: 'CmdOrCtrl+O', click: emit('open') },
       {
         key: 'recentProjects',
-        role: 'recentDocuments',
         label: 'Open Recent',
         submenu: recentItems
       },
