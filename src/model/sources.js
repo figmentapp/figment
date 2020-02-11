@@ -300,19 +300,21 @@ let streaming;
 
 node.onStart = () => {
     video = document.createElement('video');
-    video.autoplay = true;
   
  if (navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({
           video: true
         })
         .then(function(stream) {
+          video.width = 640;
+          video.height = 480;
           video.srcObject = stream;
+          video.play();
           streaming = stream;
           imageOut.set(video);
         })
-        .catch(function(err0r) {
-          console.log("no camera input!");
+        .catch(function(err) {
+          console.error("no camera input!", err);
         });
     }
 };
