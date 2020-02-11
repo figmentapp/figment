@@ -234,7 +234,7 @@ const textIn = node.stringIn('text', 'Hello');
 const xIn = node.numberIn('x', 0);
 const yIn = node.numberIn('y', 50);
 const fontSizeIn = node.numberIn('fontSize', 24);
-const colorIn = node.colorIn('color', [200, 200, 200, 1]);
+const colorIn = node.colorIn('color', [255, 255, 255, 1]);
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
@@ -294,24 +294,26 @@ triggerIn.onTrigger = (props) => {
 `;
 
 image.camImage = `// webcam stream
+const frameRate = node.numberIn('frameRate', 10);
 const imageOut = node.imageOut('image');
-let video;
-let streaming;
+let _video;
+let _stream;
 
 node.onStart = () => {
-    video = document.createElement('video');
   
  if (navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({
           video: true
         })
         .then(function(stream) {
-          video.width = 640;
-          video.height = 480;
-          video.srcObject = stream;
-          video.play();
-          streaming = stream;
-          imageOut.set(video);
+          _video = document.createElement('video');
+          _video.width = 640;
+          _video.height = 480;
+          _video.srcObject = stream;
+          _video.play();
+          _stream = stream;
+          imageOut.set(_video);
+          setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
         })
         .catch(function(err) {
           console.error("no camera input!", err);
@@ -320,9 +322,9 @@ node.onStart = () => {
 };
 
 node.onStop = () => {
-  if (streaming.active) {
-    streaming.getTracks().forEach(track => track.stop())
-    video = null;
+  if (_stream.active) {
+    _stream.getTracks().forEach(track => track.stop())
+    _video = null;
   }
 }
 `;
