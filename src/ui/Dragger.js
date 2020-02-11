@@ -1,4 +1,5 @@
 import { h } from 'preact';
+import { COLORS } from '../colors';
 
 function clamp(v, min, max) {
   return v < min ? min : v > max ? max : v;
@@ -51,13 +52,13 @@ export default function Dragger({ label, value, onChange, min, max, step }) {
 const styles = {
   wrapper: {
     width: '35px',
-    height: '35px',
+    height: '40px',
     display: 'flex',
     flexDirection: 'column'
   },
   field: {
-    background: '#454545',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
+    background: COLORS.gray900,
+    border: '1px solid rgba(255, 255, 255, 0.15)',
     padding: '2px 5px',
     color: 'white',
     font: 'inherit',
@@ -66,6 +67,7 @@ const styles = {
   label: {
     marginTop: '2px',
     textAlign: 'center',
-    cursor: 'col-resize'
+    cursor: 'col-resize',
+    color: COLORS.gray600
   }
 };

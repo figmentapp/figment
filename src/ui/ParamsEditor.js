@@ -135,21 +135,28 @@ class StringParam extends Component {
 class ColorParam extends Component {
   constructor(props) {
     super(props);
-    this._onChange = this._onChange.bind(this);
+    this.state = { pickerVisible: false };
+    this._onToggleColorPicker = this._onToggleColorPicker.bind(this);
   }
 
-  _onChange(e) {
-    let value = e.target.value;
-    value = chroma(value).rgb();
-    this.props.onChange(value);
+  _onToggleColorPicker(e) {
+    this.setState({ pickerVisible: !this.state.pickerVisible });
+    // let value = e.target.value;
+    // value = chroma(value).rgb();
+    // this.props.onChange(value);
   }
 
-  render({ label, value }) {
-    value = chroma(value).hex();
+  render({ label, value, onChange }, { pickerVisible }) {
+    const rgbaValue = chroma(value).rgba();
     return (
       <div class="params__row">
         <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
-        <input class="w-16 bg-gray-700" type="color" value={value} onChange={this._onChange} />
+        <span
+          class="w-16 bg-gray-700 h-8"
+          style={`background-color: ${rgbaValue}`}
+          onClick={this._onToggleColorPicker}
+        />
+        {pickerVisible && <ColorPicker color={value} onChange={onChange} />}
       </div>
     );
   }
