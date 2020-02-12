@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { useState } from 'preact/hooks';
+import { useRef } from 'preact/hooks';
 import chroma from 'chroma-js';
 import Dragger from './Dragger.js';
 import { COLORS } from '../colors';
@@ -9,8 +9,9 @@ function merge(...args) {
 }
 
 export default function ColorPicker({ parent, color, onChange }) {
+  const picker = useRef();
   let [hue, saturation, lightness, alpha] = chroma.rgb(color).hsl();
-  console.log('IN', hue, saturation, lightness, alpha);
+  // console.log('IN', hue, saturation, lightness, alpha);
   const outerBackground = {
     background: `linear-gradient(to right, hsl(${hue}, 0%, 100%), hsl(${hue}, 100%, 50%)`
   };
@@ -25,34 +26,38 @@ export default function ColorPicker({ parent, color, onChange }) {
   };
 
   function setHue(newHue) {
-    onChange(chroma(newHue, saturation, lightness, alpha).rgb());
+    onChange(chroma.hsl(newHue, saturation, lightness, alpha).rgb());
   }
 
   function setSaturation(newSaturation) {
     newSaturation /= 100;
-    onChange(chroma(hue, newSaturation, lightness, alpha).rgb());
+    onChange(chroma.hsl(hue, newSaturation, lightness, alpha).rgb());
   }
 
   function setLightness(newLightness) {
     newLightness /= 100;
-    onChange(chroma(hue, saturation, newLightness, alpha).rgb());
+    onChange(chroma.hsl(hue, saturation, newLightness, alpha).rgb());
   }
 
   function setAlpha(newAlpha) {
-    onChange(chroma(hue, saturation, lightness, newAlpha).rgb());
+    onChange(chroma.hsl(hue, saturation, lightness, newAlpha).rgb());
   }
 
   function onMouseDown(e) {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    onMouseMove(e);
   }
 
   function onMouseMove(e) {
-    const newSaturation = saturation + (e.movementX / 190) * 190;
-    const newLightness = lightness + (-e.movementY / 140) * 140;
+    const bounds = picker.current.getBoundingClientRect();
+    const newSaturation = (e.clientX - bounds.left) / bounds.width;
+    const newLightness = 1.0 - (e.clientY - bounds.top) / bounds.height;
+    //const newSaturation = saturation + e.movementX / 190;
+    //const newLightness = lightness - e.movementY / 140;
     //const rgba = chroma(hue, newSaturation, lightness, alpha).rgb();
     //console.log(rgba);
-    onChange(chroma(hue, newSaturation, newLightness, alpha).rgb());
+    onChange(chroma.hsl(hue, newSaturation, newLightness, alpha).rgb());
     //console.log(e.movementX);
   }
 
@@ -68,7 +73,7 @@ export default function ColorPicker({ parent, color, onChange }) {
 
   return (
     <div class="color-picker" style={merge(styles.wrapper, position)}>
-      <div style={merge(styles.outer, outerBackground)} onMouseDown={onMouseDown}>
+      <div style={merge(styles.outer, outerBackground)} onMouseDown={onMouseDown} ref={picker}>
         <div style={styles.inner}></div>
         <div style={merge(styles.dot, dotPosition)} />
       </div>

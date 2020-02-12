@@ -34,7 +34,7 @@ export default function Dragger({ label, value, onChange, min, max, step }) {
       <input
         style={styles.field}
         type="text"
-        value={value}
+        value={step ? value : Math.round(value)}
         onFocus={e => (e.target.type = 'number')}
         onBlur={e => (e.target.type = 'text')}
         onInput={e => onChange(parseInt(e.target.value))}
