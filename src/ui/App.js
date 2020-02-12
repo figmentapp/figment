@@ -40,7 +40,10 @@ export default class App extends Component {
       mainSplitterWidth: 500,
       editorSplitterHeight: (window.innerHeight * 2) / 3
     };
-    this.state.selection.add(network.nodes.find(n => n.name === 'Canvas'));
+    const firstNode = network.nodes.find(n => n.name === 'Canvas');
+    if (firstNode) {
+      this.state.selection.add();
+    }
     this._onNewCodeTab = this._onNewCodeTab.bind(this);
     this._onSelectTab = this._onSelectTab.bind(this);
     this._onCloseTab = this._onCloseTab.bind(this);
@@ -63,6 +66,7 @@ export default class App extends Component {
   componentDidMount() {
     this.state.network.start();
     ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
+    // this._openFile('/Users/fdb/Desktop/webcam.fgmt');
   }
 
   _onMenuEvent(name, filePath) {
