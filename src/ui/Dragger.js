@@ -19,7 +19,6 @@ export default function Dragger({ label, value, onChange, min, max, step }) {
     const dx = e.clientX - _startX;
     const _step = step || 1;
     const newValue = clamp(value + dx * _step, min, max);
-
     onChange(newValue);
   }
 
@@ -32,12 +31,11 @@ export default function Dragger({ label, value, onChange, min, max, step }) {
   return (
     <div style={styles.wrapper}>
       <input
+        class="outline-none focus:shadow-outline focus:bg-gray-800"
         style={styles.field}
         type="text"
         value={step ? value : Math.round(value)}
-        onFocus={e => (e.target.type = 'number')}
-        onBlur={e => (e.target.type = 'text')}
-        onInput={e => onChange(parseInt(e.target.value))}
+        onChange={e => onChange(parseInt(e.target.value))}
         min={min}
         max={max}
         step={step || 1}
