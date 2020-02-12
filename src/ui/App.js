@@ -42,7 +42,7 @@ export default class App extends Component {
     };
     const firstNode = network.nodes.find(n => n.name === 'Canvas');
     if (firstNode) {
-      this.state.selection.add();
+      this.state.selection.add(firstNode);
     }
     this._onNewCodeTab = this._onNewCodeTab.bind(this);
     this._onSelectTab = this._onSelectTab.bind(this);
