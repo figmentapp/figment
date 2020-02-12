@@ -1,4 +1,5 @@
 import { h, Component } from 'preact';
+import { useRef } from 'preact/hooks';
 import chroma from 'chroma-js';
 import ColorPicker from './ColorPicker';
 import { Point } from '../g';
@@ -137,6 +138,7 @@ class ColorParam extends Component {
     super(props);
     this.state = { pickerVisible: false };
     this._onToggleColorPicker = this._onToggleColorPicker.bind(this);
+    this.row = useRef();
   }
 
   _onToggleColorPicker(e) {
@@ -149,14 +151,16 @@ class ColorParam extends Component {
   render({ label, value, onChange }, { pickerVisible }) {
     const rgbaValue = chroma(value).rgba();
     return (
-      <div class="params__row">
+      <div class="params__row" ref={this.row}>
         <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
         <span
           class="w-16 bg-gray-700 h-8"
           style={`background-color: ${rgbaValue}`}
           onClick={this._onToggleColorPicker}
         />
-        {pickerVisible && <ColorPicker color={value} onChange={onChange} />}
+        {pickerVisible && (
+          <ColorPicker parent={this.row.current} color={value} onChange={onChange} />
+        )}
       </div>
     );
   }

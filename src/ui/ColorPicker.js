@@ -8,7 +8,7 @@ function merge(...args) {
   return Object.assign({}, ...args);
 }
 
-export default function ColorPicker({ color, onChange }) {
+export default function ColorPicker({ parent, color, onChange }) {
   let [hue, saturation, lightness, alpha] = chroma.rgb(color).hsl();
   console.log('IN', hue, saturation, lightness, alpha);
   const outerBackground = {
@@ -60,9 +60,14 @@ export default function ColorPicker({ color, onChange }) {
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
   }
+  const bounds = parent.getBoundingClientRect();
+  const position = {
+    left: `${bounds.left + 180}px`,
+    top: `${bounds.top - 150}px`
+  };
 
   return (
-    <div class="color-picker" style={styles.wrapper}>
+    <div class="color-picker" style={merge(styles.wrapper, position)}>
       <div style={merge(styles.outer, outerBackground)} onMouseDown={onMouseDown}>
         <div style={styles.inner}></div>
         <div style={merge(styles.dot, dotPosition)} />
@@ -106,7 +111,10 @@ const styles = {
     boxShadow: '0 5px 5px rgba(0, 0, 0, 0.5)',
     borderRadius: '5px',
     overflow: 'hidden',
-    paddingBottom: '5px'
+    paddingBottom: '5px',
+    position: 'fixed',
+    top: 0,
+    left: 0
   },
   outer: {
     width: '190px',
