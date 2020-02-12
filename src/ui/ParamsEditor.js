@@ -141,6 +141,12 @@ class ColorParam extends Component {
     this.row = useRef();
   }
 
+  componentWillReceiveProps(nextProps) {
+    if (this.props.port !== nextProps.port) {
+      this.setState({ pickerVisible: false });
+    }
+  }
+
   _onToggleColorPicker(e) {
     this.setState({ pickerVisible: !this.state.pickerVisible });
     // let value = e.target.value;
@@ -155,7 +161,7 @@ class ColorParam extends Component {
         <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
         <span
           class="w-16 bg-gray-700 h-8"
-          style={`background-color: ${rgbaValue}`}
+          style={`background-color: rgba(${rgbaValue.join(',')})`}
           onClick={this._onToggleColorPicker}
         />
         {pickerVisible && (
@@ -341,6 +347,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_COLOR) {
       field = (
         <ColorParam
+          port={port}
           label={port.name}
           value={port.value}
           disabled={network.isConnected(port)}
