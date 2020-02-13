@@ -242,3 +242,52 @@ input.params__field:focus {
   background: var(--gray600);
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
 } */
+
+.colorpicker__slider {
+  -webkit-appearance: none;
+  background: transparent;
+  height: 12px;
+  margin-bottom: 5px;
+}
+
+.colorpicker__slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 8px;
+}
+
+.colorpicker__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  border: 3px solid #ffffff;
+  height: 12px;
+  width: 12px;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  margin-top: -2px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+
+.colorpicker__slider:focus {
+  outline: none;
+}
+
+.colorpicker__hue::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    hsl(0, 100%, 50%),
+    hsl(60, 100%, 50%),
+    hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%),
+    hsl(240, 100%, 50%),
+    hsl(300, 100%, 50%),
+    hsl(360, 100%, 50%)
+  );
+  border-radius: 8px;
+}
+
+.colorpicker__alpha::-webkit-slider-runnable-track {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect x='0' y='0' width='4' height='4' fill='rgba(255, 255, 255, 0.2)' /><rect x='4' y='4' width='4' height='4' fill='rgba(255, 255, 255, 0.2)' /></svg>"),
+    linear-gradient(to right, rgba(0, 0, 0, 0.8), rgba(255, 255, 255, 0.9));
+
+  border-radius: 8px;
+}

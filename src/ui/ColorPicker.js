@@ -16,7 +16,7 @@ export default function ColorPicker({ parent, color, onChange }) {
   const picker = useRef();
   const chromaColor = chroma.rgb(color);
   let [hue, saturation, lightness, alpha] = chromaColor.hsl();
-  let hex = chromaColor.hex();
+  let hex = chromaColor.alpha(1).hex();
   if (isNaN(hue)) hue = 0;
   // console.log('IN', color, hue, saturation, lightness, alpha);
   const outerBackground = {
@@ -25,7 +25,7 @@ export default function ColorPicker({ parent, color, onChange }) {
   const swatchBackground = {
     background: `hsla(${hue}, ${saturation * 100}%, ${lightness * 100}%, ${alpha})`
   };
-  const x = saturation * 190;
+  const x = saturation * 210;
   const y = (1 - lightness) * 140;
   const dotPosition = {
     left: `${x - 6}px`,
@@ -94,6 +94,7 @@ export default function ColorPicker({ parent, color, onChange }) {
       <div style={styles.slidersWrapper}>
         <div style={styles.sliders}>
           <input
+            class="colorpicker__slider colorpicker__hue"
             style={styles.hueSlider}
             type="range"
             min={0}
@@ -102,6 +103,7 @@ export default function ColorPicker({ parent, color, onChange }) {
             onInput={e => setHue(parseInt(e.target.value))}
           />
           <input
+            class="colorpicker__slider colorpicker__alpha"
             style={styles.alphaSlider}
             type="range"
             min={0}
@@ -146,7 +148,7 @@ const styles = {
     left: 0
   },
   outer: {
-    width: '190px',
+    width: '210px',
     height: '140px',
     margin: '5px',
     borderRadius: '3px',
@@ -175,7 +177,7 @@ const styles = {
     marginLeft: '5px'
   },
   hueSlider: {
-    height: '10px'
+    width: '180px'
   },
   swatch: {
     width: '25px',
