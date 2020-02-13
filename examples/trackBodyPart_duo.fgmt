@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 2,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 50,
+      "y": 100
+    },
+    {
+      "id": 3,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 5,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 115,
+      "y": 303,
+      "values": {
+        "x": 232.92901153801478,
+        "y": 235.04820589433635,
+        "color": [
+          49,
+          200,
+          13,
+          1
+        ],
+        "radius": 11
+      }
+    },
+    {
+      "id": 7,
+      "name": "Custom",
+      "type": "project.custom",
+      "x": 221,
+      "y": 204,
+      "values": {
+        "person 1": "leftWrist",
+        "person 2": "rightWrist",
+        "max": 185
+      }
+    },
+    {
+      "id": 8,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 326,
+      "y": 116,
+      "values": {
+        "file": "/Users/lieven/Projects/figment/examples/assets/kriskross.png"
+      }
+    },
+    {
+      "id": 9,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 310,
+      "y": 303,
+      "values": {
+        "x": 18
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out3",
+      "inNode": 7,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out1",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out2",
+      "inNode": 5,
+      "inPort": "in"
+    },
+    {
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 7,
+      "inPort": "image"
+    },
+    {
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 9,
+      "inPort": "image"
+    },
+    {
+      "outNode": 7,
+      "outPort": "x",
+      "inNode": 5,
+      "inPort": "x"
+    },
+    {
+      "outNode": 7,
+      "outPort": "y",
+      "inNode": 5,
+      "inPort": "y"
+    }
+  ],
+  "types": [
+    {
+      "name": "Custom",
+      "type": "project.custom",
+      "source": "\n// posenet node.\nconst ml5 = require('ml5');\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nconst stringInp1 = node.stringIn('person 1');\nconst stringInp2 = node.stringIn('person 2');\nconst maxIn = node.numberIn('max', 20);\nconst xOut = node.numberOut('x', 0);\nconst yOut = node.numberOut('y', 0);\nlet poseNet;\nlet poses = [];\nlet options = {\n\timageScaleFactor: 0.9,\n\tminConfidence: 0.05,\n\t maxPoseDetections: 4,\n\t outputStride: 16\n\t }\n// Create a new poseNet method\nnode.onStart = () => {\n  poseNet = ml5.poseNet(modelReady, options);\n  poseNet.on('pose', function (results) {\n     poses = results;\n     //console.log(poses);\n  });\n}\n        \nfunction modelReady() {\n   console.log(\"Model Loaded!\");\n  if (imageIn.value) {\n   poseNet.multiPose(imageIn.value);\n  }\n}\n\nfunction distance(x1,y1,x2,y2){\n   let a = x1 - x2;\n   let b = y1 - y2;\n   return Math.sqrt( a*a + b*b ); \n}\n\nfunction isBodyPart1(bp) { \n   return bp.part === stringInp1.value;\n}\n\nfunction isBodyPart2(bp) { \n   return bp.part === stringInp2.value;\n}\n        \ntriggerIn.onTrigger = (props) => {\n   const { canvas, ctx } = props;\n   //const bodypart = stringIn.value\n   if(poses.length>0){\n     const part1 = poses[0].pose.keypoints.find(isBodyPart1);\n     const part2 = poses[1].pose.keypoints.find(isBodyPart2);\n     let p1x = part1.position.x;\n     let p1y = part1.position.y;\n     let p2x = part2.position.x;\n     let p2y = part2.position.y;\n     // check of afstand kleiner is dan een waarde (voor 2 spelers).\n     if(distance(p1x,p1y,p2x,p2y)<maxIn.value){\n        xOut.set((p1x+p2x)/2);\n        yOut.set((p1y+p2y)/2);\n     }else{\n        xOut.set(0);\n        yOut.set(0);  \n     }\n   }\n};\n\nimageIn.onChange = () => {\n   poseNet.multiPose(imageIn.value);\n}",
+      "description": "posenet node."
+    }
+  ]
+}
