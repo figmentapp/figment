@@ -60,10 +60,12 @@ const styles = {
     padding: '2px 5px',
     color: 'white',
     font: 'inherit',
+    fontSize: '10px',
     borderRadius: '3px'
   },
   label: {
     marginTop: '2px',
+    fontSize: '11px',
     textAlign: 'center',
     cursor: 'col-resize',
     color: COLORS.gray600

@@ -14,7 +14,9 @@ function clamp(v, min, max) {
 
 export default function ColorPicker({ parent, color, onChange }) {
   const picker = useRef();
-  let [hue, saturation, lightness, alpha] = chroma.rgb(color).hsl();
+  const chromaColor = chroma.rgb(color);
+  let [hue, saturation, lightness, alpha] = chromaColor.hsl();
+  let hex = chromaColor.hex();
   if (isNaN(hue)) hue = 0;
   // console.log('IN', color, hue, saturation, lightness, alpha);
   const outerBackground = {
@@ -46,6 +48,12 @@ export default function ColorPicker({ parent, color, onChange }) {
 
   function setAlpha(newAlpha) {
     onChange(chroma.hsl(hue, saturation, lightness, newAlpha).rgba());
+  }
+
+  function setHex(newHex) {
+    let color = chroma.hex(newHex);
+    color.alpha(alpha);
+    onChange(color.rgba());
   }
 
   function onMouseDown(e) {
@@ -106,6 +114,16 @@ export default function ColorPicker({ parent, color, onChange }) {
         <div style={merge(styles.swatch, swatchBackground)}></div>
       </div>
       <div style={styles.valuesWrapper}>
+        <div style={styles.hexWrapper}>
+          <input
+            class="outline-none focus:shadow-outline"
+            style={styles.hexInput}
+            type="text"
+            value={hex}
+            onChange={e => setHex(e.target.value)}
+          />
+          <div style={styles.hexLabel}>HEX</div>
+        </div>
         <Dragger label="H" value={hue} onChange={setHue} min={0} max={360} />
         <Dragger label="S" value={saturation * 100} onChange={setSaturation} min={0} max={100} />
         <Dragger label="L" value={lightness * 100} onChange={setLightness} min={0} max={100} />
@@ -117,7 +135,7 @@ export default function ColorPicker({ parent, color, onChange }) {
 
 const styles = {
   wrapper: {
-    width: '200px',
+    width: '220px',
     background: COLORS.gray800,
     boxShadow: '0 5px 5px rgba(0, 0, 0, 0.5)',
     borderRadius: '5px',
@@ -172,5 +190,26 @@ const styles = {
     marginRight: '5px',
     display: 'flex',
     justifyContent: 'space-between'
+  },
+  hexWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '40px'
+  },
+  hexInput: {
+    width: '70px',
+    background: COLORS.gray900,
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    padding: '2px 5px',
+    color: 'white',
+    font: 'inherit',
+    fontSize: '10px',
+    borderRadius: '3px'
+  },
+  hexLabel: {
+    marginTop: '2px',
+    fontSize: '11px',
+    textAlign: 'center',
+    color: COLORS.gray600
   }
 };
