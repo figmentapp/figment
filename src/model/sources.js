@@ -139,12 +139,10 @@ function resize() {
 }
 
 function doFrame() {
+  if (!playingIn.value) return;
   const canvas = node._canvas;
   const ctx = node._ctx;
   triggerOut.trigger({ canvas, ctx });
-  if (playingIn.value) {
-    window.requestAnimationFrame(node.onFrame);
-  }
 }
 
 node.onStart = resize;
@@ -298,6 +296,7 @@ const frameRate = node.numberIn('frameRate', 10);
 const imageOut = node.imageOut('image');
 let _video;
 let _stream;
+let _timer;
 
 node.onStart = () => {
   
@@ -313,7 +312,7 @@ node.onStart = () => {
           _video.play();
           _stream = stream;
           imageOut.set(_video);
-          setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
+          _timer = setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
         })
         .catch(function(err) {
           console.error("no camera input!", err);
@@ -322,10 +321,16 @@ node.onStart = () => {
 };
 
 node.onStop = () => {
+  clearInterval(_timer);
   if (_stream.active) {
     _stream.getTracks().forEach(track => track.stop())
     _video = null;
   }
+}
+
+frameRate.onChange = () => {
+  clearInterval(_timer);
+  _timer = setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
 }
 `;
 

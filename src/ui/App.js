@@ -61,11 +61,13 @@ export default class App extends Component {
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onConnect = this._onConnect.bind(this);
     this._onDisconnect = this._onDisconnect.bind(this);
+    this._onFrame = this._onFrame.bind(this);
   }
 
   componentDidMount() {
     this.state.network.start();
     ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
+    window.requestAnimationFrame(this._onFrame);
     // this._openFile('/Users/fdb/Desktop/webcam.fgmt');
   }
 
@@ -280,6 +282,13 @@ export default class App extends Component {
 
   _onDisconnect(inPort) {
     this.state.network.disconnect(inPort);
+  }
+
+  _onFrame() {
+    if (this.state.network) {
+      this.state.network.doFrame();
+    }
+    window.requestAnimationFrame(this._onFrame);
   }
 
   render(
