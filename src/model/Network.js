@@ -437,4 +437,8 @@ export default class Network {
       newPort.value = oldPort.cloneValue();
     }
   }
+
+  renameNode(node, newName) {
+    node.name = newName;
+  }
 }

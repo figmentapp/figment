@@ -11,6 +11,7 @@ import NodeDialog from './NodeDialog';
 import Splitter from './Splitter';
 import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
+import NodeRenameDialog from './NodeRenameDialog';
 
 const FILE_FILTERS = [{ name: 'Figment Project', extensions: ['fgmt'] }];
 
@@ -59,6 +60,9 @@ export default class App extends Component {
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
+    this._onShowNodeRenameDialog = this._onShowNodeRenameDialog.bind(this);
+    this._onHideNodeRenameDialog = this._onHideNodeRenameDialog.bind(this);
+    this._onRenameNode = this._onRenameNode.bind(this);
     this._onConnect = this._onConnect.bind(this);
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onFrame = this._onFrame.bind(this);
@@ -276,6 +280,20 @@ export default class App extends Component {
     this.setState({ showNodeDialog: false });
   }
 
+  _onShowNodeRenameDialog(node) {
+    this.setState({ showNodeRenameDialog: true, nodeToRename: node });
+  }
+
+  _onHideNodeRenameDialog() {
+    this.setState({ showNodeRenameDialog: false });
+  }
+
+  _onRenameNode(node, newName) {
+    if (newName.trim().length === 0) return;
+    this.state.network.renameNode(node, newName);
+    this.setState({ showNodeRenameDialog: false });
+  }
+
   _onConnect(outPort, inPort) {
     this.state.network.connect(outPort, inPort);
   }
@@ -303,7 +321,9 @@ export default class App extends Component {
       showForkDialog,
       forkDialogNodeType,
       mainSplitterWidth,
-      editorSplitterHeight
+      editorSplitterHeight,
+      showNodeRenameDialog,
+      nodeToRename
     }
   ) {
     return (
@@ -337,6 +357,7 @@ export default class App extends Component {
           <ParamsEditor
             network={network}
             selection={selection}
+            onShowNodeRenameDialog={this._onShowNodeRenameDialog}
             onChangePortValue={this._onChangePortValue}
             onTriggerButton={this._onTriggerButton}
           />
@@ -362,6 +383,13 @@ export default class App extends Component {
             nodeType={forkDialogNodeType}
             onForkNodeType={this._onForkNodeType}
             onCancel={this._onHideForkDialog}
+          />
+        )}
+        {showNodeRenameDialog && (
+          <NodeRenameDialog
+            node={nodeToRename}
+            onRenameNode={this._onRenameNode}
+            onCancel={this._onHideNodeRenameDialog}
           />
         )}
       </div>

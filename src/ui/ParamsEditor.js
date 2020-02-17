@@ -284,7 +284,7 @@ export default class ParamsEditor extends Component {
     });
   }
 
-  render({ network, selection }) {
+  render({ network, selection, onShowNodeRenameDialog }) {
     if (selection.size === 0) {
       return (
         <div class="params">
@@ -303,7 +303,12 @@ export default class ParamsEditor extends Component {
     return (
       <div class="params">
         <div class=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
-          <span class="text-gray-200">{node.name}</span>
+          <span
+            class="text-gray-200 hover:bg-gray-700 px-2 py-1"
+            onClick={() => onShowNodeRenameDialog(node)}
+          >
+            {node.name}
+          </span>
           <span class="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
         {node.inPorts.map(port => this._renderPort(network, node, port))}
