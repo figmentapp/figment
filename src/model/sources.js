@@ -71,6 +71,7 @@ const yOut = node.numberOut('y');
 function onMouseMove(e) {
   xOut.set(e.offsetX);
   yOut.set(e.offsetY);
+  node.debugMessage = \`[\${xOut.value} \${yOut.value}]\`;
 }
 
 node.onStart = (props) => {
@@ -78,6 +79,7 @@ node.onStart = (props) => {
   let canvas = viewer.querySelector('canvas');
   if (!canvas) canvas = viewer;
   canvas.addEventListener('mousemove', onMouseMove);
+  node.debugMessage = '[0 0]';
 }
 
 node.onStop = (props) => {
