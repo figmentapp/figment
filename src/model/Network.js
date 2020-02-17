@@ -201,6 +201,7 @@ export default class Network {
       }
       this.connections.push(connObj);
     }
+
     if (warnings.length) {
       console.warn(warnings);
     }
@@ -273,6 +274,16 @@ export default class Network {
       } catch (e) {
         console.error(e && e.stack);
       }
+    }
+    // Force set all ports
+    try {
+      for (const port of node.inPorts) {
+        if (typeof port.onChange === 'function') {
+          port.onChange();
+        }
+      }
+    } catch (e) {
+      console.error(e && e.stack);
     }
   }
 
