@@ -3,13 +3,10 @@ import { useRef } from 'preact/hooks';
 import chroma from 'chroma-js';
 import Dragger from './Dragger.js';
 import { COLORS } from '../colors';
+import { clamp } from '../util';
 
 function merge(...args) {
   return Object.assign({}, ...args);
-}
-
-function clamp(v, min, max) {
-  return v < min ? min : v > max ? max : v;
 }
 
 export default function ColorPicker({ parent, color, onChange }) {

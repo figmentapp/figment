@@ -1,6 +1,7 @@
 import { h, Component } from 'preact';
 import { COLORS } from '../colors';
 import { Point } from '../g';
+import { clamp } from '../util';
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
@@ -40,8 +41,7 @@ const PORT_COLORS = {
 
 function _nodeWidth(node) {
   let portCount = Math.max(node.inPorts.length, node.outPorts.length);
-  portCount = Math.max(4, portCount);
-  portCount++;
+  portCount = clamp(portCount, 6, 9) + 1;
   return portCount * NODE_PORT_WIDTH;
 }
 
@@ -65,11 +65,13 @@ export default class NetworkEditor extends Component {
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
     this._onResize = this._onResize.bind(this);
+    this._draw = this._draw.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
     this._dragPort = null;
     this._networkX = this._networkY = 0;
     this._dragX = this._dragY = 0;
+    this._timer = undefined;
   }
 
   componentDidMount() {
@@ -79,12 +81,14 @@ export default class NetworkEditor extends Component {
     this.canvas = document.getElementById('network');
     this.ctx = this.canvas.getContext('2d');
     this._draw();
+    this._timer = setInterval(this._draw, 1000);
   }
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('resize', this._onResize);
+    clearInterval(this._timer);
   }
 
   render() {
@@ -308,11 +312,23 @@ export default class NetworkEditor extends Component {
         );
       }
     }
+
+    // Draw node names
     ctx.fillStyle = COLORS.gray300;
     ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
       const nodeWidth = _nodeWidth(node);
       ctx.fillText(node.name, node.x + nodeWidth + 10, node.y + NODE_PORT_WIDTH * 1.3);
+    }
+
+    // Draw node previews
+    for (const node of network.nodes) {
+      if (typeof node.debugDraw === 'function') {
+        ctx.save();
+        ctx.translate(node.x, node.y + NODE_HEIGHT + 10);
+        node.debugDraw(ctx);
+        ctx.restore();
+      }
     }
 
     // Draw connections

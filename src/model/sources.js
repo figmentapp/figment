@@ -332,6 +332,12 @@ frameRate.onChange = () => {
   clearInterval(_timer);
   _timer = setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
 }
+
+node.debugDraw = (ctx) => {
+  if (imageOut.value) {
+    ctx.drawImage(imageOut.value, 0, 0, 100, 75);
+  }
+}
 `;
 
 ml.classifyImage = `// Classify an image.
