@@ -217,6 +217,7 @@ export default class Network {
       const values = {};
       for (const port of node.inPorts) {
         if (port.type === PORT_TYPE_IMAGE) continue;
+        if (this.isConnected(port)) continue;
         if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
           let value;
           if (port.type === PORT_TYPE_TOGGLE) {
