@@ -321,7 +321,17 @@ export default class NetworkEditor extends Component {
       ctx.fillText(node.name, node.x + nodeWidth + 10, node.y + NODE_PORT_WIDTH * 1.3);
     }
 
-    // Draw node previews
+    // Draw node debug messages
+    ctx.fillStyle = COLORS.gray600;
+    ctx.font = `12px ${FONT_FAMILY_MONO}`;
+    for (const node of network.nodes) {
+      if (node.debugMessage) {
+        const nodeWidth = _nodeWidth(node);
+        ctx.fillText(node.debugMessage, node.x + nodeWidth + 10, node.y + NODE_HEIGHT + 10);
+      }
+    }
+
+    // Draw node debug previews
     for (const node of network.nodes) {
       if (typeof node.debugDraw === 'function') {
         ctx.save();
