@@ -17,7 +17,6 @@ triggerIn.onTrigger = (props) => {
 `;
 
 core.time = `// Get the current time (in frames and seconds).
-const triggerIn = node.triggerIn('in');
 const frameOut = node.numberOut('frame', 0);
 const secondsOut = node.numberOut('seconds', 0);
 
@@ -26,7 +25,7 @@ node.onStart = (props) => {
   node._startTime = Date.now();
 }
 
-triggerIn.onTrigger = (props) => {
+node.onFrame = () => {
   node._frame++;
   frameOut.set(node._frame);
   secondsOut.set((Date.now() - node._startTime) / 1000);
