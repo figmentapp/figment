@@ -4,6 +4,7 @@ import Port, {
   PORT_TYPE_TOGGLE,
   PORT_TYPE_NUMBER,
   PORT_TYPE_STRING,
+  PORT_TYPE_SELECT,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
@@ -144,6 +145,24 @@ export default class Node {
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_IMAGE, PORT_IN);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
+  selectIn(name, options, value) {
+    if (!value) value = options[0];
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
+      oldPort.options = options;
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_SELECT, PORT_IN, value);
+      inPort.options = options;
       this.inPorts.push(inPort);
       return inPort;
     }

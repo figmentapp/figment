@@ -12,6 +12,7 @@ import {
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_STRING,
+  PORT_TYPE_SELECT,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE
@@ -128,6 +129,31 @@ class StringParam extends Component {
           value={value}
           onInput={this._onChange}
         />
+      </div>
+    );
+  }
+}
+
+class SelectParam extends Component {
+  render({ label, value, options, disabled, onChange }) {
+    return (
+      <div class="flex items-center mb-2">
+        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <select
+          type="text"
+          spellcheck="false"
+          disabled={disabled}
+          class={
+            'w-64 mr-4 p-2 ' +
+            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
+          }
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        >
+          {options.map(option => (
+            <option value={option}>{option}</option>
+          ))}
+        </select>
       </div>
     );
   }
@@ -331,6 +357,16 @@ export default class ParamsEditor extends Component {
         <StringParam
           label={port.name}
           value={port.value}
+          disabled={network.isConnected(port)}
+          onChange={value => this._onChangePortValue(port.name, value)}
+        />
+      );
+    } else if (port.type === PORT_TYPE_SELECT) {
+      field = (
+        <SelectParam
+          label={port.name}
+          value={port.value}
+          options={port.options}
           disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
         />

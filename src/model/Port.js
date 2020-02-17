@@ -4,6 +4,7 @@ export const PORT_TYPE_TRIGGER = 'trigger';
 export const PORT_TYPE_TOGGLE = 'toggle';
 export const PORT_TYPE_NUMBER = 'number';
 export const PORT_TYPE_STRING = 'string';
+export const PORT_TYPE_SELECT = 'select';
 export const PORT_TYPE_COLOR = 'color';
 export const PORT_TYPE_POINT = 'point';
 export const PORT_TYPE_FILE = 'file';
@@ -23,6 +24,7 @@ export default class Port {
     this.direction = direction;
     this.value = value;
     this.defaultValue = value;
+    this.options = undefined;
   }
 
   hasDefaultValue() {
