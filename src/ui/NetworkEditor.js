@@ -41,7 +41,7 @@ const PORT_COLORS = {
 
 function _nodeWidth(node) {
   let portCount = Math.max(node.inPorts.length, node.outPorts.length);
-  portCount = clamp(portCount, 6, 9) + 1;
+  if (portCount < 6) return 100;
   return portCount * NODE_PORT_WIDTH;
 }
 
