@@ -1,4 +1,5 @@
 import { h, Component } from 'preact';
+import { toCamelCase } from '../util';
 
 export default class ForkDialog extends Component {
   constructor(props) {
@@ -13,8 +14,15 @@ export default class ForkDialog extends Component {
         selectedNodes.add(node);
       }
     }
-    this.state = { ns, newBaseName: baseName, currentNodes, selectedNodes };
+    this.state = {
+      ns,
+      newName: props.nodeType.name,
+      newTypeName: baseName,
+      currentNodes,
+      selectedNodes
+    };
     this._onKeyDown = this._onKeyDown.bind(this);
+    this._onChangeName = this._onChangeName.bind(this);
     this._onFork = this._onFork.bind(this);
   }
 
@@ -41,12 +49,15 @@ export default class ForkDialog extends Component {
   }
 
   _onFork() {
-    const newBaseName = this.state.newBaseName.trim();
-    if (newBaseName.length === 0) return this.props.onCancel();
-    const newTypeName = this.state.ns + '.' + newBaseName;
+    const newTypeName = this.state.newTypeName.trim();
+    if (newTypeName.length === 0) return this.props.onCancel();
+    const newName = this.state.newName.trim();
+    if (newName.length === 0) return this.props.onCancel();
+    const fullTypeName = this.state.ns + '.' + newTypeName;
     this.props.onForkNodeType(
       this.props.nodeType,
-      newTypeName,
+      newName,
+      fullTypeName,
       Array.from(this.state.selectedNodes)
     );
   }
@@ -60,7 +71,11 @@ export default class ForkDialog extends Component {
     this.forceUpdate();
   }
 
-  render({ nodeType, network }, { ns, newBaseName, currentNodes, selectedNodes }) {
+  _onChangeName(newName) {
+    this.setState({ newName, newTypeName: toCamelCase(newName) });
+  }
+
+  render({ nodeType, network }, { ns, newName, newTypeName, currentNodes, selectedNodes }) {
     return (
       <div class="dialog-wrapper">
         <div
@@ -68,17 +83,14 @@ export default class ForkDialog extends Component {
           style="height: 40vh"
         >
           <div class="flex">
-            <span class="bg-gray-500 p-6 flex-grow">
-              <span class="text-lg">{ns}.</span>
-              <input
-                id="fork-dialog-input"
-                type="text"
-                class="bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
-                value={newBaseName}
-                onInput={e => this.setState({ newBaseName: e.target.value })}
-                autofocus
-              ></input>
-            </span>
+            <input
+              id="fork-dialog-input"
+              type="text"
+              class="p-6 bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
+              value={newName}
+              onInput={e => this._onChangeName(e.target.value)}
+              autofocus
+            ></input>
             <div class="flex">
               <span
                 class="bg-gray-600 text-gray-100 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
@@ -93,6 +105,18 @@ export default class ForkDialog extends Component {
                 &times;
               </span>
             </div>
+          </div>
+          <div class="flex">
+            <span class="bg-gray-600 p-6 flex-grow">
+              <span class="text-lg">{ns}.</span>
+
+              <input
+                type="text"
+                class="bg-gray-600 flex-grow placeholder-gray-700 outline-none text-lg"
+                value={newTypeName}
+                onInput={e => this.setState({ newTypeName: e.target.value })}
+              />
+            </span>
           </div>
           <div class="flex-grow bg-gray-700 text-gray-300 w-full h-full px-4 py-5">
             <p class="text-gray-500 mb-5">

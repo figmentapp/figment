@@ -257,9 +257,9 @@ export default class App extends Component {
     this.setState({ showForkDialog: false });
   }
 
-  _onForkNodeType(nodeType, newTypeName, nodes = []) {
+  _onForkNodeType(nodeType, newName, newTypeName, nodes = []) {
     const { network } = this.state;
-    const newNodeType = network.forkNodeType(nodeType, newTypeName);
+    const newNodeType = network.forkNodeType(nodeType, newName, newTypeName);
     for (const node of nodes) {
       network.changeNodeType(node, newNodeType);
     }

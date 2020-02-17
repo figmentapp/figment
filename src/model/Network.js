@@ -400,7 +400,7 @@ export default class Network {
     this.doFrame();
   }
 
-  forkNodeType(nodeType, newTypeName) {
+  forkNodeType(nodeType, newName, newTypeName) {
     const [ns, baseName] = newTypeName.split('.');
     if (ns !== 'project') {
       throw new Error(
@@ -413,7 +413,7 @@ export default class Network {
       throw new Error(`A nodeType with the name ${newTypeName} already exists.`);
     }
     const newNodeType = {
-      name: nodeType.name,
+      name: newName,
       type: newTypeName,
       source: nodeType.source
     };
