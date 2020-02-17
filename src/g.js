@@ -1,3 +1,7 @@
+//const TWO_PI = Math.PI * 2;
+const RADIANS = Math.PI / 180;
+const DEGREES = 180 / Math.PI;
+
 export class Point {
   constructor(x, y) {
     this.x = x;
@@ -19,3 +23,6 @@ export const rgbToHex = (r, g, b) =>
     .join('');
 
 export const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
+
+export const toRadians = v => v * RADIANS;
+export const toDegrees = v => v * DEGREES;

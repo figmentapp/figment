@@ -166,11 +166,81 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+graphics.transform = `// Transform the shapes.
+const SRT = 'scale rot trans';
+const STR = 'scale trans rot';
+const RST = 'rot scale trans';
+const RTS = 'rot trans scale';
+const TSR = 'trans scale rot';
+const TRS = 'trans rot scale';
+
+const triggerIn = node.triggerIn('in');
+const translateX = node.numberIn('translateX', 20);
+const translateY = node.numberIn('translateY', 20);
+const rotate = node.numberIn('rotate', 0);
+const scaleX = node.numberIn('scaleX', 1.0);
+const scaleY = node.numberIn('scaleY', 1.0);
+const order = node.selectIn('order', [SRT, STR, RST, RTS, TSR, TRS]);
+const triggerOut = node.triggerOut('out');
+
+triggerIn.onTrigger = (props) => {
+  const { ctx } = props;
+  ctx.save();
+  switch (order.value) {
+    case SRT:
+      ctx.scale(scaleX.value, scaleY.value);
+      ctx.rotate(g.toRadians(rotate.value));
+      ctx.translate(translateX.value, translateY.value);
+      break;
+    case STR:
+      ctx.scale(scaleX.value, scaleY.value);
+      ctx.translate(translateX.value, translateY.value);
+      ctx.rotate(g.toRadians(rotate.value));
+      break;
+    case RST:
+      ctx.rotate(g.toRadians(rotate.value));
+      ctx.scale(scaleX.value, scaleY.value);
+      ctx.translate(translateX.value, translateY.value);
+      break;
+    case RTS:
+      ctx.rotate(g.toRadians(rotate.value));
+      ctx.translate(translateX.value, translateY.value);
+      ctx.scale(scaleX.value, scaleY.value);
+      break;
+    case TSR:
+      ctx.translate(translateX.value, translateY.value);
+      ctx.scale(scaleX.value, scaleY.value);
+      ctx.rotate(g.toRadians(rotate.value));
+      break;
+    case TRS:
+      ctx.translate(translateX.value, translateY.value);
+      ctx.rotate(g.toRadians(rotate.value));
+      ctx.scale(scaleX.value, scaleY.value);
+      break;
+    default:
+      throw new Error(\`Invalid transform order \${order.value}\`);
+  }
+  triggerOut.trigger(props);
+  ctx.restore();
+};
+`;
+
 graphics.clone = `// Clone and transform the shapes.
+const SRT = 'scale rot trans';
+const STR = 'scale trans rot';
+const RST = 'rot scale trans';
+const RTS = 'rot trans scale';
+const TSR = 'trans scale rot';
+const TRS = 'trans rot scale';
+
 const triggerIn = node.triggerIn('in');
 const amount = node.numberIn('amount', 5);
 const translateX = node.numberIn('translateX', 20);
 const translateY = node.numberIn('translateY', 20);
+const rotate = node.numberIn('rotate', 0);
+const scaleX = node.numberIn('scaleX', 1.0);
+const scaleY = node.numberIn('scaleY', 1.0);
+const order = node.selectIn('order', [SRT, STR, RST, RTS, TSR, TRS]);
 const triggerOut = node.triggerOut('out');
 
 triggerIn.onTrigger = (props) => {
@@ -178,7 +248,40 @@ triggerIn.onTrigger = (props) => {
   ctx.save();
   for (let i = 0; i < amount.value; i++) {
     triggerOut.trigger(props);
-    ctx.translate(translateX.value, translateY.value);
+    switch (order.value) {
+      case SRT:
+        ctx.scale(scaleX.value, scaleY.value);
+        ctx.rotate(g.toRadians(rotate.value));
+        ctx.translate(translateX.value, translateY.value);
+        break;
+      case STR:
+        ctx.scale(scaleX.value, scaleY.value);
+        ctx.translate(translateX.value, translateY.value);
+        ctx.rotate(g.toRadians(rotate.value));
+        break;
+      case RST:
+        ctx.rotate(g.toRadians(rotate.value));
+        ctx.scale(scaleX.value, scaleY.value);
+        ctx.translate(translateX.value, translateY.value);
+        break;
+      case RTS:
+        ctx.rotate(g.toRadians(rotate.value));
+        ctx.translate(translateX.value, translateY.value);
+        ctx.scale(scaleX.value, scaleY.value);
+        break;
+      case TSR:
+        ctx.translate(translateX.value, translateY.value);
+        ctx.scale(scaleX.value, scaleY.value);
+        ctx.rotate(g.toRadians(rotate.value));
+        break;
+      case TRS:
+        ctx.translate(translateX.value, translateY.value);
+        ctx.rotate(g.toRadians(rotate.value));
+        ctx.scale(scaleX.value, scaleY.value);
+        break;
+      default:
+        throw new Error(\`Invalid transform order \${order.value}\`);
+    }
   }
   ctx.restore();
 };
