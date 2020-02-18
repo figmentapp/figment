@@ -69,7 +69,7 @@ async function onClearRecentProjects() {
 ipcMain.on('open-project', (e, filePath) => onTouchProject(filePath));
 ipcMain.on('save-project', (e, filePath) => onTouchProject(filePath));
 
-function createMainWindow() {
+function createMainWindow(file) {
   gMainWindow = new BrowserWindow({
     width: 1000,
     height: 800,
@@ -102,6 +102,7 @@ function createMainWindow() {
   gMainWindow.once('ready-to-show', () => {
     gMainWindow.show();
     gMainWindow.maximize();
+    if (file) emit('open', file)();
   });
 }
 
@@ -167,8 +168,10 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+const argv = require('minimist')(process.argv.slice(2));
+
 app.on('ready', async () => {
   await gSettings.load();
   createApplicationMenu();
-  createMainWindow();
+  createMainWindow(argv.file);
 });
