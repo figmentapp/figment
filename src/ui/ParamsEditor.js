@@ -78,7 +78,7 @@ class FloatParam extends Component {
   }
 
   _onChange(e) {
-    const value = parseInt(e.target.value);
+    const value = parseFloat(e.target.value);
     if (isNaN(value)) return;
     this.props.onChange(value);
   }
