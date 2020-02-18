@@ -13,7 +13,7 @@ export default class Viewer extends Component {
         <div class="p-5 bg-gray-900 flex justify-end">
           <i class={iconClass} onClick={onToggleFullscreen}></i>
         </div>
-        <div class="flex flex-1 justify-center items-center">
+        <div class="flex flex-1 justify-center items-center overflow-hidden">
           <div id="viewer"></div>
         </div>
       </div>
