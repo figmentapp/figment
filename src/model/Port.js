@@ -25,8 +25,8 @@ export default class Port {
     this.value = value;
     this.defaultValue = value;
     options = options || {};
-    this.min = options.min || undefined;
-    this.max = options.max || undefined;
+    this.min = options.min !== undefined ? options.min : undefined;
+    this.max = options.max !== undefined ? options.max : undefined;
     this.step = options.step || 1;
   }
 

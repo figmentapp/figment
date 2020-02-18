@@ -42,7 +42,10 @@ class NumberDrag extends Component {
         new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step)
       );
     } else {
-      this.props.onChange(this.props.value + e.movementX * this.props.step);
+      let newValue = this.props.value + e.movementX * this.props.step;
+      if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
+      if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
+      this.props.onChange(newValue);
     }
   }
 
@@ -80,9 +83,11 @@ class FloatParam extends Component {
   }
 
   _onChange(e) {
-    const value = parseFloat(e.target.value);
-    if (isNaN(value)) return;
-    this.props.onChange(value);
+    let newValue = parseFloat(e.target.value);
+    if (isNaN(newValue)) return;
+    if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
+    if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
+    this.props.onChange(newValue);
   }
 
   render({ label, value, min, max, step, disabled, onChange }) {
