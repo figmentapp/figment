@@ -380,14 +380,61 @@ const imageIn = node.imageIn('image');
 const xIn = node.numberIn('x');
 const yIn = node.numberIn('y');
 const centeredIn = node.toggleIn('centered', false);
+const widthIn = node.numberIn('width', 0, { min: 0 });
+const heightIn = node.numberIn('height', 0, { min: 0 });
+const fitIn = node.selectIn('fit', ['contain', 'cover', 'fill']);
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
+  const cover = fitIn.value === 'cover';
   if (imageIn.value) {
+    const sWidth = imageIn.value.width, sHeight = imageIn.value.height;
+    const tWidth = widthIn.value || sWidth, tHeight = heightIn.value || sHeight;
+    let dWidth, dHeight, dx = 0, dy = 0;
+    if (widthIn.value === 0 && heightIn.value === 0) {
+      dWidth = imageIn.value.width;
+      dHeight = imageIn.value.height;
+    } else if (fitIn.value === 'contain' || fitIn.value === 'cover') {
+      let sRatio = sWidth / sHeight;
+      let dRatio = tWidth / tHeight;
+      if (cover ? sRatio < dRatio : sRatio > dRatio) {
+        dWidth = tWidth;
+        dHeight = tWidth / sRatio;
+        if (cover) {
+          dy = (dHeight - tHeight) / -2;
+        } else {
+          dy = (tHeight - dHeight) / 2;
+        }
+      } else {
+        dWidth = tHeight * sRatio;
+        dHeight = tHeight;
+        if (cover) {
+          dx = (dWidth - tWidth) / -2;
+        } else {
+          dx = (tWidth - dWidth) / 2;
+        }
+      }
+    } else if (fitIn.value === 'fill') {
+      dWidth = widthIn.value || imageIn.value.width;
+      dHeight = heightIn.value  || imageIn.value.height;
+    }
+    let x, y;
     if (centeredIn.value) {
-      ctx.drawImage(imageIn.value, xIn.value - imageIn.value.width / 2, yIn.value - imageIn.value.height / 2);
+      x = xIn.value - tWidth / 2;
+      y = yIn.value - tHeight / 2;
     } else {
-      ctx.drawImage(imageIn.value, xIn.value, yIn.value);
+      x = xIn.value;
+      y = yIn.value;
+    }
+    if (cover) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, tWidth, tHeight);
+      ctx.clip();
+      ctx.drawImage(imageIn.value, x + dx, y + dy, dWidth, dHeight);
+      ctx.restore();  
+    } else {
+      ctx.drawImage(imageIn.value, x + dx, y + dy, dWidth, dHeight);
     }
   }
   triggerOut.trigger(props);
