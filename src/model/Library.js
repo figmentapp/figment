@@ -35,7 +35,7 @@ export default class Library {
     });
     this.nodeTypes.push({ name: 'Canvas', type: 'graphics.canvas', source: graphics.canvas });
     this.nodeTypes.push({
-      name: 'Background Color',
+      name: 'Draw Background',
       type: 'graphics.backgroundColor',
       source: graphics.backgroundColor
     });
