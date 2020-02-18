@@ -38,12 +38,40 @@ export default class Port {
   }
 
   trigger(props) {
-    this.node._triggerOut(this, props);
+    // Find if this port is connected.
+    const network = this.node.network;
+    const connections = network.connections.filter(
+      conn => conn.outNode === this.node.id && conn.outPort === this.name
+    );
+    for (const conn of connections) {
+      const inNode = network.nodes.find(node => node.id === conn.inNode);
+      const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
+      inPort && inPort.onTrigger && inPort.onTrigger(props);
+    }
   }
 
   set(value) {
     this.value = value;
-    this.node._valueOut(this, value);
+    this.forceUpdate();
+  }
+
+  forceUpdate() {
+    if (this.direction === PORT_IN) {
+      this.onChange && this.onChange(this.value);
+    } else {
+      const network = this.node.network;
+      const connections = network.connections.filter(
+        conn => conn.outNode === this.node.id && conn.outPort === this.name
+      );
+      for (const conn of connections) {
+        const inNode = network.nodes.find(node => node.id === conn.inNode);
+        const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
+        if (inPort) {
+          inPort.value = this.value;
+          inPort.onChange && inPort.onChange(this.value);
+        }
+      }
+    }
   }
 
   setDefaultValue() {

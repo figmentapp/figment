@@ -210,29 +210,4 @@ export default class Node {
     this.outPorts.push(outPort);
     return outPort;
   }
-
-  _triggerOut(outPort, props) {
-    // Find if this node is connected.
-    const connections = this.network.connections.filter(conn => conn.outNode === this.id);
-    for (const conn of connections) {
-      const inNode = this.network.nodes.find(node => node.id === conn.inNode);
-      const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
-      inPort && inPort.onTrigger && inPort.onTrigger(props);
-    }
-  }
-
-  _valueOut(outPort, value) {
-    // Find if this node is connected.
-    const connections = this.network.connections.filter(
-      conn => conn.outNode === this.id && conn.outPort === outPort.name
-    );
-    for (const conn of connections) {
-      const inNode = this.network.nodes.find(node => node.id === conn.inNode);
-      const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
-      if (inPort) {
-        inPort.value = value;
-        inPort.onChange && inPort.onChange(value);
-      }
-    }
-  }
 }

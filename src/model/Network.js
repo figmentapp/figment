@@ -278,9 +278,10 @@ export default class Network {
     // Force set all ports
     try {
       for (const port of node.inPorts) {
-        if (typeof port.onChange === 'function') {
-          port.onChange();
-        }
+        port.forceUpdate();
+      }
+      for (const port of node.outPorts) {
+        port.forceUpdate();
       }
     } catch (e) {
       console.error(e && e.stack);
@@ -375,7 +376,7 @@ export default class Network {
       inPort: inPort.name
     };
     this.connections.push(conn);
-    outNode._valueOut(outPort, outPort.value);
+    outPort.forceUpdate();
     this.doFrame();
   }
 
