@@ -4,7 +4,7 @@ import chroma from 'chroma-js';
 import ColorPicker from './ColorPicker';
 import { Point } from '../g';
 import { remote } from 'electron';
-import throttle from 'lodash.throttle';
+import { throttle } from 'lodash';
 
 import {
   PORT_TYPE_TRIGGER,
