@@ -25,13 +25,6 @@ export const DEFAULT_NETWORK = {
       y: 50
     },
     {
-      id: 6,
-      name: 'Time',
-      type: 'core.time',
-      x: 250,
-      y: 50
-    },
-    {
       id: 2,
       name: 'Background Color',
       type: 'graphics.backgroundColor',
@@ -50,7 +43,11 @@ export const DEFAULT_NETWORK = {
       name: 'Rectangle',
       type: 'graphics.rect',
       x: 50,
-      y: 300
+      y: 300,
+      values: {
+        x: 50,
+        y: 50
+      }
     },
     {
       id: 5,
@@ -59,9 +56,9 @@ export const DEFAULT_NETWORK = {
       x: 250,
       y: 300,
       values: {
-        x: 150,
-        y: 150,
-        color: [200, 200, 200, 1]
+        x: 100,
+        y: 100,
+        color: [50, 220, 50, 1]
       }
     }
   ],

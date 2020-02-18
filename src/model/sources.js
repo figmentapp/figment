@@ -328,7 +328,7 @@ const xIn = node.numberIn('x', 0);
 const yIn = node.numberIn('y', 0);
 const widthIn = node.numberIn('width', 100);
 const heightIn = node.numberIn('height', 100);
-const colorIn = node.colorIn('color', [150, 50, 150, 1]);
+const colorIn = node.colorIn('color', [255, 255, 255, 1]);
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
@@ -347,7 +347,7 @@ const x1In = node.numberIn('x1', 0);
 const y1In = node.numberIn('y1', 0);
 const x2In = node.numberIn('x2', 100);
 const y2In = node.numberIn('y2', 100);
-const colorIn = node.colorIn('color', [150, 50, 150, 1]);
+const colorIn = node.colorIn('color', [255, 255, 255, 1]);
 const lineWidthIn = node.numberIn('lineWidth', 1);
 
 triggerIn.onTrigger = (props) => {
