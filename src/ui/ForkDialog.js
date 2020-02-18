@@ -1,5 +1,5 @@
 import { h, Component } from 'preact';
-import { toCamelCase } from '../util';
+import { camelCase, startCase } from 'lodash';
 
 export default class ForkDialog extends Component {
   constructor(props) {
@@ -19,7 +19,8 @@ export default class ForkDialog extends Component {
       newName: props.nodeType.name,
       newTypeName: baseName,
       currentNodes,
-      selectedNodes
+      selectedNodes,
+      typeNameChanged: false
     };
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onChangeName = this._onChangeName.bind(this);
@@ -29,9 +30,6 @@ export default class ForkDialog extends Component {
   componentDidMount() {
     window.addEventListener('keydown', this._onKeyDown);
     document.getElementById('fork-dialog-input').select();
-    // this.setState({
-    //   currentNodes: this.props.network.nodes.filter(node => node.type === this.props.nodeType.type)
-    // });
   }
 
   componentWillUnmount() {
@@ -71,8 +69,23 @@ export default class ForkDialog extends Component {
     this.forceUpdate();
   }
 
-  _onChangeName(newName) {
-    this.setState({ newName, newTypeName: toCamelCase(newName) });
+  _onChangeName(s) {
+    let newName = startCase(s);
+    if (s.endsWith(' ')) newName += ' ';
+    if (this.state.typeNameChanged) {
+      // If the user has changed the type name, don't automatically update it.
+      this.setState({ newName });
+    } else {
+      // User has not changed the type name, so change it as well.
+      const newTypeName = camelCase(newName);
+      this.setState({ newName, newTypeName });
+    }
+  }
+
+  _onChangeTypeName(s) {
+    const newTypeName = camelCase(s);
+    const proposedTypeName = camelCase(this.state.newName);
+    this.setState({ typeNameChanged: newTypeName !== proposedTypeName, newTypeName });
   }
 
   render({ nodeType, network }, { ns, newName, newTypeName, currentNodes, selectedNodes }) {
@@ -114,7 +127,7 @@ export default class ForkDialog extends Component {
                 type="text"
                 class="bg-gray-600 flex-grow placeholder-gray-700 outline-none text-lg"
                 value={newTypeName}
-                onInput={e => this.setState({ newTypeName: e.target.value })}
+                onInput={e => this._onChangeTypeName(e.target.value)}
               />
             </span>
           </div>
