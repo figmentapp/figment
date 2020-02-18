@@ -188,34 +188,34 @@ triggerIn.onTrigger = (props) => {
   ctx.save();
   switch (order.value) {
     case SRT:
-      ctx.scale(scaleX.value, scaleY.value);
-      ctx.rotate(g.toRadians(rotate.value));
       ctx.translate(translateX.value, translateY.value);
+      ctx.rotate(g.toRadians(rotate.value));
+      ctx.scale(scaleX.value, scaleY.value);
       break;
     case STR:
-      ctx.scale(scaleX.value, scaleY.value);
-      ctx.translate(translateX.value, translateY.value);
       ctx.rotate(g.toRadians(rotate.value));
+      ctx.translate(translateX.value, translateY.value);
+      ctx.scale(scaleX.value, scaleY.value);
       break;
     case RST:
-      ctx.rotate(g.toRadians(rotate.value));
-      ctx.scale(scaleX.value, scaleY.value);
       ctx.translate(translateX.value, translateY.value);
+      ctx.scale(scaleX.value, scaleY.value);
+      ctx.rotate(g.toRadians(rotate.value));
       break;
     case RTS:
-      ctx.rotate(g.toRadians(rotate.value));
-      ctx.translate(translateX.value, translateY.value);
       ctx.scale(scaleX.value, scaleY.value);
+      ctx.translate(translateX.value, translateY.value);
+      ctx.rotate(g.toRadians(rotate.value));
       break;
     case TSR:
-      ctx.translate(translateX.value, translateY.value);
-      ctx.scale(scaleX.value, scaleY.value);
       ctx.rotate(g.toRadians(rotate.value));
+      ctx.scale(scaleX.value, scaleY.value);
+      ctx.translate(translateX.value, translateY.value);
       break;
     case TRS:
-      ctx.translate(translateX.value, translateY.value);
-      ctx.rotate(g.toRadians(rotate.value));
       ctx.scale(scaleX.value, scaleY.value);
+      ctx.rotate(g.toRadians(rotate.value));
+      ctx.translate(translateX.value, translateY.value);
       break;
     default:
       throw new Error(\`Invalid transform order \${order.value}\`);
@@ -250,34 +250,34 @@ triggerIn.onTrigger = (props) => {
     triggerOut.trigger(props);
     switch (order.value) {
       case SRT:
-        ctx.scale(scaleX.value, scaleY.value);
-        ctx.rotate(g.toRadians(rotate.value));
         ctx.translate(translateX.value, translateY.value);
+        ctx.rotate(g.toRadians(rotate.value));
+        ctx.scale(scaleX.value, scaleY.value);
         break;
       case STR:
-        ctx.scale(scaleX.value, scaleY.value);
-        ctx.translate(translateX.value, translateY.value);
         ctx.rotate(g.toRadians(rotate.value));
+        ctx.translate(translateX.value, translateY.value);
+        ctx.scale(scaleX.value, scaleY.value);
         break;
       case RST:
-        ctx.rotate(g.toRadians(rotate.value));
-        ctx.scale(scaleX.value, scaleY.value);
         ctx.translate(translateX.value, translateY.value);
+        ctx.scale(scaleX.value, scaleY.value);
+        ctx.rotate(g.toRadians(rotate.value));
         break;
       case RTS:
-        ctx.rotate(g.toRadians(rotate.value));
-        ctx.translate(translateX.value, translateY.value);
         ctx.scale(scaleX.value, scaleY.value);
+        ctx.translate(translateX.value, translateY.value);
+        ctx.rotate(g.toRadians(rotate.value));
         break;
       case TSR:
-        ctx.translate(translateX.value, translateY.value);
-        ctx.scale(scaleX.value, scaleY.value);
         ctx.rotate(g.toRadians(rotate.value));
+        ctx.scale(scaleX.value, scaleY.value);
+        ctx.translate(translateX.value, translateY.value);
         break;
       case TRS:
-        ctx.translate(translateX.value, translateY.value);
-        ctx.rotate(g.toRadians(rotate.value));
         ctx.scale(scaleX.value, scaleY.value);
+        ctx.rotate(g.toRadians(rotate.value));
+        ctx.translate(translateX.value, translateY.value);
         break;
       default:
         throw new Error(\`Invalid transform order \${order.value}\`);
