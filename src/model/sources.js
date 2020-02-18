@@ -290,18 +290,17 @@ triggerIn.onTrigger = (props) => {
 graphics.rect = `// Draw a rectangle on the canvas.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');
-const xIn = node.numberIn('x', 100);
-const yIn = node.numberIn('y', 100);
+const xIn = node.numberIn('x', 0);
+const yIn = node.numberIn('y', 0);
+const widthIn = node.numberIn('width', 100);
+const heightIn = node.numberIn('height', 100);
 const colorIn = node.colorIn('color', [150, 50, 150, 1]);
-const radiusIn = node.numberIn('radius', 50, { min: 0, max: 1000 });
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
-  const r = radiusIn.value;
   ctx.save();
   ctx.fillStyle = g.rgba(...colorIn.value);
-  ctx.translate(xIn.value, yIn.value);
-  ctx.fillRect(-r, -r, r * 2, r * 2);
+  ctx.fillRect(xIn.value, yIn.value, widthIn.value, heightIn.value);
   ctx.restore();
   triggerOut.trigger(props);
 };
