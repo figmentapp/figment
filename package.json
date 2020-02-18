@@ -10,6 +10,7 @@
     "format": "prettier --write js/**/*.js"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "5.12.1",
     "chroma-js": "2.1.0",
     "codemirror": "5.49.2",
     "lodash": "4.17.15",
