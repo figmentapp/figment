@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 7,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 285,
+      "y": 153
+    },
+    {
+      "id": 8,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 64,
+      "y": 580,
+      "values": {
+        "width": 2,
+        "height": 500,
+        "fit": "cover"
+      }
+    },
+    {
+      "id": 9,
+      "name": "Draw Background",
+      "type": "graphics.backgroundColor",
+      "x": 52,
+      "y": 98,
+      "values": {
+        "enable": false
+      }
+    },
+    {
+      "id": 12,
+      "name": "Time",
+      "type": "core.time",
+      "x": 267,
+      "y": 398
+    },
+    {
+      "id": 13,
+      "name": "Animate",
+      "type": "core.animate",
+      "x": 278,
+      "y": 452,
+      "values": {
+        "max": 500,
+        "duration": 500
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 8,
+      "inPort": "image"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 13,
+      "outPort": "value",
+      "inNode": 8,
+      "inPort": "x"
+    },
+    {
+      "outNode": 9,
+      "outPort": "out",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 12,
+      "outPort": "frame",
+      "inNode": 13,
+      "inPort": "time"
+    }
+  ],
+  "types": [
+    {
+      "name": "Animate",
+      "type": "project.animate",
+      "source": "// Animate between two values.\nconst tween = require('tween-functions');\nconst easings = Object.keys(tween);\n\nconst timeIn = node.numberIn('time');\nconst minIn = node.numberIn('min', 0);\nconst maxIn = node.numberIn('max', 100);\nconst durationIn = node.numberIn('duration', 1, { step: 0.01 });\nconst easingIn = node.selectIn('easing', easings);\nconst repeatIn = node.selectIn('repeat', ['cycle', 'none']);\nconst valueOut = node.numberOut('value');\n\nfunction update() {\n  const fn = tween[easingIn.value];\n  let t;\n  if (repeatIn.value === 'cycle') {\n \tt = timeIn.value % durationIn.value;\n  } else if (repeatIn.value === 'none') {\n    t = Math.min(timeIn.value, durationIn.value);\n  }\n  const value = fn(t, minIn.value, maxIn.value, durationIn.value);\n  valueOut.set(value);\n}\n\ntimeIn.onChange = update;\nminIn.onChange = update;\nmaxIn.onChange = update;\ndurationIn.onChange = update;\neasingIn.onChange = update;\n",
+      "description": "Animate between two values."
+    }
+  ]
+}
