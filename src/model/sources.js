@@ -186,13 +186,16 @@ playingIn.onChange = doFrame;
 
 graphics.backgroundColor = `// Fill the entire canvas with the background color.
 const triggerIn = node.triggerIn('in');
-const triggerOut = node.triggerOut('out');
 const colorIn = node.colorIn('color', [20, 20, 30, 1]);
+const enableIn = node.toggleIn('enable', true);
+const triggerOut = node.triggerOut('out');
 
 triggerIn.onTrigger = (props) => {
-  const { canvas, ctx } = props;
-  ctx.fillStyle = g.rgba(...colorIn.value);
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (enableIn.value) {
+    const { canvas, ctx } = props;
+    ctx.fillStyle = g.rgba(...colorIn.value);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   triggerOut.trigger(props);
 };
 `;
