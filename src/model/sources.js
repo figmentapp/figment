@@ -178,8 +178,8 @@ const triggerIn = node.triggerIn('in');
 const translateX = node.numberIn('translateX', 20);
 const translateY = node.numberIn('translateY', 20);
 const rotate = node.numberIn('rotate', 0);
-const scaleX = node.numberIn('scaleX', 1.0);
-const scaleY = node.numberIn('scaleY', 1.0);
+const scaleX = node.numberIn('scaleX', 1.0, { step: 0.01 });
+const scaleY = node.numberIn('scaleY', 1.0, { step: 0.01 });
 const order = node.selectIn('order', [SRT, STR, RST, RTS, TSR, TRS]);
 const triggerOut = node.triggerOut('out');
 

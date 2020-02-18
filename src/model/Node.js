@@ -59,7 +59,7 @@ export default class Node {
     }
   }
 
-  numberIn(name, value) {
+  numberIn(name, value, options) {
     if (!value) value = 0;
     const oldPort = this.inPorts.find(p => p.name === name);
     if (oldPort) {
@@ -69,7 +69,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_IN, value);
+      const inPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_IN, value, options);
       this.inPorts.push(inPort);
       return inPort;
     }

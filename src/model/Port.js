@@ -16,7 +16,7 @@ export const PORT_OUT = 'out';
 let gPortId = 0;
 
 export default class Port {
-  constructor(node, name, type, direction, value) {
+  constructor(node, name, type, direction, value, options) {
     this.__id = ++gPortId;
     this.node = node;
     this.name = name;
@@ -24,7 +24,10 @@ export default class Port {
     this.direction = direction;
     this.value = value;
     this.defaultValue = value;
-    this.options = undefined;
+    options = options || {};
+    this.min = options.min || undefined;
+    this.max = options.max || undefined;
+    this.step = options.step || 1;
   }
 
   hasDefaultValue() {

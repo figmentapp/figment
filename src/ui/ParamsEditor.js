@@ -4,7 +4,7 @@ import chroma from 'chroma-js';
 import ColorPicker from './ColorPicker';
 import { Point } from '../g';
 import { remote } from 'electron';
-import { throttle } from 'lodash';
+import { throttle, startCase } from 'lodash';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -38,9 +38,11 @@ class NumberDrag extends Component {
     e.preventDefault();
     if (this.props.direction === 'xy') {
       const value = this.props.value;
-      this.props.onChange(new Point(value.x + e.movementX, value.y + e.movementY));
+      this.props.onChange(
+        new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step)
+      );
     } else {
-      this.props.onChange(this.props.value + e.movementX);
+      this.props.onChange(this.props.value + e.movementX * this.props.step);
     }
   }
 
@@ -83,10 +85,18 @@ class FloatParam extends Component {
     this.props.onChange(value);
   }
 
-  render({ label, value, disabled, onChange }) {
+  render({ label, value, min, max, step, disabled, onChange }) {
     return (
       <div class="flex items-center mb-2">
-        <NumberDrag label={label} value={value} disabled={disabled} onChange={onChange} />
+        <NumberDrag
+          label={label}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          onChange={onChange}
+        />
         <input
           type="text"
           spellcheck="false"
@@ -318,6 +328,7 @@ export default class ParamsEditor extends Component {
 
   _renderPort(network, node, port) {
     let field;
+    const label = startCase(port.name);
     if (port.type === PORT_TYPE_TRIGGER) {
       return;
     } else if (port.type === PORT_TYPE_BUTTON) {
@@ -329,7 +340,7 @@ export default class ParamsEditor extends Component {
             disabled={network.isConnected(port)}
             onClick={() => this._onTriggerButton(port)}
           >
-            {port.name}
+            {label}
           </button>
         </div>
       );
@@ -344,15 +355,18 @@ export default class ParamsEditor extends Component {
               checked={port.value}
               onChange={e => this._onChangePortValue(port.name, e.target.checked)}
             />
-            <span class="ml-2 text-gray-500">{port.name}</span>
+            <span class="ml-2 text-gray-500">{label}</span>
           </label>
         </div>
       );
     } else if (port.type === PORT_TYPE_NUMBER) {
       field = (
         <FloatParam
-          label={port.name}
+          label={label}
           value={port.value}
+          min={port.min}
+          max={port.max}
+          step={port.step}
           disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
         />
@@ -360,7 +374,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_STRING) {
       field = (
         <StringParam
-          label={port.name}
+          label={label}
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
@@ -369,7 +383,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_SELECT) {
       field = (
         <SelectParam
-          label={port.name}
+          label={label}
           value={port.value}
           options={port.options}
           disabled={network.isConnected(port)}
@@ -379,7 +393,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_POINT) {
       field = (
         <PointParam
-          label={port.name}
+          label={label}
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
@@ -389,7 +403,7 @@ export default class ParamsEditor extends Component {
       field = (
         <ColorParam
           port={port}
-          label={port.name}
+          label={label}
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
@@ -398,7 +412,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_FILE) {
       field = (
         <FileParam
-          label={port.name}
+          label={label}
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={value => this._onChangePortValue(port.name, value)}
