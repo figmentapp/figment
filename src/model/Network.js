@@ -333,17 +333,9 @@ export default class Network {
     } else {
       nodeType.description = '';
     }
-    try {
-      const fn = new Function('node', nodeType.source);
-      for (const node of nodes) {
-        this._stopNode(node);
-        fn.call(window, node);
-        this._startNode(node);
-      }
-    } catch (e) {
-      console.error(e && e.stack);
+    for (const node of nodes) {
+      this.changeNodeType(node, nodeType);
     }
-
     this.doFrame();
   }
 
