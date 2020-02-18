@@ -122,10 +122,14 @@ export default class NetworkEditor extends Component {
     const dx = x - node.x;
     const dy = y - node.y;
     const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
-    if (dy <= 15) {
+    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
       return node.inPorts[portIndex];
-    } else if (dy >= NODE_HEIGHT - 10) {
-      return node.outPorts[portIndex];
+    } else {
+      if (dy <= 10) {
+        return node.inPorts[portIndex];
+      } else if (dy >= NODE_HEIGHT - 10) {
+        return node.outPorts[portIndex];
+      }
     }
   }
 
