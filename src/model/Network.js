@@ -6,6 +6,7 @@ import Port, {
   PORT_TYPE_BUTTON,
   PORT_TYPE_NUMBER,
   PORT_TYPE_STRING,
+  PORT_TYPE_SELECT,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
@@ -164,6 +165,8 @@ export default class Network {
             port.value = value;
           } else if (port.type === PORT_TYPE_STRING) {
             port.value = value;
+          } else if (port.type === PORT_TYPE_SELECT) {
+            port.value = value;
           } else if (port.type === PORT_TYPE_POINT) {
             port.value = new g.Point(value[0], value[1]);
           } else if (port.type === PORT_TYPE_COLOR) {
@@ -226,6 +229,8 @@ export default class Network {
           } else if (port.type === PORT_TYPE_NUMBER) {
             value = port.value;
           } else if (port.type === PORT_TYPE_STRING) {
+            value = port.value;
+          } else if (port.type === PORT_TYPE_SELECT) {
             value = port.value;
           } else if (port.type === PORT_TYPE_POINT) {
             value = [port.value.x, port.value.y];
