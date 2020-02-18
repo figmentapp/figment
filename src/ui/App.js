@@ -6,6 +6,7 @@ import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
 import { PORT_IN, PORT_OUT } from '../model/Port';
 import Editor from './Editor';
+import Viewer from './Viewer';
 import ParamsEditor from './ParamsEditor';
 import NodeDialog from './NodeDialog';
 import Splitter from './Splitter';
@@ -39,7 +40,8 @@ export default class App extends Component {
       forkDialogNodeType: null,
       lastNetworkPoint,
       mainSplitterWidth: 500,
-      editorSplitterHeight: (window.innerHeight * 2) / 3
+      editorSplitterHeight: (window.innerHeight * 2) / 3,
+      fullscreen: false
     };
     const firstNode = network.nodes.find(n => n.name === 'Canvas');
     if (firstNode) {
@@ -62,17 +64,29 @@ export default class App extends Component {
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onShowNodeRenameDialog = this._onShowNodeRenameDialog.bind(this);
     this._onHideNodeRenameDialog = this._onHideNodeRenameDialog.bind(this);
+    this._onToggleFullscreen = this._onToggleFullscreen.bind(this);
     this._onRenameNode = this._onRenameNode.bind(this);
     this._onConnect = this._onConnect.bind(this);
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onFrame = this._onFrame.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
   }
 
   componentDidMount() {
     this.state.network.start();
     ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
     window.requestAnimationFrame(this._onFrame);
-    // this._openFile('/Users/fdb/Desktop/webcam.fgmt');
+    window.addEventListener('keydown', this._onKeyDown);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._onKeyDown);
+  }
+
+  _onKeyDown(e) {
+    if (e.keyCode === 27 && this.state.fullscreen) {
+      this._onToggleFullscreen();
+    }
   }
 
   _onMenuEvent(name, filePath) {
@@ -288,6 +302,12 @@ export default class App extends Component {
     this.setState({ showNodeRenameDialog: false });
   }
 
+  _onToggleFullscreen() {
+    const fullscreen = !this.state.fullscreen;
+    this.setState({ fullscreen });
+    remote.BrowserWindow.getFocusedWindow().setFullScreen(fullscreen);
+  }
+
   _onRenameNode(node, newName) {
     if (newName.trim().length === 0) return;
     this.state.network.renameNode(node, newName);
@@ -323,9 +343,17 @@ export default class App extends Component {
       mainSplitterWidth,
       editorSplitterHeight,
       showNodeRenameDialog,
-      nodeToRename
+      nodeToRename,
+      fullscreen
     }
   ) {
+    if (fullscreen) {
+      return (
+        <div class="app">
+          <Viewer fullscreen={fullscreen} onToggleFullscreen={this._onToggleFullscreen} />
+        </div>
+      );
+    }
     return (
       <div class="app">
         <div class="flex flex-col h-screen" style={`width: ${mainSplitterWidth}px`}>
@@ -367,8 +395,7 @@ export default class App extends Component {
           size={mainSplitterWidth}
           onChange={width => this.setState({ mainSplitterWidth: width })}
         />
-        <div class="viewer" id="viewer" />
-
+        <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} />
         {showNodeDialog && (
           <NodeDialog
             network={network}
