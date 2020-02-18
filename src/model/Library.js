@@ -14,6 +14,11 @@ export default class Library {
       source: core.time
     });
     this.nodeTypes.push({
+      name: 'Animate',
+      type: 'core.animate',
+      source: core.animate
+    });
+    this.nodeTypes.push({
       name: 'Smooth',
       type: 'core.smooth',
       source: core.smooth

@@ -32,6 +32,37 @@ node.onFrame = () => {
 }
 `;
 
+core.animate = `// Animate a value over time.
+const tween = require('tween-functions');
+const easings = Object.keys(tween);
+
+const timeIn = node.numberIn('time');
+const minIn = node.numberIn('min', 0);
+const maxIn = node.numberIn('max', 100);
+const durationIn = node.numberIn('duration', 1, { step: 0.01 });
+const easingIn = node.selectIn('easing', easings);
+const repeatIn = node.selectIn('repeat', ['cycle', 'none']);
+const valueOut = node.numberOut('value');
+
+function update() {
+  const fn = tween[easingIn.value];
+  let t;
+  if (repeatIn.value === 'cycle') {
+ 	  t = timeIn.value % durationIn.value;
+  } else if (repeatIn.value === 'none') {
+    t = Math.min(timeIn.value, durationIn.value);
+  }
+  const value = fn(t, minIn.value, maxIn.value, durationIn.value);
+  valueOut.set(value);
+}
+
+timeIn.onChange = update;
+minIn.onChange = update;
+maxIn.onChange = update;
+durationIn.onChange = update;
+easingIn.onChange = update;
+`;
+
 core.smooth = `// Smooth values over time.
 const triggerIn = node.triggerIn('in');
 const valueIn = node.numberIn('value');
