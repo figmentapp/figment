@@ -68,6 +68,11 @@ async function onClearRecentProjects() {
 
 ipcMain.on('open-project', (e, filePath) => onTouchProject(filePath));
 ipcMain.on('save-project', (e, filePath) => onTouchProject(filePath));
+ipcMain.on('window-created', () => {
+  if (argv.file) {
+    emit('open', argv.file)();
+  }
+});
 
 function createMainWindow(file) {
   gMainWindow = new BrowserWindow({

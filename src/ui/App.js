@@ -77,6 +77,7 @@ export default class App extends Component {
     ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
+    ipcRenderer.send('window-created');
   }
 
   componentWillUnmount() {
