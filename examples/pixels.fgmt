@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 2,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 50,
+      "y": 100,
+      "values": {
+        "enable": false
+      }
+    },
+    {
+      "id": 3,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 9,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 106,
+      "y": 217,
+      "values": {
+        "file": "/Users/lieven/Projects/figment/examples/assets/kriskross.png"
+      }
+    },
+    {
+      "id": 8,
+      "name": "Pixels",
+      "type": "project.pixels",
+      "x": 50,
+      "y": 335,
+      "values": {
+        "r": -100,
+        "b": 100
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out1",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 9,
+      "outPort": "image",
+      "inNode": 8,
+      "inPort": "image"
+    }
+  ],
+  "types": [
+    {
+      "name": "Pixels",
+      "type": "project.pixels",
+      "source": "// Empty custom node.\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nconst rIn = node.numberIn('r');\nconst gIn = node.numberIn('g');\nconst bIn = node.numberIn('b');\n\n\ntriggerIn.onTrigger = (props) => {\n  const { canvas, ctx } = props;\n  if (imageIn.value) {\n    ctx.drawImage(imageIn.value, 0, 0, canvas.width, canvas.height);\n    var imagePixels = ctx.getImageData(0,0,canvas.width,canvas.height);\n    for (var i = 0, l = imagePixels.data.length; i < l; i += 4) { \n        imagePixels.data[i] += rIn.value; \n        imagePixels.data[i + 1] += gIn.value;  \n        imagePixels.data[i + 2] += bIn.value;\n    }\n    ctx.putImageData(imagePixels, 0, 0);\n  }  \n}\n\n\n\n",
+      "description": "Empty custom node."
+    }
+  ]
+}
