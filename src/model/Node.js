@@ -9,6 +9,7 @@ import Port, {
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
   PORT_TYPE_IMAGE,
+  PORT_TYPE_OBJECT,
   PORT_IN,
   PORT_OUT
 } from './Port';
@@ -150,6 +151,17 @@ export default class Node {
     }
   }
 
+  objectIn(name) {
+    const oldPort = this.inPorts.find(p => p.name === name);
+    if (oldPort) {
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_OBJECT, PORT_IN);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
   selectIn(name, options, value) {
     if (!value) value = options[0];
     const oldPort = this.inPorts.find(p => p.name === name);
@@ -207,6 +219,14 @@ export default class Node {
     const oldPort = this.outPorts.find(p => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_IMAGE, PORT_OUT);
+    this.outPorts.push(outPort);
+    return outPort;
+  }
+
+  objectOut(name) {
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const outPort = new Port(this, name, PORT_TYPE_OBJECT, PORT_OUT);
     this.outPorts.push(outPort);
     return outPort;
   }

@@ -11,6 +11,7 @@ import {
   PORT_TYPE_POINT,
   PORT_TYPE_FILE,
   PORT_TYPE_IMAGE,
+  PORT_TYPE_OBJECT,
   PORT_IN,
   PORT_OUT
 } from '../model/Port';
@@ -29,14 +30,15 @@ const DRAG_MODE_DRAG_PORT = 'drag_port';
 const DRAG_MODE_SELECTING = 'selecting';
 
 const PORT_COLORS = {
-  [PORT_TYPE_TRIGGER]: COLORS.yellow300,
+  [PORT_TYPE_TRIGGER]: COLORS.yellow400,
   [PORT_TYPE_TOGGLE]: COLORS.orange300,
   [PORT_TYPE_NUMBER]: COLORS.gray500,
   [PORT_TYPE_STRING]: COLORS.indigo600,
   [PORT_TYPE_COLOR]: COLORS.gray600,
   [PORT_TYPE_POINT]: COLORS.gray700,
   [PORT_TYPE_FILE]: COLORS.gray400,
-  [PORT_TYPE_IMAGE]: COLORS.green500
+  [PORT_TYPE_IMAGE]: COLORS.green500,
+  [PORT_TYPE_OBJECT]: COLORS.gray800
 };
 
 function _nodeWidth(node) {

@@ -15,7 +15,8 @@ import {
   PORT_TYPE_SELECT,
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
-  PORT_TYPE_FILE
+  PORT_TYPE_FILE,
+  PORT_TYPE_OBJECT
 } from '../model/Port';
 
 class NumberDrag extends Component {
@@ -423,6 +424,8 @@ export default class ParamsEditor extends Component {
           onChange={value => this._onChangePortValue(port.name, value)}
         />
       );
+    } else if (port.type === PORT_TYPE_OBJECT) {
+      field = undefined;
     } else {
       field = (
         <div class="params__row">

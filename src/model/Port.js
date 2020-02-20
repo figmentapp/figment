@@ -9,6 +9,7 @@ export const PORT_TYPE_COLOR = 'color';
 export const PORT_TYPE_POINT = 'point';
 export const PORT_TYPE_FILE = 'file';
 export const PORT_TYPE_IMAGE = 'image';
+export const PORT_TYPE_OBJECT = 'object';
 
 export const PORT_IN = 'in';
 export const PORT_OUT = 'out';
@@ -31,7 +32,11 @@ export default class Port {
   }
 
   hasDefaultValue() {
-    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE) {
+    if (
+      this.type === PORT_TYPE_TRIGGER ||
+      this.type === PORT_TYPE_IMAGE ||
+      this.type === PORT_TYPE_OBJECT
+    ) {
       return true;
     }
     return JSON.stringify(this.defaultValue) === JSON.stringify(this.value);
@@ -75,7 +80,11 @@ export default class Port {
   }
 
   setDefaultValue() {
-    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE) {
+    if (
+      this.type === PORT_TYPE_TRIGGER ||
+      this.type === PORT_TYPE_IMAGE ||
+      this.type === PORT_TYPE_OBJECT
+    ) {
       this.value = undefined;
       return;
     }
