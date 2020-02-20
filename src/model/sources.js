@@ -153,6 +153,8 @@ graphics.canvas = `// Initialize a new canvas and triggers the render every fram
 const playingIn = node.toggleIn('playing', true);
 const widthIn = node.numberIn('width', 500);
 const heightIn = node.numberIn('height', 500);
+const drawBackgroundIn = node.toggleIn('drawBackground', true);
+const backgroundColorIn = node.colorIn('color', [20, 20, 30, 1]);
 const triggerOut = node.triggerOut('out');
 
 function resize() {
@@ -167,6 +169,10 @@ function resize() {
   canvas.height = heightIn.value;
   const ctx = canvas.getContext('2d');
   node._ctx = ctx;
+  if (drawBackgroundIn.value) {
+    ctx.fillStyle = g.rgba(...backgroundColorIn.value);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   triggerOut.trigger({ canvas, ctx });
 }
 
@@ -174,6 +180,10 @@ function doFrame() {
   if (!playingIn.value) return;
   const canvas = node._canvas;
   const ctx = node._ctx;
+  if (drawBackgroundIn.value) {
+    ctx.fillStyle = g.rgba(...backgroundColorIn.value);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   triggerOut.trigger({ canvas, ctx });
 }
 
