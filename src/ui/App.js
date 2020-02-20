@@ -78,10 +78,12 @@ export default class App extends Component {
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
     ipcRenderer.send('window-created');
+    window.app = this;
   }
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this._onKeyDown);
+    window.app = undefined;
   }
 
   _onKeyDown(e) {
@@ -140,12 +142,14 @@ export default class App extends Component {
     const contents = await fs.readFile(filePath, 'utf-8');
     const json = JSON.parse(contents);
     const network = new Network(this.state.library);
-    network.parse(json);
-    network.start();
-    network.doFrame();
-    this.setState({ network, selection: new Set() });
-    this._setFilePath(filePath);
+
     remote.app.addRecentDocument(filePath);
+    this.setState({ filePath, network, selection: new Set() }, () => {
+      network.parse(json);
+      network.start();
+      network.doFrame();
+    });
+    this._setFilePath(filePath);
     ipcRenderer.send('open-project', filePath);
   }
 
@@ -178,6 +182,13 @@ export default class App extends Component {
       this.state.network.stop();
       document.getElementById('viewer').innerHTML = '';
     }
+    this.setState({
+      filePath: undefined,
+      dirty: false,
+      tabs: [],
+      activeTabIndex: -1,
+      selection: new Set()
+    });
     // FIXME: check for unsaved changes
   }
 

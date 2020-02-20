@@ -388,7 +388,7 @@ const imageOut = node.imageOut('image');
 
 function exec() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
-  const imageUrl = url.pathToFileURL(fileIn.value);
+  const imageUrl = figment.urlForAsset(fileIn.value);
   const image = new Image();
   function onFinished(e) {
     const supported = e.type === 'load' && image.width > 0;

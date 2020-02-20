@@ -3,6 +3,7 @@ import { useRef } from 'preact/hooks';
 import chroma from 'chroma-js';
 import ColorPicker from './ColorPicker';
 import { Point } from '../g';
+import * as figment from '../figment';
 import { remote } from 'electron';
 import { throttle, startCase } from 'lodash';
 
@@ -260,7 +261,8 @@ class FileParam extends Component {
       properties: ['openFile']
     });
     if (result.canceled || !result.filePaths) return;
-    const file = result.filePaths[0];
+    const absoluteFile = result.filePaths[0];
+    const file = figment.filePathToRelative(absoluteFile);
     this.props.onChange(file);
   }
 
