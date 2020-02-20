@@ -200,8 +200,8 @@ class ColorParam extends Component {
   render({ label, value, onChange }, { pickerVisible }) {
     const rgbaValue = chroma(value).rgba();
     return (
-      <div class="params__row" ref={this.row}>
-        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+      <div class="flex items-center mb-2" ref={this.row}>
+        <label class="w-32 text-right text-gray-500 mr-4 py-2">{label}</label>
         <span
           class="w-16 bg-gray-700 h-8"
           style={`background-color: rgba(${rgbaValue.join(',')})`}
@@ -356,7 +356,7 @@ export default class ParamsEditor extends Component {
       field = (
         <div class="params__row">
           <span class="w-32 mr-4"></span>
-          <label class="w-32 bg-gray-700 p-2">
+          <label class="w-64  p-2 flex items-center">
             <input
               type="checkbox"
               disabled={network.isConnected(port)}
