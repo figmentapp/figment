@@ -31,13 +31,6 @@
       "y": 150
     },
     {
-      "id": 7,
-      "name": "Custom",
-      "type": "project.custom",
-      "x": 293,
-      "y": 221
-    },
-    {
       "id": 8,
       "name": "Load Image",
       "type": "image.loadImage",
@@ -53,6 +46,22 @@
       "type": "image.drawImage",
       "x": 55,
       "y": 344
+    },
+    {
+      "id": 7,
+      "name": "Custom",
+      "type": "project.custom",
+      "x": 316,
+      "y": 239,
+      "values": {
+        "detectType": "multi",
+        "color": [
+          208,
+          193,
+          226,
+          1
+        ]
+      }
     }
   ],
   "connections": [
@@ -97,7 +106,7 @@
     {
       "name": "Custom",
       "type": "project.custom",
-      "source": "// posenet node.\nconst ml5 = require('ml5');\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nlet poseNet;\nlet poses = [];\nlet options = {\n  imageScaleFactor: 0.9,\n  minConfidence: 0.05,\n  maxPoseDetections: 4,\n  outputStride: 16\n}\n\n// Create a new poseNet method\nnode.onStart = () => {\n  poseNet = ml5.poseNet(modelReady, options);\n  poseNet.on('pose', function (results) {\n    poses = results;\n    console.log(poses);\n  });\n}\n\nfunction modelReady() {\n  console.log(\"Model Loaded!\");\n  poseNet.multiPose(imageIn.value);\n}\n\nfunction drawKeypoints(ctx, w, h, s) {\n  for (let i = 0; i < poses.length; i++) {\n    let pose = poses[i].pose;\n    for (let j = 0; j < pose.keypoints.length; j++) {\n      let keypoint = pose.keypoints[j];\n      if (keypoint.score > 0.2) {\n        drawPoint(ctx,(keypoint.position.x/imageIn.value.width)*w, (keypoint.position.y/imageIn.value.height)*h,s);\n      }\n    }\n  }\n}\n\nfunction drawSkeleton(ctx, w, h) {\n  for (let i = 0; i < poses.length; i++) {\n    let skeleton = poses[i].skeleton;\n    for (let j = 0; j < skeleton.length; j++) {\n      let partA = skeleton[j][0];\n      let partB = skeleton[j][1];\n      strokeLine(ctx,(partA.position.x/imageIn.value.width)*w, (partA.position.y/imageIn.value.height)*h, (partB.position.x/imageIn.value.width)*w, (partB.position.y/imageIn.value.height)*h)\n    }\n  }\n}\n\nfunction drawPoint(ctx, x, y, r) {\n  ctx.beginPath();\n  ctx.arc(x, y, r, 0, 2 * Math.PI);\n  ctx.fillStyle = \"yellow\";\n  ctx.fill();\n}\n\nfunction strokeLine(ctx, x1, y1, x2, y2) {\n  ctx.strokeStyle = \"yellow\";\n  ctx.beginPath();\n  ctx.moveTo(x1, y1);\n  ctx.lineTo(x2, y2);\n  ctx.stroke();\n}\n\ntriggerIn.onTrigger = (props) => {\n  const { canvas, ctx } = props;\n \tif(imageIn.value) {\n      drawKeypoints(ctx, imageIn.value.width, imageIn.value.height,3);\n  \t  drawSkeleton(ctx, imageIn.value.width, imageIn.value.height)\n    };\n};\n\nimageIn.onChange = () => {\n  poseNet.multiPose(imageIn.value);\n}\n\nnode.debugDraw = (ctx) => {\n  ctx.fillStyle = \"rgb(100,100,100)\";\n  ctx.fillRect(0,0,100,75);\n  drawKeypoints(ctx, 100, 75, 1);\n  drawSkeleton(ctx, 100, 75);\n}\n\n",
+      "source": "// posenet node.\nconst ml5 = require('ml5');\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nconst typeIn = node.selectIn('detectType', ['single', 'multi']);\nconst colorIn = node.colorIn('color', [255, 255, 0, 1]);\nlet poseNet;\nlet poses = [];\nlet options = {\n  imageScaleFactor: 0.9,\n  minConfidence: 0.2,\n  maxPoseDetections: 4,\n  outputStride: 16\n}\n\nnode.onStart = () => {\n  poseNet = ml5.poseNet(modelReady, options);\n  poseNet.on('pose', function (results) {\n    poses = results;\n    console.log(poses);\n  });\n}\n\nfunction modelReady() {\n  console.log(\"Model Loaded!\");\n  if(typeIn.value == 'single'){\n    poseNet.singlePose(imageIn.value);\n  }else{\n  \tposeNet.multiPose(imageIn.value);\n  }\n}\n\nfunction drawKeypoints(ctx, w, h, s) {\n  for (let i = 0; i < poses.length; i++) {\n    let pose = poses[i].pose;\n    for (let j = 0; j < pose.keypoints.length; j++) {\n      let keypoint = pose.keypoints[j];\n      if (keypoint.score > 0.2) {\n        drawPoint(ctx,(keypoint.position.x/imageIn.value.width)*w, (keypoint.position.y/imageIn.value.height)*h,s);\n      }\n    }\n  }\n}\n\nfunction drawSkeleton(ctx, w, h) {\n  for (let i = 0; i < poses.length; i++) {\n    let skeleton = poses[i].skeleton;\n    for (let j = 0; j < skeleton.length; j++) {\n      let partA = skeleton[j][0];\n      let partB = skeleton[j][1];\n      strokeLine(ctx,(partA.position.x/imageIn.value.width)*w, (partA.position.y/imageIn.value.height)*h, (partB.position.x/imageIn.value.width)*w, (partB.position.y/imageIn.value.height)*h)\n    }\n  }\n}\n\nfunction drawPoint(ctx, x, y, r) {\n  ctx.fillStyle = g.rgba(...colorIn.value);\n  ctx.beginPath();\n  ctx.arc(x, y, r, 0, 2 * Math.PI);\n  ctx.fill();\n}\n\nfunction strokeLine(ctx, x1, y1, x2, y2) {\n  ctx.strokeStyle = g.rgba(...colorIn.value);\n  ctx.beginPath();\n  ctx.moveTo(x1, y1);\n  ctx.lineTo(x2, y2);\n  ctx.stroke();\n}\n\ntriggerIn.onTrigger = (props) => {\n  const { canvas, ctx } = props;\n \tif(imageIn.value) {\n      drawKeypoints(ctx, imageIn.value.width, imageIn.value.height,3);\n  \t  drawSkeleton(ctx, imageIn.value.width, imageIn.value.height)\n    };\n};\n\nimageIn.onChange = () => {\nmodelReady()\n}\n\nnode.debugDraw = (ctx) => {\n  ctx.fillStyle = \"rgb(100,100,100)\";\n  ctx.fillRect(0,0,100,75);\n  drawKeypoints(ctx, 100, 75, 1);\n  drawSkeleton(ctx, 100, 75);\n}\n\n",
       "description": "posenet node."
     }
   ]
