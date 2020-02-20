@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 2,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 50,
+      "y": 100
+    },
+    {
+      "id": 3,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 7,
+      "name": "Draw Text",
+      "type": "graphics.text",
+      "x": 54,
+      "y": 401,
+      "values": {
+        "x": 228,
+        "y": 243
+      }
+    },
+    {
+      "id": 8,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 301,
+      "y": 110
+    },
+    {
+      "id": 6,
+      "name": "Teachable Video",
+      "type": "project.teachableVideo",
+      "x": 121,
+      "y": 285
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 6,
+      "outPort": "predict",
+      "inNode": 7,
+      "inPort": "text"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out1",
+      "inNode": 7,
+      "inPort": "in"
+    },
+    {
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 6,
+      "inPort": "image"
+    }
+  ],
+  "types": [
+    {
+      "name": "Teachable Video",
+      "type": "project.teachableVideo",
+      "source": "const ml5 = require('ml5');\nconst imageIn = node.imageIn('image');\nconst predictOut = node.stringOut('predict');\nlet classifier;\nlet featureExtractor;\nlet imageModelURL = 'https://teachablemachine.withgoogle.com/models/KGojqywj/';\n\n\nnode.onStart = () => {\n  classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);\n}\n\nfunction modelReady() {\n  classifier.classify(imageIn.value, gotResult);\n}\n\nfunction gotResult(error, results) {\n  if (error) {\n    console.error(error);\n    return;\n  }\n  label = results[0].label;\n  predictOut.set(label);\n  \n}\n\nimageIn.onChange = () => {\n   modelReady();\n}",
+      "description": "teachablemachine.withgoogle.com/models/KGojqywj/';"
+    }
+  ]
+}
