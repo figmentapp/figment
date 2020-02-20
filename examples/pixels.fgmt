@@ -32,7 +32,7 @@
       "x": 106,
       "y": 217,
       "values": {
-        "file": "/Users/lieven/Projects/figment/examples/assets/kriskross.png"
+        "file": "assets/kriskross.png"
       }
     },
     {
@@ -42,7 +42,7 @@
       "x": 50,
       "y": 335,
       "values": {
-        "r": -100,
+        "r": -6,
         "b": 100
       }
     }

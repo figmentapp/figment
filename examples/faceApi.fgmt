@@ -29,8 +29,8 @@
       "id": 7,
       "name": "Custom",
       "type": "project.custom",
-      "x": 265,
-      "y": 249,
+      "x": 315,
+      "y": 297,
       "values": {
         "color": [
           71,
@@ -44,18 +44,18 @@
       "id": 8,
       "name": "Load Image",
       "type": "image.loadImage",
-      "x": 277,
-      "y": 103,
+      "x": 342,
+      "y": 116,
       "values": {
-        "file": "/Users/lieven/Projects/figment/examples/assets/wutang.png"
+        "file": "assets/wutang.png"
       }
     },
     {
       "id": 9,
       "name": "Draw Image",
       "type": "image.drawImage",
-      "x": 75,
-      "y": 251
+      "x": 55,
+      "y": 295
     }
   ],
   "connections": [
