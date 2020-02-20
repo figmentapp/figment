@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50,
+      "values": {
+        "width": 604
+      }
+    },
+    {
+      "id": 2,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 50,
+      "y": 100
+    },
+    {
+      "id": 3,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 8,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 262,
+      "y": 43,
+      "values": {
+        "file": "/Users/lieven/Projects/figment/examples/assets/eye.png"
+      }
+    },
+    {
+      "id": 9,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 75,
+      "y": 251
+    },
+    {
+      "id": 11,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 355,
+      "y": 92
+    },
+    {
+      "id": 7,
+      "name": "Custom",
+      "type": "project.custom",
+      "x": 295,
+      "y": 252,
+      "values": {
+        "color": [
+          43,
+          142,
+          37,
+          1
+        ],
+        "size": 60
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out1",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out2",
+      "inNode": 7,
+      "inPort": "in"
+    },
+    {
+      "outNode": 11,
+      "outPort": "image",
+      "inNode": 9,
+      "inPort": "image"
+    },
+    {
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 7,
+      "inPort": "mask"
+    },
+    {
+      "outNode": 11,
+      "outPort": "image",
+      "inNode": 7,
+      "inPort": "image"
+    }
+  ],
+  "types": [
+    {
+      "name": "Custom",
+      "type": "project.custom",
+      "source": "// face api node.\nconst ml5 = require('ml5');\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nconst colorIn = node.colorIn('color', [150, 50, 150, 1]);\nconst maskIn = node.imageIn('mask');\nconst sizeIn = node.numberIn('size',30);\nlet faceapi;\nlet detections;\nlet options = {\n\twithLandmarks: true,\n    withDescriptors: false,\n }\n\nnode.onStart = () => {\n  faceapi = ml5.faceApi(options, modelReady)\n}\n\nfunction gotResults(err, result) {\n    if (err) {\n        console.log(err)\n        return\n    }\n    detections = result;\n  //console.log(detections)\n}\n\nfunction drawBox(ctx, detection){\n    const alignedRect = detection.alignedRect;\n    const {_x, _y, _width, _height} = alignedRect._box;\n    ctx.save();\n  \tctx.strokeStyle = g.rgba(...colorIn.value);\n  \tctx.strokeRect(_x, _y, _width, _height);\n  \tctx.restore();\n}\n\nfunction drawLandmarks(ctx, detection){\n        const leftEye = detection.parts.leftEye;\n        const rightEye = detection.parts.rightEye;\n        drawPart(ctx, leftEye, true);\n        drawPart(ctx, rightEye, true);\n}\n\nfunction drawPart(ctx, feature, closed){\n  //ctx.strokeStyle = g.rgba(...colorIn.value);\n  //ctx.beginPath();\n  let tx = 0;\n  let ty = 0;\n  for(let i = 0; i < feature.length; i++){\n     tx += feature[i]._x\n     ty += feature[i]._y\n    // ctx.lineTo(feature[i]._x, feature[i]._y);\n  }\n  tx/= feature.length;\n  ty/= feature.length;\n  ctx.drawImage(maskIn.value,tx-sizeIn.value/2,ty-sizeIn.value/2,sizeIn.value,sizeIn.value);\n  //ctx.stroke();  \n}\n        \nfunction modelReady() {\n  console.log(\"Model Loaded!\");\n  faceapi.detect(imageIn.value, gotResults)\n}\n        \ntriggerIn.onTrigger = (props) => {\n   const { canvas, ctx } = props;\n      if (detections) {\n        for(let i = 0; i < detections.length;i++){\n        //drawBox(ctx, detections[i])\n        drawLandmarks(ctx, detections[i])\n        }\n    }\n};\n\nimageIn.onChange = () => {\n   faceapi.detect(imageIn.value, gotResults)\n}\n\ncolorIn.onChange = () => {\n   faceapi.detect(imageIn.value, gotResults)\n}\n\n",
+      "description": "face api node."
+    }
+  ]
+}
