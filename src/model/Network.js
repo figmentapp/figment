@@ -26,20 +26,13 @@ export const DEFAULT_NETWORK = {
     },
     {
       id: 2,
-      name: 'Background Color',
-      type: 'graphics.backgroundColor',
-      x: 50,
-      y: 100
-    },
-    {
-      id: 3,
       name: 'Sequence',
       type: 'core.sequence',
       x: 50,
       y: 150
     },
     {
-      id: 4,
+      id: 3,
       name: 'Rectangle',
       type: 'graphics.rect',
       x: 50,
@@ -48,25 +41,11 @@ export const DEFAULT_NETWORK = {
         x: 50,
         y: 50
       }
-    },
-    {
-      id: 5,
-      name: 'Rectangle',
-      type: 'graphics.rect',
-      x: 250,
-      y: 300,
-      values: {
-        x: 100,
-        y: 100,
-        color: [50, 220, 50, 1]
-      }
     }
   ],
   connections: [
     { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
-    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
-    { outNode: 3, outPort: 'out1', inNode: 4, inPort: 'in' },
-    { outNode: 3, outPort: 'out2', inNode: 5, inPort: 'in' }
+    { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ]
 };
 
