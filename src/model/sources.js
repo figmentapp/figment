@@ -142,6 +142,21 @@ node.onStop = (props) => {
 };
 `;
 
+core.conditionalTrigger = `// Trigger based on true / false condition.
+const triggerIn = node.triggerIn('in');
+const valueIn = node.toggleIn('value');
+const trueTriggerOut = node.triggerOut('true');
+const falseTriggerOut = node.triggerOut('false');
+
+triggerIn.onTrigger = (props) => {
+  if (valueIn.value) {
+    trueTriggerOut.trigger(props);
+  } else {
+    falseTriggerOut.trigger(props);
+  }
+};
+`;
+
 math.convert = `// Convert values from one domain to another.
 const valueIn = node.numberIn('value', 0.5);
 const inMinIn = node.numberIn('inMin', 0);

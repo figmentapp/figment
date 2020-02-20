@@ -29,6 +29,11 @@ export default class Library {
       source: core.mouse
     });
     this.nodeTypes.push({
+      name: 'Conditional Trigger',
+      type: 'core.conditionalTrigger',
+      source: core.conditionalTrigger
+    });
+    this.nodeTypes.push({
       name: 'Custom',
       type: 'core.custom',
       source: core.custom
