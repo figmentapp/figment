@@ -98,25 +98,46 @@ triggerIn.onTrigger = (props) => {
 core.mouse = `// Read mouse inputs.
 const xOut = node.numberOut('x');
 const yOut = node.numberOut('y');
+const buttonDownOut = node.toggleOut('buttonDown');
+const clickTriggerOut = node.triggerOut('click');
+
+function setDebugMessage() {
+  node.debugMessage = \`[\${xOut.value} \${yOut.value}]\${buttonDownOut.value ? ' down' : ''}\`;
+}
 
 function onMouseMove(e) {
   xOut.set(e.offsetX);
   yOut.set(e.offsetY);
-  node.debugMessage = \`[\${xOut.value} \${yOut.value}]\`;
+  setDebugMessage();
+}
+
+function onMouseDown(e) {
+  buttonDownOut.set(true);
+  clickTriggerOut.trigger();
+  setDebugMessage();
+}
+
+function onMouseUp(e) {
+  buttonDownOut.set(false);
+  setDebugMessage();
 }
 
 node.onStart = (props) => {
   let viewer = document.getElementById('viewer');
   let canvas = viewer.querySelector('canvas');
   if (!canvas) canvas = viewer;
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mouseup', onMouseUp);
   canvas.addEventListener('mousemove', onMouseMove);
-  node.debugMessage = '[0 0]';
+  setDebugMessage();
 }
 
 node.onStop = (props) => {
   let viewer = document.getElementById('viewer');
   let canvas = viewer.querySelector('canvas');
   if (!canvas) canvas = viewer;
+  canvas.removeEventListener('mousemove', onMouseDown);
+  canvas.removeEventListener('mousemove', onMouseUp);
   canvas.removeEventListener('mousemove', onMouseMove);
 };
 `;

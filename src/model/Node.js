@@ -188,6 +188,15 @@ export default class Node {
     return outPort;
   }
 
+  toggleOut(name, value) {
+    if (!value) value = false;
+    const oldPort = this.outPorts.find(p => p.name === name);
+    if (oldPort) return oldPort;
+    const outPort = new Port(this, name, PORT_TYPE_TOGGLE, PORT_OUT, value);
+    this.outPorts.push(outPort);
+    return outPort;
+  }
+
   numberOut(name, value) {
     if (!value) value = 0;
     const oldPort = this.outPorts.find(p => p.name === name);
