@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50,
+      "values": {
+        "drawBackground": false
+      }
+    },
+    {
+      "id": 3,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 43,
+      "y": 381,
+      "values": {
+        "width": 5,
+        "height": 5
+      }
+    },
+    {
+      "id": 4,
+      "name": "Mouse",
+      "type": "core.mouse",
+      "x": 286,
+      "y": 55
+    },
+    {
+      "id": 6,
+      "name": "Conditional Trigger",
+      "type": "core.conditionalTrigger",
+      "x": 45,
+      "y": 205
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 4,
+      "outPort": "x",
+      "inNode": 3,
+      "inPort": "x"
+    },
+    {
+      "outNode": 4,
+      "outPort": "y",
+      "inNode": 3,
+      "inPort": "y"
+    },
+    {
+      "outNode": 4,
+      "outPort": "buttonDown",
+      "inNode": 6,
+      "inPort": "value"
+    },
+    {
+      "outNode": 6,
+      "outPort": "true",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 6,
+      "inPort": "in"
+    }
+  ],
+  "types": [
+    {
+      "name": "Conditional Trigger",
+      "type": "project.conditionalTrigger",
+      "source": "// Trigger based on true / false condition.\nconst triggerIn = node.triggerIn('in');\nconst valueIn = node.toggleIn('value');\nconst trueTriggerOut = node.triggerOut('true');\nconst falseTriggerOut = node.triggerOut('false');\n\ntriggerIn.onTrigger = (props) => {\n  if (valueIn.value) {\n    trueTriggerOut.trigger(props);\n  } else {\n    falseTriggerOut.trigger(props);\n  }\n};\n",
+      "description": "Trigger based on true / false condition."
+    }
+  ]
+}
