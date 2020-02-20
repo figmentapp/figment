@@ -205,10 +205,8 @@ function resize() {
   canvas.height = heightIn.value;
   const ctx = canvas.getContext('2d');
   node._ctx = ctx;
-  if (drawBackgroundIn.value) {
-    ctx.fillStyle = g.rgba(...backgroundColorIn.value);
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
+  ctx.fillStyle = g.rgba(...backgroundColorIn.value);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   triggerOut.trigger({ canvas, ctx });
 }
 
