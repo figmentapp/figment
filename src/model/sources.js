@@ -706,4 +706,88 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+ml.faceApi = `// return faces from face api.
+const ml5 = require('ml5');
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const colorIn = node.colorIn('color', [150, 50, 150, 1]);
+let faceapi;
+let detections;
+let options = {
+	withLandmarks: true,
+    withDescriptors: false,
+ }
+
+node.onStart = () => {
+  faceapi = ml5.faceApi(options, modelReady)
+}
+
+function gotResults(err, result) {
+    if (err) {
+        console.log(err)
+        return
+    }
+    detections = result;
+  //console.log(detections)
+}
+
+function drawBox(ctx, detection){
+    const alignedRect = detection.alignedRect;
+    const {_x, _y, _width, _height} = alignedRect._box;
+    ctx.save();
+  	ctx.strokeStyle = g.rgba(...colorIn.value);
+  	ctx.strokeRect(_x, _y, _width, _height);
+  	ctx.restore();
+}
+
+function drawLandmarks(ctx, detection){
+        const mouth = detection.parts.mouth; 
+        const nose = detection.parts.nose;
+        const leftEye = detection.parts.leftEye;
+        const rightEye = detection.parts.rightEye;
+        const rightEyeBrow = detection.parts.rightEyeBrow;
+        const leftEyeBrow = detection.parts.leftEyeBrow;
+        drawPart(ctx, mouth, true);
+        drawPart(ctx, nose, false);
+        drawPart(ctx, leftEye, true);
+        drawPart(ctx, leftEyeBrow, false);
+        drawPart(ctx, rightEye, true);
+        drawPart(ctx, rightEyeBrow, false);
+}
+
+function drawPart(ctx, feature, closed){
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  for(let i = 0; i < feature.length; i++){
+     const x = feature[i]._x
+     const y = feature[i]._y
+     ctx.lineTo(x, y);
+  }
+  ctx.stroke();  
+}
+        
+function modelReady() {
+  console.log("Model Loaded!");
+  faceapi.detect(imageIn.value, gotResults)
+}
+        
+triggerIn.onTrigger = (props) => {
+   const { canvas, ctx } = props;
+      if (detections) {
+        for(let i = 0; i < detections.length;i++){
+        drawBox(ctx, detections[i])
+        drawLandmarks(ctx, detections[i])
+        }
+    }
+};
+
+imageIn.onChange = () => {
+   faceapi.detect(imageIn.value, gotResults)
+}
+
+colorIn.onChange = () => {
+   faceapi.detect(imageIn.value, gotResults)
+}
+`;
+
 export default { core, math, graphics, image, ml };

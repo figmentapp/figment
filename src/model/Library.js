@@ -76,6 +76,11 @@ export default class Library {
       type: 'ml.poseBodyPart',
       source: ml.poseBodyPart
     });
+    this.nodeTypes.push({
+      name: 'Face Api',
+      type: 'ml.faceApi',
+      source: ml.faceApi
+    });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {
