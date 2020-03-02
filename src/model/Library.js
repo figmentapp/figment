@@ -71,6 +71,11 @@ export default class Library {
       type: 'ml.poseNet',
       source: ml.poseNet
     });
+    this.nodeTypes.push({
+      name: 'Pose Body Part',
+      type: 'ml.poseBodyPart',
+      source: ml.poseBodyPart
+    });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {
