@@ -66,6 +66,11 @@ export default class Library {
       type: 'ml.classifyImage',
       source: ml.classifyImage
     });
+    this.nodeTypes.push({
+      name: 'Pose Net',
+      type: 'ml.poseNet',
+      source: ml.poseNet
+    });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {

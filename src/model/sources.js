@@ -592,4 +592,94 @@ const classifier = ml5.imageClassifier('MobileNet', classify);
 imageIn.onChange = classify;
 `;
 
+ml.poseNet = `// return poses from image.
+const ml5 = require('ml5');
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const typeIn = node.selectIn('detectType', ['single', 'multi']);
+const colorIn = node.colorIn('color', [255, 255, 0, 1]);
+const poseOut = node.objectOut('poses');
+let poseNet;
+let poses = [];
+let options = {
+  imageScaleFactor: 0.9,
+  minConfidence: 0.2,
+  maxPoseDetections: 4,
+  outputStride: 16
+}
+
+node.onStart = () => {
+  poseNet = ml5.poseNet(modelReady, options);
+  poseNet.on('pose', function (results) {
+    poses = results;
+    console.log(poses);
+  });
+}
+
+function modelReady() {
+  console.log("Model Loaded!");
+  if(typeIn.value == 'single'){
+    poseNet.singlePose(imageIn.value);
+  }else{
+  	poseNet.multiPose(imageIn.value);
+  }
+}
+
+function drawKeypoints(ctx, w, h, s) {
+  for (let i = 0; i < poses.length; i++) {
+    let pose = poses[i].pose;
+    for (let j = 0; j < pose.keypoints.length; j++) {
+      let keypoint = pose.keypoints[j];
+      if (keypoint.score > 0.2) {
+        drawPoint(ctx,(keypoint.position.x/imageIn.value.width)*w, (keypoint.position.y/imageIn.value.height)*h,s);
+      }
+    }
+  }
+}
+
+function drawSkeleton(ctx, w, h) {
+  for (let i = 0; i < poses.length; i++) {
+    let skeleton = poses[i].skeleton;
+    for (let j = 0; j < skeleton.length; j++) {
+      let partA = skeleton[j][0];
+      let partB = skeleton[j][1];
+      strokeLine(ctx,(partA.position.x/imageIn.value.width)*w, (partA.position.y/imageIn.value.height)*h, (partB.position.x/imageIn.value.width)*w, (partB.position.y/imageIn.value.height)*h)
+    }
+  }
+}
+
+function drawPoint(ctx, x, y, r) {
+  ctx.fillStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+function strokeLine(ctx, x1, y1, x2, y2) {
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+ 	if(imageIn.value) {
+      poseOut = poses;
+    };
+};
+
+imageIn.onChange = () => {
+modelReady()
+}
+
+node.debugDraw = (ctx) => {
+  ctx.fillStyle = "rgb(100,100,100)";
+  ctx.fillRect(0,0,100,75);
+  drawKeypoints(ctx, 100, 75, 1);
+  drawSkeleton(ctx, 100, 75);
+}
+`;
+
 export default { core, math, graphics, image, ml };
