@@ -696,8 +696,8 @@ function isBodyPart(bp) {
       
 triggerIn.onTrigger = (props) => {
    const { canvas, ctx } = props;
-   if(poses.length>0){
-     const part = poseIn.value[0].pose.keypoints.find(isBodyPart);
+   if(poseIn.value.length>0){
+     const part = poseIn.value[selectPose.value].pose.keypoints.find(isBodyPart);
      let px = part.position.x;
      let py = part.position.y;
         xOut.set(px);
