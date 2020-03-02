@@ -666,7 +666,7 @@ function strokeLine(ctx, x1, y1, x2, y2) {
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
  	if(imageIn.value) {
-      poseOut = poses;
+      poseOut.set(poses);
     };
 };
 
