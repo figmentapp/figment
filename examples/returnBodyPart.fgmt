@@ -115,12 +115,6 @@
       "inPort": "image"
     },
     {
-      "outNode": 3,
-      "outPort": "out4",
-      "inNode": 11,
-      "inPort": "in"
-    },
-    {
       "outNode": 11,
       "outPort": "poses",
       "inNode": 10,
@@ -141,6 +135,12 @@
     {
       "outNode": 3,
       "outPort": "out3",
+      "inNode": 11,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out4",
       "inNode": 10,
       "inPort": "in"
     }
