@@ -568,6 +568,21 @@ node.debugDraw = (ctx) => {
 }
 `;
 
+image.pixels = `// pixels from image
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const pixelsOut = node.objectOut('pixels');
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+  if (imageIn.value) {
+    ctx.drawImage(imageIn.value, 0, 0, canvas.width, canvas.height);
+    var imagePixels = ctx.getImageData(0,0,canvas.width,canvas.height);
+    pixelsOut.set(imagePixels);
+  }  
+}
+`;
+
 ml.classifyImage = `// Classify an image.
 const ml5 = require('ml5');
 const imageIn = node.imageIn('image');

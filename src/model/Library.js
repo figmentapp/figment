@@ -61,6 +61,8 @@ export default class Library {
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
     this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.camImage', source: image.camImage });
+    this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
+
     this.nodeTypes.push({
       name: 'Classify Image',
       type: 'ml.classifyImage',
