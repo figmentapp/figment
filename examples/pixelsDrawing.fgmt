@@ -29,15 +29,25 @@
       "id": 10,
       "name": "Webcam Image",
       "type": "image.camImage",
-      "x": 223,
-      "y": 198
+      "x": 289,
+      "y": 67
     },
     {
-      "id": 8,
+      "id": 11,
       "name": "Pixels",
-      "type": "project.pixels",
-      "x": 50,
-      "y": 335
+      "type": "image.pixels",
+      "x": 131,
+      "y": 251
+    },
+    {
+      "id": 12,
+      "name": "Draw Pixels",
+      "type": "project.drawPixels",
+      "x": 87,
+      "y": 353,
+      "values": {
+        "segment": 9
+      }
     }
   ],
   "connections": [
@@ -54,16 +64,28 @@
       "inPort": "in"
     },
     {
+      "outNode": 10,
+      "outPort": "image",
+      "inNode": 11,
+      "inPort": "image"
+    },
+    {
+      "outNode": 11,
+      "outPort": "pixels",
+      "inNode": 12,
+      "inPort": "pixels"
+    },
+    {
       "outNode": 3,
       "outPort": "out1",
-      "inNode": 8,
+      "inNode": 11,
       "inPort": "in"
     },
     {
-      "outNode": 10,
-      "outPort": "image",
-      "inNode": 8,
-      "inPort": "image"
+      "outNode": 3,
+      "outPort": "out2",
+      "inNode": 12,
+      "inPort": "in"
     }
   ],
   "types": [
@@ -71,6 +93,12 @@
       "name": "Pixels",
       "type": "project.pixels",
       "source": "// Empty custom node.\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nconst segmentIn = node.numberIn('segment', 10);\n\nfunction inRects(im, props){\n  const { canvas, ctx } = props;\n    var seg = segmentIn.value;\n    for(var i = 0; i < canvas.width; i+=seg ){\n        for(var j = 0;j < canvas.height;j+=seg ){\n            var num = (j * canvas.width + i);\n            var pi = im.data[num * 4] / 10;\n            ctx.strokeRect(i - pi / 2, j - pi / 2, pi, pi);\n        }\n    }\n}\n\ntriggerIn.onTrigger = (props) => {\n  const { canvas, ctx } = props;\n  if (imageIn.value) {\n    ctx.drawImage(imageIn.value, 0, 0, canvas.width, canvas.height);\n    var imagePixels = ctx.getImageData(0,0,canvas.width,canvas.height);\n    ctx.fillStyle = '#223344';\n\tctx.fillRect(0, 0, canvas.width, canvas.height);\n\tinRects(imagePixels,props);\n  }  \n}",
+      "description": "Empty custom node."
+    },
+    {
+      "name": "Draw Pixels",
+      "type": "project.drawPixels",
+      "source": "// Empty custom node.\nconst triggerIn = node.triggerIn('in');\nconst imageIn = node.imageIn('image');\nconst segmentIn = node.numberIn('segment', 10);\nconst pixelsIn = node.objectIn('pixels');\n\nfunction inRects(im, props){\n  const { canvas, ctx } = props;\n    var seg = segmentIn.value;\n    for(var i = 0; i < canvas.width; i+=seg ){\n        for(var j = 0;j < canvas.height;j+=seg ){\n            var num = (j * canvas.width + i);\n            var pi = im.data[num * 4] / 10;\n            ctx.strokeRect(i - pi / 2, j - pi / 2, pi, pi);\n        }\n    }\n}\n\ntriggerIn.onTrigger = (props) => {\n  const { canvas, ctx } = props;\n  if (pixelsIn.value) {\n\tinRects(pixelsIn.value,props);\n  }  \n}",
       "description": "Empty custom node."
     }
   ]
