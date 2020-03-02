@@ -684,7 +684,6 @@ node.debugDraw = (ctx) => {
 
 ml.poseBodyPart = `// return position of a body part from pose.
 const triggerIn = node.triggerIn('in');
-const imageIn = node.imageIn('image');
 const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
 const poseIn = node.objectIn('poses');
 const selectPose = node.numberIn('select', 0);
