@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50
+    },
+    {
+      "id": 2,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 50,
+      "y": 100
+    },
+    {
+      "id": 3,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 6,
+      "name": "Current Time",
+      "type": "project.currentTime",
+      "x": 274,
+      "y": 239
+    },
+    {
+      "id": 7,
+      "name": "Deconstruct Time",
+      "type": "project.deconstructTime",
+      "x": 275,
+      "y": 297
+    },
+    {
+      "id": 8,
+      "name": "Transform",
+      "type": "graphics.transform",
+      "x": 413,
+      "y": 611,
+      "values": {
+        "translateX": 250,
+        "translateY": 250
+      }
+    },
+    {
+      "id": 9,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 432,
+      "y": 716,
+      "values": {
+        "y": -3,
+        "width": 167,
+        "height": 6
+      }
+    },
+    {
+      "id": 10,
+      "name": "Convert seconds",
+      "type": "math.convert",
+      "x": 430,
+      "y": 515,
+      "values": {
+        "inMax": 60,
+        "outMax": 360
+      }
+    },
+    {
+      "id": 11,
+      "name": "Convert minutes",
+      "type": "math.convert",
+      "x": 229,
+      "y": 520,
+      "values": {
+        "inMax": 60,
+        "outMax": 360
+      }
+    },
+    {
+      "id": 12,
+      "name": "Transform",
+      "type": "graphics.transform",
+      "x": 231,
+      "y": 611,
+      "values": {
+        "translateX": 250,
+        "translateY": 250
+      }
+    },
+    {
+      "id": 13,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 250,
+      "y": 754,
+      "values": {
+        "y": -5,
+        "width": 112,
+        "height": 10,
+        "color": [
+          181,
+          114,
+          114,
+          1
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "name": "Transform",
+      "type": "graphics.transform",
+      "x": 6,
+      "y": 666,
+      "values": {
+        "translateX": 250,
+        "translateY": 250
+      }
+    },
+    {
+      "id": 15,
+      "name": "Convert hours",
+      "type": "math.convert",
+      "x": 39,
+      "y": 544,
+      "values": {
+        "inMax": 12,
+        "outMax": 360
+      }
+    },
+    {
+      "id": 16,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 7,
+      "y": 779,
+      "values": {
+        "y": -5,
+        "width": 53,
+        "height": 10,
+        "color": [
+          112,
+          107,
+          148,
+          1
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 8,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 7,
+      "outPort": "seconds",
+      "inNode": 10,
+      "inPort": "value"
+    },
+    {
+      "outNode": 10,
+      "outPort": "value",
+      "inNode": 8,
+      "inPort": "rotate"
+    },
+    {
+      "outNode": 7,
+      "outPort": "minutes",
+      "inNode": 11,
+      "inPort": "value"
+    },
+    {
+      "outNode": 11,
+      "outPort": "value",
+      "inNode": 12,
+      "inPort": "rotate"
+    },
+    {
+      "outNode": 12,
+      "outPort": "out",
+      "inNode": 13,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out2",
+      "inNode": 12,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out3",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 7,
+      "outPort": "hours",
+      "inNode": 15,
+      "inPort": "value"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out1",
+      "inNode": 14,
+      "inPort": "in"
+    },
+    {
+      "outNode": 15,
+      "outPort": "value",
+      "inNode": 14,
+      "inPort": "rotate"
+    },
+    {
+      "outNode": 14,
+      "outPort": "out",
+      "inNode": 16,
+      "inPort": "in"
+    },
+    {
+      "outNode": 6,
+      "outPort": "time",
+      "inNode": 7,
+      "inPort": "time"
+    }
+  ],
+  "types": [
+    {
+      "name": "Current Time",
+      "type": "project.currentTime",
+      "source": "// Output the current time as an object.\nconst timeOut = node.objectOut('time');\n\nfunction padZero(v) {\n  if (v < 10) {\n    return '0' + v;\n  } else {\n    return '' + v;\n  }\n}\n\nnode.onFrame = () => {\n  const d = new Date();\n  const time = { hours: d.getHours(), minutes: d.getMinutes(), seconds: d.getSeconds() }\n  timeOut.set(time);\n  node.debugMessage = `${padZero(time.hours)}:${padZero(time.minutes)}:${padZero(time.seconds)}`;\n};",
+      "description": "Output the current time as an object."
+    },
+    {
+      "name": "Deconstruct Time",
+      "type": "project.deconstructTime",
+      "source": "// Conver time to hours / minutes / seconds.\nconst timeIn = node.objectIn('time');\nconst hoursOut = node.numberOut('hours');\nconst minutesOut = node.numberOut('minutes');\nconst secondsOut = node.numberOut('seconds');\n\ntimeIn.onChange = () => {\n  if (!timeIn.value) return;\n  hoursOut.set(timeIn.value.hours);\n  minutesOut.set(timeIn.value.minutes);\n  secondsOut.set(timeIn.value.seconds);\n};",
+      "description": "Conver time to hours / minutes / seconds."
+    }
+  ]
+}

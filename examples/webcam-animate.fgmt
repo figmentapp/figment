@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 69,
+      "y": 71,
+      "values": {
+        "width": 3200,
+        "height": 1800
+      }
+    },
+    {
+      "id": 7,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 162,
+      "y": 471
+    },
+    {
+      "id": 8,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 22,
+      "y": 761,
+      "values": {
+        "centered": true
+      }
+    },
+    {
+      "id": 9,
+      "name": "Transform",
+      "type": "graphics.transform",
+      "x": 42,
+      "y": 297,
+      "values": {
+        "translateX": 1600,
+        "translateY": 900,
+        "scaleX": 0.25999999999998236,
+        "scaleY": 12.309999999999972
+      }
+    },
+    {
+      "id": 10,
+      "name": "Time",
+      "type": "core.time",
+      "x": 301,
+      "y": 59
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 8,
+      "inPort": "image"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 9,
+      "outPort": "out",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 10,
+      "outPort": "frame",
+      "inNode": 9,
+      "inPort": "rotate"
+    }
+  ],
+  "types": []
+}

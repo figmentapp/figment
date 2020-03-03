@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50,
+      "values": {
+        "width": 860,
+        "height": 370
+      }
+    },
+    {
+      "id": 9,
+      "name": "Text",
+      "type": "graphics.text",
+      "x": 401,
+      "y": 458,
+      "values": {
+        "x": 20,
+        "y": 350
+      }
+    },
+    {
+      "id": 11,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 59,
+      "y": 528,
+      "values": {
+        "x": 20,
+        "y": 20,
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "id": 12,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 176,
+      "y": 174
+    },
+    {
+      "id": 13,
+      "name": "Classify Image",
+      "type": "ml.classifyImage",
+      "x": 190,
+      "y": 338
+    },
+    {
+      "id": 14,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 52,
+      "y": 104
+    },
+    {
+      "id": 15,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 182,
+      "y": 475,
+      "values": {
+        "x": 440,
+        "y": 20
+      }
+    },
+    {
+      "id": 16,
+      "name": "Unsplash Image",
+      "type": "image.unsplash",
+      "x": 191,
+      "y": 394,
+      "values": {
+        "width": 400
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 12,
+      "outPort": "image",
+      "inNode": 13,
+      "inPort": "image"
+    },
+    {
+      "outNode": 13,
+      "outPort": "label",
+      "inNode": 9,
+      "inPort": "text"
+    },
+    {
+      "outNode": 12,
+      "outPort": "image",
+      "inNode": 11,
+      "inPort": "image"
+    },
+    {
+      "outNode": 14,
+      "outPort": "out1",
+      "inNode": 11,
+      "inPort": "in"
+    },
+    {
+      "outNode": 14,
+      "outPort": "out2",
+      "inNode": 15,
+      "inPort": "in"
+    },
+    {
+      "outNode": 14,
+      "outPort": "out3",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 13,
+      "outPort": "label",
+      "inNode": 16,
+      "inPort": "query"
+    },
+    {
+      "outNode": 16,
+      "outPort": "image",
+      "inNode": 15,
+      "inPort": "image"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 14,
+      "inPort": "in"
+    }
+  ],
+  "types": []
+}

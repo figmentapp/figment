@@ -1,6 +1,7 @@
 export const core = {};
 export const math = {};
 export const graphics = {};
+export const color = {};
 export const image = {};
 export const ml = {};
 
@@ -30,6 +31,39 @@ node.onFrame = () => {
   frameOut.set(node._frame);
   secondsOut.set((Date.now() - node._startTime) / 1000);
 }
+`;
+
+core.randomNumber = `// Generate random number.
+const seedrandom = require('seedrandom');
+
+const minIn = node.numberIn('min', 0);
+const maxIn = node.numberIn('max', 100);
+const stepIn = node.numberIn('step', 1);
+const seedIn = node.numberIn('seed', 42);
+const newSeedButton = node.triggerButtonIn('newSeed');
+const valueOut = node.numberOut('value');
+
+function generate() {
+  const rng = seedrandom(seedIn.value);
+  const min = minIn.value;
+  const max = maxIn.value;
+  const step = stepIn.value;
+  let value = min + rng() * (max - min);
+  if (step !== 1) {
+    value = Math.round(value / step) * step;
+  }
+  valueOut.set(value);
+  node.debugMessage = value.toFixed(2);
+}
+  
+newSeedButton.onTrigger = (props) => {
+  seedIn.set(Math.floor(Math.random() * 1000));
+  generate();
+};
+
+minIn.onChange = generate;
+maxIn.onChange = generate;
+seedIn.onChange = generate;
 `;
 
 core.animate = `// Animate a value over time.
@@ -424,6 +458,25 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+color.hsl = `// Generate a color from HSL values.
+const chroma = require('chroma-js'); 
+const hueIn = node.numberIn('hue', 0, { min: 0, max: 360 });
+const saturationIn = node.numberIn('saturation', 50, { min: 0, max: 100 });
+const lightnessIn = node.numberIn('lightness', 50, { min: 0, max: 100 });
+const alphaIn = node.numberIn('alpha', 1, { min: 0, max: 1, step: 0.01 });
+const colorOut = node.colorOut('color');
+
+function generate() {
+  const color = chroma.hsl(hueIn.value, saturationIn.value / 100, lightnessIn.value / 100, alphaIn.value);
+  colorOut.set(color.rgba());
+}
+
+hueIn.onChange = generate;
+saturationIn.onChange = generate;
+lightnessIn.onChange = generate;
+alphaIn.onChange = generate;
+`;
+
 image.loadImage = `// Load an image from a file.
 const url = require('url');
 
@@ -583,6 +636,29 @@ triggerIn.onTrigger = (props) => {
 }
 `;
 
+image.unsplash = `// Fetch a random image from Unsplash.
+const queryIn = node.stringIn('query', 'kitten');
+const widthIn = node.numberIn('width', 300);
+const heightIn = node.numberIn('height', 300);
+const imageOut = node.imageOut('image');
+
+const exec = async () => {
+  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const data = URL.createObjectURL(blob);
+  const img = new Image();
+  img.src = data;
+  img.onload = () => {
+  	imageOut.set(img);
+  }
+}
+
+queryIn.onChange = exec;
+widthIn.onChange = exec;
+heightIn.onChange = exec;
+`;
+
 ml.classifyImage = `// Classify an image.
 const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
@@ -694,7 +770,7 @@ ml.poseBodyPart = `// return position of a body part from pose.
 const triggerIn = node.triggerIn('in');
 const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
 const poseIn = node.objectIn('poses');
-const selectPose = node.numberIn('select', 0);
+const selectPose = node.numberIn('poseIndex', 0, { min: 0 });
 const xOut = node.numberOut('x', 0);
 const yOut = node.numberOut('y', 0);
 
@@ -770,8 +846,8 @@ const urlIn = node.stringIn('url');
 let classifier;
 let featureExtractor;
 
-node.onStart = () => {
-  let imageModelURL = 'https://teachablemachine.withgoogle.com/models/'+urlIn.value+'/';
+urlIn.onChange = () => {
+  let imageModelURL = urlIn.value;
   console.log(imageModelURL);
   classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);
 }

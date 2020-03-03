@@ -109,7 +109,7 @@ class FloatParam extends Component {
           spellcheck="false"
           disabled={disabled}
           class={
-            'w-16 mr-4 p-2 ' +
+            'w-32 mr-4 p-2 ' +
             (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
           }
           value={value}
@@ -344,7 +344,7 @@ export default class ParamsEditor extends Component {
         <div class="params__row">
           <span class="w-32 mr-4"></span>
           <button
-            class="bg-gray-600 text-gray-200 w-16 p-2"
+            class="bg-gray-600 text-gray-200 w-32 p-2"
             disabled={network.isConnected(port)}
             onClick={() => this._onTriggerButton(port)}
           >
