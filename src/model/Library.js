@@ -79,6 +79,16 @@ export default class Library {
       source: ml.poseBodyPart
     });
     this.nodeTypes.push({
+      name: 'Draw Skeleton',
+      type: 'ml.drawSkeleton',
+      source: ml.drawSkeleton
+    });
+    this.nodeTypes.push({
+      name: 'Teachable Machine',
+      type: 'ml.teachableMachine',
+      source: ml.teachableMachine
+    });
+    this.nodeTypes.push({
       name: 'Face Api',
       type: 'ml.faceApi',
       source: ml.faceApi

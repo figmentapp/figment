@@ -30,27 +30,18 @@
       }
     },
     {
-      "id": 6,
-      "name": "Draw Skeleton",
-      "type": "project.drawSkeleton",
-      "x": 72,
-      "y": 402,
-      "values": {
-        "color": [
-          0,
-          47,
-          255,
-          1
-        ],
-        "size": 5
-      }
-    },
-    {
       "id": 7,
       "name": "Webcam Image",
       "type": "image.camImage",
       "x": 488,
       "y": 71
+    },
+    {
+      "id": 8,
+      "name": "Draw Skeleton",
+      "type": "ml.drawSkeleton",
+      "x": 84,
+      "y": 380
     }
   ],
   "connections": [
@@ -67,22 +58,22 @@
       "inPort": "in"
     },
     {
-      "outNode": 4,
-      "outPort": "poses",
-      "inNode": 6,
-      "inPort": "poses"
-    },
-    {
-      "outNode": 2,
-      "outPort": "out3",
-      "inNode": 6,
-      "inPort": "in"
-    },
-    {
       "outNode": 7,
       "outPort": "image",
       "inNode": 4,
       "inPort": "image"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out3",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 4,
+      "outPort": "poses",
+      "inNode": 8,
+      "inPort": "poses"
     }
   ],
   "types": [
