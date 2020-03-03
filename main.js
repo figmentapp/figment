@@ -1,4 +1,4 @@
-const { app, Menu, BrowserWindow, session, ipcMain, dialog } = require('electron');
+const { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const isWindows = process.platform === 'win32';
@@ -21,9 +21,7 @@ class Settings {
 
   _assertLoaded() {
     if (this._raw === undefined) {
-      throw new Error(
-        `Trying to access settings ${this.settingsPath} but they are not loaded yet.`
-      );
+      throw new Error(`Trying to access settings ${this.settingsPath} but they are not loaded yet.`);
     }
   }
 
@@ -177,6 +175,7 @@ const argv = require('minimist')(process.argv.slice(2));
 
 app.on('ready', async () => {
   await gSettings.load();
+  systemPreferences.askForMediaAccess('camera');
   createApplicationMenu();
   createMainWindow(argv.file);
 });

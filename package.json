@@ -36,6 +36,11 @@
     "productName": "Figment",
     "directories": {
       "buildResources": "res"
+    },
+    "mac": {
+      "extendInfo": {
+        "NSCameraUsageDescription": "This app can use the webcam to classify realtime images or detect poses. Images are never uploaded or stored online."
+      }
     }
   }
 }
