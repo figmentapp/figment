@@ -777,7 +777,7 @@ ml.poseBodyPart = `// return position of a body part from pose.
 const triggerIn = node.triggerIn('in');
 const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
 const poseIn = node.objectIn('poses');
-const selectPose = node.numberIn('select', 0);
+const selectPose = node.numberIn('poseIndex', 0, { min: 0 });
 const xOut = node.numberOut('x', 0);
 const yOut = node.numberOut('y', 0);
 
