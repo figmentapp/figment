@@ -636,6 +636,29 @@ triggerIn.onTrigger = (props) => {
 }
 `;
 
+image.unsplash = `// Fetch a random image from Unsplash.
+const queryIn = node.stringIn('query', 'kitten');
+const widthIn = node.numberIn('width', 300);
+const heightIn = node.numberIn('height', 300);
+const imageOut = node.imageOut('image');
+
+const exec = async () => {
+  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const data = URL.createObjectURL(blob);
+  const img = new Image();
+  img.src = data;
+  img.onload = () => {
+  	imageOut.set(img);
+  }
+}
+
+queryIn.onChange = exec;
+widthIn.onChange = exec;
+heightIn.onChange = exec;
+`;
+
 ml.classifyImage = `// Classify an image.
 const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
