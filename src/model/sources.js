@@ -835,8 +835,8 @@ const urlIn = node.stringIn('url');
 let classifier;
 let featureExtractor;
 
-node.onStart = () => {
-  let imageModelURL = 'https://teachablemachine.withgoogle.com/models/'+urlIn.value+'/';
+urlIn.onChange = () => {
+  let imageModelURL = urlIn.value;
   console.log(imageModelURL);
   classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);
 }
