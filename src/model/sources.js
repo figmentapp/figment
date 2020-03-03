@@ -774,6 +774,39 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+ml.teachableMachine = `// returns prediction of teachable machine model.
+const ml5 = require('ml5');
+const imageIn = node.imageIn('image');
+const predictOut = node.stringOut('predict');
+const urlIn = node.stringIn('url');
+let classifier;
+let featureExtractor;
+
+node.onStart = () => {
+  let imageModelURL = 'https://teachablemachine.withgoogle.com/models/'+urlIn.value+'/';
+  console.log(imageModelURL);
+  classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);
+}
+
+function modelReady() {
+  classifier.classify(imageIn.value, gotResult);
+}
+
+function gotResult(error, results) {
+  if (error) {
+    console.error(error);
+    return;
+  }
+  label = results[0].label;
+  predictOut.set(label);
+  
+}
+
+imageIn.onChange = () => {
+   modelReady();
+}
+`;
+
 ml.faceApi = `// return faces from face api.
 const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
