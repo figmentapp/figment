@@ -721,6 +721,59 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
+ml.drawSkeleton = `// draw skeleton from pose.
+const triggerIn = node.triggerIn('in');
+const colorIn = node.colorIn('color', [255, 255, 0, 1]);
+const pointSizeIn = node.numberIn('size', 3);
+const poseIn = node.objectIn('poses');
+
+function drawKeypoints(ctx) {
+  for (let i = 0; i < poseIn.value.length; i++) {
+    let pose = poseIn.value[i].pose;
+    for (let j = 0; j < pose.keypoints.length; j++) {
+      let keypoint = pose.keypoints[j];
+      if (keypoint.score > 0.2) {
+        drawPoint(ctx,keypoint.position.x, keypoint.position.y, pointSizeIn.value);
+      }
+    }
+  }
+}
+
+function drawSkeleton(ctx, w, h) {
+  for (let i = 0; i < poseIn.value.length; i++) {
+    let skeleton = poseIn.value[i].skeleton;
+    for (let j = 0; j < skeleton.length; j++) {
+      let partA = skeleton[j][0];
+      let partB = skeleton[j][1];
+      strokeLine(ctx,partA.position.x, partA.position.y, partB.position.x, partB.position.y);
+    }
+  }
+}
+
+function drawPoint(ctx, x, y, r) {
+  ctx.fillStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+function strokeLine(ctx, x1, y1, x2, y2) {
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+ 	if(poseIn.value) {
+      drawKeypoints(ctx);
+  	  drawSkeleton(ctx);
+    };
+};
+`;
+
 ml.faceApi = `// return faces from face api.
 const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
