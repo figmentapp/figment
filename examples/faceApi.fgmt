@@ -26,28 +26,13 @@
       "y": 150
     },
     {
-      "id": 7,
-      "name": "Custom",
-      "type": "project.custom",
-      "x": 315,
-      "y": 297,
-      "values": {
-        "color": [
-          71,
-          255,
-          60,
-          1
-        ]
-      }
-    },
-    {
       "id": 8,
       "name": "Load Image",
       "type": "image.loadImage",
-      "x": 342,
-      "y": 116,
+      "x": 305,
+      "y": 127,
       "values": {
-        "file": "assets/wutang.png"
+        "file": "assets/at.jpg"
       }
     },
     {
@@ -56,6 +41,21 @@
       "type": "image.drawImage",
       "x": 55,
       "y": 295
+    },
+    {
+      "id": 10,
+      "name": "Face Api",
+      "type": "ml.faceApi",
+      "x": 296,
+      "y": 293,
+      "values": {
+        "color": [
+          253,
+          198,
+          205,
+          1
+        ]
+      }
     }
   ],
   "connections": [
@@ -78,22 +78,22 @@
       "inPort": "in"
     },
     {
-      "outNode": 3,
-      "outPort": "out2",
-      "inNode": 7,
-      "inPort": "in"
-    },
-    {
-      "outNode": 8,
-      "outPort": "image",
-      "inNode": 7,
-      "inPort": "image"
-    },
-    {
       "outNode": 8,
       "outPort": "image",
       "inNode": 9,
       "inPort": "image"
+    },
+    {
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 10,
+      "inPort": "image"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out2",
+      "inNode": 10,
+      "inPort": "in"
     }
   ],
   "types": [

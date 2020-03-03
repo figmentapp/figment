@@ -1,12 +1,12 @@
 {
   "name": "figment",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "main.js",
   "license": "MIT",
   "scripts": {
     "start": "cross-env NODE_ENV=development electron .",
     "build": "cross-env NODE_ENV=production parcel build -d build -t electron --public-url . src/ui/index.html",
-    "dist": "rimraf dist && yarn run build && electron-builder build",
+    "dist": "rimraf dist && yarn run build && electron-builder build --mac --win",
     "format": "prettier --write js/**/*.js"
   },
   "dependencies": {
@@ -29,5 +29,12 @@
     "parcel-bundler": "1.12.4",
     "prettier": "1.19.1",
     "rimraf": "^3.0.0"
+  },
+  "build": {
+    "appId": "be.emrg.figment",
+    "productName": "Figment",
+    "directories": {
+      "buildResources": "res"
+    }
   }
 }

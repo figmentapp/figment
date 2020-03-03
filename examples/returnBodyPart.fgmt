@@ -26,8 +26,8 @@
       "id": 5,
       "name": "Rectangle",
       "type": "graphics.rect",
-      "x": 65,
-      "y": 286,
+      "x": 60,
+      "y": 308,
       "values": {
         "width": 20,
         "height": 20,
@@ -43,8 +43,8 @@
       "id": 8,
       "name": "Load Image",
       "type": "image.loadImage",
-      "x": 326,
-      "y": 116,
+      "x": 256,
+      "y": 45,
       "values": {
         "file": "assets/kriskross.png"
       }
@@ -53,17 +53,27 @@
       "id": 9,
       "name": "Draw Image",
       "type": "image.drawImage",
-      "x": 310,
-      "y": 303
+      "x": 269,
+      "y": 297
     },
     {
-      "id": 7,
-      "name": "Custom",
-      "type": "project.custom",
-      "x": 175,
-      "y": 199,
+      "id": 10,
+      "name": "Pose Body Part",
+      "type": "ml.poseBodyPart",
+      "x": 143,
+      "y": 231,
       "values": {
-        "bodyPart": "leftElbow"
+        "bodyPart": "leftEar"
+      }
+    },
+    {
+      "id": 11,
+      "name": "Pose Net",
+      "type": "ml.poseNet",
+      "x": 257,
+      "y": 89,
+      "values": {
+        "detectType": "multi"
       }
     }
   ],
@@ -78,12 +88,6 @@
       "outNode": 2,
       "outPort": "out",
       "inNode": 3,
-      "inPort": "in"
-    },
-    {
-      "outNode": 3,
-      "outPort": "out3",
-      "inNode": 7,
       "inPort": "in"
     },
     {
@@ -105,22 +109,40 @@
       "inPort": "image"
     },
     {
-      "outNode": 7,
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 11,
+      "inPort": "image"
+    },
+    {
+      "outNode": 11,
+      "outPort": "poses",
+      "inNode": 10,
+      "inPort": "poses"
+    },
+    {
+      "outNode": 10,
       "outPort": "x",
       "inNode": 5,
       "inPort": "x"
     },
     {
-      "outNode": 7,
+      "outNode": 10,
       "outPort": "y",
       "inNode": 5,
       "inPort": "y"
     },
     {
-      "outNode": 8,
-      "outPort": "image",
-      "inNode": 7,
-      "inPort": "image"
+      "outNode": 3,
+      "outPort": "out3",
+      "inNode": 11,
+      "inPort": "in"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out4",
+      "inNode": 10,
+      "inPort": "in"
     }
   ],
   "types": [

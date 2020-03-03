@@ -568,6 +568,21 @@ node.debugDraw = (ctx) => {
 }
 `;
 
+image.pixels = `// pixels from image
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const pixelsOut = node.objectOut('pixels');
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+  if (imageIn.value) {
+    ctx.drawImage(imageIn.value, 0, 0, canvas.width, canvas.height);
+    var imagePixels = ctx.getImageData(0,0,canvas.width,canvas.height);
+    pixelsOut.set(imagePixels);
+  }  
+}
+`;
+
 ml.classifyImage = `// Classify an image.
 const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
@@ -590,6 +605,290 @@ const classify = () => {
 
 const classifier = ml5.imageClassifier('MobileNet', classify);
 imageIn.onChange = classify;
+`;
+
+ml.poseNet = `// return poses from image.
+const ml5 = require('ml5');
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const typeIn = node.selectIn('detectType', ['single', 'multi']);
+const colorIn = node.colorIn('color', [255, 255, 0, 1]);
+const poseOut = node.objectOut('poses');
+let poseNet;
+let poses = [];
+let options = {
+  imageScaleFactor: 0.9,
+  minConfidence: 0.2,
+  maxPoseDetections: 4,
+  outputStride: 16
+}
+
+node.onStart = () => {
+  poseNet = ml5.poseNet(modelReady, options);
+  poseNet.on('pose', function (results) {
+    poses = results;
+    console.log(poses);
+  });
+}
+
+function modelReady() {
+  console.log("Model Loaded!");
+  if(typeIn.value == 'single'){
+    poseNet.singlePose(imageIn.value);
+  }else{
+  	poseNet.multiPose(imageIn.value);
+  }
+}
+
+function drawKeypoints(ctx, w, h, s) {
+  for (let i = 0; i < poses.length; i++) {
+    let pose = poses[i].pose;
+    for (let j = 0; j < pose.keypoints.length; j++) {
+      let keypoint = pose.keypoints[j];
+      if (keypoint.score > 0.2) {
+        drawPoint(ctx,(keypoint.position.x/imageIn.value.width)*w, (keypoint.position.y/imageIn.value.height)*h,s);
+      }
+    }
+  }
+}
+
+function drawSkeleton(ctx, w, h) {
+  for (let i = 0; i < poses.length; i++) {
+    let skeleton = poses[i].skeleton;
+    for (let j = 0; j < skeleton.length; j++) {
+      let partA = skeleton[j][0];
+      let partB = skeleton[j][1];
+      strokeLine(ctx,(partA.position.x/imageIn.value.width)*w, (partA.position.y/imageIn.value.height)*h, (partB.position.x/imageIn.value.width)*w, (partB.position.y/imageIn.value.height)*h)
+    }
+  }
+}
+
+function drawPoint(ctx, x, y, r) {
+  ctx.fillStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+function strokeLine(ctx, x1, y1, x2, y2) {
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+ 	if(imageIn.value) {
+      poseOut.set(poses);
+    };
+};
+
+imageIn.onChange = () => {
+modelReady()
+}
+
+node.debugDraw = (ctx) => {
+  ctx.fillStyle = "rgb(100,100,100)";
+  ctx.fillRect(0,0,100,75);
+  drawKeypoints(ctx, 100, 75, 1);
+  drawSkeleton(ctx, 100, 75);
+}
+`;
+
+ml.poseBodyPart = `// return position of a body part from pose.
+const triggerIn = node.triggerIn('in');
+const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
+const poseIn = node.objectIn('poses');
+const selectPose = node.numberIn('select', 0);
+const xOut = node.numberOut('x', 0);
+const yOut = node.numberOut('y', 0);
+
+function isBodyPart(bp) { 
+   return bp.part === bodyPartIn.value;
+}
+      
+triggerIn.onTrigger = (props) => {
+   const { canvas, ctx } = props;
+   if(poseIn.value.length>0){
+     const part = poseIn.value[selectPose.value].pose.keypoints.find(isBodyPart);
+     let px = part.position.x;
+     let py = part.position.y;
+        xOut.set(px);
+        yOut.set(py);
+   }
+};
+`;
+
+ml.drawSkeleton = `// draw skeleton from pose.
+const triggerIn = node.triggerIn('in');
+const colorIn = node.colorIn('color', [255, 255, 0, 1]);
+const pointSizeIn = node.numberIn('size', 3);
+const poseIn = node.objectIn('poses');
+
+function drawKeypoints(ctx) {
+  for (let i = 0; i < poseIn.value.length; i++) {
+    let pose = poseIn.value[i].pose;
+    for (let j = 0; j < pose.keypoints.length; j++) {
+      let keypoint = pose.keypoints[j];
+      if (keypoint.score > 0.2) {
+        drawPoint(ctx,keypoint.position.x, keypoint.position.y, pointSizeIn.value);
+      }
+    }
+  }
+}
+
+function drawSkeleton(ctx, w, h) {
+  for (let i = 0; i < poseIn.value.length; i++) {
+    let skeleton = poseIn.value[i].skeleton;
+    for (let j = 0; j < skeleton.length; j++) {
+      let partA = skeleton[j][0];
+      let partB = skeleton[j][1];
+      strokeLine(ctx,partA.position.x, partA.position.y, partB.position.x, partB.position.y);
+    }
+  }
+}
+
+function drawPoint(ctx, x, y, r) {
+  ctx.fillStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+function strokeLine(ctx, x1, y1, x2, y2) {
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+triggerIn.onTrigger = (props) => {
+  const { canvas, ctx } = props;
+ 	if(poseIn.value) {
+      drawKeypoints(ctx);
+  	  drawSkeleton(ctx);
+    };
+};
+`;
+
+ml.teachableMachine = `// returns prediction of teachable machine model.
+const ml5 = require('ml5');
+const imageIn = node.imageIn('image');
+const predictOut = node.stringOut('predict');
+const urlIn = node.stringIn('url');
+let classifier;
+let featureExtractor;
+
+node.onStart = () => {
+  let imageModelURL = 'https://teachablemachine.withgoogle.com/models/'+urlIn.value+'/';
+  console.log(imageModelURL);
+  classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);
+}
+
+function modelReady() {
+  classifier.classify(imageIn.value, gotResult);
+}
+
+function gotResult(error, results) {
+  if (error) {
+    console.error(error);
+    return;
+  }
+  label = results[0].label;
+  predictOut.set(label);
+  
+}
+
+imageIn.onChange = () => {
+   modelReady();
+}
+`;
+
+ml.faceApi = `// return faces from face api.
+const ml5 = require('ml5');
+const triggerIn = node.triggerIn('in');
+const imageIn = node.imageIn('image');
+const colorIn = node.colorIn('color', [150, 50, 150, 1]);
+let faceapi;
+let detections;
+let options = {
+	withLandmarks: true,
+    withDescriptors: false,
+ }
+
+node.onStart = () => {
+  faceapi = ml5.faceApi(options, modelReady)
+}
+
+function gotResults(err, result) {
+    if (err) {
+        console.log(err)
+        return
+    }
+    detections = result;
+  //console.log(detections)
+}
+
+function drawBox(ctx, detection){
+    const alignedRect = detection.alignedRect;
+    const {_x, _y, _width, _height} = alignedRect._box;
+    ctx.save();
+  	ctx.strokeStyle = g.rgba(...colorIn.value);
+  	ctx.strokeRect(_x, _y, _width, _height);
+  	ctx.restore();
+}
+
+function drawLandmarks(ctx, detection){
+        const mouth = detection.parts.mouth; 
+        const nose = detection.parts.nose;
+        const leftEye = detection.parts.leftEye;
+        const rightEye = detection.parts.rightEye;
+        const rightEyeBrow = detection.parts.rightEyeBrow;
+        const leftEyeBrow = detection.parts.leftEyeBrow;
+        drawPart(ctx, mouth, true);
+        drawPart(ctx, nose, false);
+        drawPart(ctx, leftEye, true);
+        drawPart(ctx, leftEyeBrow, false);
+        drawPart(ctx, rightEye, true);
+        drawPart(ctx, rightEyeBrow, false);
+}
+
+function drawPart(ctx, feature, closed){
+  ctx.strokeStyle = g.rgba(...colorIn.value);
+  ctx.beginPath();
+  for(let i = 0; i < feature.length; i++){
+     const x = feature[i]._x
+     const y = feature[i]._y
+     ctx.lineTo(x, y);
+  }
+  ctx.stroke();  
+}
+        
+function modelReady() {
+  console.log("Model Loaded!");
+  faceapi.detect(imageIn.value, gotResults)
+}
+        
+triggerIn.onTrigger = (props) => {
+   const { canvas, ctx } = props;
+      if (detections) {
+        for(let i = 0; i < detections.length;i++){
+        drawBox(ctx, detections[i])
+        drawLandmarks(ctx, detections[i])
+        }
+    }
+};
+
+imageIn.onChange = () => {
+   faceapi.detect(imageIn.value, gotResults)
+}
+
+colorIn.onChange = () => {
+   faceapi.detect(imageIn.value, gotResults)
+}
 `;
 
 export default { core, math, graphics, image, ml };

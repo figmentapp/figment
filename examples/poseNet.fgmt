@@ -48,19 +48,13 @@
       "y": 344
     },
     {
-      "id": 7,
-      "name": "Custom",
-      "type": "project.custom",
-      "x": 316,
-      "y": 239,
+      "id": 10,
+      "name": "Pose Net",
+      "type": "ml.poseNet",
+      "x": 294,
+      "y": 230,
       "values": {
-        "detectType": "multi",
-        "color": [
-          208,
-          193,
-          226,
-          1
-        ]
+        "detectType": "multi"
       }
     }
   ],
@@ -84,22 +78,22 @@
       "inPort": "in"
     },
     {
-      "outNode": 3,
-      "outPort": "out2",
-      "inNode": 7,
-      "inPort": "in"
-    },
-    {
-      "outNode": 8,
-      "outPort": "image",
-      "inNode": 7,
-      "inPort": "image"
-    },
-    {
       "outNode": 8,
       "outPort": "image",
       "inNode": 9,
       "inPort": "image"
+    },
+    {
+      "outNode": 8,
+      "outPort": "image",
+      "inNode": 10,
+      "inPort": "image"
+    },
+    {
+      "outNode": 3,
+      "outPort": "out2",
+      "inNode": 10,
+      "inPort": "in"
     }
   ],
   "types": [

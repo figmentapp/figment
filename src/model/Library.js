@@ -61,10 +61,37 @@ export default class Library {
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
     this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.camImage', source: image.camImage });
+    this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
+
     this.nodeTypes.push({
       name: 'Classify Image',
       type: 'ml.classifyImage',
       source: ml.classifyImage
+    });
+    this.nodeTypes.push({
+      name: 'Pose Net',
+      type: 'ml.poseNet',
+      source: ml.poseNet
+    });
+    this.nodeTypes.push({
+      name: 'Pose Body Part',
+      type: 'ml.poseBodyPart',
+      source: ml.poseBodyPart
+    });
+    this.nodeTypes.push({
+      name: 'Draw Skeleton',
+      type: 'ml.drawSkeleton',
+      source: ml.drawSkeleton
+    });
+    this.nodeTypes.push({
+      name: 'Teachable Machine',
+      type: 'ml.teachableMachine',
+      source: ml.teachableMachine
+    });
+    this.nodeTypes.push({
+      name: 'Face Api',
+      type: 'ml.faceApi',
+      source: ml.faceApi
     });
     for (const nodeType of this.nodeTypes) {
       const description = nodeType.source.match(/\/\/(.*)/);
