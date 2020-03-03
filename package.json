@@ -6,7 +6,7 @@
   "scripts": {
     "start": "cross-env NODE_ENV=development electron .",
     "build": "cross-env NODE_ENV=production parcel build -d build -t electron --public-url . src/ui/index.html",
-    "dist": "rimraf dist && yarn run build && electron-builder build",
+    "dist": "rimraf dist && npm run build && electron-builder build",
     "format": "prettier --write js/**/*.js"
   },
   "dependencies": {
