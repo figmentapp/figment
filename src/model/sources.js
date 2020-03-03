@@ -583,7 +583,8 @@ node.onStart = () => {
   
  if (navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({
-          video: true
+          video: true,
+          audio: false
         })
         .then(function(stream) {
           _video = document.createElement('video');
