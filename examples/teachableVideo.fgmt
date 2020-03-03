@@ -44,8 +44,11 @@
       "id": 6,
       "name": "Teachable Video",
       "type": "project.teachableVideo",
-      "x": 121,
-      "y": 285
+      "x": 211,
+      "y": 278,
+      "values": {
+        "url": "KGojqywj"
+      }
     }
   ],
   "connections": [
@@ -84,8 +87,8 @@
     {
       "name": "Teachable Video",
       "type": "project.teachableVideo",
-      "source": "const ml5 = require('ml5');\nconst imageIn = node.imageIn('image');\nconst predictOut = node.stringOut('predict');\nlet classifier;\nlet featureExtractor;\nlet imageModelURL = 'https://teachablemachine.withgoogle.com/models/KGojqywj/';\n\n\nnode.onStart = () => {\n  classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);\n}\n\nfunction modelReady() {\n  classifier.classify(imageIn.value, gotResult);\n}\n\nfunction gotResult(error, results) {\n  if (error) {\n    console.error(error);\n    return;\n  }\n  label = results[0].label;\n  predictOut.set(label);\n  \n}\n\nimageIn.onChange = () => {\n   modelReady();\n}",
-      "description": "teachablemachine.withgoogle.com/models/KGojqywj/';"
+      "source": "const ml5 = require('ml5');\nconst imageIn = node.imageIn('image');\nconst predictOut = node.stringOut('predict');\nconst urlIn = node.stringIn('url');\nlet classifier;\nlet featureExtractor;\n\n\n//KGojqywj\nnode.onStart = () => {\n  let imageModelURL = 'https://teachablemachine.withgoogle.com/models/'+urlIn.value+'/';\n  console.log(imageModelURL);\n  classifier = ml5.imageClassifier(imageModelURL + 'model.json', modelReady);\n}\n\nfunction modelReady() {\n  classifier.classify(imageIn.value, gotResult);\n}\n\nfunction gotResult(error, results) {\n  if (error) {\n    console.error(error);\n    return;\n  }\n  label = results[0].label;\n  predictOut.set(label);\n  \n}\n\nimageIn.onChange = () => {\n   modelReady();\n}",
+      "description": "KGojqywj"
     }
   ]
 }
