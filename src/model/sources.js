@@ -627,24 +627,20 @@ node.onStart = () => {
   poseNet = ml5.poseNet(modelReady, options);
   poseNet.on('pose', function (results) {
     poses = results;
-    console.log(poses);
   });
 }
 
 function modelReady() {
-  console.log("Model Loaded!");
-  if(typeIn.value == 'single'){
+  if (typeIn.value == 'single'){
     poseNet.singlePose(imageIn.value);
-  }else{
+  } else {
   	poseNet.multiPose(imageIn.value);
   }
 }
 
 function drawKeypoints(ctx, w, h, s) {
-  for (let i = 0; i < poses.length; i++) {
-    let pose = poses[i].pose;
-    for (let j = 0; j < pose.keypoints.length; j++) {
-      let keypoint = pose.keypoints[j];
+  for (const { pose } of poses) {
+    for (const keypoint of pose.keypoints) {
       if (keypoint.score > 0.2) {
         drawPoint(ctx,(keypoint.position.x/imageIn.value.width)*w, (keypoint.position.y/imageIn.value.height)*h,s);
       }
@@ -653,11 +649,8 @@ function drawKeypoints(ctx, w, h, s) {
 }
 
 function drawSkeleton(ctx, w, h) {
-  for (let i = 0; i < poses.length; i++) {
-    let skeleton = poses[i].skeleton;
-    for (let j = 0; j < skeleton.length; j++) {
-      let partA = skeleton[j][0];
-      let partB = skeleton[j][1];
+  for (const { skeleton } of poses) {
+    for (const [partA, partB] of skeleton) {
       strokeLine(ctx,(partA.position.x/imageIn.value.width)*w, (partA.position.y/imageIn.value.height)*h, (partB.position.x/imageIn.value.width)*w, (partB.position.y/imageIn.value.height)*h)
     }
   }
@@ -728,10 +721,8 @@ const pointSizeIn = node.numberIn('size', 3);
 const poseIn = node.objectIn('poses');
 
 function drawKeypoints(ctx) {
-  for (let i = 0; i < poseIn.value.length; i++) {
-    let pose = poseIn.value[i].pose;
-    for (let j = 0; j < pose.keypoints.length; j++) {
-      let keypoint = pose.keypoints[j];
+  for (const { pose } of poseIn.value) {
+    for (const keypoint of pose.keypoints) {
       if (keypoint.score > 0.2) {
         drawPoint(ctx,keypoint.position.x, keypoint.position.y, pointSizeIn.value);
       }
@@ -740,11 +731,8 @@ function drawKeypoints(ctx) {
 }
 
 function drawSkeleton(ctx, w, h) {
-  for (let i = 0; i < poseIn.value.length; i++) {
-    let skeleton = poseIn.value[i].skeleton;
-    for (let j = 0; j < skeleton.length; j++) {
-      let partA = skeleton[j][0];
-      let partB = skeleton[j][1];
+  for (const { skeleton } of poseIn.value) {
+    for (const [partA, partB] of skeleton) {
       strokeLine(ctx,partA.position.x, partA.position.y, partB.position.x, partB.position.y);
     }
   }
@@ -829,7 +817,6 @@ function gotResults(err, result) {
         return
     }
     detections = result;
-  //console.log(detections)
 }
 
 function drawBox(ctx, detection){
@@ -868,7 +855,6 @@ function drawPart(ctx, feature, closed){
 }
         
 function modelReady() {
-  console.log("Model Loaded!");
   faceapi.detect(imageIn.value, gotResults)
 }
         
