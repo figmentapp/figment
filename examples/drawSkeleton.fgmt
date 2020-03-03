@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50,
+      "values": {
+        "width": 551,
+        "height": 423
+      }
+    },
+    {
+      "id": 2,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 4,
+      "name": "Pose Net",
+      "type": "ml.poseNet",
+      "x": 247,
+      "y": 223,
+      "values": {
+        "detectType": "multi"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Draw Skeleton",
+      "type": "project.drawSkeleton",
+      "x": 72,
+      "y": 402,
+      "values": {
+        "color": [
+          0,
+          47,
+          255,
+          1
+        ],
+        "size": 5
+      }
+    },
+    {
+      "id": 7,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 488,
+      "y": 71
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out2",
+      "inNode": 4,
+      "inPort": "in"
+    },
+    {
+      "outNode": 4,
+      "outPort": "poses",
+      "inNode": 6,
+      "inPort": "poses"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out3",
+      "inNode": 6,
+      "inPort": "in"
+    },
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 4,
+      "inPort": "image"
+    }
+  ],
+  "types": [
+    {
+      "name": "Draw Skeleton",
+      "type": "project.drawSkeleton",
+      "source": "// draw skeleton\nconst triggerIn = node.triggerIn('in');\nconst colorIn = node.colorIn('color', [255, 255, 0, 1]);\nconst pointSizeIn = node.numberIn('size', 3);\nconst poseIn = node.objectIn('poses');\n\nfunction drawKeypoints(ctx) {\n  for (let i = 0; i < poseIn.value.length; i++) {\n    let pose = poseIn.value[i].pose;\n    for (let j = 0; j < pose.keypoints.length; j++) {\n      let keypoint = pose.keypoints[j];\n      if (keypoint.score > 0.2) {\n        drawPoint(ctx,keypoint.position.x, keypoint.position.y, pointSizeIn.value);\n      }\n    }\n  }\n}\n\nfunction drawSkeleton(ctx, w, h) {\n  for (let i = 0; i < poseIn.value.length; i++) {\n    let skeleton = poseIn.value[i].skeleton;\n    for (let j = 0; j < skeleton.length; j++) {\n      let partA = skeleton[j][0];\n      let partB = skeleton[j][1];\n      strokeLine(ctx,partA.position.x, partA.position.y, partB.position.x, partB.position.y);\n    }\n  }\n}\n\nfunction drawPoint(ctx, x, y, r) {\n  ctx.fillStyle = g.rgba(...colorIn.value);\n  ctx.beginPath();\n  ctx.arc(x, y, r, 0, 2 * Math.PI);\n  ctx.fill();\n}\n\nfunction strokeLine(ctx, x1, y1, x2, y2) {\n  ctx.strokeStyle = g.rgba(...colorIn.value);\n  ctx.beginPath();\n  ctx.moveTo(x1, y1);\n  ctx.lineTo(x2, y2);\n  ctx.stroke();\n}\n\ntriggerIn.onTrigger = (props) => {\n  const { canvas, ctx } = props;\n \tif(poseIn.value) {\n     // console.log(poseIn.value);\n      drawKeypoints(ctx);\n  \t  drawSkeleton(ctx);\n    };\n};\n\n",
+      "description": "draw skeleton"
+    }
+  ]
+}
