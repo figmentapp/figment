@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50,
+      "values": {
+        "width": 700,
+        "height": 700
+      }
+    },
+    {
+      "id": 7,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 302,
+      "y": 105
+    },
+    {
+      "id": 8,
+      "name": "Draw Image",
+      "type": "image.drawImage",
+      "x": 61,
+      "y": 349
+    },
+    {
+      "id": 9,
+      "name": "Classify Image",
+      "type": "ml.classifyImage",
+      "x": 281,
+      "y": 309
+    },
+    {
+      "id": 10,
+      "name": "Text",
+      "type": "graphics.text",
+      "x": 263,
+      "y": 429,
+      "values": {
+        "text": "barbershop",
+        "fontSize": 53
+      }
+    },
+    {
+      "id": 11,
+      "name": "Background Color",
+      "type": "graphics.backgroundColor",
+      "x": 51,
+      "y": 114
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 8,
+      "inPort": "image"
+    },
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 9,
+      "inPort": "image"
+    },
+    {
+      "outNode": 9,
+      "outPort": "label",
+      "inNode": 10,
+      "inPort": "text"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 11,
+      "inPort": "in"
+    },
+    {
+      "outNode": 11,
+      "outPort": "out",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 11,
+      "outPort": "out",
+      "inNode": 10,
+      "inPort": "in"
+    }
+  ],
+  "types": []
+}
