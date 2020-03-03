@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 50,
+      "y": 50,
+      "values": {
+        "drawBackground": false
+      }
+    },
+    {
+      "id": 2,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 50,
+      "y": 150
+    },
+    {
+      "id": 3,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 21,
+      "y": 654,
+      "values": {
+        "width": 48,
+        "height": 48
+      }
+    },
+    {
+      "id": 5,
+      "name": "Time",
+      "type": "core.time",
+      "x": 286,
+      "y": 151
+    },
+    {
+      "id": 4,
+      "name": "Random Number",
+      "type": "core.randomNumber",
+      "x": 94,
+      "y": 295,
+      "values": {
+        "max": 450,
+        "step": 50
+      }
+    },
+    {
+      "id": 6,
+      "name": "Random Number",
+      "type": "core.randomNumber",
+      "x": 180,
+      "y": 369,
+      "values": {
+        "max": 450,
+        "step": 50
+      }
+    },
+    {
+      "id": 8,
+      "name": "Random Number",
+      "type": "core.randomNumber",
+      "x": 404,
+      "y": 464
+    },
+    {
+      "id": 7,
+      "name": "HSL Color",
+      "type": "color.hsl",
+      "x": 274,
+      "y": 551,
+      "values": {
+        "saturation": 100
+      }
+    },
+    {
+      "id": 9,
+      "name": "Random Number",
+      "type": "core.randomNumber",
+      "x": 420,
+      "y": 360
+    },
+    {
+      "id": 10,
+      "name": "Animate",
+      "type": "core.animate",
+      "x": 247,
+      "y": 465,
+      "values": {
+        "max": 360,
+        "duration": 10
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out1",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 4,
+      "outPort": "value",
+      "inNode": 3,
+      "inPort": "x"
+    },
+    {
+      "outNode": 6,
+      "outPort": "value",
+      "inNode": 3,
+      "inPort": "y"
+    },
+    {
+      "outNode": 7,
+      "outPort": "color",
+      "inNode": 3,
+      "inPort": "color"
+    },
+    {
+      "outNode": 5,
+      "outPort": "frame",
+      "inNode": 4,
+      "inPort": "seed"
+    },
+    {
+      "outNode": 5,
+      "outPort": "seconds",
+      "inNode": 6,
+      "inPort": "seed"
+    },
+    {
+      "outNode": 8,
+      "outPort": "value",
+      "inNode": 7,
+      "inPort": "lightness"
+    },
+    {
+      "outNode": 5,
+      "outPort": "seconds",
+      "inNode": 9,
+      "inPort": "seed"
+    },
+    {
+      "outNode": 5,
+      "outPort": "seconds",
+      "inNode": 10,
+      "inPort": "time"
+    },
+    {
+      "outNode": 10,
+      "outPort": "value",
+      "inNode": 7,
+      "inPort": "hue"
+    },
+    {
+      "outNode": 5,
+      "outPort": "seconds",
+      "inNode": 8,
+      "inPort": "seed"
+    }
+  ],
+  "types": []
+}
