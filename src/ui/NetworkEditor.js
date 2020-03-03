@@ -405,10 +405,15 @@ export default class NetworkEditor extends Component {
       toolTipY += NODE_HEIGHT + 20;
     }
 
+    let text = overPort.name;
+    if (overPort.type === PORT_TYPE_NUMBER) {
+      text += ` [${overPort.value.toFixed(0)}]`;
+    }
+
     ctx.fillStyle = COLORS.gray500;
-    ctx.fillRect(toolTipX, toolTipY, 10 + overPort.name.length * 8, 25);
+    ctx.fillRect(toolTipX, toolTipY, 10 + text.length * 8, 25);
     ctx.fillStyle = COLORS.gray900;
-    ctx.fillText(overPort.name, toolTipX + 5, toolTipY + 17);
+    ctx.fillText(text, toolTipX + 5, toolTipY + 17);
   }
 
   _drawConnectionLine(ctx, x1, y1, x2, y2) {
