@@ -768,7 +768,6 @@ node.debugDraw = (ctx) => {
 `;
 
 ml.poseBodyPart = `// return position of a body part from pose.
-const triggerIn = node.triggerIn('in');
 const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
 const poseIn = node.objectIn('poses');
 const selectPose = node.numberIn('poseIndex', 0, { min: 0 });
@@ -778,17 +777,19 @@ const yOut = node.numberOut('y', 0);
 function isBodyPart(bp) { 
    return bp.part === bodyPartIn.value;
 }
-      
-triggerIn.onTrigger = (props) => {
-   const { canvas, ctx } = props;
-   if(poseIn.value.length>0){
+
+function partOutPoint(){
+  if(poseIn.value.length>0){
      const part = poseIn.value[selectPose.value].pose.keypoints.find(isBodyPart);
      let px = part.position.x;
      let py = part.position.y;
-        xOut.set(px);
-        yOut.set(py);
+     xOut.set(px);
+     yOut.set(py);
    }
-};
+}
+   
+bodyPartIn.onChange = partOutPoint;
+poseIn.onChange = partOutPoint;
 `;
 
 ml.drawSkeleton = `// draw skeleton from pose.
