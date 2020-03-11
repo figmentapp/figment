@@ -5,8 +5,12 @@
       "id": 1,
       "name": "Canvas",
       "type": "graphics.canvas",
-      "x": 50,
-      "y": 50
+      "x": 71,
+      "y": 56,
+      "values": {
+        "width": 640,
+        "height": 480
+      }
     },
     {
       "id": 5,
@@ -27,18 +31,11 @@
       }
     },
     {
-      "id": 9,
-      "name": "Line",
-      "type": "graphics.line",
-      "x": 111,
-      "y": 310
-    },
-    {
       "id": 4,
       "name": "Audio",
       "type": "project.audio",
-      "x": 253,
-      "y": 241
+      "x": 133,
+      "y": 257
     }
   ],
   "connections": [
