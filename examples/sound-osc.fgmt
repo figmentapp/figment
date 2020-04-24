@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 71,
+      "y": 56,
+      "values": {
+        "width": 640,
+        "height": 480
+      }
+    },
+    {
+      "id": 5,
+      "name": "Mouse",
+      "type": "core.mouse",
+      "x": 257,
+      "y": 53
+    },
+    {
+      "id": 7,
+      "name": "Convert",
+      "type": "math.convert",
+      "x": 309,
+      "y": 135,
+      "values": {
+        "inMax": 500,
+        "outMax": 1
+      }
+    },
+    {
+      "id": 4,
+      "name": "Audio",
+      "type": "project.audio",
+      "x": 133,
+      "y": 257
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 5,
+      "outPort": "x",
+      "inNode": 4,
+      "inPort": "x"
+    },
+    {
+      "outNode": 5,
+      "outPort": "y",
+      "inNode": 7,
+      "inPort": "value"
+    },
+    {
+      "outNode": 7,
+      "outPort": "value",
+      "inNode": 4,
+      "inPort": "y"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 4,
+      "inPort": "in"
+    }
+  ],
+  "types": [
+    {
+      "name": "Audio",
+      "type": "project.audio",
+      "source": "//  osc audio node.\nconst triggerIn = node.triggerIn('in');\nconst xIn = node.numberIn('x', 0);\nconst yIn = node.numberIn('y', 0);\nconst typeIn = node.selectIn('type', ['sine', 'sawtooth', 'triangle', 'square']);\n\nlet actx, gain, osc, analyser, bufferLength;\n\nnode.onStart = () => {\n  actx = new AudioContext(); \n  \n  gain = actx.createGain();\n  gain.gain.value = 0.5;\n  \n  osc = actx.createOscillator();\n  osc.type = typeIn.value; // sawtooth, triangle, square\n  osc.frequency.value = 1.0;\n  \n  analyser = actx.createAnalyser();\n  bufferLength = 128;\n  \n  osc.connect(gain);\n  gain.connect(actx.destination);\n  gain.connect(analyser); \n  osc.start();\n}\n\nnode.onStop = () => {\n  osc.stop();\n}\n\nfunction changeType(){\n  console.log(typeIn.value);\n osc.type = typeIn.value; \n}\n\nfunction setFrequency() {\n  osc.frequency.value = xIn.value * 2.5;\n}\n\nfunction setGain() {\n  gain.gain.setValueAtTime(yIn.value, actx.currentTime);\n}\n\ntriggerIn.onTrigger = (props) => {\n   const { canvas, ctx } = props;\n\tlet timedomain = new Uint8Array(bufferLength);\n  \tanalyser.getByteTimeDomainData(timedomain);\n  \n  \tvar frequencies = new Uint8Array(bufferLength);\n    analyser.getByteFrequencyData(frequencies);\n\n\tctx.fillStyle = 'green';\n\t\t\tvar seg = canvas.width / frequencies.length;\n\t\t\tfor (var i = 0; i < frequencies.length; i++) {\n\t\t\t\tctx.fillRect(i * seg, 450, 6, -frequencies[i] - 10);\n\t\t\t}\n\n  // timedomain - oscilloscope view\n\tctx.fillStyle = 'red';\n\tconst segt = canvas.width / timedomain.length;\n\tfor (let i = 0; i < timedomain.length; i++) {\n\t\tctx.fillRect(i * segt, canvas.height, 2, -timedomain[i]*2);\n\t}\n};\n\nnode.debugDraw = (ctx) => {\n  ctx.fillStyle = \"rgb(100,0,100)\";\n  ctx.fillRect(0,0,100,75);\n  let timedomain = new Uint8Array(bufferLength);\n  analyser.getByteTimeDomainData(timedomain);\n\n  // timedomain - oscilloscope view\n\tctx.fillStyle = 'red';\n\tconst segt = 100.0 / timedomain.length;\n\tfor (let i = 0; i < timedomain.length; i++) {\n\t\tctx.fillRect(i * segt, 75, 1, -timedomain[i]/5.0);\n\t}\n}\n\nxIn.onChange = setFrequency;\nyIn.onChange = setGain;\ntypeIn.onChange = changeType;\n",
+      "description": "osc audio node."
+    }
+  ]
+}

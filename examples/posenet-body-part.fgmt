@@ -57,16 +57,6 @@
       "y": 297
     },
     {
-      "id": 10,
-      "name": "Pose Body Part",
-      "type": "ml.poseBodyPart",
-      "x": 143,
-      "y": 231,
-      "values": {
-        "bodyPart": "leftEar"
-      }
-    },
-    {
       "id": 11,
       "name": "Pose Net",
       "type": "ml.poseNet",
@@ -74,6 +64,16 @@
       "y": 89,
       "values": {
         "detectType": "multi"
+      }
+    },
+    {
+      "id": 12,
+      "name": "Pose Body Part",
+      "type": "ml.poseBodyPart",
+      "x": 95,
+      "y": 248,
+      "values": {
+        "bodyPart": "leftEar"
       }
     }
   ],
@@ -115,34 +115,28 @@
       "inPort": "image"
     },
     {
-      "outNode": 11,
-      "outPort": "poses",
-      "inNode": 10,
-      "inPort": "poses"
-    },
-    {
-      "outNode": 10,
-      "outPort": "x",
-      "inNode": 5,
-      "inPort": "x"
-    },
-    {
-      "outNode": 10,
-      "outPort": "y",
-      "inNode": 5,
-      "inPort": "y"
-    },
-    {
       "outNode": 3,
       "outPort": "out3",
       "inNode": 11,
       "inPort": "in"
     },
     {
-      "outNode": 3,
-      "outPort": "out4",
-      "inNode": 10,
-      "inPort": "in"
+      "outNode": 11,
+      "outPort": "poses",
+      "inNode": 12,
+      "inPort": "poses"
+    },
+    {
+      "outNode": 12,
+      "outPort": "x",
+      "inNode": 5,
+      "inPort": "x"
+    },
+    {
+      "outNode": 12,
+      "outPort": "y",
+      "inNode": 5,
+      "inPort": "y"
     }
   ],
   "types": [
