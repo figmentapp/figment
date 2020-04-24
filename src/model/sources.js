@@ -581,7 +581,7 @@ let _timer;
 
 node.onStart = () => {
   
- if (navigator.mediaDevices.getUserMedia) {
+if (navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false
