@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Canvas",
+      "type": "graphics.canvas",
+      "x": 35,
+      "y": 7,
+      "values": {
+        "width": 640,
+        "height": 480,
+        "drawBackground": false
+      }
+    },
+    {
+      "id": 2,
+      "name": "Sequence",
+      "type": "core.sequence",
+      "x": 36,
+      "y": 79
+    },
+    {
+      "id": 3,
+      "name": "Rectangle",
+      "type": "graphics.rect",
+      "x": 27,
+      "y": 408,
+      "values": {
+        "width": 19,
+        "height": 19
+      }
+    },
+    {
+      "id": 10,
+      "name": "Webcam Image",
+      "type": "image.camImage",
+      "x": 192,
+      "y": -66
+    },
+    {
+      "id": 11,
+      "name": "Random Number",
+      "type": "core.randomNumber",
+      "x": 278,
+      "y": 117,
+      "values": {
+        "max": 640,
+        "step": 20
+      }
+    },
+    {
+      "id": 13,
+      "name": "Time",
+      "type": "core.time",
+      "x": 387,
+      "y": 19
+    },
+    {
+      "id": 14,
+      "name": "Random Number",
+      "type": "core.randomNumber",
+      "x": 421,
+      "y": 167,
+      "values": {
+        "max": 480,
+        "step": 20
+      }
+    },
+    {
+      "id": 15,
+      "name": "Transform",
+      "type": "graphics.transform",
+      "x": 17,
+      "y": 202,
+      "values": {
+        "translateX": 0,
+        "translateY": 0
+      }
+    },
+    {
+      "id": 16,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 375,
+      "y": -75,
+      "values": {
+        "file": "assets/kriskross.png"
+      }
+    },
+    {
+      "id": 5,
+      "name": "Get Pixel",
+      "type": "project.getPixel",
+      "x": 195,
+      "y": 249
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out2",
+      "inNode": 5,
+      "inPort": "trigger"
+    },
+    {
+      "outNode": 13,
+      "outPort": "frame",
+      "inNode": 11,
+      "inPort": "seed"
+    },
+    {
+      "outNode": 11,
+      "outPort": "value",
+      "inNode": 5,
+      "inPort": "x"
+    },
+    {
+      "outNode": 5,
+      "outPort": "color",
+      "inNode": 3,
+      "inPort": "color"
+    },
+    {
+      "outNode": 14,
+      "outPort": "value",
+      "inNode": 5,
+      "inPort": "y"
+    },
+    {
+      "outNode": 13,
+      "outPort": "seconds",
+      "inNode": 14,
+      "inPort": "seed"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out1",
+      "inNode": 15,
+      "inPort": "in"
+    },
+    {
+      "outNode": 15,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    },
+    {
+      "outNode": 5,
+      "outPort": "x",
+      "inNode": 3,
+      "inPort": "x"
+    },
+    {
+      "outNode": 5,
+      "outPort": "y",
+      "inNode": 3,
+      "inPort": "y"
+    },
+    {
+      "outNode": 10,
+      "outPort": "image",
+      "inNode": 5,
+      "inPort": "image"
+    }
+  ],
+  "types": [
+    {
+      "name": "Get Pixel",
+      "type": "project.getPixel",
+      "source": "// Empty custom node.\nconst triggerIn = node.triggerIn('trigger');\nconst imageIn = node.imageIn('image');\nconst xIn = node.numberIn('x', 0);\nconst yIn = node.numberIn('y', 0);\nconst colorOut = node.colorOut('color');\nconst xOut = node.numberOut('x');\nconst yOut = node.numberOut('y');\n\n//const canvas = document.createElement('canvas');\n//canvas.width = 1;\n//canvas.height = 1;\n//const ctx = canvas.getContext('2d');\n\ntriggerIn.onTrigger = (props) =>  {\n  const { canvas, ctx } = props;\n  if (!imageIn.value) return [0, 0, 0, 1];\n  ctx.drawImage(imageIn.value, xIn.value, yIn.value, 1, 1, 0, 0, 1, 1);\n  const pixels = ctx.getImageData(0, 0, 1, 1).data;\n  const [r, g, b, a] = pixels;\n  colorOut.set([r, g, b, 1]);\n  xOut.set(xIn.value);\n  yOut.set(yIn.value);\n}\n\n//function onChange() {\n//  if (!imageIn.value) return [0, 0, 0, 0];\n//  ctx.drawImage(imageIn.value, -xIn.value, -yIn.value, 1, 1);\n//  const pixels = ctx.getImageData(0, 0, 1, 1).data;\n//  const color = pixels.slice(0, 4);\n//  console.log(color);\n//  return color;\n//}\n\n//imageIn.onChange = onChange;\n//xIn.onChange = onChange;\n//yIn.onChange = onChange;",
+      "description": "Empty custom node."
+    }
+  ]
+}
