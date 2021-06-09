@@ -7,117 +7,92 @@ import * as figment from '../figment';
 import { remote } from 'electron';
 import { throttle, startCase } from 'lodash';
 
+// import {
+//   PARAM_TYPE_TRIGGER,
+//   PARAM_TYPE_TOGGLE,
+//   PARAM_TYPE_BUTTON,
+//   PARAM_TYPE_NUMBER,
+//   PARAM_TYPE_STRING,
+//   PARAM_TYPE_SELECT,
+//   PARAM_TYPE_POINT,
+//   PARAM_TYPE_COLOR,
+//   PARAM_TYPE_FILE,
+//   PARAM_TYPE_OBJECT
+// } from '../model/Port';
+
 import {
-  PORT_TYPE_TRIGGER,
-  PORT_TYPE_TOGGLE,
-  PORT_TYPE_BUTTON,
-  PORT_TYPE_NUMBER,
-  PORT_TYPE_STRING,
-  PORT_TYPE_SELECT,
-  PORT_TYPE_POINT,
-  PORT_TYPE_COLOR,
-  PORT_TYPE_FILE,
-  PORT_TYPE_OBJECT
-} from '../model/Port';
+  PARAM_TYPE_INT,
+  PARAM_TYPE_INT2,
+  PARAM_TYPE_FLOAT,
+  PARAM_TYPE_FLOAT2,
+  PARAM_TYPE_STRING
+} from '../model/Param';
 
-class NumberDrag extends Component {
-  constructor(props) {
-    super(props);
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
-  }
-
-  _onMouseDown(e) {
+function NumberDrag({ value, step = 1, min, max, disabled, onChange }) {
+  const onMouseDown = e => {
     e.preventDefault();
     if (this.props.disabled) return;
     e.target.requestPointerLock();
-    window.addEventListener('mousemove', this._onMouseMove);
-    window.addEventListener('mouseup', this._onMouseUp);
-  }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
 
-  _onMouseMove(e) {
+  const onMouseMove = e => {
     e.preventDefault();
-    if (this.props.direction === 'xy') {
-      const value = this.props.value;
-      this.props.onChange(
-        new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step)
-      );
-    } else {
-      let newValue = this.props.value + e.movementX * this.props.step;
-      if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
-      if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
-      this.props.onChange(newValue);
-    }
-  }
+    // if (this.props.direction === 'xy') {
+    //   const value = this.props.value;
+    //   onChange(
+    //     new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step)
+    //   );
+    // } else {
+    let newValue = value + e.movementX * step;
+    if (min !== undefined && newValue < min) newValue = min;
+    if (max !== undefined && newValue > max) newValue = max;
+    onChange(newValue);
+    // }
+  };
 
-  _onMouseUp(e) {
+  const onMouseUp = e => {
     e.preventDefault();
-    window.removeEventListener('mousemove', this._onMouseMove);
-    window.removeEventListener('mouseup', this._onMouseUp);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
     document.exitPointerLock();
-  }
+  };
 
-  render({ label, direction, disabled }) {
-    let cursor;
-    if (disabled) {
-      cursor = 'cursor-default';
-    } else {
-      cursor = direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
-    }
-    return (
-      <span
-        class={`w-32 text-right mr-4 py-2 ${cursor} ${
-          disabled ? 'text-gray-700' : 'text-gray-500'
-        }`}
-        onMouseDown={this._onMouseDown}
-      >
-        {label}
-      </span>
-    );
-  }
+  let cursor = disabled ? 'cursor-default' : 'cursor-col-resize';
+  return (
+    <span
+      class={`w-32 text-right mr-4 py-2 ${cursor} ${disabled ? 'text-gray-700' : 'text-gray-500'}`}
+      onMouseDown={onMouseDown}
+    >
+      {label}
+    </span>
+  );
 }
 
-class FloatParam extends Component {
-  constructor(props) {
-    super(props);
-    this._onChange = this._onChange.bind(this);
-  }
-
-  _onChange(e) {
+function FloatParam({ label, value, min, max, step, disabled, onChange }) {
+  const handleChange = e => {
     let newValue = parseFloat(e.target.value);
     if (isNaN(newValue)) return;
     if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
     if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
     this.props.onChange(newValue);
-  }
+  };
 
-  render({ label, value, min, max, step, disabled, onChange }) {
-    return (
-      <div class="flex items-center mb-2">
-        <NumberDrag
-          label={label}
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          onChange={onChange}
-        />
-        <input
-          type="text"
-          spellcheck="false"
-          disabled={disabled}
-          class={
-            'w-32 mr-4 p-2 ' +
-            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
-          }
-          value={value}
-          onChange={this._onChange}
-        />
-      </div>
-    );
-  }
+  return (
+    <div class="flex items-center mb-2">
+      <span class="w-32 text-right mr-4 py-2">{label}</span>
+      <NumberDrag value={value} min={min} max={max} step={step} disabled={disabled} onChange={handleChange} />
+      {/* <input
+        type="text"
+        spellcheck="false"
+        disabled={disabled}
+        class={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
+        value={value}
+        onChange={handleChange}
+      /> */}
+    </div>
+  );
 }
 
 class StringParam extends Component {
@@ -139,10 +114,7 @@ class StringParam extends Component {
           type="text"
           spellcheck="false"
           disabled={disabled}
-          class={
-            'w-64 mr-4 p-2 ' +
-            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
-          }
+          class={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
           onInput={this._onChange}
         />
@@ -160,10 +132,7 @@ class SelectParam extends Component {
           type="text"
           spellcheck="false"
           disabled={disabled}
-          class={
-            'w-64 mr-4 p-2 ' +
-            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
-          }
+          class={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
           onChange={e => onChange(e.target.value)}
         >
@@ -176,7 +145,9 @@ class SelectParam extends Component {
   }
 }
 
-class ColorParam extends Component {
+
+
+function ColorParam({ onChange })  {
   constructor(props) {
     super(props);
     this.state = { pickerVisible: false };
@@ -207,9 +178,7 @@ class ColorParam extends Component {
           style={`background-color: rgba(${rgbaValue.join(',')})`}
           onClick={this._onToggleColorPicker}
         />
-        {pickerVisible && (
-          <ColorPicker parent={this.row.current} color={value} onChange={onChange} />
-        )}
+        {pickerVisible && <ColorPicker parent={this.row.current} color={value} onChange={onChange} />}
       </div>
     );
   }
@@ -272,10 +241,7 @@ class FileParam extends Component {
         <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
         <div class="flex items-center">
           <span class="w-64 text-gray-700 overflow-hidden">{value}</span>
-          <button
-            class="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none"
-            onClick={this._onSelectFile}
-          >
+          <button class="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
             Open…
           </button>
         </div>
@@ -284,165 +250,172 @@ class FileParam extends Component {
   }
 }
 
-export default class ParamsEditor extends Component {
-  constructor(props) {
-    super(props);
-    this._onChangePortValue = this._onChangePortValue.bind(this);
-  }
-
-  _onChangePortValue(portName, value) {
-    this.props.selection.forEach(node => {
-      this.props.onChangePortValue(node, portName, value);
-    });
-  }
-
-  _onTriggerButton(port) {
-    this.props.selection.forEach(node => {
-      this.props.onTriggerButton(node, port);
-    });
-  }
-
-  render({ network, selection, onShowNodeRenameDialog }) {
-    if (selection.size === 0) {
-      return (
-        <div class="params">
-          <p class="params__empty">Nothing selected</p>
-        </div>
-      );
-    }
-    if (selection.size > 1) {
-      return (
-        <div class="params">
-          <p class="params__empty">Many nodes selected</p>
-        </div>
-      );
-    }
-    const node = Array.from(selection)[0];
-    return (
-      <div class="params">
-        <div class=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
-          <span
-            class="text-gray-200 hover:bg-gray-700 px-2 py-1"
-            onClick={() => onShowNodeRenameDialog(node)}
-          >
-            {node.name}
-          </span>
-          <span class="text-gray-500 text-xs ml-3">{node.type}</span>
-        </div>
-        {node.inPorts.map(port => this._renderPort(network, node, port))}
+function ParamRow({ network, node, param, onChangeParamValue }) {
+  let field;
+  const label = startCase(param.name);
+  // if (param.type === PARAM_TYPE_BUTTON) {
+  //   field = (
+  //     <div class="params__row">
+  //       <span class="w-32 mr-4"></span>
+  //       <button
+  //         class="bg-gray-600 text-gray-200 w-32 p-2"
+  //         disabled={network.isConnected(param)}
+  //         onClick={() => this._onTriggerButton(port)}
+  //       >
+  //         {label}
+  //       </button>
+  //     </div>
+  //   );
+  // if (param.type === PARAM_TYPE_TOGGLE) {
+  //   field = (
+  //     <div class="params__row">
+  //       <span class="w-32 mr-4"></span>
+  //       <label class="w-64  p-2 flex items-center">
+  //         <input
+  //           type="checkbox"
+  //           disabled={network.isConnected(param)}
+  //           checked={param.value}
+  //           onChange={e => onChangeParamValue(param.name, e.target.checked)}
+  //         />
+  //         <span class="ml-2 text-gray-500">{label}</span>
+  //       </label>
+  //     </div>
+  //   );
+  if (param.type === PARAM_TYPE_FLOAT) {
+    field = (
+      <FloatParam
+        label={label}
+        value={param.value}
+        min={param.min}
+        max={param.max}
+        step={param.step}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_FLOAT2) {
+    field = (
+      <Float2Param
+        label={label}
+        value={param.value}
+        min={param.min}
+        max={param.max}
+        step={param.step}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_STRING) {
+    field = (
+      <StringParam
+        label={label}
+        value={param.value}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_SELECT) {
+    field = (
+      <SelectParam
+        label={label}
+        value={param.value}
+        options={param.options}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_POINT) {
+    field = (
+      <PointParam
+        label={label}
+        value={param.value}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_COLOR) {
+    field = (
+      <ColorParam
+        port={port}
+        label={label}
+        value={param.value}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_FILE) {
+    field = (
+      <FileParam
+        label={label}
+        value={param.value}
+        disabled={network.isConnected(param)}
+        onChange={value => onChangeParamValue(param.name, value)}
+      />
+    );
+  } else if (param.type === PARAM_TYPE_OBJECT) {
+    field = undefined;
+  } else {
+    field = (
+      <div class="params__row">
+        <span class="params__label">{param.name}</span>
+        <span class="params__field">{param.value}</span>
       </div>
     );
   }
+  return field;
+  // (
+  //   <div class="params__row">
+  //   {field}
+  //     <div class="params__label">{param.name}</div>
+  //     <div class="params__field">{field}</div>
+  //   </div>
+  // );
+}
 
-  _renderPort(network, node, port) {
-    let field;
-    const label = startCase(port.name);
-    if (port.type === PORT_TYPE_TRIGGER) {
-      return;
-    } else if (port.type === PORT_TYPE_BUTTON) {
-      field = (
-        <div class="params__row">
-          <span class="w-32 mr-4"></span>
-          <button
-            class="bg-gray-600 text-gray-200 w-32 p-2"
-            disabled={network.isConnected(port)}
-            onClick={() => this._onTriggerButton(port)}
-          >
-            {label}
-          </button>
-        </div>
-      );
-    } else if (port.type === PORT_TYPE_TOGGLE) {
-      field = (
-        <div class="params__row">
-          <span class="w-32 mr-4"></span>
-          <label class="w-64  p-2 flex items-center">
-            <input
-              type="checkbox"
-              disabled={network.isConnected(port)}
-              checked={port.value}
-              onChange={e => this._onChangePortValue(port.name, e.target.checked)}
-            />
-            <span class="ml-2 text-gray-500">{label}</span>
-          </label>
-        </div>
-      );
-    } else if (port.type === PORT_TYPE_NUMBER) {
-      field = (
-        <FloatParam
-          label={label}
-          value={port.value}
-          min={port.min}
-          max={port.max}
-          step={port.step}
-          disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
-        />
-      );
-    } else if (port.type === PORT_TYPE_STRING) {
-      field = (
-        <StringParam
-          label={label}
-          value={port.value}
-          disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
-        />
-      );
-    } else if (port.type === PORT_TYPE_SELECT) {
-      field = (
-        <SelectParam
-          label={label}
-          value={port.value}
-          options={port.options}
-          disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
-        />
-      );
-    } else if (port.type === PORT_TYPE_POINT) {
-      field = (
-        <PointParam
-          label={label}
-          value={port.value}
-          disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
-        />
-      );
-    } else if (port.type === PORT_TYPE_COLOR) {
-      field = (
-        <ColorParam
-          port={port}
-          label={label}
-          value={port.value}
-          disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
-        />
-      );
-    } else if (port.type === PORT_TYPE_FILE) {
-      field = (
-        <FileParam
-          label={label}
-          value={port.value}
-          disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
-        />
-      );
-    } else if (port.type === PORT_TYPE_OBJECT) {
-      field = undefined;
-    } else {
-      field = (
-        <div class="params__row">
-          <span class="params__label">{port.name}</span>
-          <span class="params__field">{port.value}</span>
-        </div>
-      );
-    }
-    return field;
-    // (
-    //   <div class="params__row">
-    //   {field}
-    //     <div class="params__label">{port.name}</div>
-    //     <div class="params__field">{field}</div>
-    //   </div>
-    // );
+function ParamsEditor({ network, selection, onChangeParamValue, onShowNodeRenameDialog }) {
+  // constructor(props) {
+  //   super(props);
+  //   onChangeParamValue = onChangeParamValue.bind(this);
+  // }
+
+  const handleParamChange = (paramName, value) => {
+    selection.forEach(node => {
+      onChangeParamValue(node, paramName, value);
+    });
+  };
+
+  // _onTriggerButton(port) {
+  //   this.props.selection.forEach(node => {
+  //     this.props.onTriggerButton(node, port);
+  //   });
+  // }
+
+  if (selection.size === 0) {
+    return (
+      <div class="params">
+        <p class="params__empty">Nothing selected</p>
+      </div>
+    );
   }
+  if (selection.size > 1) {
+    return (
+      <div class="params">
+        <p class="params__empty">Many nodes selected</p>
+      </div>
+    );
+  }
+  const node = Array.from(selection)[0];
+  return (
+    <div class="params">
+      <div class=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
+        <span class="text-gray-200 hover:bg-gray-700 px-2 py-1" onClick={() => onShowNodeRenameDialog(node)}>
+          {node.name}
+        </span>
+        <span class="text-gray-500 text-xs ml-3">{node.type}</span>
+      </div>
+      {node.parameters.map(param => (
+        <ParamRow network={network} node={node} param={param} onChangeParamValue={handleParamChange} />
+      ))}
+    </div>
+  );
 }

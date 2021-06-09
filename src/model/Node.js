@@ -10,9 +10,19 @@ import Port, {
   PORT_TYPE_FILE,
   PORT_TYPE_IMAGE,
   PORT_TYPE_OBJECT,
+  PORT_TYPE_SHAPE,
   PORT_IN,
   PORT_OUT
 } from './Port';
+
+import Param, {
+  PARAM_TYPE_INT,
+  PARAM_TYPE_INT2,
+  PARAM_TYPE_FLOAT,
+  PARAM_TYPE_FLOAT2,
+  PARAM_TYPE_COLOR,
+  PARAM_TYPE_STRING
+} from './Param';
 
 let gNodeId = 0;
 
@@ -25,8 +35,46 @@ export default class Node {
     this.type = type;
     this.x = x;
     this.y = y;
-    this.inPorts = [];
+    this.inputs = [];
+    this.parameters = [];
+    this.outputType = this.inPorts = [];
     this.outPorts = [];
+  }
+
+  _createParam(name, type, value, options) {
+    if (!value) value = 0;
+    const oldParam = this.parameters.find(p => p.name === name);
+    if (oldParam) {
+      if (oldParam.hasDefaultValue()) {
+        oldParam.value = value;
+        oldParam.defaultValue = value;
+      }
+      return oldParam;
+    } else {
+      const param = new Param(this, name, PARAM_TYPE_FLOAT, value, options);
+      this.parameters.push(param);
+      return param;
+    }
+  }
+
+  intParam(name, value, options) {
+    return this._createParam(name, PARAM_TYPE_INT, value, options);
+  }
+
+  int2Param(name, value, options) {
+    return this._createParam(name, PARAM_TYPE_INT2, value, options);
+  }
+
+  floatParam(name, value, options) {
+    return this._createParam(name, PARAM_TYPE_FLOAT, value, options);
+  }
+
+  float2Param(name, value, options) {
+    return this._createParam(name, PARAM_TYPE_FLOAT2, value, options);
+  }
+
+  colorParam(name, value, options) {
+    return this._createParam(name, PARAM_TYPE_COLOR, value, options);
   }
 
   triggerIn(name) {

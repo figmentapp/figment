@@ -19,39 +19,43 @@ export const DEFAULT_NETWORK = {
   nodes: [
     {
       id: 1,
-      name: 'Canvas',
-      type: 'graphics.canvas',
-      x: 50,
-      y: 50
-    },
-    {
-      id: 2,
-      name: 'Sequence',
-      type: 'core.sequence',
-      x: 50,
-      y: 150
-    },
-    {
-      id: 3,
-      name: 'Rectangle',
+      name: 'rect1',
       type: 'graphics.rect',
       x: 50,
-      y: 300,
-      values: {
-        x: 50,
-        y: 50
-      }
+      y: 50
     }
+    // },
+    // {
+    //   id: 2,
+    //   name: 'Sequence',
+    //   type: 'core.sequence',
+    //   x: 50,
+    //   y: 150
+    // },
+    // {
+    //   id: 3,
+    //   name: 'Rectangle',
+    //   type: 'graphics.rect',
+    //   x: 50,
+    //   y: 300,
+    //   values: {
+    //     x: 50,
+    //     y: 50
+    //   }
+    // }
   ],
   connections: [
-    { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
-    { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
+    // { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
+    // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ]
 };
 
+const NETWORK_STOPPED = 'stopped';
+const NETWORK_RUNNING = 'running';
+
 export default class Network {
   constructor(library) {
-    this.started = false;
+    this.state = NETWORK_STOPPED;
     this.library = library;
     this.nodes = [];
     this.connections = [];
@@ -231,13 +235,9 @@ export default class Network {
 
   isConnected(port) {
     if (port.direction === PORT_IN) {
-      return !!this.connections.find(
-        conn => conn.inNode === port.node.id && conn.inPort === port.name
-      );
+      return !!this.connections.find(conn => conn.inNode === port.node.id && conn.inPort === port.name);
     } else {
-      return !!this.connections.find(
-        conn => conn.inNode === port.node.id && conn.inPort === port.name
-      );
+      return !!this.connections.find(conn => conn.inNode === port.node.id && conn.inPort === port.name);
     }
   }
 
@@ -355,9 +355,7 @@ export default class Network {
 
   disconnect(inPort) {
     const inNode = inPort.node;
-    this.connections = this.connections.filter(
-      conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name)
-    );
+    this.connections = this.connections.filter(conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name));
     inPort.setDefaultValue();
     this.doFrame();
   }
@@ -377,9 +375,7 @@ export default class Network {
   forkNodeType(nodeType, newName, newTypeName) {
     const [ns, baseName] = newTypeName.split('.');
     if (ns !== 'project') {
-      throw new Error(
-        `forkNodeType ${newTypeName}: currently only project-level types are supported.`
-      );
+      throw new Error(`forkNodeType ${newTypeName}: currently only project-level types are supported.`);
     }
     // Check if a type with this name already exists.
     this.types = this.types || [];

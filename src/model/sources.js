@@ -55,7 +55,7 @@ function generate() {
   valueOut.set(value);
   node.debugMessage = value.toFixed(2);
 }
-  
+
 newSeedButton.onTrigger = (props) => {
   seedIn.set(Math.floor(Math.random() * 1000));
   generate();
@@ -217,6 +217,44 @@ inMinIn.onChange = onChange;
 inMaxIn.onChange = onChange;
 outMinIn.onChange = onChange;
 outMaxIn.onChange = onChange;
+`;
+
+graphics.rect = `// Create a rectangle.
+const p_center = node.float2Param('position');
+const p_size = node.float2Param('size', [100.0, 100.0]);
+const p_fill = node.colorParam('fill', [1, 1, 1, 1]);
+const p_stroke = node.colorParam('stroke', null);
+const p_strokeWidth = node.floatParam('strokeWidth', 1);
+
+node.setup = () => {
+
+}
+
+node.draw = (scope) => {
+  const shape = new Shape();
+  const center = p_center.get(scope);
+  const size = p_size.get(scope);
+  const fill = p_fill.get(scope);
+  const stroke = p_stroke.get(scope);
+  const strokeWidth = p_strokeWidth.get(scope);
+
+  const halfWidth = size.x / 2;
+  const halfHeight = size.y / 2;
+
+  const p1 = new Vec2(position.x - halfWidth, position.y - halfHeight);
+  const p2 = new Vec2(position.x + halfWidth, position.y - halfHeight);
+  const p3 = new Vec2(position.x + halfWidth, position.y + halfHeight);
+  const p4 = new Vec2(position.x - halfWidth, position.y + halfHeight);
+
+  shape.addStyle(new Style(fill, stroke, strokeWidth));
+  shape.moveTo(p1.x, p1.y);
+  shape.lineTo(p2.x, p2.y);
+  shape.lineTo(p3.x, p3.y);
+  shape.lineTo(p4.x, p4.y);
+  shape.close();
+
+  return shape;
+}
 `;
 
 graphics.canvas = `// Initialize a new canvas and triggers the render every frame.
@@ -399,24 +437,24 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-graphics.rect = `// Draw a rectangle on the canvas.
-const triggerIn = node.triggerIn('in');
-const triggerOut = node.triggerOut('out');
-const xIn = node.numberIn('x', 0);
-const yIn = node.numberIn('y', 0);
-const widthIn = node.numberIn('width', 100);
-const heightIn = node.numberIn('height', 100);
-const colorIn = node.colorIn('color', [255, 255, 255, 1]);
+// graphics.rect = `// Draw a rectangle on the canvas.
+// const triggerIn = node.triggerIn('in');
+// const triggerOut = node.triggerOut('out');
+// const xIn = node.numberIn('x', 0);
+// const yIn = node.numberIn('y', 0);
+// const widthIn = node.numberIn('width', 100);
+// const heightIn = node.numberIn('height', 100);
+// const colorIn = node.colorIn('color', [255, 255, 255, 1]);
 
-triggerIn.onTrigger = (props) => {
-  const { canvas, ctx } = props;
-  ctx.save();
-  ctx.fillStyle = g.rgba(...colorIn.value);
-  ctx.fillRect(xIn.value, yIn.value, widthIn.value, heightIn.value);
-  ctx.restore();
-  triggerOut.trigger(props);
-};
-`;
+// triggerIn.onTrigger = (props) => {
+//   const { canvas, ctx } = props;
+//   ctx.save();
+//   ctx.fillStyle = g.rgba(...colorIn.value);
+//   ctx.fillRect(xIn.value, yIn.value, widthIn.value, heightIn.value);
+//   ctx.restore();
+//   triggerOut.trigger(props);
+// };
+// `;
 
 graphics.line = `// Draw a line between two points.
 const triggerIn = node.triggerIn('in');
@@ -459,7 +497,7 @@ triggerIn.onTrigger = (props) => {
 `;
 
 color.hsl = `// Generate a color from HSL values.
-const chroma = require('chroma-js'); 
+const chroma = require('chroma-js');
 const hueIn = node.numberIn('hue', 0, { min: 0, max: 360 });
 const saturationIn = node.numberIn('saturation', 50, { min: 0, max: 100 });
 const lightnessIn = node.numberIn('lightness', 50, { min: 0, max: 100 });
@@ -563,7 +601,7 @@ triggerIn.onTrigger = (props) => {
       ctx.rect(x, y, tWidth, tHeight);
       ctx.clip();
       ctx.drawImage(imageIn.value, x + dx, y + dy, dWidth, dHeight);
-      ctx.restore();  
+      ctx.restore();
     } else {
       ctx.drawImage(imageIn.value, x + dx, y + dy, dWidth, dHeight);
     }
@@ -580,7 +618,7 @@ let _stream;
 let _timer;
 
 node.onStart = () => {
-  
+
 if (navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({
           video: true,
@@ -633,7 +671,7 @@ triggerIn.onTrigger = (props) => {
     ctx.drawImage(imageIn.value, 0, 0, canvas.width, canvas.height);
     var imagePixels = ctx.getImageData(0,0,canvas.width,canvas.height);
     pixelsOut.set(imagePixels);
-  }  
+  }
 }
 `;
 
@@ -678,7 +716,7 @@ const classify = () => {
       confidenceOut.set(result.confidence);
     }
   });
-} 
+}
 
 const classifier = ml5.imageClassifier('MobileNet', classify);
 imageIn.onChange = classify;
@@ -774,7 +812,7 @@ const selectPose = node.numberIn('poseIndex', 0, { min: 0 });
 const xOut = node.numberOut('x', 0);
 const yOut = node.numberOut('y', 0);
 
-function isBodyPart(bp) { 
+function isBodyPart(bp) {
    return bp.part === bodyPartIn.value;
 }
 
@@ -787,7 +825,7 @@ function partOutPoint(){
      yOut.set(py);
    }
 }
-   
+
 bodyPartIn.onChange = partOutPoint;
 poseIn.onChange = partOutPoint;
 `;
@@ -865,7 +903,7 @@ function gotResult(error, results) {
   }
   label = results[0].label;
   predictOut.set(label);
-  
+
 }
 
 imageIn.onChange = () => {
@@ -907,7 +945,7 @@ function drawBox(ctx, detection){
 }
 
 function drawLandmarks(ctx, detection){
-        const mouth = detection.parts.mouth; 
+        const mouth = detection.parts.mouth;
         const nose = detection.parts.nose;
         const leftEye = detection.parts.leftEye;
         const rightEye = detection.parts.rightEye;
@@ -929,13 +967,13 @@ function drawPart(ctx, feature, closed){
      const y = feature[i]._y
      ctx.lineTo(x, y);
   }
-  ctx.stroke();  
+  ctx.stroke();
 }
-        
+
 function modelReady() {
   faceapi.detect(imageIn.value, gotResults)
 }
-        
+
 triggerIn.onTrigger = (props) => {
    const { canvas, ctx } = props;
       if (detections) {

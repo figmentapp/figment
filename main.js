@@ -175,10 +175,11 @@ const argv = require('minimist')(process.argv.slice(2));
 
 app.on('ready', async () => {
   await gSettings.load();
-  const status = systemPreferences.getMediaAccessStatus('camera');
-  if (status !== 'granted') {
-    await systemPreferences.askForMediaAccess('camera');
-  }
+  // const status = systemPreferences.getMediaAccessStatus('camera');
+  // if (status !== 'granted') {
+  //   await systemPreferences.askForMediaAccess('camera');
+  // }
+
   createApplicationMenu();
   createMainWindow(argv.file);
 });
