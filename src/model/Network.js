@@ -67,8 +67,14 @@ export const DEFAULT_NETWORK = {
       values: {
         file: 'examples/assets/kriskross.png'
       }
+    },
+    {
+      id: 3,
+      name: 'Mirror',
+      type: 'image.mirror',
+      x: 250,
+      y: 250
     }
-
     // {
     //   id: 2,
     //   name: 'Sequence',
@@ -89,7 +95,7 @@ export const DEFAULT_NETWORK = {
     // }
   ],
   connections: [
-    // { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' }
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ]
 };

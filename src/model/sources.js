@@ -481,7 +481,7 @@ image.loadImage = `// Load an image from a file.
 const url = require('url');
 
 const fileIn = node.fileIn('file', '');
-const imageOut = node.imageOut('image');
+const imageOut = node.imageOut('out');
 
 let texture, target, mesh, camera;
 
@@ -508,6 +508,8 @@ function onLoad(texture) {
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
   gRenderer.setRenderTarget(null);
+
+  imageOut.set(target);
 }
 
 function onError(err) {
@@ -798,22 +800,24 @@ uniform float uAngle; // Angle in radians
 varying vec2 vUv;
 void main() {
   vec2 uv = vUv;
-  uv.x = sin(rAngle) - uv.x;
-  uv.y = cos(rAngle) - uv.y;
+  uv.x = sin(uAngle) - uv.x;
+  uv.y = cos(uAngle) - uv.y;
   // uv.x = 1.0-uv.x;
   vec4 originalColor = texture2D(uInputTexture, uv);
   gl_FragColor = originalColor;
 }
 \`;
 
-const imageIn = node.imageIn('image');
-const angleIn = node.numberIn('angle');
-const imageOut = node.imageOut('image');
+const imageIn = node.imageIn('in');
+const angleIn = node.numberIn('angle', 0, { min: 0, max: 360, step: 0.01 });
+const imageOut = node.imageOut('out');
 
-let material, mesh, target;
+let camera, material, mesh, target;
 
 node.onStart = (props) => {
-  material = new THREE.RawShaderMaterial({
+    camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  
+    material = new THREE.RawShaderMaterial({
     vertexShader,
     fragmentShader,
     uniforms: {
@@ -829,17 +833,38 @@ node.onStart = (props) => {
 };
 
 function render() {
+  if (!imageIn.value) return;
   material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uAngle.value = angleIn.value * 180 / Math.PI;
-  gRenderer.setRenderTarget(this.target);
-  gRenderer.render(mesh, null);
-  gRenderer.setRenderTaget(null);
+  material.uniforms.uAngle.value = g.toRadians(angleIn.value);
+  gRenderer.setRenderTarget(target);
+  gRenderer.render(mesh, camera);
+  gRenderer.setRenderTarget(null);
 }
 
 function resizeRenderTarget() {
+  console.log('image.mirror resizeRenderTarget', imageIn.value);
+  if (!imageIn.value) return;
   target = new THREE.WebGLRenderTarget(imageIn.value.width, imageIn.value.height, { depthBuffer: false });  
   render();
 }
+
+let promisedBitmap = null;
+node.debugDraw = (ctx) => {
+  if (!target) return;
+  const imageData = new ImageData(target.width, target.height);
+  gRenderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data);
+  const bitmap = createImageBitmap(imageData).then(bitmap => { promisedBitmap = bitmap });
+  if (promisedBitmap) {
+    if (target.width > target.height) {
+      const ratio = target.width / target.height;
+      ctx.drawImage(promisedBitmap, 0, 0, 100, 100 / ratio);
+    } else {
+      const ratio = target.height / target.width;
+      ctx.drawImage(promisedBitmap, 0, 0, 100 / ratio, 100);
+    }
+  }
+}
+
 
 imageIn.onChange = resizeRenderTarget;
 angleIn.onChange = render;
