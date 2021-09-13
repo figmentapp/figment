@@ -43,6 +43,9 @@ export default class Library {
     this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
     this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
 
+    this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
+    this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
+
     // ML
     this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });
     this.nodeTypes.push({ name: 'Pose Net', type: 'ml.poseNet', source: ml.poseNet });

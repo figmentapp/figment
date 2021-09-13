@@ -20,6 +20,7 @@
     "preact": "10.3.1",
     "seedrandom": "3.0.5",
     "tailwindcss": "1.1.4",
+    "three": "^0.132.2",
     "tween-functions": "1.2.0"
   },
   "devDependencies": {
