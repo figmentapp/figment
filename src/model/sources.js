@@ -486,7 +486,6 @@ const imageOut = node.imageOut('image');
 let texture, target, mesh, camera;
 
 node.onStart = () => {
-  console.log('load image start');
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 }
 
@@ -494,15 +493,13 @@ function loadImage() {
   console.log('load image loadImage');
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
-  console.log(fileIn.value, imageUrl.toString());
-
   const textureLoader = new THREE.TextureLoader();
-  const out = textureLoader.load(imageUrl.toString(), onLoad, onProgress, onError);
-console.log('o', out);
+  const out = textureLoader.load(imageUrl.toString(), onLoad, null, onError);
 }
 
 function onLoad(texture) {
-  console.log('load image onLoad', texture);
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.y = -1;
   const geometry = new THREE.PlaneGeometry(2, 2);
   const material = new THREE.MeshBasicMaterial({ map: texture });
   mesh = new THREE.Mesh(geometry, material);
@@ -513,13 +510,8 @@ function onLoad(texture) {
   gRenderer.setRenderTarget(null);
 }
 
-function onProgress() {
-  console.log('.');
-}
-
 function onError(err) {
   console.error('image.loadImage error', err);
-  console.error(arguments)
 }
 
 let promisedBitmap = null;

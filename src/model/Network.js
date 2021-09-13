@@ -63,7 +63,10 @@ export const DEFAULT_NETWORK = {
       name: 'Load Image',
       type: 'image.loadImage',
       x: 250,
-      y: 50
+      y: 50,
+      values: {
+        file: 'examples/assets/kriskross.png'
+      }
     }
 
     // {
