@@ -1,7 +1,6 @@
-import { h } from 'preact';
-import { useRef } from 'preact/hooks';
+import React, { useRef } from 'react';
 import chroma from 'chroma-js';
-import Dragger from './Dragger.js';
+import Dragger from './Dragger';
 import { COLORS } from '../colors';
 import { clamp } from '../util';
 
@@ -83,7 +82,7 @@ export default function ColorPicker({ parent, color, onChange }) {
   };
 
   return (
-    <div class="color-picker" style={merge(styles.wrapper, position)}>
+    <div className="color-picker" style={merge(styles.wrapper, position)}>
       <div style={merge(styles.outer, outerBackground)} onMouseDown={onMouseDown} ref={picker}>
         <div style={styles.inner}></div>
         <div style={merge(styles.dot, dotPosition)} />
@@ -91,7 +90,7 @@ export default function ColorPicker({ parent, color, onChange }) {
       <div style={styles.slidersWrapper}>
         <div style={styles.sliders}>
           <input
-            class="colorpicker__slider colorpicker__hue"
+            className="colorpicker__slider colorpicker__hue"
             style={styles.hueSlider}
             type="range"
             min={0}
@@ -100,7 +99,7 @@ export default function ColorPicker({ parent, color, onChange }) {
             onInput={e => setHue(parseInt(e.target.value))}
           />
           <input
-            class="colorpicker__slider colorpicker__alpha"
+            className="colorpicker__slider colorpicker__alpha"
             style={styles.alphaSlider}
             type="range"
             min={0}
@@ -115,7 +114,7 @@ export default function ColorPicker({ parent, color, onChange }) {
       <div style={styles.valuesWrapper}>
         <div style={styles.hexWrapper}>
           <input
-            class="outline-none focus:shadow-outline"
+            className="outline-none focus:shadow-outline"
             style={styles.hexInput}
             type="text"
             value={hex}

@@ -1,4 +1,4 @@
-import { h } from 'preact';
+import React from 'react';
 import { COLORS } from '../colors';
 
 function clamp(v, min, max) {
@@ -31,7 +31,7 @@ export default function Dragger({ label, value, onChange, min, max, step }) {
   return (
     <div style={styles.wrapper}>
       <input
-        class="outline-none focus:shadow-outline focus:bg-gray-800"
+        className="outline-none focus:shadow-outline focus:bg-gray-800"
         style={styles.field}
         type="text"
         value={step ? value : Math.round(value)}

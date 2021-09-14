@@ -1,10 +1,9 @@
-import { h, Component } from 'preact';
-import { useRef } from 'preact/hooks';
+import React, { Component, useRef } from 'react';
 import chroma from 'chroma-js';
 import ColorPicker from './ColorPicker';
 import { Point } from '../g';
 import * as figment from '../figment';
-import { remote } from 'electron';
+// import { remote } from 'electron';
 import { throttle, startCase } from 'lodash';
 
 import {
@@ -40,9 +39,7 @@ class NumberDrag extends Component {
     e.preventDefault();
     if (this.props.direction === 'xy') {
       const value = this.props.value;
-      this.props.onChange(
-        new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step)
-      );
+      this.props.onChange(new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step));
     } else {
       let newValue = this.props.value + e.movementX * this.props.step;
       if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
@@ -58,7 +55,8 @@ class NumberDrag extends Component {
     document.exitPointerLock();
   }
 
-  render({ label, direction, disabled }) {
+  render() {
+    const { label, direction, disabled } = this.props;
     let cursor;
     if (disabled) {
       cursor = 'cursor-default';
@@ -67,9 +65,7 @@ class NumberDrag extends Component {
     }
     return (
       <span
-        class={`w-32 text-right mr-4 py-2 ${cursor} ${
-          disabled ? 'text-gray-700' : 'text-gray-500'
-        }`}
+        className={`w-32 text-right mr-4 py-2 ${cursor} ${disabled ? 'text-gray-700' : 'text-gray-500'}`}
         onMouseDown={this._onMouseDown}
       >
         {label}
@@ -92,9 +88,10 @@ class FloatParam extends Component {
     this.props.onChange(newValue);
   }
 
-  render({ label, value, min, max, step, disabled, onChange }) {
+  render() {
+    const { label, value, min, max, step, disabled, onChange } = this.props;
     return (
-      <div class="flex items-center mb-2">
+      <div className="flex items-center mb-2">
         <NumberDrag
           label={label}
           value={value}
@@ -108,10 +105,7 @@ class FloatParam extends Component {
           type="text"
           spellcheck="false"
           disabled={disabled}
-          class={
-            'w-32 mr-4 p-2 ' +
-            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
-          }
+          className={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
           onChange={this._onChange}
         />
@@ -131,18 +125,16 @@ class StringParam extends Component {
     this.props.onChange(value);
   }
 
-  render({ label, value, disabled, onChange }) {
+  render() {
+    const { label, value, disabled, onChange } = this.props;
     return (
-      <div class="flex items-center mb-2">
-        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+      <div className="flex items-center mb-2">
+        <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
         <input
           type="text"
           spellcheck="false"
           disabled={disabled}
-          class={
-            'w-64 mr-4 p-2 ' +
-            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
-          }
+          className={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
           onInput={this._onChange}
         />
@@ -152,18 +144,16 @@ class StringParam extends Component {
 }
 
 class SelectParam extends Component {
-  render({ label, value, options, disabled, onChange }) {
+  render() {
+    const { label, value, options, disabled, onChange } = this.props;
     return (
-      <div class="flex items-center mb-2">
-        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
+      <div className="flex items-center mb-2">
+        <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
         <select
           type="text"
           spellcheck="false"
           disabled={disabled}
-          class={
-            'w-64 mr-4 p-2 ' +
-            (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')
-          }
+          className={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
           onChange={e => onChange(e.target.value)}
         >
@@ -197,19 +187,19 @@ class ColorParam extends Component {
     // this.props.onChange(value);
   }
 
-  render({ label, value, onChange }, { pickerVisible }) {
+  render() {
+    const { label, value, onChange } = this.props;
+    const { pickerVisible } = this.state;
     const rgbaValue = chroma(value).rgba();
     return (
-      <div class="flex items-center mb-2" ref={this.row}>
-        <label class="w-32 text-right text-gray-500 mr-4 py-2">{label}</label>
+      <div className="flex items-center mb-2" ref={this.row}>
+        <label className="w-32 text-right text-gray-500 mr-4 py-2">{label}</label>
         <span
-          class="w-16 bg-gray-700 h-8"
+          className="w-16 bg-gray-700 h-8"
           style={`background-color: rgba(${rgbaValue.join(',')})`}
           onClick={this._onToggleColorPicker}
         />
-        {pickerVisible && (
-          <ColorPicker parent={this.row.current} color={value} onChange={onChange} />
-        )}
+        {pickerVisible && <ColorPicker parent={this.row.current} color={value} onChange={onChange} />}
       </div>
     );
   }
@@ -227,18 +217,19 @@ class PointParam extends Component {
     // this.props.onChange(value);
   }
 
-  render({ label, value }) {
+  render() {
+    const { label, value } = this.props;
     return (
-      <div class="params__row">
+      <div className="params__row">
         <NumberDrag label={label} value={value} onChange={this.props.onChange} direction="xy" />
         <input
-          class="w-16 mr-2 bg-gray-700 text-gray-200 p-2"
+          className="w-16 mr-2 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.x}
           onChange={e => this.props.onChange(new Point(parseFloat(e.target.value), value.y))}
         />
         <input
-          class="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
+          className="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.y}
           onChange={e => this.props.onChange(new Point(value.x, parseFloat(e.target.value)))}
@@ -266,16 +257,14 @@ class FileParam extends Component {
     this.props.onChange(file);
   }
 
-  render({ label, value }) {
+  render() {
+    const { label, value } = this.props;
     return (
-      <div class="params__row">
-        <label class="w-32 text-right text-gray-500 mr-4">{label}</label>
-        <div class="flex items-center">
-          <span class="w-64 text-gray-700 overflow-hidden">{value}</span>
-          <button
-            class="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none"
-            onClick={this._onSelectFile}
-          >
+      <div className="params__row">
+        <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <div className="flex items-center">
+          <span className="w-64 text-gray-700 overflow-hidden">{value}</span>
+          <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
             Open…
           </button>
         </div>
@@ -302,32 +291,30 @@ export default class ParamsEditor extends Component {
     });
   }
 
-  render({ network, selection, onShowNodeRenameDialog }) {
+  render() {
+    const { network, selection, onShowNodeRenameDialog } = this.props;
     if (selection.size === 0) {
       return (
-        <div class="params">
-          <p class="params__empty">Nothing selected</p>
+        <div className="params">
+          <p className="params__empty">Nothing selected</p>
         </div>
       );
     }
     if (selection.size > 1) {
       return (
-        <div class="params">
-          <p class="params__empty">Many nodes selected</p>
+        <div className="params">
+          <p className="params__empty">Many nodes selected</p>
         </div>
       );
     }
     const node = Array.from(selection)[0];
     return (
-      <div class="params">
-        <div class=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
-          <span
-            class="text-gray-200 hover:bg-gray-700 px-2 py-1"
-            onClick={() => onShowNodeRenameDialog(node)}
-          >
+      <div className="params">
+        <div className=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
+          <span className="text-gray-200 hover:bg-gray-700 px-2 py-1" onClick={() => onShowNodeRenameDialog(node)}>
             {node.name}
           </span>
-          <span class="text-gray-500 text-xs ml-3">{node.type}</span>
+          <span className="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
         {node.inPorts.map(port => this._renderPort(network, node, port))}
       </div>
@@ -341,10 +328,10 @@ export default class ParamsEditor extends Component {
       return;
     } else if (port.type === PORT_TYPE_BUTTON) {
       field = (
-        <div class="params__row">
-          <span class="w-32 mr-4"></span>
+        <div className="params__row">
+          <span className="w-32 mr-4"></span>
           <button
-            class="bg-gray-600 text-gray-200 w-32 p-2"
+            className="bg-gray-600 text-gray-200 w-32 p-2"
             disabled={network.isConnected(port)}
             onClick={() => this._onTriggerButton(port)}
           >
@@ -354,16 +341,16 @@ export default class ParamsEditor extends Component {
       );
     } else if (port.type === PORT_TYPE_TOGGLE) {
       field = (
-        <div class="params__row">
-          <span class="w-32 mr-4"></span>
-          <label class="w-64  p-2 flex items-center">
+        <div className="params__row">
+          <span className="w-32 mr-4"></span>
+          <label className="w-64  p-2 flex items-center">
             <input
               type="checkbox"
               disabled={network.isConnected(port)}
               checked={port.value}
               onChange={e => this._onChangePortValue(port.name, e.target.checked)}
             />
-            <span class="ml-2 text-gray-500">{label}</span>
+            <span className="ml-2 text-gray-500">{label}</span>
           </label>
         </div>
       );
@@ -430,18 +417,18 @@ export default class ParamsEditor extends Component {
       field = undefined;
     } else {
       field = (
-        <div class="params__row">
-          <span class="params__label">{port.name}</span>
-          <span class="params__field">{port.value}</span>
+        <div className="params__row">
+          <span className="params__label">{port.name}</span>
+          <span className="params__field">{port.value}</span>
         </div>
       );
     }
     return field;
     // (
-    //   <div class="params__row">
+    //   <div className="params__row">
     //   {field}
-    //     <div class="params__label">{port.name}</div>
-    //     <div class="params__field">{field}</div>
+    //     <div className="params__label">{port.name}</div>
+    //     <div className="params__field">{field}</div>
     //   </div>
     // );
   }

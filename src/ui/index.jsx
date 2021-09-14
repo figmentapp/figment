@@ -1,4 +1,5 @@
-import { h, Component, render } from 'preact';
+import React from 'react';
+import ReactDOM from 'react-dom';
 import { WebGLRenderer } from 'three';
 import * as g from '../g';
 import * as figment from '../figment';
@@ -10,4 +11,9 @@ window.g = g;
 window.THREE = THREE;
 window.figment = figment;
 window.gRenderer = new WebGLRenderer();
-render(<App />, document.getElementById('root'));
+ReactDOM.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById('root')
+);

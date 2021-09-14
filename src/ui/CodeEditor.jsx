@@ -1,4 +1,4 @@
-import { h, Component, Fragment } from 'preact';
+import React, { Component } from 'react';
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/javascript/javascript.js';
 
@@ -47,24 +47,24 @@ export default class CodeEditor extends Component {
   render() {
     const readOnly = this.isReadOnly();
     return (
-      <div class="code flex-grow flex flex-col overflow-hidden">
-        <div class={'h-full w-full ' + (readOnly ? 'opacity-50' : '')}>
-          <textarea class="code__area" id="code" value={this.state.source} />
+      <div className="code flex-grow flex flex-col overflow-hidden">
+        <div className={'h-full w-full ' + (readOnly ? 'opacity-50' : '')}>
+          <textarea className="code__area" id="code" value={this.state.source} />
         </div>
-        <div class="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
+        <div className="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
           {readOnly && (
-            <Fragment>
+            <>
               {' '}
-              <span class="text-gray-500">Code is read-only. Fork the code.</span>
+              <span className="text-gray-500">Code is read-only. Fork the code.</span>
               <button
                 onClick={() => this.props.onShowForkDialog(this.props.nodeType)}
-                class="bg-gray-700 px-4 py-1 rounded text-gray-500"
+                className="bg-gray-700 px-4 py-1 rounded text-gray-500"
               >
                 Fork
               </button>
-            </Fragment>
+            </>
           )}
-          {!readOnly && <span class="text-gray-400">{this.props.nodeType.type}</span>}
+          {!readOnly && <span className="text-gray-400">{this.props.nodeType.type}</span>}
         </div>
       </div>
     );

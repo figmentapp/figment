@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import React, { Component } from 'react';
 import Library from '../model/Library';
 
 export default class NodeDialog extends Component {
@@ -12,9 +12,7 @@ export default class NodeDialog extends Component {
 
   _onSearch(e) {
     const q = e.target.value;
-    const results = this.nodeTypes.filter(node =>
-      node.name.toLowerCase().includes(q.toLowerCase())
-    );
+    const results = this.nodeTypes.filter(node => node.name.toLowerCase().includes(q.toLowerCase()));
     this.setState({ q, results });
   }
 
@@ -43,28 +41,28 @@ export default class NodeDialog extends Component {
 
   render({}, { results }) {
     return (
-      <div class="dialog-wrapper">
+      <div className="dialog-wrapper">
         <div
-          class="dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
+          className="dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
           style="height: 80vh"
         >
-          <div class="flex">
+          <div className="flex">
             <input
               id="node-dialog-search"
               type="search"
-              class="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none text-lg"
+              className="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none text-lg"
               placeholder="Type to search"
               onInput={this._onSearch}
               autofocus
             ></input>
             <span
-              class="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
+              className="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
               onClick={() => this.props.onCancel()}
             >
               &times;
             </span>
           </div>
-          <div class="flex flex-col h-full overflow-y-auto flex-grow">
+          <div className="flex flex-col h-full overflow-y-auto flex-grow">
             {results.map(nodeType => this._renderNodeType(nodeType))}
           </div>
         </div>
@@ -75,17 +73,17 @@ export default class NodeDialog extends Component {
   _renderNodeType(nodeType) {
     return (
       <div
-        class="bg-gray-800 p-4 flex items-center border-t border-gray-700 cursor-pointer"
-        onDblClick={() => this._onCreateNode(nodeType)}
+        className="bg-gray-800 p-4 flex items-center border-t border-gray-700 cursor-pointer"
+        onDoubleClick={() => this._onCreateNode(nodeType)}
       >
-        <div class="flex-grow">
-          <h4 class="text-xl text-gray-200">
-            {nodeType.name} <span class="text-sm text-gray-700">{nodeType.type}</span>
+        <div className="flex-grow">
+          <h4 className="text-xl text-gray-200">
+            {nodeType.name} <span className="text-sm text-gray-700">{nodeType.type}</span>
           </h4>
-          <p class="text-gray-500 text-sm">{nodeType.description}</p>
+          <p className="text-gray-500 text-sm">{nodeType.description}</p>
         </div>
-        <div class="ml-5">
-          <div class="block rounded-sm bg-gray-700 text-gray-400 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
+        <div className="ml-5">
+          <div className="block rounded-sm bg-gray-700 text-gray-400 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
             <div onClick={() => this._onCreateNode(nodeType)}>+</div>
           </div>
         </div>

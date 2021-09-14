@@ -34,7 +34,7 @@ node.onFrame = () => {
 `;
 
 core.randomNumber = `// Generate random number.
-const seedrandom = require('seedrandom');
+import * as seedrandom from 'seedrandom';
 
 const minIn = node.numberIn('min', 0);
 const maxIn = node.numberIn('max', 100);
@@ -67,8 +67,8 @@ seedIn.onChange = generate;
 `;
 
 core.animate = `// Animate a value over time.
-const tween = require('tween-functions');
-const easings = Object.keys(tween);
+// const tween = require('tween-functions');
+// const easings = Object.keys(tween);
 
 const timeIn = node.numberIn('time');
 const minIn = node.numberIn('min', 0);
@@ -459,7 +459,7 @@ triggerIn.onTrigger = (props) => {
 `;
 
 color.hsl = `// Generate a color from HSL values.
-const chroma = require('chroma-js'); 
+// const chroma = require('chroma-js'); 
 const hueIn = node.numberIn('hue', 0, { min: 0, max: 360 });
 const saturationIn = node.numberIn('saturation', 50, { min: 0, max: 100 });
 const lightnessIn = node.numberIn('lightness', 50, { min: 0, max: 100 });
@@ -478,7 +478,7 @@ alphaIn.onChange = generate;
 `;
 
 image.loadImage = `// Load an image from a file.
-const url = require('url');
+// const url = require('url');
 
 const fileIn = node.fileIn('file', '');
 const imageOut = node.imageOut('out');
@@ -490,9 +490,9 @@ node.onStart = () => {
 }
 
 function loadImage() {
-  console.log('load image loadImage');
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
+  console.log('loadImage', imageUrl.toString());
   const textureLoader = new THREE.TextureLoader();
   const out = textureLoader.load(imageUrl.toString(), onLoad, null, onError);
 }
@@ -871,7 +871,7 @@ angleIn.onChange = render;
 `;
 
 ml.classifyImage = `// Classify an image.
-const ml5 = require('ml5');
+// const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
 const labelOut = node.stringOut('label');
 const confidenceOut = node.numberOut('confidence');
@@ -895,7 +895,7 @@ imageIn.onChange = classify;
 `;
 
 ml.poseNet = `// return poses from image.
-const ml5 = require('ml5');
+// const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
 const typeIn = node.selectIn('detectType', ['single', 'multi']);
@@ -1051,7 +1051,7 @@ triggerIn.onTrigger = (props) => {
 `;
 
 ml.teachableMachine = `// returns prediction of teachable machine model.
-const ml5 = require('ml5');
+// const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
 const predictOut = node.stringOut('predict');
 const urlIn = node.stringIn('url');
@@ -1084,7 +1084,7 @@ imageIn.onChange = () => {
 `;
 
 ml.faceApi = `// return faces from face api.
-const ml5 = require('ml5');
+// const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
 const colorIn = node.colorIn('color', [150, 50, 150, 1]);

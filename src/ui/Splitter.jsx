@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import React, { Component } from 'react';
 
 const VERTICAL = 'vertical';
 const HORIZONTAL = 'horizontal';
@@ -32,15 +32,11 @@ export default class Splitter extends Component {
     window.removeEventListener('mousemove', this._onMouseUp);
   }
 
-  render({ direction }) {
-    if (direction === VERTICAL) {
-      return (
-        <div class="h-full w-1 bg-gray-700 cursor-col-resize" onMouseDown={this._onMouseDown} />
-      );
+  render() {
+    if (this.props.direction === VERTICAL) {
+      return <div className="h-full w-1 bg-gray-700 cursor-col-resize" onMouseDown={this._onMouseDown} />;
     } else {
-      return (
-        <div class="v-full h-1 bg-gray-700 cursor-row-resize" onMouseDown={this._onMouseDown} />
-      );
+      return <div className="v-full h-1 bg-gray-700 cursor-row-resize" onMouseDown={this._onMouseDown} />;
     }
   }
 }

@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import React, { Component } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
 import { clamp } from '../util';
@@ -95,13 +95,13 @@ export default class NetworkEditor extends Component {
 
   render() {
     return (
-      <div class="network">
+      <div className="network">
         <canvas
-          class="network__canvas"
+          className="network__canvas"
           id="network"
           onMouseDown={this._onMouseDown}
           onMouseMove={this._onMouseMove}
-          onDblClick={this._onDoubleClick}
+          onDoubleClick={this._onDoubleClick}
           onContextMenu={e => e.preventDefault()}
         />
       </div>
@@ -285,9 +285,7 @@ export default class NetworkEditor extends Component {
 
     // Detect if we're hovering over a node.
     const overNode = this._findNode(this._networkX, this._networkY);
-    const overPort = overNode
-      ? this._findPort(overNode, this._networkX, this._networkY)
-      : undefined;
+    const overPort = overNode ? this._findPort(overNode, this._networkX, this._networkY) : undefined;
 
     // Set up the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);

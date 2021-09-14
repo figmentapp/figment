@@ -1,7 +1,8 @@
-import { h, Component } from 'preact';
-import { remote, ipcRenderer } from 'electron';
-import { promises } from 'fs';
-const fs = promises;
+import React, { Component } from 'react';
+// const { ipcRenderer } = nodeElectron;
+// import { ipcRenderer } from 'electron';
+// import { promises } from 'fs';
+// const fs = promises;
 import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
 import { PORT_IN, PORT_OUT } from '../model/Port';
@@ -74,10 +75,10 @@ export default class App extends Component {
 
   componentDidMount() {
     this.state.network.start();
-    ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
+    // ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
-    ipcRenderer.send('window-created');
+    // ipcRenderer.send('window-created');
     window.app = this;
   }
 
@@ -341,9 +342,8 @@ export default class App extends Component {
     window.requestAnimationFrame(this._onFrame);
   }
 
-  render(
-    _,
-    {
+  render() {
+    const {
       library,
       network,
       selection,
@@ -357,22 +357,21 @@ export default class App extends Component {
       showNodeRenameDialog,
       nodeToRename,
       fullscreen
-    }
-  ) {
+    } = this.state;
     if (fullscreen) {
       return (
-        <div class="app">
+        <div className="app">
           <Viewer fullscreen={fullscreen} onToggleFullscreen={this._onToggleFullscreen} />
         </div>
       );
     }
     return (
-      <div class="app">
-        <div class="flex flex-col h-screen" style={`width: ${mainSplitterWidth}px`}>
+      <div className="app">
+        <div className="flex flex-col h-screen" style={{ width: `${mainSplitterWidth}px` }}>
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
-            style={`height: ${editorSplitterHeight}px`}
+            style={{ height: `${editorSplitterHeight}px` }}
             library={library}
             network={network}
             selection={selection}
@@ -409,11 +408,7 @@ export default class App extends Component {
         />
         <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} />
         {showNodeDialog && (
-          <NodeDialog
-            network={network}
-            onCreateNode={this._onCreateNode}
-            onCancel={this._onHideNodeDialog}
-          />
+          <NodeDialog network={network} onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />
         )}
         {showForkDialog && (
           <ForkDialog
@@ -435,3 +430,4 @@ export default class App extends Component {
     );
   }
 }
+//

@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import React, { Component } from 'react';
 
 import NetworkEditor from './NetworkEditor';
 import CodeEditor from './CodeEditor';
@@ -9,40 +9,41 @@ export default class Editor extends Component {
     this.props.onCloseTab(index);
   }
 
-  render({
-    network,
-    selection,
-    tabs,
-    activeTabIndex,
-    onNewCodeTab,
-    onSelectTab,
-    onCloseTab,
-    onSelectNode,
-    onClearSelection,
-    onDeleteSelection,
-    onShowNodeDialog,
-    onConnect,
-    onDisconnect,
-    onChangeSource,
-    onShowForkDialog,
-    style
-  }) {
+  render() {
+    const {
+      network,
+      selection,
+      tabs,
+      activeTabIndex,
+      onNewCodeTab,
+      onSelectTab,
+      onCloseTab,
+      onSelectNode,
+      onClearSelection,
+      onDeleteSelection,
+      onShowNodeDialog,
+      onConnect,
+      onDisconnect,
+      onChangeSource,
+      onShowForkDialog,
+      style
+    } = this.props;
     return (
-      <div class="editor" style={style}>
-        <div class="editor__tabs">
+      <div className="editor" style={style}>
+        <div className="editor__tabs">
           <div
-            class={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')}
+            className={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')}
             onClick={() => onSelectTab(-1)}
           >
             Network
           </div>
           {tabs.map((node, i) => (
             <div
-              class={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')}
+              className={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')}
               onClick={() => onSelectTab(i)}
             >
-              <span class="editor__tab-name">{node.name}</span>
-              <a class="editor__tab-close" onClick={e => this._onCloseTab(e, i)}>
+              <span className="editor__tab-name">{node.name}</span>
+              <a className="editor__tab-close" onClick={e => this._onCloseTab(e, i)}>
                 <svg viewBox="0 0 16 16" width="16" height="16">
                   <path d="M4 4L12 12M12 4L4 12" />
                 </svg>

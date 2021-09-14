@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import React, { Component } from 'react';
 
 export default class ForkDialog extends Component {
   constructor(props) {
@@ -28,31 +28,28 @@ export default class ForkDialog extends Component {
 
   render({ node }, { newName }) {
     return (
-      <div class="dialog-wrapper">
-        <div
-          class="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2"
-          style="height: 40vh"
-        >
-          <div class="flex">
-            <span class="bg-gray-500 p-6 flex-grow">
+      <div className="dialog-wrapper">
+        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2" style="height: 40vh">
+          <div className="flex">
+            <span className="bg-gray-500 p-6 flex-grow">
               <input
                 id="fork-dialog-input"
                 type="text"
-                class="bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
+                className="bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
                 value={newName}
                 onInput={e => this.setState({ newName: e.target.value })}
                 autofocus
               ></input>
             </span>
-            <div class="flex">
+            <div className="flex">
               <span
-                class="bg-gray-600 text-gray-100 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
+                className="bg-gray-600 text-gray-100 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
                 onClick={() => this.props.onRenameNode(this.props.node, this.props.newName)}
               >
                 Rename
               </span>
               <span
-                class="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
+                className="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
                 onClick={this.props.onCancel}
               >
                 &times;

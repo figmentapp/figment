@@ -72,6 +72,19 @@ ipcMain.on('window-created', () => {
   }
 });
 
+async function startDevServer() {
+  if (process.env.NODE_ENV !== 'development') return;
+  const { createServer, createLogger, build } = require('vite');
+
+  const viteServer = await createServer({
+    port: 3000,
+    root: path.resolve(__dirname, '../ui'),
+    logLevel: 'info'
+  });
+  await viteServer.listen();
+  return viteServer;
+}
+
 function createMainWindow(file) {
   gMainWindow = new BrowserWindow({
     width: 1000,
@@ -79,6 +92,8 @@ function createMainWindow(file) {
     show: false,
     icon: path.join(__dirname, 'assets/icons/app-icon-512.png'),
     webPreferences: {
+      nativeWindowOpen: true,
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       webSecurity: false
     }
@@ -86,17 +101,8 @@ function createMainWindow(file) {
 
   // Load the index.html of the app.
   if (process.env.NODE_ENV === 'development') {
-    const Bundler = require('parcel-bundler');
-    const entryFiles = path.join(__dirname, 'src/ui/index.html');
-    const options = {
-      outDir: path.join(__dirname, 'build'),
-      target: 'electron'
-    };
-    const bundler = new Bundler(entryFiles, options);
-    bundler.serve().then(x => {
-      gMainWindow.loadURL('http://localhost:1234/');
-      gMainWindow.webContents.openDevTools();
-    });
+    gMainWindow.loadURL('http://localhost:3000/');
+    gMainWindow.webContents.openDevTools();
   } else {
     gMainWindow.loadURL(`file:///${__dirname}/build/index.html`);
   }
@@ -173,8 +179,10 @@ function createApplicationMenu() {
 
 const argv = require('minimist')(process.argv.slice(2));
 
-app.on('ready', async () => {
+let gDevServer;
+app.whenReady().then(async () => {
   await gSettings.load();
+  gDevServer = await startDevServer();
   // const status = systemPreferences.getMediaAccessStatus('camera');
   // if (status !== 'granted') {
   //   await systemPreferences.askForMediaAccess('camera');
