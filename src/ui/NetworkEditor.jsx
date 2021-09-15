@@ -368,7 +368,7 @@ export default class NetworkEditor extends Component {
       if (typeof node.debugDraw === 'function') {
         ctx.save();
         ctx.translate(node.x + 18, node.y + NODE_HEIGHT + 10);
-        // node.debugDraw(ctx);
+        node.debugDraw(ctx);
         ctx.restore();
       }
     }

@@ -516,23 +516,6 @@ function onError(err) {
   console.error('image.loadImage error', err);
 }
 
-let promisedBitmap = null;
-node.debugDraw = (ctx) => {
-  if (!target) return;
-  const imageData = new ImageData(target.width, target.height);
-  gRenderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data);
-  const bitmap = createImageBitmap(imageData).then(bitmap => { promisedBitmap = bitmap });
-  if (promisedBitmap) {
-    if (target.width > target.height) {
-      const ratio = target.width / target.height;
-      ctx.drawImage(promisedBitmap, 0, 0, 100, 100 / ratio);
-    } else {
-      const ratio = target.height / target.width;
-      ctx.drawImage(promisedBitmap, 0, 0, 100 / ratio, 100);
-    }
-  }
-}
-
 fileIn.onChange = loadImage;
 `;
 
@@ -756,23 +739,6 @@ function resizeRenderTarget() {
   render();
 }
 
-let promisedBitmap = null;
-node.debugDraw = (ctx) => {
-  if (!target) return;
-  const imageData = new ImageData(widthIn.value, heightIn.value);
-  gRenderer.readRenderTargetPixels(target, 0, 0, widthIn.value, heightIn.value, imageData.data);
-  const bitmap = createImageBitmap(imageData).then(bitmap => { promisedBitmap = bitmap });
-  if (promisedBitmap) {
-    if (widthIn.value > heightIn.value) {
-      const ratio = widthIn.value / heightIn.value;
-      ctx.drawImage(promisedBitmap, 0, 0, 100, 100 / ratio);
-    } else {
-      const ratio = heightIn.value / widthIn.value;
-      ctx.drawImage(promisedBitmap, 0, 0, 100 / ratio, 100);
-    }
-  }
-}
-
 colorIn.onChange = render;
 alphaIn.onChange = render;
 widthIn.onChange = resizeRenderTarget;
@@ -872,23 +838,6 @@ function resizeRenderTarget() {
   if (!imageIn.value) return;
   target = new THREE.WebGLRenderTarget(imageIn.value.width, imageIn.value.height, { depthBuffer: false });  
   render();
-}
-
-let promisedBitmap = null;
-node.debugDraw = (ctx) => {
-  if (!target) return;
-  const imageData = new ImageData(target.width, target.height);
-  gRenderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data);
-  const bitmap = createImageBitmap(imageData).then(bitmap => { promisedBitmap = bitmap });
-  if (promisedBitmap) {
-    if (target.width > target.height) {
-      const ratio = target.width / target.height;
-      ctx.drawImage(promisedBitmap, 0, 0, 100, 100 / ratio);
-    } else {
-      const ratio = target.height / target.width;
-      ctx.drawImage(promisedBitmap, 0, 0, 100 / ratio, 100);
-    }
-  }
 }
 
 imageIn.onChange = resizeRenderTarget;
