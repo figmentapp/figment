@@ -1,10 +1,5 @@
 // Functions that are available in the "figment" namespace. Related to project files.
-// import * as path from 'nodePath';
-// import * as url from 'nodeUrl';
-// const path = window.path;
-// const url = window.url;
-// const path = require('path');
-// const url = require('url');
+// Look in preload.js for functions that are exposed in this module (e.g. nodePath).
 
 export function projectFile() {
   if (!window.app) return '';
@@ -26,7 +21,8 @@ export function filePathForAsset(filename) {
 
 export function urlForAsset(filename) {
   const filePath = filePathForAsset(filename);
-  const assetUrl = nodeUrl.pathToFileURL(filePath);
+  const absoluteFilePath = nodePath.resolve(filePath);
+  const assetUrl = pathToFileURL(absoluteFilePath);
   return assetUrl;
 }
 

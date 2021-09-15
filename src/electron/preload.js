@@ -8,11 +8,4 @@ contextBridge.exposeInMainWorld('nodeFs', fs);
 contextBridge.exposeInMainWorld('nodePath', path);
 contextBridge.exposeInMainWorld('nodeUrl', url);
 contextBridge.exposeInMainWorld('ipcRenderer', ipcRenderer);
-
-// process.once('loaded', () => {
-//   global.fs = fs;
-//   global.path = path;
-//   global.url = url;
-// });
-
-// module.exports = { fs, path, url };
+contextBridge.exposeInMainWorld('pathToFileURL', (filename) => url.pathToFileURL(filename).toString());
