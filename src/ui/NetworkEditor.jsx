@@ -20,8 +20,12 @@ const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono',
 
 const NODE_PORT_WIDTH = 15;
 const NODE_PORT_HEIGHT = 5;
-const NODE_HEIGHT = 30;
+const NODE_WIDTH = 100;
+const NODE_HEIGHT = 100;
+const NODE_BORDER = 4;
 const EDITOR_TABS_HEIGHT = 30;
+const NETWORK_HEADER_HEIGHT = 33;
+const PREVIEW_GEO_SIZE = NODE_HEIGHT - NODE_BORDER * 2;
 
 const DRAG_MODE_IDLE = 'idle';
 const DRAG_MODE_PANNING = 'panning';
@@ -74,17 +78,33 @@ export default class NetworkEditor extends Component {
     this._networkX = this._networkY = 0;
     this._dragX = this._dragY = 0;
     this._timer = undefined;
-    this._canvasRef = React.createRef();
+    this.canvasRef = React.createRef();
+    this.previewCanvasRef = React.createRef();
   }
 
   componentDidMount() {
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('resize', this._onResize);
-    this.canvas = this._canvasRef.current;
+    this.canvas = this.canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
-    this._draw();
     this._timer = setInterval(this._draw, 1000);
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.previewCanvasRef.current,
+      alpha: false,
+      depth: false,
+      stencil: false,
+      antialias: false,
+    });
+    window.gRenderer = this.renderer;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
+    this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_SIZE, PREVIEW_GEO_SIZE);
+    this.nodeGroup = new THREE.Group();
+    this.scene.add(this.nodeGroup);
+    this.meshMap = {};
+
+    this._draw();
   }
 
   componentWillUnmount() {
@@ -96,10 +116,11 @@ export default class NetworkEditor extends Component {
 
   render() {
     return (
-      <div className="network">
+      <div className="network relative">
+        <canvas ref={this.previewCanvasRef} className="absolute inset-0 pointer-events-none" />
         <canvas
           className="network__canvas"
-          ref={this._canvasRef}
+          ref={this.canvasRef}
           onMouseDown={this._onMouseDown}
           onMouseMove={this._onMouseMove}
           onDoubleClick={this._onDoubleClick}
@@ -296,11 +317,16 @@ export default class NetworkEditor extends Component {
     for (const node of network.nodes) {
       const nodeWidth = _nodeWidth(node);
       if (selection.has(node)) {
-        ctx.fillStyle = COLORS.gray600;
-        ctx.fillRect(node.x - 3, node.y - 3, nodeWidth + 6, NODE_HEIGHT + 6);
+        ctx.fillStyle = COLORS.blue600;
+        // ctx.fillRect(node.x - 3, node.y - 3, nodeWidth + 6, NODE_HEIGHT + 6);
+      } else {
+        ctx.fillStyle = COLORS.gray700;
       }
-      ctx.fillStyle = COLORS.gray700;
-      ctx.fillRect(node.x, node.y, nodeWidth, NODE_HEIGHT);
+      ctx.fillRect(node.x, node.y, nodeWidth, NODE_BORDER);
+      ctx.fillRect(node.x, node.y + NODE_HEIGHT - NODE_BORDER, nodeWidth, NODE_BORDER);
+      ctx.fillRect(node.x, node.y, NODE_BORDER, NODE_HEIGHT);
+      ctx.fillRect(node.x + nodeWidth - NODE_BORDER, node.y, NODE_BORDER, NODE_HEIGHT);
+
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
@@ -316,6 +342,7 @@ export default class NetworkEditor extends Component {
           NODE_PORT_HEIGHT
         );
       }
+      this._drawNodePreviews();
     }
 
     // Draw node names
@@ -341,7 +368,7 @@ export default class NetworkEditor extends Component {
       if (typeof node.debugDraw === 'function') {
         ctx.save();
         ctx.translate(node.x + 18, node.y + NODE_HEIGHT + 10);
-        node.debugDraw(ctx);
+        // node.debugDraw(ctx);
         ctx.restore();
       }
     }
@@ -355,7 +382,7 @@ export default class NetworkEditor extends Component {
       const inPortIndex = inNode.inPorts.findIndex((port) => port.name === conn.inPort);
       const outPort = outNode.outPorts.find((port) => port.name === conn.outPort);
       const outX = outNode.x + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-      const outY = outNode.y + NODE_PORT_WIDTH * 2;
+      const outY = outNode.y + NODE_HEIGHT;
       const inX = inNode.x + inPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
       const inY = inNode.y;
       ctx.strokeStyle = PORT_COLORS[outPort.type];
@@ -421,5 +448,53 @@ export default class NetworkEditor extends Component {
     ctx.moveTo(x1, y1);
     ctx.bezierCurveTo(x1, y1 + halfDy, x2, y2 - halfDy, x2, y2);
     ctx.stroke();
+  }
+
+  _drawNodePreviews() {
+    const { network } = this.props;
+    const canvas = this.previewCanvasRef.current;
+    const parent = canvas.parentElement;
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+    this.renderer.setSize(canvas.width, canvas.height);
+    this.renderer.setViewport(0, 0, canvas.width, canvas.height);
+    this.renderer.setClearColor(0x22272e);
+    this.renderer.clear();
+    this.camera.right = canvas.width;
+    this.camera.top = canvas.height;
+    this.camera.updateProjectionMatrix();
+
+    for (const node of network.nodes) {
+      const outPort = node.outPorts[0];
+      if (outPort.type !== 'image') continue;
+      if (!this.meshMap[node.id]) {
+        const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+        const mesh = new THREE.Mesh(this.planeGeometry, material);
+        this.nodeGroup.add(mesh);
+        this.meshMap[node.id] = mesh;
+      }
+      this.nodeGroup.position.set(this.state.x, -this.state.y, 0);
+
+      const mesh = this.meshMap[node.id];
+      mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
+      if (outPort.value && outPort.value.texture) {
+        let factor;
+        if (outPort.value.width > outPort.value.height) {
+          factor = outPort.value.height / outPort.value.width;
+          mesh.scale.set(1, factor, 1);
+        } else {
+          factor = outPort.value.width / outPort.value.height;
+          mesh.scale.set(factor, 1, 1);
+        }
+        mesh.material.color.set(0xffffff);
+        mesh.material.map = outPort.value.texture;
+        mesh.material.needsUpdate = true;
+      } else {
+        mesh.material.color.set(0xff00ff);
+        mesh.material.map = null;
+      }
+    }
+
+    this.renderer.render(this.scene, this.camera);
   }
 }

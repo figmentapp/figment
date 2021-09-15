@@ -10,7 +10,6 @@ import App from './App';
 window.g = g;
 window.THREE = THREE;
 window.figment = figment;
-window.gRenderer = new WebGLRenderer();
 ReactDOM.render(
   <React.StrictMode>
     <App />
