@@ -57,6 +57,35 @@ export const DEFAULT_NETWORK = {
       type: 'image.constant',
       x: 50,
       y: 50,
+      values: {
+        color: [255, 255, 255, 1],
+        width: 100,
+        height: 100,
+      },
+    },
+    {
+      id: 5,
+      name: 'Constant',
+      type: 'image.constant',
+      x: 50,
+      y: 150,
+      values: {
+        color: [255, 255, 255, 1],
+        width: 300,
+        height: 100,
+      },
+    },
+    {
+      id: 6,
+      name: 'Constant',
+      type: 'image.constant',
+      x: 50,
+      y: 250,
+      values: {
+        color: [255, 255, 255, 1],
+        width: 100,
+        height: 300,
+      },
     },
     {
       id: 2,

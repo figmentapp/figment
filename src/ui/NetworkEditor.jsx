@@ -21,11 +21,14 @@ const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono',
 const NODE_PORT_WIDTH = 15;
 const NODE_PORT_HEIGHT = 5;
 const NODE_WIDTH = 100;
-const NODE_HEIGHT = 100;
+const NODE_HEIGHT = 56;
+const NODE_RATIO = NODE_WIDTH / NODE_HEIGHT;
 const NODE_BORDER = 4;
 const EDITOR_TABS_HEIGHT = 30;
 const NETWORK_HEADER_HEIGHT = 33;
-const PREVIEW_GEO_SIZE = NODE_HEIGHT - NODE_BORDER * 2;
+const PREVIEW_GEO_WIDTH = NODE_WIDTH - NODE_BORDER * 2;
+const PREVIEW_GEO_HEIGHT = NODE_HEIGHT - NODE_BORDER * 2;
+const PREVIEW_GEO_RATIO = PREVIEW_GEO_WIDTH / PREVIEW_GEO_HEIGHT;
 
 const DRAG_MODE_IDLE = 'idle';
 const DRAG_MODE_PANNING = 'panning';
@@ -99,7 +102,7 @@ export default class NetworkEditor extends Component {
     window.gRenderer = this.renderer;
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
-    this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_SIZE, PREVIEW_GEO_SIZE);
+    this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_WIDTH, PREVIEW_GEO_HEIGHT);
     this.nodeGroup = new THREE.Group();
     this.scene.add(this.nodeGroup);
     this.meshMap = {};
@@ -466,7 +469,15 @@ export default class NetworkEditor extends Component {
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
-      if (outPort.type !== 'image') continue;
+      if (outPort.type !== 'image') {
+        this.ctx.fillStyle = 'red';
+        this.ctx.fillRect(
+          node.x + NODE_BORDER,
+          node.y + NODE_BORDER,
+          NODE_WIDTH - NODE_BORDER * 2,
+          NODE_HEIGHT - NODE_BORDER * 2
+        );
+      }
       if (!this.meshMap[node.id]) {
         const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
         const mesh = new THREE.Mesh(this.planeGeometry, material);
@@ -478,13 +489,12 @@ export default class NetworkEditor extends Component {
       const mesh = this.meshMap[node.id];
       mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
       if (outPort.value && outPort.value.texture) {
-        let factor;
-        if (outPort.value.width > outPort.value.height) {
-          factor = outPort.value.height / outPort.value.width;
-          mesh.scale.set(1, factor, 1);
+        let ratio = outPort.value.width / outPort.value.height;
+        let dRatio = PREVIEW_GEO_RATIO / ratio;
+        if (ratio < PREVIEW_GEO_RATIO) {
+          mesh.scale.set(1 / dRatio, 1, 1);
         } else {
-          factor = outPort.value.width / outPort.value.height;
-          mesh.scale.set(factor, 1, 1);
+          mesh.scale.set(1, dRatio, 1);
         }
         mesh.material.color.set(0xffffff);
         mesh.material.map = outPort.value.texture;
