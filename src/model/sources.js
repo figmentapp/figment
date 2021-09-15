@@ -800,9 +800,10 @@ uniform float uAngle; // Angle in radians
 varying vec2 vUv;
 void main() {
   vec2 uv = vUv;
-  uv.x = sin(uAngle) - uv.x;
-  uv.y = cos(uAngle) - uv.y;
-  // uv.x = 1.0-uv.x;
+  float sin_factor = sin(uAngle);
+  float cos_factor = cos(uAngle);
+  uv = (uv - 0.5) * mat2(cos_factor, sin_factor, -sin_factor, cos_factor);
+uv += 0.5;
   vec4 originalColor = texture2D(uInputTexture, uv);
   gl_FragColor = originalColor;
 }
