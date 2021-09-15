@@ -42,9 +42,9 @@ export default class App extends Component {
       lastNetworkPoint,
       mainSplitterWidth: 500,
       editorSplitterHeight: (window.innerHeight * 2) / 3,
-      fullscreen: false
+      fullscreen: false,
     };
-    const firstNode = network.nodes.find(n => n.name === 'Canvas');
+    const firstNode = network.nodes.find((n) => n.name === 'Canvas');
     if (firstNode) {
       this.state.selection.add(firstNode);
     }
@@ -132,7 +132,7 @@ export default class App extends Component {
     const window = remote.BrowserWindow.getFocusedWindow();
     const result = await remote.dialog.showOpenDialog(window, {
       properties: ['openFile'],
-      filters: FILE_FILTERS
+      filters: FILE_FILTERS,
     });
     if (result.canceled) return;
     await this._openFile(result.filePaths[0]);
@@ -163,7 +163,7 @@ export default class App extends Component {
   async _onSaveFileAs() {
     const window = remote.BrowserWindow.getFocusedWindow();
     const result = await remote.dialog.showSaveDialog(window, {
-      filters: FILE_FILTERS
+      filters: FILE_FILTERS,
     });
     if (result.canceled) return;
     const filePath = result.filePath;
@@ -188,7 +188,7 @@ export default class App extends Component {
       dirty: false,
       tabs: [],
       activeTabIndex: -1,
-      selection: new Set()
+      selection: new Set(),
     });
     // FIXME: check for unsaved changes
   }
@@ -290,12 +290,12 @@ export default class App extends Component {
     for (const node of nodes) {
       network.changeNodeType(node, newNodeType);
     }
-    this._onNewCodeTab(newNodeType, state => {
-      const tabs = this.state.tabs.filter(t => t.type !== nodeType.type);
+    this._onNewCodeTab(newNodeType, (state) => {
+      const tabs = this.state.tabs.filter((t) => t.type !== nodeType.type);
       this.setState({
         tabs,
         showForkDialog: false,
-        activeTabIndex: tabs.length - 1
+        activeTabIndex: tabs.length - 1,
       });
     });
   }
@@ -356,7 +356,7 @@ export default class App extends Component {
       editorSplitterHeight,
       showNodeRenameDialog,
       nodeToRename,
-      fullscreen
+      fullscreen,
     } = this.state;
     if (fullscreen) {
       return (
@@ -390,7 +390,7 @@ export default class App extends Component {
           <Splitter
             direction="horizontal"
             size={editorSplitterHeight}
-            onChange={height => this.setState({ editorSplitterHeight: height })}
+            onChange={(height) => this.setState({ editorSplitterHeight: height })}
           />
 
           <ParamsEditor
@@ -404,7 +404,7 @@ export default class App extends Component {
         <Splitter
           direction="vertical"
           size={mainSplitterWidth}
-          onChange={width => this.setState({ mainSplitterWidth: width })}
+          onChange={(width) => this.setState({ mainSplitterWidth: width })}
         />
         <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} />
         {showNodeDialog && (
