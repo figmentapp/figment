@@ -796,21 +796,42 @@ void main() {
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D uInputTexture;
-uniform float uAngle; // Angle in radians
+uniform bool uHor, uRev;
 varying vec2 vUv;
 void main() {
   vec2 uv = vUv;
-  float sin_factor = sin(uAngle);
-  float cos_factor = cos(uAngle);
-  uv = (uv - 0.5) * mat2(cos_factor, sin_factor, -sin_factor, cos_factor);
-uv += 0.5;
+  if(uHor && uRev){
+    if(uv.y > 0.5){
+      uv.y = 0.5 - (uv.y - 0.5);
+    }
+  }
+  if(uHor && !uRev){
+    if(uv.y < 0.5){
+      uv.y = 0.5 - uv.y;
+    }else{
+      uv.y -= 0.5; 
+    }
+  }
+  if(!uHor && !uRev){
+    if(uv.x > 0.5){
+      uv.x = 0.5 - (uv.x - 0.5);
+    }
+  }
+  if(!uHor && uRev){
+    if(uv.x < 0.5){
+      uv.x = 0.5 - uv.x;
+    }else{
+      uv.x -= 0.5; 
+    }
+  }
   vec4 originalColor = texture2D(uInputTexture, uv);
   gl_FragColor = originalColor;
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const angleIn = node.numberIn('angle', 0, { min: 0, max: 360, step: 0.01 });
+const directionIn = node.toggleIn('horizontal',true);
+const reverseIn = node.toggleIn('reverse',true);
 const imageOut = node.imageOut('out');
 
 let camera, material, mesh, target;
@@ -823,7 +844,8 @@ node.onStart = (props) => {
     fragmentShader,
     uniforms: {
       uInputTexture: { value: null },
-      uAngle: { value: 0 },
+      uHor: {value: true},
+      uRev: {value: false},
     },
   });
   const geometry = new THREE.PlaneGeometry(2, 2);
@@ -836,7 +858,8 @@ node.onStart = (props) => {
 function render() {
   if (!imageIn.value) return;
   material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uAngle.value = g.toRadians(angleIn.value);
+  material.uniforms.uHor.value = directionIn.value;
+  material.uniforms.uRev.value = reverseIn.value;
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
   gRenderer.setRenderTarget(null);
@@ -866,9 +889,10 @@ node.debugDraw = (ctx) => {
   }
 }
 
-
 imageIn.onChange = resizeRenderTarget;
-angleIn.onChange = render;
+directionIn.onChange = render;
+reverseIn.onChange = render;
+
 `;
 
 ml.classifyImage = `// Classify an image.
