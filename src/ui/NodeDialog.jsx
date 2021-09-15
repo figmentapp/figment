@@ -12,7 +12,7 @@ export default class NodeDialog extends Component {
 
   _onSearch(e) {
     const q = e.target.value;
-    const results = this.nodeTypes.filter(node => node.name.toLowerCase().includes(q.toLowerCase()));
+    const results = this.nodeTypes.filter((node) => node.name.toLowerCase().includes(q.toLowerCase()));
     this.setState({ q, results });
   }
 
@@ -39,12 +39,13 @@ export default class NodeDialog extends Component {
     }
   }
 
-  render({}, { results }) {
+  render() {
+    const { results } = this.state;
     return (
       <div className="dialog-wrapper">
         <div
           className="dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
-          style="height: 80vh"
+          style={{ height: '80vh' }}
         >
           <div className="flex">
             <input
@@ -53,7 +54,7 @@ export default class NodeDialog extends Component {
               className="bg-gray-500 flex-grow p-6 placeholder-gray-700 outline-none text-lg"
               placeholder="Type to search"
               onInput={this._onSearch}
-              autofocus
+              autoFocus
             ></input>
             <span
               className="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
@@ -63,7 +64,7 @@ export default class NodeDialog extends Component {
             </span>
           </div>
           <div className="flex flex-col h-full overflow-y-auto flex-grow">
-            {results.map(nodeType => this._renderNodeType(nodeType))}
+            {results.map((nodeType) => this._renderNodeType(nodeType))}
           </div>
         </div>
       </div>
@@ -73,6 +74,7 @@ export default class NodeDialog extends Component {
   _renderNodeType(nodeType) {
     return (
       <div
+        key={nodeType.name}
         className="bg-gray-800 p-4 flex items-center border-t border-gray-700 cursor-pointer"
         onDoubleClick={() => this._onCreateNode(nodeType)}
       >
