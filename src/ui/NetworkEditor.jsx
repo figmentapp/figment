@@ -159,7 +159,6 @@ export default class NetworkEditor extends Component {
     this.prevY = mouseY;
     if (this._dragMode === DRAG_MODE_SELECTING) {
       const [networkX, networkY] = this._networkPosition(e);
-      console.log(networkX, networkY);
       const node = this._findNode(networkX, networkY);
       const port = node && this._findPort(node, networkX, networkY);
       if (port && port.direction === PORT_OUT) {
