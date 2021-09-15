@@ -498,8 +498,6 @@ function loadImage() {
 }
 
 function onLoad(texture) {
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.y = -1;
   const geometry = new THREE.PlaneGeometry(2, 2);
   const material = new THREE.MeshBasicMaterial({ map: texture });
   mesh = new THREE.Mesh(geometry, material);
