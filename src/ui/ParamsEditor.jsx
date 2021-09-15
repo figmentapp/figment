@@ -158,7 +158,9 @@ class SelectParam extends Component {
           onChange={(e) => onChange(e.target.value)}
         >
           {options.map((option) => (
-            <option value={option}>{option}</option>
+            <option key={option} value={option}>
+              {option}
+            </option>
           ))}
         </select>
       </div>
@@ -328,7 +330,7 @@ export default class ParamsEditor extends Component {
       return;
     } else if (port.type === PORT_TYPE_BUTTON) {
       field = (
-        <div className="params__row">
+        <div className="params__row" key={port.name}>
           <span className="w-32 mr-4"></span>
           <button
             className="bg-gray-600 text-gray-200 w-32 p-2"
@@ -341,7 +343,7 @@ export default class ParamsEditor extends Component {
       );
     } else if (port.type === PORT_TYPE_TOGGLE) {
       field = (
-        <div className="params__row">
+        <div className="params__row" key={port.name}>
           <span className="w-32 mr-4"></span>
           <label className="w-64  p-2 flex items-center">
             <input
@@ -357,6 +359,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_NUMBER) {
       field = (
         <FloatParam
+          key={port.name}
           label={label}
           value={port.value}
           min={port.min}
@@ -369,6 +372,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_STRING) {
       field = (
         <StringParam
+          key={port.name}
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
@@ -378,6 +382,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_SELECT) {
       field = (
         <SelectParam
+          key={port.name}
           label={label}
           value={port.value}
           options={port.options}
@@ -388,6 +393,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_POINT) {
       field = (
         <PointParam
+          key={port.name}
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
@@ -397,6 +403,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_COLOR) {
       field = (
         <ColorParam
+          key={port.name}
           port={port}
           label={label}
           value={port.value}
@@ -407,6 +414,7 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_FILE) {
       field = (
         <FileParam
+          key={port.name}
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
@@ -417,9 +425,16 @@ export default class ParamsEditor extends Component {
       field = undefined;
     } else {
       field = (
-        <div className="params__row">
+        <div className="params__row" key={port.name}>
           <span className="params__label">{port.name}</span>
-          <span className="params__field">{port.value}</span>
+          <input
+            type="text"
+            spellCheck="false"
+            readOnly={true}
+            className="params__field bg-gray-700 text-gray-200"
+            value={JSON.stringify(port.value)}
+            onInput={this._onChange}
+          />
         </div>
       );
     }
