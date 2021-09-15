@@ -495,6 +495,14 @@ export default class NetworkEditor extends Component {
       }
     }
 
+    for (const nodeId of Object.keys(this.meshMap)) {
+      const id = parseInt(nodeId);
+      if (!network.nodes.find((n) => n.id === id)) {
+        this.nodeGroup.remove(this.meshMap[nodeId]);
+        delete this.meshMap[nodeId];
+      }
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 }
