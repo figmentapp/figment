@@ -74,13 +74,14 @@ export default class NetworkEditor extends Component {
     this._networkX = this._networkY = 0;
     this._dragX = this._dragY = 0;
     this._timer = undefined;
+    this._canvasRef = React.createRef();
   }
 
   componentDidMount() {
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('resize', this._onResize);
-    this.canvas = document.getElementById('network');
+    this.canvas = this._canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
     this._draw();
     this._timer = setInterval(this._draw, 1000);
@@ -98,7 +99,7 @@ export default class NetworkEditor extends Component {
       <div className="network">
         <canvas
           className="network__canvas"
-          id="network"
+          ref={this._canvasRef}
           onMouseDown={this._onMouseDown}
           onMouseMove={this._onMouseMove}
           onDoubleClick={this._onDoubleClick}
