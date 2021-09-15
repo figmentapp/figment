@@ -12,7 +12,7 @@ import Port, {
   PORT_TYPE_FILE,
   PORT_TYPE_IMAGE,
   PORT_IN,
-  PORT_OUT
+  PORT_OUT,
 } from './Port';
 
 // export const DEFAULT_NETWORK = {
@@ -56,7 +56,7 @@ export const DEFAULT_NETWORK = {
       name: 'Constant',
       type: 'image.constant',
       x: 50,
-      y: 50
+      y: 50,
     },
     {
       id: 2,
@@ -65,16 +65,27 @@ export const DEFAULT_NETWORK = {
       x: 250,
       y: 50,
       values: {
-        file: 'examples/assets/kriskross.png'
-      }
+        file: 'examples/assets/kriskross.png',
+      },
     },
     {
       id: 3,
       name: 'Mirror',
       type: 'image.mirror',
       x: 250,
-      y: 250
-    }
+      y: 250,
+    },
+    {
+      id: 4,
+      name: 'Mirror',
+      type: 'image.mirror',
+      x: 250,
+      y: 400,
+      values: {
+        horizontal: false,
+      },
+    },
+
     // {
     //   id: 2,
     //   name: 'Sequence',
@@ -95,9 +106,10 @@ export const DEFAULT_NETWORK = {
     // }
   ],
   connections: [
-    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' }
+    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
+    { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
-  ]
+  ],
 };
 
 export default class Network {
@@ -116,7 +128,7 @@ export default class Network {
 
   findNodeType(typeId) {
     let nodeType;
-    nodeType = this.types.find(type => type.type === typeId);
+    nodeType = this.types.find((type) => type.type === typeId);
     if (nodeType) return nodeType;
     nodeType = this.library.findByType(typeId);
     if (nodeType) return nodeType;
@@ -181,7 +193,7 @@ export default class Network {
       if (nodeObj.values) {
         for (const portName of Object.keys(nodeObj.values)) {
           const value = nodeObj.values[portName];
-          const port = node.inPorts.find(p => p.name === portName);
+          const port = node.inPorts.find((p) => p.name === portName);
           if (!port) {
             warnings.push(`Node ${node.name} (${node.id}): Could not find port ${portName}.`);
             continue;
@@ -209,22 +221,22 @@ export default class Network {
       }
     }
     for (const connObj of obj.connections) {
-      const outNode = this.nodes.find(node => node.id === connObj.outNode);
+      const outNode = this.nodes.find((node) => node.id === connObj.outNode);
       if (!outNode) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: output node does not exist.`);
         continue;
       }
-      const inNode = this.nodes.find(node => node.id === connObj.inNode);
+      const inNode = this.nodes.find((node) => node.id === connObj.inNode);
       if (!inNode) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: input node does not exist.`);
         continue;
       }
-      const outPort = outNode.outPorts.find(port => port.name === connObj.outPort);
+      const outPort = outNode.outPorts.find((port) => port.name === connObj.outPort);
       if (!outPort) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: output port does not exist.`);
         continue;
       }
-      const inPort = inNode.inPorts.find(port => port.name === connObj.inPort);
+      const inPort = inNode.inPorts.find((port) => port.name === connObj.inPort);
       if (!outPort) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: input port does not exist.`);
         continue;
@@ -242,7 +254,7 @@ export default class Network {
     const json = {
       version: 1,
       nodes: [],
-      connections: []
+      connections: [],
     };
     for (const node of this.nodes) {
       const values = {};
@@ -282,9 +294,9 @@ export default class Network {
 
   isConnected(port) {
     if (port.direction === PORT_IN) {
-      return !!this.connections.find(conn => conn.inNode === port.node.id && conn.inPort === port.name);
+      return !!this.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
     } else {
-      return !!this.connections.find(conn => conn.inNode === port.node.id && conn.inPort === port.name);
+      return !!this.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
     }
   }
 
@@ -353,7 +365,7 @@ export default class Network {
   setNodeTypeSource(nodeType, source) {
     console.assert(typeof nodeType === 'object');
     // Find all nodes with this source type.
-    const nodes = this.nodes.filter(n => n.type === nodeType.type);
+    const nodes = this.nodes.filter((n) => n.type === nodeType.type);
     nodeType.source = source;
     const description = source.match(/\/\/(.*)/);
     if (description) {
@@ -368,7 +380,7 @@ export default class Network {
   }
 
   setPortValue(node, portName, value) {
-    const port = node.inPorts.find(p => p.name === portName);
+    const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port, `Port ${name} does not exist.`);
     port.value = value;
     if (port.onChange) {
@@ -393,7 +405,7 @@ export default class Network {
       outNode: outNode.id,
       outPort: outPort.name,
       inNode: inNode.id,
-      inPort: inPort.name
+      inPort: inPort.name,
     };
     this.connections.push(conn);
     outPort.forceUpdate();
@@ -402,19 +414,19 @@ export default class Network {
 
   disconnect(inPort) {
     const inNode = inPort.node;
-    this.connections = this.connections.filter(conn => !(conn.inNode === inNode.id && conn.inPort === inPort.name));
+    this.connections = this.connections.filter((conn) => !(conn.inNode === inNode.id && conn.inPort === inPort.name));
     inPort.setDefaultValue();
     this.doFrame();
   }
 
   deleteNodes(nodes) {
-    const nodeIds = nodes.map(node => node.id);
+    const nodeIds = nodes.map((node) => node.id);
     for (const node of nodes) {
       this._stopNode(node);
     }
-    this.nodes = this.nodes.filter(node => !nodes.includes(node));
+    this.nodes = this.nodes.filter((node) => !nodes.includes(node));
     this.connections = this.connections.filter(
-      conn => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode))
+      (conn) => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode))
     );
     this.doFrame();
   }
@@ -426,13 +438,13 @@ export default class Network {
     }
     // Check if a type with this name already exists.
     this.types = this.types || [];
-    if (this.types.find(nodeType => nodeType.type == newTypeName)) {
+    if (this.types.find((nodeType) => nodeType.type == newTypeName)) {
       throw new Error(`A nodeType with the name ${newTypeName} already exists.`);
     }
     const newNodeType = {
       name: newName,
       type: newTypeName,
-      source: nodeType.source
+      source: nodeType.source,
     };
     this.types.push(newNodeType);
     return newNodeType;
@@ -442,13 +454,13 @@ export default class Network {
     console.assert(typeof nodeType === 'object');
     // Stop the node and remove it from the network.
     this._stopNode(node);
-    this.nodes = this.nodes.filter(n => n !== node);
+    this.nodes = this.nodes.filter((n) => n !== node);
     // Create a new node with the new type.
     const newNode = this.createNode(nodeType.type, node.x, node.y, { id: node.id });
     // Copy over parameters.
     for (const oldPort of node.inPorts) {
       if (oldPort.hasDefaultValue()) continue;
-      const newPort = newNode.inPorts.find(p => p.name === oldPort.name);
+      const newPort = newNode.inPorts.find((p) => p.name === oldPort.name);
       if (!newPort) continue;
       if (newPort.type !== oldPort.type) continue;
       newPort.value = oldPort.cloneValue();
