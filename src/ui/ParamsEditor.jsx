@@ -16,7 +16,7 @@ import {
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
-  PORT_TYPE_OBJECT
+  PORT_TYPE_OBJECT,
 } from '../model/Port';
 
 class NumberDrag extends Component {
@@ -103,7 +103,7 @@ class FloatParam extends Component {
         />
         <input
           type="text"
-          spellcheck="false"
+          spellCheck="false"
           disabled={disabled}
           className={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
@@ -132,7 +132,7 @@ class StringParam extends Component {
         <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
         <input
           type="text"
-          spellcheck="false"
+          spellCheck="false"
           disabled={disabled}
           className={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
@@ -151,13 +151,13 @@ class SelectParam extends Component {
         <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
         <select
           type="text"
-          spellcheck="false"
+          spellCheck="false"
           disabled={disabled}
           className={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
         >
-          {options.map(option => (
+          {options.map((option) => (
             <option value={option}>{option}</option>
           ))}
         </select>
@@ -226,13 +226,13 @@ class PointParam extends Component {
           className="w-16 mr-2 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.x}
-          onChange={e => this.props.onChange(new Point(parseFloat(e.target.value), value.y))}
+          onChange={(e) => this.props.onChange(new Point(parseFloat(e.target.value), value.y))}
         />
         <input
           className="w-16 mr-4 bg-gray-700 text-gray-200 p-2"
           type="number"
           value={value.y}
-          onChange={e => this.props.onChange(new Point(value.x, parseFloat(e.target.value)))}
+          onChange={(e) => this.props.onChange(new Point(value.x, parseFloat(e.target.value)))}
         />
       </div>
     );
@@ -249,7 +249,7 @@ class FileParam extends Component {
     const window = remote.BrowserWindow.getFocusedWindow();
     console.assert(window);
     const result = await remote.dialog.showOpenDialog(window, {
-      properties: ['openFile']
+      properties: ['openFile'],
     });
     if (result.canceled || !result.filePaths) return;
     const absoluteFile = result.filePaths[0];
@@ -280,13 +280,13 @@ export default class ParamsEditor extends Component {
   }
 
   _onChangePortValue(portName, value) {
-    this.props.selection.forEach(node => {
+    this.props.selection.forEach((node) => {
       this.props.onChangePortValue(node, portName, value);
     });
   }
 
   _onTriggerButton(port) {
-    this.props.selection.forEach(node => {
+    this.props.selection.forEach((node) => {
       this.props.onTriggerButton(node, port);
     });
   }
@@ -316,7 +316,7 @@ export default class ParamsEditor extends Component {
           </span>
           <span className="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
-        {node.inPorts.map(port => this._renderPort(network, node, port))}
+        {node.inPorts.map((port) => this._renderPort(network, node, port))}
       </div>
     );
   }
@@ -348,7 +348,7 @@ export default class ParamsEditor extends Component {
               type="checkbox"
               disabled={network.isConnected(port)}
               checked={port.value}
-              onChange={e => this._onChangePortValue(port.name, e.target.checked)}
+              onChange={(e) => this._onChangePortValue(port.name, e.target.checked)}
             />
             <span className="ml-2 text-gray-500">{label}</span>
           </label>
@@ -363,7 +363,7 @@ export default class ParamsEditor extends Component {
           max={port.max}
           step={port.step}
           disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_STRING) {
@@ -372,7 +372,7 @@ export default class ParamsEditor extends Component {
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_SELECT) {
@@ -382,7 +382,7 @@ export default class ParamsEditor extends Component {
           value={port.value}
           options={port.options}
           disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_POINT) {
@@ -391,7 +391,7 @@ export default class ParamsEditor extends Component {
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_COLOR) {
@@ -401,7 +401,7 @@ export default class ParamsEditor extends Component {
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_FILE) {
@@ -410,7 +410,7 @@ export default class ParamsEditor extends Component {
           label={label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={value => this._onChangePortValue(port.name, value)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_OBJECT) {
