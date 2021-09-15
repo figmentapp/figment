@@ -431,7 +431,7 @@ export default class ParamsEditor extends Component {
             type="text"
             spellCheck="false"
             readOnly={true}
-            className="params__field bg-gray-700 text-gray-200"
+            className="bg-gray-700 text-gray-200 flex-1 p-2 mr-4"
             value={JSON.stringify(port.value)}
             onInput={this._onChange}
           />

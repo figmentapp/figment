@@ -203,6 +203,10 @@ img {
 
 .params__field {
   color: var(--gray300);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  flex: 1;
 }
 
 input.params__field {
