@@ -5,7 +5,6 @@
 - Define concept of "rendered node" within the network.
 - Write unit tests that test the new functionality of the network.
 - Use better color picker
-- Run OpenCV:
 - Crop input image
 - Composite two images
 - Use levels to brighten the image
@@ -21,6 +20,6 @@
 - Setup basic model of FBO's using Three.js.
 - Decide where functionality of nodes go. Software? WebGL?
 - Upgrade Electron
-- Upgrade Electron
 - Move from Preact to React
 - Switch to Vite
+- Draw previews of nodes
