@@ -748,6 +748,7 @@ function render() {
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
   gRenderer.setRenderTarget(null);
+  imageOut.set(target);
 }
 
 function resizeRenderTarget() {
@@ -863,6 +864,7 @@ function render() {
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
   gRenderer.setRenderTarget(null);
+  imageOut.set(target);
 }
 
 function resizeRenderTarget() {
