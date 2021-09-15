@@ -400,12 +400,12 @@ export default class NetworkEditor extends Component {
       let x1, y1, x2, y2;
       if (port.direction === PORT_OUT) {
         x1 = port.node.x + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-        y1 = port.direction === PORT_IN ? port.node.y : port.node.y + NODE_PORT_WIDTH * 2;
+        y1 = port.direction === PORT_IN ? port.node.y : port.node.y + NODE_HEIGHT;
         x2 = this._dragX;
         y2 = this._dragY;
       } else {
         x2 = port.node.x + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-        y2 = port.direction === PORT_IN ? port.node.y : port.node.y + NODE_PORT_WIDTH * 2;
+        y2 = port.direction === PORT_IN ? port.node.y : port.node.y + NODE_HEIGHT;
         x1 = this._dragX;
         y1 = this._dragY;
       }
