@@ -796,7 +796,6 @@ void main() {
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D uInputTexture;
-uniform float uAngle; // Angle in radians
 uniform bool uHor, uRev;
 varying vec2 vUv;
 void main() {
@@ -831,8 +830,7 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
-const angleIn = node.numberIn('angle', 0, { min: 0, max: 360, step: 0.01 });
-const valueIn = node.toggleIn('horizontal',true);
+const directionIn = node.toggleIn('horizontal',true);
 const reverseIn = node.toggleIn('reverse',true);
 const imageOut = node.imageOut('out');
 
@@ -846,7 +844,6 @@ node.onStart = (props) => {
     fragmentShader,
     uniforms: {
       uInputTexture: { value: null },
-      uAngle: { value: 0 },
       uHor: {value: true},
       uRev: {value: false},
     },
@@ -861,8 +858,7 @@ node.onStart = (props) => {
 function render() {
   if (!imageIn.value) return;
   material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uAngle.value = g.toRadians(angleIn.value);
-  material.uniforms.uHor.value = valueIn.value;
+  material.uniforms.uHor.value = directionIn.value;
   material.uniforms.uRev.value = reverseIn.value;
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
@@ -893,10 +889,8 @@ node.debugDraw = (ctx) => {
   }
 }
 
-
 imageIn.onChange = resizeRenderTarget;
-angleIn.onChange = render;
-valueIn.onChange = render;
+directionIn.onChange = render;
 reverseIn.onChange = render;
 
 `;
