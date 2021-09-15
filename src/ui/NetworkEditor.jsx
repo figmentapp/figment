@@ -137,8 +137,8 @@ export default class NetworkEditor extends Component {
   }
 
   _networkPosition(e) {
-    const mouseX = e.nativeEvent.offsetX;
-    const mouseY = e.nativeEvent.offsetY;
+    const mouseX = e.clientX;
+    const mouseY = e.clientY - NETWORK_HEADER_HEIGHT;
     const networkX = mouseX - this.state.x;
     const networkY = mouseY - this.state.y;
     return [networkX, networkY];
