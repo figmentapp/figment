@@ -173,7 +173,7 @@ class ColorParam extends Component {
     super(props);
     this.state = { pickerVisible: false };
     this._onToggleColorPicker = this._onToggleColorPicker.bind(this);
-    this.row = useRef();
+    this.row = React.createRef();
   }
 
   componentWillReceiveProps(nextProps) {
@@ -198,7 +198,7 @@ class ColorParam extends Component {
         <label className="w-32 text-right text-gray-500 mr-4 py-2">{label}</label>
         <span
           className="w-16 bg-gray-700 h-8"
-          style={`background-color: rgba(${rgbaValue.join(',')})`}
+          style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
           onClick={this._onToggleColorPicker}
         />
         {pickerVisible && <ColorPicker parent={this.row.current} color={value} onChange={onChange} />}
