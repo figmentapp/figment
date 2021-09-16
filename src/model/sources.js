@@ -954,13 +954,10 @@ varying vec2 vUv;
 
 void main() {
   vec2 uv = vUv;
-  //gl_FragColor = texture2D(uInputTexture, uv.xy);
-  //gl_FragColor.rgb = 1.0 - gl_FragColor.rgb;
-
   vec3 col = texture2D(uInputTexture, uv.st).rgb;
   float bright = 0.33333 * (col.r + col.g + col.b);
   float b = mix(0.0, 1.0, step(uThreshold, bright));
-    gl_FragColor = vec4(vec3(b), 1.0);
+  gl_FragColor = vec4(vec3(b), 1.0);
 }
 \`;
 
