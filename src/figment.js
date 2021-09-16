@@ -29,3 +29,29 @@ export function urlForAsset(filename) {
 export function filePathToRelative(filename) {
   return nodePath.relative(projectDirectory(), filename);
 }
+
+const DEFAULT_VERTEX_SHADER = `
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+attribute vec3 position;
+attribute vec2 uv;
+varying vec2 vUv;
+void main() {
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+  vUv = uv;
+}`;
+
+const _materialCache = {};
+
+export function createShaderMaterial(fragmentShader, uniforms) {
+  const cachedMaterial = _materialCache[fragmentShader];
+  if (cachedMaterial) return cachedMaterial;
+  let material = new THREE.RawShaderMaterial({
+    vertexShader: DEFAULT_VERTEX_SHADER,
+    fragmentShader,
+    uniforms,
+  });
+  _materialCache[fragmentShader] = material;
+  return material;
+}
