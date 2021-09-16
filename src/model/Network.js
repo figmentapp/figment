@@ -114,6 +114,16 @@ export const DEFAULT_NETWORK = {
         horizontal: false,
       },
     },
+    {
+      id: 7,
+      name: 'Invert',
+      type: 'image.invert',
+      x: 150,
+      y: 500,
+      values: {
+        horizontal: false,
+      },
+    },
 
     // {
     //   id: 2,
@@ -137,6 +147,7 @@ export const DEFAULT_NETWORK = {
   connections: [
     { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
     { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 7, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };

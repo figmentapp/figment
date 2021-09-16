@@ -44,6 +44,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
 
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
+    this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
 
     // ML
