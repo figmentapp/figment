@@ -118,8 +118,15 @@ export const DEFAULT_NETWORK = {
       id: 7,
       name: 'Invert',
       type: 'image.invert',
-      x: 150,
+      x: 100,
       y: 500,
+    },
+    {
+      id: 8,
+      name: 'Sobel',
+      type: 'image.sobel',
+      x: 100,
+      y: 400,
     },
 
     // {
@@ -144,7 +151,8 @@ export const DEFAULT_NETWORK = {
   connections: [
     { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
     { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
-    { outNode: 2, outPort: 'out', inNode: 7, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 8, inPort: 'in' },
+    { outNode: 8, outPort: 'out', inNode: 7, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
