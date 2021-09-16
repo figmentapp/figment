@@ -895,7 +895,6 @@ function render() {
 }
 
 function resizeRenderTarget() {
-  console.log('image.invert resizeRenderTarget', imageIn.value);
   if (!imageIn.value) return;
   target = new THREE.WebGLRenderTarget(imageIn.value.width, imageIn.value.height, { depthBuffer: false });  
   render();
@@ -994,7 +993,6 @@ function render() {
 }
 
 function resizeRenderTarget() {
-  console.log('image.mirror resizeRenderTarget', imageIn.value);
   if (!imageIn.value) return;
   target = new THREE.WebGLRenderTarget(imageIn.value.width, imageIn.value.height, { depthBuffer: false });  
   render();
