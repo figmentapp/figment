@@ -421,22 +421,8 @@ export default class ParamsEditor extends Component {
           onChange={(value) => this._onChangePortValue(port.name, value)}
         />
       );
-    } else if (port.type === PORT_TYPE_OBJECT) {
-      field = undefined;
     } else {
-      field = (
-        <div className="params__row" key={port.name}>
-          <span className="params__label">{port.name}</span>
-          <input
-            type="text"
-            spellCheck="false"
-            readOnly={true}
-            className="bg-gray-700 text-gray-200 flex-1 p-2 mr-4"
-            value={JSON.stringify(port.value)}
-            onInput={this._onChange}
-          />
-        </div>
-      );
+      field = undefined;
     }
     return field;
     // (
