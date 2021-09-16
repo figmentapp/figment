@@ -128,6 +128,13 @@ export const DEFAULT_NETWORK = {
       x: 100,
       y: 400,
     },
+    {
+      id: 9,
+      name: 'Threshold',
+      type: 'image.threshold',
+      x: 150,
+      y: 600,
+    },
 
     // {
     //   id: 2,
@@ -153,6 +160,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 8, inPort: 'in' },
     { outNode: 8, outPort: 'out', inNode: 7, inPort: 'in' },
+    { outNode: 7, outPort: 'out', inNode: 9, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };

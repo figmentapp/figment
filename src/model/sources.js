@@ -903,6 +903,57 @@ function render() {
 imageIn.onChange = render;
 `;
 
+image.threshold = `// brightness threshold between 0 - 1.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D uInputTexture;
+uniform float uThreshold;
+varying vec2 vUv;
+
+void main() {
+  vec2 uv = vUv;
+  //gl_FragColor = texture2D(uInputTexture, uv.xy);
+  //gl_FragColor.rgb = 1.0 - gl_FragColor.rgb;
+
+  vec3 col = texture2D(uInputTexture, uv.st).rgb;
+  float bright = 0.33333 * (col.r + col.g + col.b);
+  float b = mix(0.0, 1.0, step(uThreshold, bright));
+    gl_FragColor = vec4(vec3(b), 1.0);
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.011 });
+
+const imageOut = node.imageOut('out');
+
+let camera, material, mesh, target;
+
+node.onStart = (props) => {
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },
+    uThreshold: { value: 0 },});
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  mesh = new THREE.Mesh(geometry, material);
+  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+};
+
+function render() {
+  if (!imageIn.value) return;
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  material.uniforms.uInputTexture.value = imageIn.value.texture;
+  material.uniforms.uThreshold.value = thresholdIn.value;
+  gRenderer.setRenderTarget(target);
+  gRenderer.render(mesh, camera);
+  gRenderer.setRenderTarget(null);
+  imageOut.set(target);
+}
+
+imageIn.onChange = render;
+thresholdIn.onChange = render;
+`;
+
 
 ml.classifyImage = `// Classify an image.
 // const ml5 = require('ml5');
