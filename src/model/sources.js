@@ -743,7 +743,101 @@ widthIn.onChange = resizeRenderTarget;
 heightIn.onChange = resizeRenderTarget;
 `;
 
-image.invert = `// Mirror the input image over a specific axis.
+image.sobel = `// Sobel edge detection on input image.
+
+const vertexShader = \`
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+attribute vec3 position;
+attribute vec2 uv;
+varying vec2 vUv;
+void main() {
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+  vUv = uv;
+}
+\`;
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D uInputTexture;
+uniform float width;
+uniform float height;
+varying vec2 vUv;
+
+void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
+{
+	float w = 1.0 / width;
+	float h = 1.0 / height;
+
+	n[0] = texture2D(tex, coord + vec2( -w, -h));
+	n[1] = texture2D(tex, coord + vec2(0.0, -h));
+	n[2] = texture2D(tex, coord + vec2(  w, -h));
+	n[3] = texture2D(tex, coord + vec2( -w, 0.0));
+	n[4] = texture2D(tex, coord);
+	n[5] = texture2D(tex, coord + vec2(  w, 0.0));
+	n[6] = texture2D(tex, coord + vec2( -w, h));
+	n[7] = texture2D(tex, coord + vec2(0.0, h));
+	n[8] = texture2D(tex, coord + vec2(  w, h));
+}
+void main() {
+  vec2 uv = vUv;
+	vec4 n[9];
+	make_kernel( n, uInputTexture, uv.st );
+
+	vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
+  vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
+	vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
+
+	gl_FragColor = vec4( 1.0 - sobel.rgb, 1.0 );
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const imageOut = node.imageOut('out');
+
+let camera, material, mesh, target;
+
+node.onStart = (props) => {
+    camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    material = new THREE.RawShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms: {
+      uInputTexture: { value: null },
+      width: { value: 480 },
+      height: { value: 360 },
+    },
+  });
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  mesh = new THREE.Mesh(geometry, material);
+  if (imageIn.value) {
+    target = new THREE.WebGLRenderTarget(imageIn.value.width, imageIn.value.height, { depthBuffer: false });  
+  }
+};
+
+function render() {
+  if (!imageIn.value) return;
+  material.uniforms.uInputTexture.value = imageIn.value.texture;
+  material.uniforms.uInputTexture.width = imageIn.value.width;
+  material.uniforms.uInputTexture.height = imageIn.value.height;
+  gRenderer.setRenderTarget(target);
+  gRenderer.render(mesh, camera);
+  gRenderer.setRenderTarget(null);
+  imageOut.set(target);
+}
+
+function resizeRenderTarget() {
+  if (!imageIn.value) return;
+  target = new THREE.WebGLRenderTarget(imageIn.value.width, imageIn.value.height, { depthBuffer: false });  
+  render();
+}
+
+imageIn.onChange = resizeRenderTarget;
+
+`;
+
+image.invert = `// Invert colors of input image.
 
 const vertexShader = \`
 uniform mat4 modelMatrix;

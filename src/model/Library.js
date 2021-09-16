@@ -46,6 +46,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
+    this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
 
     // ML
     this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });
