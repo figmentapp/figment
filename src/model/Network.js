@@ -120,9 +120,6 @@ export const DEFAULT_NETWORK = {
       type: 'image.invert',
       x: 150,
       y: 500,
-      values: {
-        horizontal: false,
-      },
     },
 
     // {
