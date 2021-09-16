@@ -135,6 +135,13 @@ export const DEFAULT_NETWORK = {
       x: 150,
       y: 600,
     },
+    {
+      id: 10,
+      name: 'Greyscale',
+      type: 'image.greyscale',
+      x: 300,
+      y: 150,
+    },
 
     // {
     //   id: 2,
@@ -161,6 +168,8 @@ export const DEFAULT_NETWORK = {
     { outNode: 2, outPort: 'out', inNode: 8, inPort: 'in' },
     { outNode: 8, outPort: 'out', inNode: 7, inPort: 'in' },
     { outNode: 7, outPort: 'out', inNode: 9, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 10, inPort: 'in' },
+
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
