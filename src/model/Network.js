@@ -102,14 +102,14 @@ export const DEFAULT_NETWORK = {
       name: 'Mirror',
       type: 'image.mirror',
       x: 250,
-      y: 300,
+      y: 400,
     },
     {
       id: 4,
       name: 'Mirror',
       type: 'image.mirror',
       x: 250,
-      y: 400,
+      y: 500,
       values: {
         horizontal: false,
       },
@@ -149,6 +149,13 @@ export const DEFAULT_NETWORK = {
       x: 300,
       y: 150,
     },
+    {
+      id: 12,
+      name: 'Bcs',
+      type: 'image.bcs',
+      x: 300,
+      y: 290,
+    },
 
     // {
     //   id: 2,
@@ -177,6 +184,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 7, outPort: 'out', inNode: 9, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 10, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 11, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 12, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
