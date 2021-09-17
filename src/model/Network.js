@@ -102,7 +102,7 @@ export const DEFAULT_NETWORK = {
       name: 'Mirror',
       type: 'image.mirror',
       x: 250,
-      y: 250,
+      y: 300,
     },
     {
       id: 4,
@@ -140,6 +140,13 @@ export const DEFAULT_NETWORK = {
       name: 'Greyscale',
       type: 'image.greyscale',
       x: 300,
+      y: 220,
+    },
+    {
+      id: 11,
+      name: 'Modcolor',
+      type: 'image.modcolor',
+      x: 300,
       y: 150,
     },
 
@@ -169,7 +176,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 8, outPort: 'out', inNode: 7, inPort: 'in' },
     { outNode: 7, outPort: 'out', inNode: 9, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 10, inPort: 'in' },
-
+    { outNode: 2, outPort: 'out', inNode: 11, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
