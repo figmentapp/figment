@@ -673,6 +673,111 @@ widthIn.onChange = exec;
 heightIn.onChange = exec;
 `;
 
+
+image.bcs = `// change brightness - contrast - saturation on input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D uInputTexture;
+uniform float uWidth;
+uniform float uHeight;
+varying vec2 vUv;
+uniform float brightness;
+uniform float contrast;
+uniform float saturation;
+
+mat4 brightnessMatrix( float brightness )
+{
+    return mat4( 1, 0, 0, 0,
+                 0, 1, 0, 0,
+                 0, 0, 1, 0,
+                 brightness, brightness, brightness, 1 );
+}
+
+mat4 contrastMatrix( float contrast )
+{
+	float t = ( 1.0 - contrast ) / 2.0;
+    
+    return mat4( contrast, 0, 0, 0,
+                 0, contrast, 0, 0,
+                 0, 0, contrast, 0,
+                 t, t, t, 1 );
+
+}
+
+mat4 saturationMatrix( float saturation )
+{
+    vec3 luminance = vec3( 0.3086, 0.6094, 0.0820 );
+    float oneMinusSat = 1.0 - saturation;
+    
+    vec3 red = vec3( luminance.x * oneMinusSat );
+    red+= vec3( saturation, 0, 0 );
+    
+    vec3 green = vec3( luminance.y * oneMinusSat );
+    green += vec3( 0, saturation, 0 );
+    
+    vec3 blue = vec3( luminance.z * oneMinusSat );
+    blue += vec3( 0, 0, saturation );
+    
+    return mat4( red,     0,
+                 green,   0,
+                 blue,    0,
+                 0, 0, 0, 1 );
+}
+
+void main() {
+  vec2 uv = vUv;
+  vec4 color = texture2D( uInputTexture, uv );
+    
+  gl_FragColor = brightnessMatrix( brightness ) *
+          contrastMatrix( contrast ) * 
+          saturationMatrix( saturation ) *
+          color;
+
+  }
+\`;
+
+const imageIn = node.imageIn('in');
+const brightnessIn = node.numberIn('brightness', 0.2, { min: -1, max: 1, step: 0.01 });
+const contrastIn = node.numberIn('contrast', 1, { min: 0, max: 1, step: 0.01 });
+const saturationIn = node.numberIn('saturation', 0.6, { min: 0, max: 1, step: 0.01 });
+const imageOut = node.imageOut('out');
+
+let camera, material, mesh, target;
+
+node.onStart = (props) => {
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  material = figment.createShaderMaterial(fragmentShader, {
+    uInputTexture: { value:  null },
+    brightness: { value: 0.1 },
+    contrast: { value: 1.0 },
+    saturation: { value: 0.5 },
+  });
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  mesh = new THREE.Mesh(geometry, material);
+  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+};
+
+function render() {
+  if (!imageIn.value) return;
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  material.uniforms.uInputTexture.value = imageIn.value.texture;
+  material.uniforms.brightness.value = brightnessIn.value;
+  material.uniforms.contrast.value = contrastIn.value;
+  material.uniforms.saturation.value = saturationIn.value;
+  gRenderer.setRenderTarget(target);
+  gRenderer.render(mesh, camera);
+  gRenderer.setRenderTarget(null);
+  imageOut.set(target);
+}
+
+imageIn.onChange = render;
+brightnessIn.onChange = render;
+contrastIn.onChange = render;
+saturationIn.onChange = render;
+`;
+
+
 image.constant = `// Render a constant color.
 
 const fragmentShader = \`
