@@ -874,6 +874,64 @@ directionIn.onChange = render;
 reverseIn.onChange = render;
 `;
 
+image.modcolor = `// brightness threshold between 0 - 1.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D uInputTexture;
+uniform float umodr;
+uniform float umodg;
+uniform float umodb;
+varying vec2 vUv;
+
+void main() {
+  vec2 uv = vUv;
+  vec3 col = texture2D(uInputTexture, uv.st).rgb;
+	col.r += mod(col.r, umodr);
+	col.g += mod(col.g, umodg);
+	col.b += mod(col.b, umodb);
+	gl_FragColor = vec4(col, 1.0);
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const redIn = node.numberIn('red', 0, { min: 0, max: 1, step: 0.1 });
+const greenIn = node.numberIn('green', 0.1, { min: 0, max: 1, step: 0.1 });
+const blueIn = node.numberIn('blue', 1, { min: 0, max: 1, step: 0.1 });
+
+const imageOut = node.imageOut('out');
+
+let camera, material, mesh, target;
+
+node.onStart = (props) => {
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },
+    umodr: { value: 0 },umodg: { value: 0 },umodb: { value: 0 },});
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  mesh = new THREE.Mesh(geometry, material);
+  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+};
+
+function render() {
+  if (!imageIn.value) return;
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  material.uniforms.uInputTexture.value = imageIn.value.texture;
+  material.uniforms.umodr.value = redIn.value;
+  material.uniforms.umodg.value = greenIn.value;
+  material.uniforms.umodb.value = blueIn.value;
+  gRenderer.setRenderTarget(target);
+  gRenderer.render(mesh, camera);
+  gRenderer.setRenderTarget(null);
+  imageOut.set(target);
+}
+
+imageIn.onChange = render;
+redIn.onChange = render;
+greenIn.onChange = render;
+blueIn.onChange = render;
+
+`;
+
 image.sobel = `// Sobel edge detection on input image.
 
 const fragmentShader = \`
