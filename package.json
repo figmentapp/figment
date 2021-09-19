@@ -8,7 +8,7 @@
     "start": "cross-env NODE_ENV=development electron .",
     "build": "cross-env NODE_ENV=production parcel build -d build -t electron --public-url . src/ui/index.html",
     "dist": "rimraf dist && npm run build && electron-builder build",
-    "format": "prettier --write js/**/*.js"
+    "format": "prettier --write src/**/*.{js,jsx}"
   },
   "dependencies": {
     "chroma-js": "2.1.2",
@@ -16,6 +16,7 @@
     "lodash": "4.17.21",
     "minimist": "1.2.5",
     "react": "17.0.2",
+    "react-color": "2.19.3",
     "react-dom": "17.0.2",
     "seedrandom": "3.0.5",
     "tailwindcss": "2.2.15",

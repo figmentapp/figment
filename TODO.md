@@ -23,3 +23,4 @@
 - Move from Preact to React
 - Switch to Vite
 - Draw previews of nodes
+- Use [react-color](https://casesandberg.github.io/react-color/) for the color picker
