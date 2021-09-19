@@ -823,6 +823,9 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
+// const pivotIn = node.number2In('pivot', [0.5, 0.5], { min: 0, max: 1, step: 0.01 } );
+const pivotXIn = node.numberIn('pivotX', 0.5, { min: 0, max: 1, step: 0.01 } );
+const pivotYIn = node.numberIn('pivotY', 0.5, { min: 0, max: 1, step: 0.01 } );
 const angleIn = node.numberIn('angle', 90, { min: -180, max: 180, step: 1 });
 const imageOut = node.imageOut('out');
 
@@ -848,7 +851,7 @@ function render() {
   const r = angleIn.value * Math.PI / 180;
   const x = Math.sin(r);
   const y = -Math.cos(r);
-  const z = -((0.5 * x * imageIn.value.width) + (0.5 * y * imageIn.value.height));
+  const z = -((pivotXIn.value * x * imageIn.value.width) + (pivotYIn.value * y * imageIn.value.height));
   material.uniforms.uLine.value = [x, y, z];
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
@@ -857,6 +860,8 @@ function render() {
 }
 
 imageIn.onChange = render;
+pivotXIn.onChange = render;
+pivotYIn.onChange = render;
 angleIn.onChange = render;
 `;
 
