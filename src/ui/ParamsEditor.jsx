@@ -106,7 +106,7 @@ class FloatParam extends Component {
           spellCheck="false"
           disabled={disabled}
           className={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={value}
+          value={value.toFixed(4)}
           onChange={this._onChange}
         />
       </div>
