@@ -805,33 +805,17 @@ image.mirror = `// Mirror the input image over a specific axis.
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D uInputTexture;
-uniform bool uHor, uRev;
+uniform vec2 uAspect;
+uniform vec3 uLine;
 varying vec2 vUv;
 void main() {
   vec2 uv = vUv;
-  if(uHor && uRev){
-    if(uv.y > 0.5){
-      uv.y = 0.5 - (uv.y - 0.5);
-    }
-  }
-  if(uHor && !uRev){
-    if(uv.y < 0.5){
-      uv.y = 0.5 - uv.y;
-    }else{
-      uv.y -= 0.5; 
-    }
-  }
-  if(!uHor && !uRev){
-    if(uv.x > 0.5){
-      uv.x = 0.5 - (uv.x - 0.5);
-    }
-  }
-  if(!uHor && uRev){
-    if(uv.x < 0.5){
-      uv.x = 0.5 - uv.x;
-    }else{
-      uv.x -= 0.5; 
-    }
+  vec2 uvp = uv * uAspect;
+  float d = dot(uLine, vec3(uvp, 1.0));
+  if (d > 0.0) {
+    uvp.x = uvp.x - 2.0 * uLine.x * d;
+    uvp.y = uvp.y - 2.0 * uLine.y * d;
+    uv = uvp / uAspect;
   }
   vec4 originalColor = texture2D(uInputTexture, uv);
   gl_FragColor = originalColor;
@@ -839,8 +823,7 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
-const directionIn = node.toggleIn('horizontal', true);
-const reverseIn = node.toggleIn('reverse', true);
+const angleIn = node.numberIn('angle', 90, { min: -180, max: 180, step: 1 });
 const imageOut = node.imageOut('out');
 
 let camera, material, mesh, target;
@@ -849,8 +832,8 @@ node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   material = figment.createShaderMaterial(fragmentShader, {
     uInputTexture: { value: null },
-    uHor: { value: true },
-    uRev: { value: false },
+    uAspect: { value: [1, 1] },
+    uLine: { value: [0, 0, 0] },
   })
   const geometry = new THREE.PlaneGeometry(2, 2);
   mesh = new THREE.Mesh(geometry, material);
@@ -861,8 +844,12 @@ function render() {
   if (!imageIn.value) return;
   target.setSize(imageIn.value.width, imageIn.value.height);
   material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uHor.value = directionIn.value;
-  material.uniforms.uRev.value = reverseIn.value;
+  material.uniforms.uAspect.value = [imageIn.value.width, imageIn.value.height];
+  const r = angleIn.value * Math.PI / 180;
+  const x = Math.sin(r);
+  const y = -Math.cos(r);
+  const z = -((0.5 * x * imageIn.value.width) + (0.5 * y * imageIn.value.height));
+  material.uniforms.uLine.value = [x, y, z];
   gRenderer.setRenderTarget(target);
   gRenderer.render(mesh, camera);
   gRenderer.setRenderTarget(null);
@@ -870,8 +857,7 @@ function render() {
 }
 
 imageIn.onChange = render;
-directionIn.onChange = render;
-reverseIn.onChange = render;
+angleIn.onChange = render;
 `;
 
 image.modcolor = `// brightness threshold between 0 - 1.
