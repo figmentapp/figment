@@ -105,16 +105,6 @@ export const DEFAULT_NETWORK = {
       y: 300,
     },
     {
-      id: 4,
-      name: 'Mirror',
-      type: 'image.mirror',
-      x: 250,
-      y: 400,
-      values: {
-        horizontal: false,
-      },
-    },
-    {
       id: 7,
       name: 'Invert',
       type: 'image.invert',
@@ -171,7 +161,6 @@ export const DEFAULT_NETWORK = {
   ],
   connections: [
     { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
-    { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 8, inPort: 'in' },
     { outNode: 8, outPort: 'out', inNode: 7, inPort: 'in' },
     { outNode: 7, outPort: 'out', inNode: 9, inPort: 'in' },
