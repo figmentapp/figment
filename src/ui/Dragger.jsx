@@ -35,7 +35,7 @@ export default function Dragger({ label, value, onChange, min, max, step }) {
         style={styles.field}
         type="text"
         value={step ? value : Math.round(value)}
-        onChange={e => onChange(parseInt(e.target.value))}
+        onChange={(e) => onChange(parseInt(e.target.value))}
         min={min}
         max={max}
         step={step || 1}
@@ -52,7 +52,7 @@ const styles = {
     width: '35px',
     height: '40px',
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
   },
   field: {
     background: COLORS.gray900,
@@ -61,13 +61,13 @@ const styles = {
     color: 'white',
     font: 'inherit',
     fontSize: '10px',
-    borderRadius: '3px'
+    borderRadius: '3px',
   },
   label: {
     marginTop: '2px',
     fontSize: '11px',
     textAlign: 'center',
     cursor: 'col-resize',
-    color: COLORS.gray600
-  }
+    color: COLORS.gray600,
+  },
 };

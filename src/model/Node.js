@@ -11,7 +11,7 @@ import Port, {
   PORT_TYPE_IMAGE,
   PORT_TYPE_OBJECT,
   PORT_IN,
-  PORT_OUT
+  PORT_OUT,
 } from './Port';
 
 let gNodeId = 0;
@@ -30,7 +30,7 @@ export default class Node {
   }
 
   triggerIn(name) {
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const inPort = new Port(this, name, PORT_TYPE_TRIGGER, PORT_IN);
     this.inPorts.push(inPort);
@@ -38,7 +38,7 @@ export default class Node {
   }
 
   triggerButtonIn(name) {
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const inPort = new Port(this, name, PORT_TYPE_BUTTON, PORT_IN);
     this.inPorts.push(inPort);
@@ -46,7 +46,7 @@ export default class Node {
   }
 
   toggleIn(name, value = true) {
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -62,7 +62,7 @@ export default class Node {
 
   numberIn(name, value, options) {
     if (!value) value = 0;
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -78,7 +78,7 @@ export default class Node {
 
   stringIn(name, value) {
     if (!value) value = '';
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -94,7 +94,7 @@ export default class Node {
 
   pointIn(name, value) {
     if (!value) value = new g.Point(0, 0);
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -110,7 +110,7 @@ export default class Node {
 
   colorIn(name, value) {
     if (!value) value = [0, 0, 0, 1];
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -126,7 +126,7 @@ export default class Node {
 
   fileIn(name, value) {
     if (!value) value = '';
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -141,7 +141,7 @@ export default class Node {
   }
 
   imageIn(name) {
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       return oldPort;
     } else {
@@ -152,7 +152,7 @@ export default class Node {
   }
 
   objectIn(name) {
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       return oldPort;
     } else {
@@ -164,7 +164,7 @@ export default class Node {
 
   selectIn(name, options, value) {
     if (!value) value = options[0];
-    const oldPort = this.inPorts.find(p => p.name === name);
+    const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
       if (oldPort.hasDefaultValue()) {
         oldPort.value = value;
@@ -181,7 +181,7 @@ export default class Node {
   }
 
   triggerOut(name) {
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_TRIGGER, PORT_OUT);
     this.outPorts.push(outPort);
@@ -190,7 +190,7 @@ export default class Node {
 
   toggleOut(name, value) {
     if (!value) value = false;
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_TOGGLE, PORT_OUT, value);
     this.outPorts.push(outPort);
@@ -199,7 +199,7 @@ export default class Node {
 
   numberOut(name, value) {
     if (!value) value = 0;
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_NUMBER, PORT_OUT, value);
     this.outPorts.push(outPort);
@@ -208,7 +208,7 @@ export default class Node {
 
   stringOut(name, value) {
     if (!value) value = 0;
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_STRING, PORT_OUT, value);
     this.outPorts.push(outPort);
@@ -217,7 +217,7 @@ export default class Node {
 
   colorOut(name, value) {
     if (!value) value = [0, 0, 0, 0];
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_COLOR, PORT_OUT, value);
     this.outPorts.push(outPort);
@@ -225,7 +225,7 @@ export default class Node {
   }
 
   imageOut(name) {
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_IMAGE, PORT_OUT);
     this.outPorts.push(outPort);
@@ -233,7 +233,7 @@ export default class Node {
   }
 
   objectOut(name) {
-    const oldPort = this.outPorts.find(p => p.name === name);
+    const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
     const outPort = new Port(this, name, PORT_TYPE_OBJECT, PORT_OUT);
     this.outPorts.push(outPort);

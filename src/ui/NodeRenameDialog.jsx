@@ -37,7 +37,7 @@ export default class ForkDialog extends Component {
                 type="text"
                 className="bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
                 value={newName}
-                onInput={e => this.setState({ newName: e.target.value })}
+                onInput={(e) => this.setState({ newName: e.target.value })}
                 autofocus
               ></input>
             </span>

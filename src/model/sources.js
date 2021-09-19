@@ -1050,7 +1050,6 @@ imageIn.onChange = render;
 thresholdIn.onChange = render;
 `;
 
-
 ml.classifyImage = `// Classify an image.
 // const ml5 = require('ml5');
 const imageIn = node.imageIn('image');

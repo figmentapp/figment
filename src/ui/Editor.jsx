@@ -26,7 +26,7 @@ export default class Editor extends Component {
       onDisconnect,
       onChangeSource,
       onShowForkDialog,
-      style
+      style,
     } = this.props;
     return (
       <div className="editor" style={style}>
@@ -43,7 +43,7 @@ export default class Editor extends Component {
               onClick={() => onSelectTab(i)}
             >
               <span className="editor__tab-name">{node.name}</span>
-              <a className="editor__tab-close" onClick={e => this._onCloseTab(e, i)}>
+              <a className="editor__tab-close" onClick={(e) => this._onCloseTab(e, i)}>
                 <svg viewBox="0 0 16 16" width="16" height="16">
                   <path d="M4 4L12 12M12 4L4 12" />
                 </svg>
