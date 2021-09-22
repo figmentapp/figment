@@ -303,7 +303,7 @@ export default class NetworkEditor extends Component {
     // e.preventDefault();
     const delta = e.deltaY;
     const scale = this.state.scale;
-    const newScale = scale + (delta / 1000) * scale;
+    const newScale = scale - (delta / 1000) * scale;
     this.setState({ scale: newScale });
   }
 
