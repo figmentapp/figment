@@ -88,7 +88,7 @@ export class Framebuffer {
   }
 
   get texture() {
-    return this._fbo.attachments[0].texture;
+    return this._fbo.attachments[0];
   }
 }
 
