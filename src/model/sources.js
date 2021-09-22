@@ -478,36 +478,43 @@ alphaIn.onChange = generate;
 `;
 
 image.loadImage = `// Load an image from a file.
-// const url = require('url');
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
 
 const fileIn = node.fileIn('file', '');
 const imageOut = node.imageOut('out');
 
-let texture, target, mesh, camera;
+let texture, framebuffer, program;
 
 node.onStart = () => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 }
 
 function loadImage() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
   console.log('loadImage', imageUrl.toString());
-  const textureLoader = new THREE.TextureLoader();
-  const out = textureLoader.load(imageUrl.toString(), onLoad, null, onError);
+  figment.createTextureFromUrl(imageUrl.toString(), onLoad);
 }
 
-function onLoad(texture) {
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  const material = new THREE.MeshBasicMaterial({ map: texture });
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(texture.image.width, texture.image.height, { depthBuffer: false });
-
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-
-  imageOut.set(target);
+function onLoad(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 function onError(err) {
@@ -696,28 +703,16 @@ let program, framebuffer;
 node.onStart = (props) => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
-  // const geometry = new THREE.PlaneGeometry(2, 2);
-  // mesh = new THREE.Mesh(geometry, material);
-  // target = new THREE.WebGLRenderTarget(widthIn.value, heightIn.value, { depthBuffer: false });  
-
-
 };
 
 function render() {
   framebuffer.setSize(widthIn.value, heightIn.value);
-  // target.setSize(widthIn.value, heightIn.value);
-  // material.uniforms.uColor.value = [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255];
-  // material.uniforms.uAlpha.value = alphaIn.value;
   framebuffer.bind();
   figment.drawQuad(program, {
     u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
     u_alpha: alphaIn.value
   });
   framebuffer.unbind();
-
-  // gRenderer.setRenderTarget(target);
-  // gRenderer.render(mesh, camera);
-  // gRenderer.setRenderTarget(null);
   imageOut.set(framebuffer);
 }
 

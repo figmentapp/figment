@@ -56,6 +56,10 @@ export function createShaderProgram(fragmentShader) {
   return shaderProgram;
 }
 
+export function createTextureFromUrl(url, callback) {
+  return twgl.createTexture(window.gl, { src: url }, callback);
+}
+
 export class Framebuffer {
   constructor(width = 0, height = 0) {
     if (width > 0 && height > 0) {
