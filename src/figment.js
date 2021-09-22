@@ -33,12 +33,12 @@ export function filePathToRelative(filename) {
 }
 
 const DEFAULT_VERTEX_SHADER = `
-attribute vec3 position;
-attribute vec2 uv;
-varying vec2 vUv;
+attribute vec3 a_position;
+attribute vec2 a_uv;
+varying vec2 v_uv;
 void main() {
-  gl_Position = vec4(position, 1.0);
-  vUv = uv;
+  v_uv = a_uv;
+  gl_Position = vec4(a_position, 1.0);
 }`;
 
 const _shaderProgramCache = {};
@@ -57,15 +57,19 @@ export function createShaderProgram(fragmentShader) {
 }
 
 export class Framebuffer {
-  constructor(width, height) {
-    this._create(width, height);
+  constructor(width = 0, height = 0) {
+    if (width > 0 && height > 0) {
+      this._create(width, height);
+    }
   }
 
   setSize(width, height) {
     if (width === this.width && height === this.height) return;
     const gl = window.gl;
-    gl.deleteTexture(this._fbo.attachments[0].texture);
-    gl.deleteFramebuffer(this._fbo.framebuffer);
+    if (this._fbo) {
+      gl.deleteTexture(this._fbo.attachments[0].texture);
+      gl.deleteFramebuffer(this._fbo.framebuffer);
+    }
     this._create(width, height);
   }
 
@@ -82,6 +86,10 @@ export class Framebuffer {
   unbind() {
     twgl.bindFramebufferInfo(window.gl, null);
   }
+
+  get texture() {
+    return this._fbo.attachments[0].texture;
+  }
 }
 
 let _quadBufferInfo = null;
@@ -90,7 +98,8 @@ export function drawQuad(shaderProgram, uniforms) {
   const gl = window.gl;
   if (!_quadBufferInfo) {
     const arrays = {
-      position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
+      a_position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
+      v_uv: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1],
     };
     _quadBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
   }

@@ -691,10 +691,9 @@ const widthIn = node.numberIn('width', 1024, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 512, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
-let program;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
   // const geometry = new THREE.PlaneGeometry(2, 2);
@@ -773,11 +772,10 @@ image.invert = `// Invert colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+varying vec2 v_uv;
 void main() {
-  vec2 uv = vUv;
-  gl_FragColor = texture2D(uInputTexture, uv.xy);
+  gl_FragColor = texture2D(u_input_texture, v_uv);
   gl_FragColor.rgb = 1.0 - gl_FragColor.rgb;
 }
 \`;
@@ -785,24 +783,24 @@ void main() {
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null }});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  console.log('onStart', node.id, node.name);
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  // debugger;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;

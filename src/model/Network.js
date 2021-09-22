@@ -184,8 +184,15 @@ export const DEFAULT_NETWORK = {
         height: 512,
       },
     },
+    {
+      id: 2,
+      name: 'Invert',
+      type: 'image.invert',
+      x: 100,
+      y: 500,
+    },
   ],
-  connections: [],
+  connections: [{ outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' }],
 };
 
 export default class Network {
