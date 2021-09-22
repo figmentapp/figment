@@ -677,11 +677,11 @@ image.constant = `// Render a constant color.
 
 const fragmentShader = \`
 precision mediump float;
-uniform vec3 uColor; // R/G/B color
-uniform float uAlpha;
-varying vec2 vUv;
+uniform vec3 u_color; // R/G/B color
+uniform float u_alpha;
+varying vec2 v_uv;
 void main() {
-  gl_FragColor = vec4(uColor, uAlpha);
+  gl_FragColor = vec4(u_color, u_alpha);
 }
 \`;
 
@@ -691,27 +691,35 @@ const widthIn = node.numberIn('width', 1024, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 512, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { 
-    uColor: { value: [1.0, 0.0, 0.0] },
-    uAlpha: { value: 1 },
-  });
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(widthIn.value, heightIn.value, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
+  // const geometry = new THREE.PlaneGeometry(2, 2);
+  // mesh = new THREE.Mesh(geometry, material);
+  // target = new THREE.WebGLRenderTarget(widthIn.value, heightIn.value, { depthBuffer: false });  
+
+
 };
 
 function render() {
-  target.setSize(widthIn.value, heightIn.value);
-  material.uniforms.uColor.value = [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255];
-  material.uniforms.uAlpha.value = alphaIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  framebuffer.setSize(widthIn.value, heightIn.value);
+  // target.setSize(widthIn.value, heightIn.value);
+  // material.uniforms.uColor.value = [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255];
+  // material.uniforms.uAlpha.value = alphaIn.value;
+  framebuffer.bind();
+  figment.drawQuad(program, {
+    u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
+    u_alpha: alphaIn.value
+  });
+  framebuffer.unbind();
+
+  // gRenderer.setRenderTarget(target);
+  // gRenderer.render(mesh, camera);
+  // gRenderer.setRenderTarget(null);
+  imageOut.set(framebuffer);
 }
 
 colorIn.onChange = render;
@@ -742,7 +750,7 @@ let camera, material, mesh, target;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },});
+  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null },});
   const geometry = new THREE.PlaneGeometry(2, 2);
   mesh = new THREE.Mesh(geometry, material);
   target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
@@ -781,7 +789,7 @@ let camera, material, mesh, target;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null }});
+  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null }});
   const geometry = new THREE.PlaneGeometry(2, 2);
   mesh = new THREE.Mesh(geometry, material);
   target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
@@ -833,7 +841,7 @@ let camera, material, mesh, target;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, {
+  material = figment.createShaderProgram(fragmentShader, {
     uInputTexture: { value: null },
     uAspect: { value: [1, 1] },
     uLine: { value: [0, 0, 0] },
@@ -896,7 +904,7 @@ let camera, material, mesh, target;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },
+  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null },
     umodr: { value: 0 },umodg: { value: 0 },umodb: { value: 0 },});
   const geometry = new THREE.PlaneGeometry(2, 2);
   mesh = new THREE.Mesh(geometry, material);
@@ -968,7 +976,7 @@ let camera, material, mesh, target;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, {
+  material = figment.createShaderProgram(fragmentShader, {
     uInputTexture: { value:  null },
     uWidth: { value: 1 },
     uHeight: { value: 1 },
@@ -1019,7 +1027,7 @@ let camera, material, mesh, target;
 
 node.onStart = (props) => {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },
+  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null },
     uThreshold: { value: 0 },});
   const geometry = new THREE.PlaneGeometry(2, 2);
   mesh = new THREE.Mesh(geometry, material);

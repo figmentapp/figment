@@ -49,7 +49,7 @@ import Port, {
 //   ]
 // };
 
-export const DEFAULT_NETWORK = {
+export const DEFAULT_NETWORK_OLD = {
   nodes: [
     {
       id: 1,
@@ -168,6 +168,24 @@ export const DEFAULT_NETWORK = {
     { outNode: 2, outPort: 'out', inNode: 11, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
+};
+
+export const DEFAULT_NETWORK = {
+  nodes: [
+    {
+      id: 1,
+      name: 'Constant',
+      type: 'image.constant',
+      x: 50,
+      y: 50,
+      values: {
+        color: [255, 0, 255, 1],
+        width: 512,
+        height: 512,
+      },
+    },
+  ],
+  connections: [],
 };
 
 export default class Network {

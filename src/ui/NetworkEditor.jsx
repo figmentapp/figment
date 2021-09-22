@@ -1,7 +1,9 @@
 import React, { Component } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
-import { clamp } from '../util';
+import * as twgl from 'twgl.js';
+import { v3, m4 } from 'twgl.js';
+
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
@@ -48,6 +50,28 @@ const PORT_COLORS = {
   [PORT_TYPE_OBJECT]: COLORS.gray800,
 };
 
+const VERTEX_SHADER = `
+uniform mat4 u_view_matrix;
+uniform mat4 u_model_matrix;
+attribute vec2 a_position;
+attribute vec2 a_uv;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_uv;
+  gl_Position = u_view_matrix * u_model_matrix * vec4(a_position.xy, 0.0, 1.0);
+}
+`;
+
+const FRAGMENT_SHADER = `
+precision mediump float;
+uniform sampler2D u_texture;
+uniform vec4 u_color;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = u_color * texture2D(u_texture, v_uv);
+}
+`;
+
 function _nodeWidth(node) {
   let portCount = Math.max(node.inPorts.length, node.outPorts.length);
   if (portCount < 6) return 100;
@@ -92,20 +116,17 @@ export default class NetworkEditor extends Component {
     this.canvas = this.canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
     this._timer = setInterval(this._draw, 1000);
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: this.previewCanvasRef.current,
-      alpha: false,
-      depth: false,
-      stencil: false,
-      antialias: false,
-    });
-    window.gRenderer = this.renderer;
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
-    this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_WIDTH, PREVIEW_GEO_HEIGHT);
-    this.nodeGroup = new THREE.Group();
-    this.scene.add(this.nodeGroup);
-    this.meshMap = {};
+    this.gl = twgl.getWebGLContext(this.previewCanvasRef.current);
+    window.gl = this.gl;
+    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+    this.bufferInfoMap = {};
+
+    // this.scene = new THREE.Scene();
+    // this.camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
+    // this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_WIDTH, PREVIEW_GEO_HEIGHT);
+    // this.nodeGroup = new THREE.Group();
+    // this.scene.add(this.nodeGroup);
+    // this.meshMap = {};
 
     this._draw();
   }
@@ -454,18 +475,23 @@ export default class NetworkEditor extends Component {
   }
 
   _drawNodePreviews() {
+    const { gl } = this;
     const { network } = this.props;
     const canvas = this.previewCanvasRef.current;
     const parent = canvas.parentElement;
     canvas.width = parent.clientWidth;
     canvas.height = parent.clientHeight;
-    this.renderer.setSize(canvas.width, canvas.height);
-    this.renderer.setViewport(0, 0, canvas.width, canvas.height);
-    this.renderer.setClearColor(0x22272e);
-    this.renderer.clear();
-    this.camera.right = canvas.width;
-    this.camera.top = canvas.height;
-    this.camera.updateProjectionMatrix();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 1.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    // this.renderer.setSize(canvas.width, canvas.height);
+    // this.renderer.setViewport(0, 0, canvas.width, canvas.height);
+    // this.renderer.setClearColor(0x22272e);
+    // this.renderer.clear();
+    // this.camera.right = canvas.width;
+    // this.camera.top = canvas.height;
+    // this.camera.updateProjectionMatrix();
+    // return;
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
@@ -478,13 +504,19 @@ export default class NetworkEditor extends Component {
           NODE_HEIGHT - NODE_BORDER * 2
         );
       }
-      if (!this.meshMap[node.id]) {
-        const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-        const mesh = new THREE.Mesh(this.planeGeometry, material);
-        this.nodeGroup.add(mesh);
-        this.meshMap[node.id] = mesh;
+      if (!this.bufferInfoMap[node.id]) {
+        const arrays = {
+          position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
+          uv: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+        };
+        const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+        this.bufferInfoMap[node.id] = bufferInfo;
+        // const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+        // const mesh = new THREE.Mesh(this.planeGeometry, material);
+        // this.nodeGroup.add(mesh);
+        // this.meshMap[node.id] = mesh;
       }
-      this.nodeGroup.position.set(this.state.x, -this.state.y, 0);
+      // this.nodeGroup.position.set(this.state.x, -this.state.y, 0);
 
       const mesh = this.meshMap[node.id];
       mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
@@ -503,15 +535,23 @@ export default class NetworkEditor extends Component {
         mesh.material.color.set(0xff00ff);
         mesh.material.map = null;
       }
+
+      gl.useProgram(this.programInfo.program);
+      twgl.setBuffersAndAttributes(gl, this.programInfo, this.bufferInfoMap[node.id]);
+      twgl.setUniforms(this.programInfo, {
+        u_texture: outPort.value && outPort.value.texture,
+        u_color: [1, 1, 1, 1],
+        u_viewport: [canvas.width, canvas.height],
+      });
     }
 
-    for (const nodeId of Object.keys(this.meshMap)) {
-      const id = parseInt(nodeId);
-      if (!network.nodes.find((n) => n.id === id)) {
-        this.nodeGroup.remove(this.meshMap[nodeId]);
-        delete this.meshMap[nodeId];
-      }
-    }
+    // for (const nodeId of Object.keys(this.meshMap)) {
+    //   const id = parseInt(nodeId);
+    //   if (!network.nodes.find((n) => n.id === id)) {
+    //     this.nodeGroup.remove(this.meshMap[nodeId]);
+    //     delete this.meshMap[nodeId];
+    //   }
+    // }
 
     this.renderer.render(this.scene, this.camera);
   }
