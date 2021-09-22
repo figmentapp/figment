@@ -21,7 +21,7 @@ export default class CodeEditor extends Component {
       lineNumbers: true,
       readOnly: this.isReadOnly(),
       mode: 'javascript',
-      theme: 'darcula'
+      theme: 'darcula',
     });
     const mod = /Mac/.test(navigator.platform) ? 'Cmd' : 'Ctrl';
     this.editor.setOption('extraKeys', {
@@ -32,7 +32,7 @@ export default class CodeEditor extends Component {
           console.error(e);
         }
         return false;
-      }
+      },
     });
   }
 

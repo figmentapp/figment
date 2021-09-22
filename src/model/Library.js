@@ -13,7 +13,7 @@ export default class Library {
     this.nodeTypes.push({
       name: 'Conditional Trigger',
       type: 'core.conditionalTrigger',
-      source: core.conditionalTrigger
+      source: core.conditionalTrigger,
     });
     this.nodeTypes.push({ name: 'Custom', type: 'core.custom', source: core.custom });
 
@@ -25,7 +25,7 @@ export default class Library {
     this.nodeTypes.push({
       name: 'Draw Background',
       type: 'graphics.backgroundColor',
-      source: graphics.backgroundColor
+      source: graphics.backgroundColor,
     });
     this.nodeTypes.push({ name: 'Rectangle', type: 'graphics.rect', source: graphics.rect });
     this.nodeTypes.push({ name: 'Line', type: 'graphics.line', source: graphics.line });
@@ -71,6 +71,6 @@ export default class Library {
   }
 
   findByType(type) {
-    return this.nodeTypes.find(node => node.type === type);
+    return this.nodeTypes.find((node) => node.type === type);
   }
 }

@@ -32,7 +32,7 @@ class Settings {
 
   async addRecentProject(filePath) {
     let recents = this._raw.recentProjects || [];
-    recents = recents.filter(r => r !== filePath);
+    recents = recents.filter((r) => r !== filePath);
     recents.unshift(filePath);
     recents = recents.slice(0, 10);
     this._raw.recentProjects = recents;
@@ -79,7 +79,7 @@ async function startDevServer() {
   const viteServer = await createServer({
     port: 3000,
     root: path.resolve(__dirname, '../ui'),
-    logLevel: 'info'
+    logLevel: 'info',
   });
   await viteServer.listen();
   return viteServer;
@@ -95,8 +95,8 @@ function createMainWindow(file) {
       nativeWindowOpen: true,
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
-      webSecurity: false
-    }
+      webSecurity: false,
+    },
   });
 
   // Load the index.html of the app.
@@ -120,9 +120,9 @@ function createApplicationMenu() {
     label: app.name,
     submenu: [
       {
-        role: 'quit'
-      }
-    ]
+        role: 'quit',
+      },
+    ],
   };
 
   const recentProjects = gSettings.getRecentProjects();
@@ -130,10 +130,10 @@ function createApplicationMenu() {
   if (recentProjects.length === 0) {
     recentItems = [{ key: 'null', label: 'No Recent Projects', enabled: false }];
   } else {
-    recentItems = recentProjects.map(filePath => ({
+    recentItems = recentProjects.map((filePath) => ({
       key: filePath,
       label: path.basename(filePath),
-      click: emit('open', filePath)
+      click: emit('open', filePath),
     }));
     recentItems.push({ type: 'separator' });
     recentItems.push({ label: 'Clear Recent Projects', click: onClearRecentProjects });
@@ -149,21 +149,21 @@ function createApplicationMenu() {
       {
         key: 'recentProjects',
         label: 'Open Recent',
-        submenu: recentItems
+        submenu: recentItems,
       },
       { type: 'separator' },
       { label: 'Save', accelerator: 'CmdOrCtrl+S', click: emit('save') },
       {
         label: 'Save As...',
         accelerator: 'CmdOrCtrl+Shift+S',
-        click: emit('save-as')
-      }
-    ]
+        click: emit('save-as'),
+      },
+    ],
   };
   if (!isMac) {
     fileMenu.submenu.push({ type: 'separator' });
     fileMenu.submenu.push({
-      role: 'quit'
+      role: 'quit',
     });
   }
   const template = [
@@ -171,7 +171,7 @@ function createApplicationMenu() {
     fileMenu,
     { role: 'editMenu' },
     { role: 'viewMenu' },
-    { role: 'windowMenu' }
+    { role: 'windowMenu' },
   ];
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);

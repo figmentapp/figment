@@ -1,6 +1,6 @@
 import React, { Component, useRef } from 'react';
 import chroma from 'chroma-js';
-import ColorPicker from './ColorPicker';
+import { ChromePicker } from 'react-color';
 import { Point } from '../g';
 import * as figment from '../figment';
 // import { remote } from 'electron';
@@ -106,7 +106,7 @@ class FloatParam extends Component {
           spellCheck="false"
           disabled={disabled}
           className={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={value}
+          value={value.toFixed(4)}
           onChange={this._onChange}
         />
       </div>
@@ -173,7 +173,7 @@ class ColorParam extends Component {
     super(props);
     this.state = { pickerVisible: false };
     this._onToggleColorPicker = this._onToggleColorPicker.bind(this);
-    this.row = React.createRef();
+    this._onChange = this._onChange.bind(this);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -189,19 +189,43 @@ class ColorParam extends Component {
     // this.props.onChange(value);
   }
 
+  _onChange(color) {
+    const { r, g, b, a } = color.rgb;
+    this.props.onChange([r, g, b, a]);
+  }
+
   render() {
     const { label, value, onChange } = this.props;
     const { pickerVisible } = this.state;
     const rgbaValue = chroma(value).rgba();
+    const [r, g, b, a] = value;
+    const pickerValue = { r, g, b, a };
+    const popover = {
+      position: 'absolute',
+      zIndex: '2',
+      left: '220px',
+    };
+    const cover = {
+      position: 'fixed',
+      top: '0px',
+      right: '0px',
+      bottom: '0px',
+      left: '0px',
+    };
     return (
-      <div className="flex items-center mb-2" ref={this.row}>
+      <div className="flex items-center mb-2 relative">
         <label className="w-32 text-right text-gray-500 mr-4 py-2">{label}</label>
         <span
           className="w-16 bg-gray-700 h-8"
           style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
           onClick={this._onToggleColorPicker}
         />
-        {pickerVisible && <ColorPicker parent={this.row.current} color={value} onChange={onChange} />}
+        {pickerVisible && (
+          <div style={popover}>
+            <div style={cover} onClick={this._onToggleColorPicker} />
+            <ChromePicker color={pickerValue} onChange={this._onChange} />
+          </div>
+        )}
       </div>
     );
   }

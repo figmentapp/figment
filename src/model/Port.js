@@ -42,10 +42,12 @@ export default class Port {
   trigger(props) {
     // Find if this port is connected.
     const network = this.node.network;
-    const connections = network.connections.filter(conn => conn.outNode === this.node.id && conn.outPort === this.name);
+    const connections = network.connections.filter(
+      (conn) => conn.outNode === this.node.id && conn.outPort === this.name
+    );
     for (const conn of connections) {
-      const inNode = network.nodes.find(node => node.id === conn.inNode);
-      const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
+      const inNode = network.nodes.find((node) => node.id === conn.inNode);
+      const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
       inPort && inPort.onTrigger && inPort.onTrigger(props);
     }
   }
@@ -61,11 +63,11 @@ export default class Port {
     } else {
       const network = this.node.network;
       const connections = network.connections.filter(
-        conn => conn.outNode === this.node.id && conn.outPort === this.name
+        (conn) => conn.outNode === this.node.id && conn.outPort === this.name
       );
       for (const conn of connections) {
-        const inNode = network.nodes.find(node => node.id === conn.inNode);
-        const inPort = inNode.inPorts.find(port => port.name === conn.inPort);
+        const inNode = network.nodes.find((node) => node.id === conn.inNode);
+        const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
         if (inPort) {
           inPort.value = this.value;
           inPort.onChange && inPort.onChange(this.value);

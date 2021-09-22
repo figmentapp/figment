@@ -6,7 +6,7 @@ export default class ForkDialog extends Component {
     super(props);
     let [ns, baseName] = props.nodeType.type.split('.');
     ns = 'project';
-    const currentNodes = props.network.nodes.filter(node => node.type === props.nodeType.type);
+    const currentNodes = props.network.nodes.filter((node) => node.type === props.nodeType.type);
 
     const selectedNodes = new Set();
     for (const node of currentNodes) {
@@ -20,7 +20,7 @@ export default class ForkDialog extends Component {
       newTypeName: baseName,
       currentNodes,
       selectedNodes,
-      typeNameChanged: false
+      typeNameChanged: false,
     };
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onChangeName = this._onChangeName.bind(this);
@@ -93,7 +93,7 @@ export default class ForkDialog extends Component {
               type="text"
               className="p-6 bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
               value={newName}
-              onInput={e => this._onChangeName(e.target.value)}
+              onInput={(e) => this._onChangeName(e.target.value)}
               autofocus
             ></input>
             <div className="flex">
@@ -119,7 +119,7 @@ export default class ForkDialog extends Component {
                 type="text"
                 className="bg-gray-600 flex-grow placeholder-gray-700 outline-none text-lg"
                 value={newTypeName}
-                onInput={e => this._onChangeTypeName(e.target.value)}
+                onInput={(e) => this._onChangeTypeName(e.target.value)}
               />
             </span>
           </div>
@@ -129,7 +129,7 @@ export default class ForkDialog extends Component {
             </p>
             <div className="overflow-auto">
               {currentNodes &&
-                currentNodes.map(node => (
+                currentNodes.map((node) => (
                   <label className="block py-2 pr-2">
                     <input
                       type="checkbox"
