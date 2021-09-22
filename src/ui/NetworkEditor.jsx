@@ -530,14 +530,8 @@ export default class NetworkEditor extends Component {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.05, 0.06, 0.09, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    // this.renderer.setSize(canvas.width, canvas.height);
-    // this.renderer.setViewport(0, 0, canvas.width, canvas.height);
-    // this.renderer.setClearColor(0x22272e);
-    // this.renderer.clear();
-    // this.camera.right = canvas.width;
-    // this.camera.top = canvas.height;
-    // this.camera.updateProjectionMatrix();
-    // return;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
@@ -555,23 +549,17 @@ export default class NetworkEditor extends Component {
         let x1 = NODE_WIDTH;
         let y0 = 0;
         let y1 = NODE_HEIGHT;
+
         const arrays = {
-          // a_position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
-          a_position: [x0, y0, 0, x1, y0, 0, x0, y1, 0, x0, y1, 0, x1, y0, 0, x1, y1, 0],
-          a_uv: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+          a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
+          a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
+          indices: [0, 1, 2, 0, 2, 3],
         };
         const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
         this.bufferInfoMap[node.id] = bufferInfo;
-        // const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-        // const mesh = new THREE.Mesh(this.planeGeometry, material);
-        // this.nodeGroup.add(mesh);
-        // this.meshMap[node.id] = mesh;
       }
-      // this.nodeGroup.position.set(this.state.x, -this.state.y, 0);
 
       let nodeColor = [1, 0, 1, 1];
-      // const mesh = this.bufferInfoMap[node.id];
-      // mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
       let texture = null;
       if (outPort.value && outPort.value._fbo) {
         nodeColor = [1, 1, 1, 1];

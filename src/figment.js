@@ -102,8 +102,9 @@ export function drawQuad(shaderProgram, uniforms) {
   const gl = window.gl;
   if (!_quadBufferInfo) {
     const arrays = {
-      a_position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
-      v_uv: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1],
+      a_position: { numComponents: 2, data: [-1, -1, -1, 1, 1, 1, 1, -1] },
+      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
+      indices: [0, 1, 2, 0, 2, 3],
     };
     _quadBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
   }
