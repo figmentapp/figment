@@ -51,14 +51,26 @@ const PORT_COLORS = {
 };
 
 const VERTEX_SHADER = `
-uniform mat4 u_view_matrix;
-uniform mat4 u_model_matrix;
+uniform vec2 u_viewport;
+uniform vec2 u_position;
+uniform vec3 u_camera;
 attribute vec2 a_position;
 attribute vec2 a_uv;
 varying vec2 v_uv;
 void main() {
   v_uv = a_uv;
-  gl_Position = u_view_matrix * u_model_matrix * vec4(a_position.xy, 0.0, 1.0);
+  vec2 pos = a_position / u_viewport;
+  pos.x += u_position.x / u_viewport.x;
+  pos.y += u_position.y / u_viewport.y;
+  pos.x *= u_camera.z;
+  pos.y *= u_camera.z;
+  pos.x += u_camera.x / u_viewport.x;
+  pos.y += u_camera.y / u_viewport.y;
+  // pos.y = 1.0 - pos.y;
+  // Convert position from 0.0-1.0 to -1.0-1.0
+  pos.x = pos.x * 2.0 - 1.0;
+  pos.y = (1.0 - pos.y) * 2.0 - 1.0;
+  gl_Position = vec4(pos, 0.0, 1.0);
 }
 `;
 
@@ -94,6 +106,7 @@ export default class NetworkEditor extends Component {
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseDrag = this._onMouseDrag.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
+    this._onMouseWheel = this._onMouseWheel.bind(this);
     this._onDoubleClick = this._onDoubleClick.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
@@ -148,6 +161,7 @@ export default class NetworkEditor extends Component {
           onMouseDown={this._onMouseDown}
           onMouseMove={this._onMouseMove}
           onDoubleClick={this._onDoubleClick}
+          onWheel={this._onMouseWheel}
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>
@@ -285,6 +299,14 @@ export default class NetworkEditor extends Component {
     this._draw();
   }
 
+  _onMouseWheel(e) {
+    // e.preventDefault();
+    const delta = e.deltaY;
+    const scale = this.state.scale;
+    const newScale = scale + (delta / 1000) * scale;
+    this.setState({ scale: newScale });
+  }
+
   _onDoubleClick(e) {
     const [networkX, networkY] = this._networkPosition(e);
     const node = this._findNode(networkX, networkY);
@@ -336,6 +358,15 @@ export default class NetworkEditor extends Component {
     // Set up the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
+    // -    ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
+    ctx.setTransform(
+      ratio * this.state.scale,
+      0.0,
+      0.0,
+      ratio * this.state.scale,
+      this.state.x * ratio,
+      this.state.y * ratio
+    );
 
     // Draw nodes
     for (const node of network.nodes) {
@@ -482,7 +513,7 @@ export default class NetworkEditor extends Component {
     canvas.width = parent.clientWidth;
     canvas.height = parent.clientHeight;
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.0, 0.0, 1.0, 1.0);
+    gl.clearColor(0.05, 0.06, 0.09, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     // this.renderer.setSize(canvas.width, canvas.height);
     // this.renderer.setViewport(0, 0, canvas.width, canvas.height);
@@ -505,9 +536,14 @@ export default class NetworkEditor extends Component {
         );
       }
       if (!this.bufferInfoMap[node.id]) {
+        let x0 = 0;
+        let x1 = NODE_WIDTH;
+        let y0 = 0;
+        let y1 = NODE_HEIGHT;
         const arrays = {
-          position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
-          uv: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+          // a_position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
+          a_position: [x0, y0, 0, x1, y0, 0, x0, y1, 0, x0, y1, 0, x1, y0, 0, x1, y1, 0],
+          a_uv: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
         };
         const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
         this.bufferInfoMap[node.id] = bufferInfo;
@@ -518,31 +554,39 @@ export default class NetworkEditor extends Component {
       }
       // this.nodeGroup.position.set(this.state.x, -this.state.y, 0);
 
-      const mesh = this.meshMap[node.id];
-      mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
-      if (outPort.value && outPort.value.texture) {
-        let ratio = outPort.value.width / outPort.value.height;
-        let dRatio = PREVIEW_GEO_RATIO / ratio;
-        if (ratio < PREVIEW_GEO_RATIO) {
-          mesh.scale.set(1 / dRatio, 1, 1);
-        } else {
-          mesh.scale.set(1, dRatio, 1);
-        }
-        mesh.material.color.set(0xffffff);
-        mesh.material.map = outPort.value.texture;
-        mesh.material.needsUpdate = true;
-      } else {
-        mesh.material.color.set(0xff00ff);
-        mesh.material.map = null;
+      let nodeColor = [1, 0, 1, 1];
+      // const mesh = this.bufferInfoMap[node.id];
+      // mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
+      let texture = null;
+      if (outPort.value && outPort.value._fbo) {
+        nodeColor = [1, 1, 1, 1];
+        texture = outPort.value._fbo.attachments[0];
       }
+      //   let ratio = outPort.value.width / outPort.value.height;
+      //   let dRatio = PREVIEW_GEO_RATIO / ratio;
+      //   if (ratio < PREVIEW_GEO_RATIO) {
+      //     mesh.scale.set(1 / dRatio, 1, 1);
+      //   } else {
+      //     mesh.scale.set(1, dRatio, 1);
+      //   }
+      //   mesh.material.color.set(0xffffff);
+      //   mesh.material.map = outPort.value.texture;
+      //   mesh.material.needsUpdate = true;
+      // } else {
+      //   mesh.material.color.set(0xff00ff);
+      //   mesh.material.map = null;
+      // }
 
       gl.useProgram(this.programInfo.program);
       twgl.setBuffersAndAttributes(gl, this.programInfo, this.bufferInfoMap[node.id]);
       twgl.setUniforms(this.programInfo, {
-        u_texture: outPort.value && outPort.value.texture,
-        u_color: [1, 1, 1, 1],
+        u_texture: texture,
+        u_color: nodeColor,
         u_viewport: [canvas.width, canvas.height],
+        u_position: [node.x, node.y],
+        u_camera: [this.state.x, this.state.y, this.state.scale],
       });
+      twgl.drawBufferInfo(gl, this.bufferInfoMap[node.id]);
     }
 
     // for (const nodeId of Object.keys(this.meshMap)) {
@@ -553,6 +597,6 @@ export default class NetworkEditor extends Component {
     //   }
     // }
 
-    this.renderer.render(this.scene, this.camera);
+    // this.renderer.render(this.scene, this.camera);
   }
 }
