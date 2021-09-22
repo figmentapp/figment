@@ -186,13 +186,23 @@ export const DEFAULT_NETWORK = {
     },
     {
       id: 2,
+      name: 'Load Image',
+      type: 'image.loadImage',
+      x: 250,
+      y: 50,
+      values: {
+        file: 'examples/assets/kriskross.png',
+      },
+    },
+    {
+      id: 3,
       name: 'Invert',
       type: 'image.invert',
       x: 100,
-      y: 500,
+      y: 150,
     },
   ],
-  connections: [{ outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' }],
+  connections: [{ outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' }],
 };
 
 export default class Network {
