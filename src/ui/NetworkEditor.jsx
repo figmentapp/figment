@@ -102,6 +102,8 @@ export default class NetworkEditor extends Component {
   constructor(props) {
     super(props);
     this.state = { x: 0, y: 0, scale: 1.0 };
+    this.MIN_VIEW_SCALE = 0.15;
+    this.MAX_VIEW_SCALE = 10;
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseDrag = this._onMouseDrag.bind(this);
@@ -198,9 +200,13 @@ export default class NetworkEditor extends Component {
   _networkPosition(e) {
     const mouseX = e.clientX;
     const mouseY = e.clientY - NETWORK_HEADER_HEIGHT;
-    const networkX = mouseX - this.state.x;
-    const networkY = mouseY - this.state.y;
+    const networkX = (mouseX - this.state.x) / this.state.scale;
+    const networkY = (mouseY - this.state.y) / this.state.scale;
     return [networkX, networkY];
+  }
+
+  _coordsToView(pt) {
+    return [(pt.x - this.state.x) / this.state.scale, (pt.y - this.state.y) / this.state.scale];
   }
 
   _onMouseDown(e) {
@@ -271,8 +277,8 @@ export default class NetworkEditor extends Component {
       // FIXME implement box selections
     } else if (this._dragMode === DRAG_MODE_DRAG_NODE) {
       this.props.selection.forEach((node) => {
-        node.x += dx * this.state.scale;
-        node.y += dy * this.state.scale;
+        node.x += dx / this.state.scale;
+        node.y += dy / this.state.scale;
       });
       this._draw();
     } else if (this._dragMode === DRAG_MODE_DRAG_PORT) {
@@ -301,10 +307,19 @@ export default class NetworkEditor extends Component {
 
   _onMouseWheel(e) {
     // e.preventDefault();
-    const delta = e.deltaY;
-    const scale = this.state.scale;
-    const newScale = scale - (delta / 1000) * scale;
-    this.setState({ scale: newScale });
+    const [mouseX, mouseY] = this._networkPosition(e);
+    let scaleDelta = 1 - e.deltaY * 0.001;
+    const newScale = this.state.scale * scaleDelta;
+    if (newScale < this.MIN_VIEW_SCALE) {
+      scaleDelta = this.MIN_VIEW_SCALE / this.state.scale;
+    } else if (newScale > this.MAX_VIEW_SCALE) {
+      scaleDelta = this.MAX_VIEW_SCALE / this.state.scale;
+    }
+    this.setState({
+      x: this.state.x - (mouseX - this.state.x) * (scaleDelta - 1),
+      y: this.state.y - (mouseY - this.state.y) * (scaleDelta - 1),
+      scale: newScale,
+    });
   }
 
   _onDoubleClick(e) {
