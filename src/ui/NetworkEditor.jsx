@@ -134,14 +134,26 @@ export default class NetworkEditor extends Component {
     this.gl = twgl.getWebGLContext(this.previewCanvasRef.current);
     window.gl = this.gl;
     this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
-    this.bufferInfoMap = {};
 
-    // this.scene = new THREE.Scene();
-    // this.camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
-    // this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_WIDTH, PREVIEW_GEO_HEIGHT);
-    // this.nodeGroup = new THREE.Group();
-    // this.scene.add(this.nodeGroup);
-    // this.meshMap = {};
+    // Create a default checkerboard texture.
+    const checkerTexture = {
+      mag: gl.NEAREST,
+      min: gl.LINEAR,
+      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
+    };
+    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
+
+    // Create a buffer for a node rectangle.
+    let x0 = 0;
+    let x1 = NODE_WIDTH;
+    let y0 = 0;
+    let y1 = NODE_HEIGHT;
+    const arrays = {
+      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
+      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
+      indices: [0, 1, 2, 0, 2, 3],
+    };
+    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
 
     this._draw();
   }
@@ -544,26 +556,14 @@ export default class NetworkEditor extends Component {
           NODE_HEIGHT - NODE_BORDER * 2
         );
       }
-      if (!this.bufferInfoMap[node.id]) {
-        let x0 = 0;
-        let x1 = NODE_WIDTH;
-        let y0 = 0;
-        let y1 = NODE_HEIGHT;
-
-        const arrays = {
-          a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
-          a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-          indices: [0, 1, 2, 0, 2, 3],
-        };
-        const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
-        this.bufferInfoMap[node.id] = bufferInfo;
-      }
 
       let nodeColor = [1, 0, 1, 1];
       let texture = null;
       if (outPort.value && outPort.value._fbo) {
         nodeColor = [1, 1, 1, 1];
         texture = outPort.value._fbo.attachments[0];
+      } else {
+        texture = this.defaultTexture;
       }
       //   let ratio = outPort.value.width / outPort.value.height;
       //   let dRatio = PREVIEW_GEO_RATIO / ratio;
@@ -581,7 +581,7 @@ export default class NetworkEditor extends Component {
       // }
 
       gl.useProgram(this.programInfo.program);
-      twgl.setBuffersAndAttributes(gl, this.programInfo, this.bufferInfoMap[node.id]);
+      twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
       twgl.setUniforms(this.programInfo, {
         u_texture: texture,
         u_color: nodeColor,
@@ -589,17 +589,7 @@ export default class NetworkEditor extends Component {
         u_position: [node.x, node.y],
         u_camera: [this.state.x, this.state.y, this.state.scale],
       });
-      twgl.drawBufferInfo(gl, this.bufferInfoMap[node.id]);
+      twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
     }
-
-    // for (const nodeId of Object.keys(this.meshMap)) {
-    //   const id = parseInt(nodeId);
-    //   if (!network.nodes.find((n) => n.id === id)) {
-    //     this.nodeGroup.remove(this.meshMap[nodeId]);
-    //     delete this.meshMap[nodeId];
-    //   }
-    // }
-
-    // this.renderer.render(this.scene, this.camera);
   }
 }
