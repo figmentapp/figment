@@ -121,6 +121,11 @@ export const DEFAULT_NETWORK = {
       type: 'image.bcs',
       x: 300,
       y: 290,
+      values: {
+        brightness: -0.2,
+        contrast: 1.5,
+        saturation: 0.5,
+      },
     },
     {
       id: 13,
