@@ -66,7 +66,6 @@ void main() {
   pos.y *= u_camera.z;
   pos.x += u_camera.x / u_viewport.x;
   pos.y += u_camera.y / u_viewport.y;
-  // pos.y = 1.0 - pos.y;
   // Convert position from 0.0-1.0 to -1.0-1.0
   pos.x = pos.x * 2.0 - 1.0;
   pos.y = (1.0 - pos.y) * 2.0 - 1.0;
@@ -77,6 +76,7 @@ void main() {
 const FRAGMENT_SHADER = `
 precision mediump float;
 uniform sampler2D u_texture;
+uniform vec2 u_resolution;
 uniform vec4 u_color;
 varying vec2 v_uv;
 void main() {
@@ -559,12 +559,16 @@ export default class NetworkEditor extends Component {
       }
 
       let nodeColor = [1, 0, 1, 1];
-      let texture = null;
+      let texture, textureWidth, textureHeight;
       if (outPort.value && outPort.value._fbo) {
         nodeColor = [1, 1, 1, 1];
         texture = outPort.value._fbo.attachments[0];
+        textureWidth = outPort.value.width;
+        textureHeight = outPort.value.height;
       } else {
         texture = this.defaultTexture;
+        textureWidth = NODE_WIDTH;
+        textureHeight = NODE_HEIGHT;
       }
       //   let ratio = outPort.value.width / outPort.value.height;
       //   let dRatio = PREVIEW_GEO_RATIO / ratio;
@@ -588,6 +592,7 @@ export default class NetworkEditor extends Component {
         u_color: nodeColor,
         u_viewport: [canvas.width, canvas.height],
         u_position: [node.x, node.y],
+        u_resolution: [textureWidth, textureHeight],
         u_camera: [this.state.x, this.state.y, this.state.scale],
       });
       twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
