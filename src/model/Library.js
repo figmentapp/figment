@@ -46,7 +46,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Bcs', type: 'image.bcs', source: image.bcs });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
-    this.nodeTypes.push({ name: 'Greyscale', type: 'image.greyscale', source: image.greyscale });
+    this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modcolor', type: 'image.modcolor', source: image.modcolor });

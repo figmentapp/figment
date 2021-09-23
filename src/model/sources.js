@@ -82,7 +82,7 @@ function update() {
   const fn = tween[easingIn.value];
   let t;
   if (repeatIn.value === 'cycle') {
- 	  t = timeIn.value % durationIn.value;
+     t = timeIn.value % durationIn.value;
   } else if (repeatIn.value === 'none') {
     t = Math.min(timeIn.value, durationIn.value);
   }
@@ -203,7 +203,7 @@ const onChange = () => {
   let v = valueIn.value;
   // Convert from input to 0-1.
   try {
-  	v = (v - inMinIn.value) / (inMaxIn.value - inMinIn.value);
+    v = (v - inMinIn.value) / (inMaxIn.value - inMinIn.value);
   } catch (e) {
     v = inMin.value;
   }
@@ -478,36 +478,42 @@ alphaIn.onChange = generate;
 `;
 
 image.loadImage = `// Load an image from a file.
-// const url = require('url');
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
 
 const fileIn = node.fileIn('file', '');
 const imageOut = node.imageOut('out');
 
-let texture, target, mesh, camera;
+let texture, framebuffer, program;
 
 node.onStart = () => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 }
 
 function loadImage() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
-  console.log('loadImage', imageUrl.toString());
-  const textureLoader = new THREE.TextureLoader();
-  const out = textureLoader.load(imageUrl.toString(), onLoad, null, onError);
+  figment.createTextureFromUrl(imageUrl.toString(), onLoad);
 }
 
-function onLoad(texture) {
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  const material = new THREE.MeshBasicMaterial({ map: texture });
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(texture.image.width, texture.image.height, { depthBuffer: false });
-
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-
-  imageOut.set(target);
+function onLoad(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 function onError(err) {
@@ -664,7 +670,7 @@ const exec = async () => {
   const img = new Image();
   img.src = data;
   img.onload = () => {
-  	imageOut.set(img);
+    imageOut.set(img);
   }
 }
 
@@ -673,18 +679,15 @@ widthIn.onChange = exec;
 heightIn.onChange = exec;
 `;
 
-
 image.bcs = `// change brightness - contrast - saturation on input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float uWidth;
-uniform float uHeight;
-varying vec2 vUv;
-uniform float brightness;
-uniform float contrast;
-uniform float saturation;
+uniform sampler2D u_input_texture;
+uniform float u_brightness;
+uniform float u_contrast;
+uniform float u_saturation;
+varying vec2 v_uv;
 
 mat4 brightnessMatrix( float brightness )
 {
@@ -696,7 +699,7 @@ mat4 brightnessMatrix( float brightness )
 
 mat4 contrastMatrix( float contrast )
 {
-	float t = ( 1.0 - contrast ) / 2.0;
+  float t = ( 1.0 - contrast ) / 2.0;
     
     return mat4( contrast, 0, 0, 0,
                  0, contrast, 0, 0,
@@ -726,49 +729,44 @@ mat4 saturationMatrix( float saturation )
 }
 
 void main() {
-  vec2 uv = vUv;
-  vec4 color = texture2D( uInputTexture, uv );
+  vec2 uv = v_uv;
+  vec4 color = texture2D( u_input_texture, uv );
     
-  gl_FragColor = brightnessMatrix( brightness ) *
-          contrastMatrix( contrast ) * 
-          saturationMatrix( saturation ) *
+  gl_FragColor = brightnessMatrix( u_brightness ) *
+          contrastMatrix( u_contrast ) * 
+          saturationMatrix( u_saturation ) *
           color;
 
   }
 \`;
 
 const imageIn = node.imageIn('in');
-const brightnessIn = node.numberIn('brightness', 0.2, { min: -1, max: 1, step: 0.01 });
-const contrastIn = node.numberIn('contrast', 1, { min: 0, max: 1, step: 0.01 });
-const saturationIn = node.numberIn('saturation', 0.6, { min: 0, max: 1, step: 0.01 });
+const brightnessIn = node.numberIn('brightness', 0.0, { min: -1, max: 1, step: 0.01 });
+const contrastIn = node.numberIn('contrast', 1.0, { min: 0, max: 2, step: 0.01 });
+const saturationIn = node.numberIn('saturation', 1.0, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, {
-    uInputTexture: { value:  null },
-    brightness: { value: 0.1 },
-    contrast: { value: 1.0 },
-    saturation: { value: 0.5 },
-  });
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.brightness.value = brightnessIn.value;
-  material.uniforms.contrast.value = contrastIn.value;
-  material.uniforms.saturation.value = saturationIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_brightness: brightnessIn.value,
+    u_contrast: contrastIn.value,
+    u_saturation: saturationIn.value
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -777,16 +775,15 @@ contrastIn.onChange = render;
 saturationIn.onChange = render;
 `;
 
-
 image.constant = `// Render a constant color.
 
 const fragmentShader = \`
 precision mediump float;
-uniform vec3 uColor; // R/G/B color
-uniform float uAlpha;
-varying vec2 vUv;
+uniform vec3 u_color; // R/G/B color
+uniform float u_alpha;
+varying vec2 v_uv;
 void main() {
-  gl_FragColor = vec4(uColor, uAlpha);
+  gl_FragColor = vec4(u_color, u_alpha);
 }
 \`;
 
@@ -796,27 +793,22 @@ const widthIn = node.numberIn('width', 1024, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 512, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { 
-    uColor: { value: [1.0, 0.0, 0.0] },
-    uAlpha: { value: 1 },
-  });
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(widthIn.value, heightIn.value, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
 };
 
 function render() {
-  target.setSize(widthIn.value, heightIn.value);
-  material.uniforms.uColor.value = [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255];
-  material.uniforms.uAlpha.value = alphaIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  framebuffer.setSize(widthIn.value, heightIn.value);
+  framebuffer.bind();
+  figment.drawQuad(program, {
+    u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
+    u_alpha: alphaIn.value
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 colorIn.onChange = render;
@@ -829,15 +821,14 @@ image.emboss = `// emboss convolution of input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-varying vec2 vUv;
-uniform float uembossW;
-uniform float uembossH;
+uniform sampler2D u_input_texture;
+uniform vec2 u_emboss;
+varying vec2 v_uv;
 
 
 vec4 sample_pixel(in vec2 uv, in float dx, in float dy)
 {
-    return texture2D(uInputTexture, uv + vec2(dx, dy));
+    return texture2D(u_input_texture, uv + vec2(dx, dy));
 }
 
 float convolve(in float[9] kernel, in vec4[9] color_matrix)
@@ -852,124 +843,110 @@ float convolve(in float[9] kernel, in vec4[9] color_matrix)
 
 void build_color_matrix(in vec2 uv, out vec4[9] color_matrix)
 {
-    float dxtex = uembossW;
-    float dytex = uembossH;
-
-	color_matrix[0].rgb = sample_pixel(uv, -dxtex, -dytex)	.rgb;
-	color_matrix[1].rgb = sample_pixel(uv, -dxtex, 	0.0)	.rgb;
-    color_matrix[2].rgb = sample_pixel(uv, -dxtex, 	dytex)	.rgb;
-	color_matrix[3].rgb = sample_pixel(uv, 0.0, 	-dytex)	.rgb;
-	color_matrix[4].rgb = sample_pixel(uv, 0.0, 	0.0)	.rgb;
-    color_matrix[5].rgb = sample_pixel(uv, 0.0, 	dytex)	.rgb;
-	color_matrix[6].rgb = sample_pixel(uv, dxtex, 	-dytex)	.rgb;
-	color_matrix[7].rgb = sample_pixel(uv, dxtex, 	0.0)	.rgb;
-    color_matrix[8].rgb = sample_pixel(uv, dxtex, 	dytex)	.rgb;
+  float dx = u_emboss.x;
+  float dy = u_emboss.y;
+  color_matrix[0].rgb = sample_pixel(uv, -dx, -dy).rgb;
+  color_matrix[1].rgb = sample_pixel(uv, -dx, 0.0).rgb;
+  color_matrix[2].rgb = sample_pixel(uv, -dx,  dy).rgb;
+  color_matrix[3].rgb = sample_pixel(uv, 0.0, -dy).rgb;
+  color_matrix[4].rgb = sample_pixel(uv, 0.0, 0.0).rgb;
+  color_matrix[5].rgb = sample_pixel(uv, 0.0,  dy).rgb;
+  color_matrix[6].rgb = sample_pixel(uv,  dx, -dy).rgb;
+  color_matrix[7].rgb = sample_pixel(uv,  dx, 0.0).rgb;
+  color_matrix[8].rgb = sample_pixel(uv,  dx,  dy).rgb;
 }
 
 void build_mean_matrix(inout vec4[9] color_matrix)
 {
-   for (int i=0; i<9; i++)
+   for (int i = 0; i < 9; i++)
    {
       color_matrix[i].a = (color_matrix[i].r + color_matrix[i].g + color_matrix[i].b) / 3.;
    }
 }
 
 void main() {
-  vec2 uv = vUv;
+  vec2 uv = v_uv;
 
-  float kerEmboss[9];
-  kerEmboss[0] = 2.0;
-  kerEmboss[1] = 0.0;
-  kerEmboss[2] = 0.0;
-  kerEmboss[3] = 0.0;
-  kerEmboss[4] = -1.;
-  kerEmboss[5] = 0.0;
-  kerEmboss[6] = 0.0;
-  kerEmboss[7] = 0.0;
-  kerEmboss[8] = -1.;
+  float kernel[9];
+  kernel[0] = 2.0; kernel[1] = 0.0; kernel[2] = 0.0;
+  kernel[3] = 0.0; kernel[4] = -1.; kernel[5] = 0.0;
+  kernel[6] = 0.0; kernel[7] = 0.0; kernel[8] = -1.;
   
   vec4 pixel_matrix[9];
   
   build_color_matrix(uv, pixel_matrix);
   build_mean_matrix(pixel_matrix);
   
-  float convolved = convolve(kerEmboss, pixel_matrix);
-  gl_FragColor = vec4(vec3(convolved) ,1.0);
-
+  float convolved = convolve(kernel, pixel_matrix);
+  gl_FragColor = vec4(vec3(convolved), 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const embossWIn = node.numberIn('emboss width', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
-const embossHIn = node.numberIn('emboss height', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
+const embossWidthIn = node.numberIn('emboss width', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
+const embossHeightIn = node.numberIn('emboss height', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { 
-    uInputTexture: { value:  null },
-    uembossW: { value: 0.0015 },
-    uembossH: { value: 0.0015 },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uembossW.value = embossWIn.value;
-  material.uniforms.uembossH.value = embossHIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_emboss: [embossWidthIn.value, embossHeightIn.value]  
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
-embossWIn.onChange = render;
-embossHIn.onChange = render;
+embossWidthIn.onChange = render;
+embossHeightIn.onChange = render;
 `;
 
-image.greyscale = `// grayscale conversion of input image.
+image.grayscale = `// grayscale conversion of input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+varying vec2 v_uv;
 
 void main() {
-  vec2 uv = vUv;
-  vec4 color = texture2D(uInputTexture, uv.st);
-	float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-	gl_FragColor = vec4(vec3(gray), 1.0);
+  vec2 uv = v_uv;
+  vec4 color = texture2D(u_input_texture, uv.st);
+  float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+  gl_FragColor = vec4(gray, gray, gray, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -979,11 +956,10 @@ image.invert = `// Invert colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+varying vec2 v_uv;
 void main() {
-  vec2 uv = vUv;
-  gl_FragColor = texture2D(uInputTexture, uv.xy);
+  gl_FragColor = texture2D(u_input_texture, v_uv);
   gl_FragColor.rgb = 1.0 - gl_FragColor.rgb;
 }
 \`;
@@ -991,24 +967,22 @@ void main() {
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null }});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -1018,21 +992,20 @@ image.mirror = `// Mirror the input image over a specific axis.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform vec2 uAspect;
-uniform vec3 uLine;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform vec2 u_resolution;
+uniform vec3 u_line;
+varying vec2 v_uv;
 void main() {
-  vec2 uv = vUv;
-  vec2 uvp = uv * uAspect;
-  float d = dot(uLine, vec3(uvp, 1.0));
+  vec2 uv = v_uv;
+  vec2 uvp = uv * u_resolution;
+  float d = dot(u_line, vec3(uvp, 1.0));
   if (d > 0.0) {
-    uvp.x = uvp.x - 2.0 * uLine.x * d;
-    uvp.y = uvp.y - 2.0 * uLine.y * d;
-    uv = uvp / uAspect;
+    uvp.x = uvp.x - 2.0 * u_line.x * d;
+    uvp.y = uvp.y - 2.0 * u_line.y * d;
+    uv = uvp / u_resolution;
   }
-  vec4 originalColor = texture2D(uInputTexture, uv);
-  gl_FragColor = originalColor;
+  gl_FragColor = texture2D(u_input_texture, uv);
 }
 \`;
 
@@ -1043,34 +1016,32 @@ const pivotYIn = node.numberIn('pivotY', 0.5, { min: 0, max: 1, step: 0.01 } );
 const angleIn = node.numberIn('angle', 90, { min: -180, max: 180, step: 1 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, {
-    uInputTexture: { value: null },
-    uAspect: { value: [1, 1] },
-    uLine: { value: [0, 0, 0] },
-  })
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uAspect.value = [imageIn.value.width, imageIn.value.height];
+  if (!program) return;
+  if (!framebuffer) return;
   const r = angleIn.value * Math.PI / 180;
   const x = Math.sin(r);
   const y = -Math.cos(r);
   const z = -((pivotXIn.value * x * imageIn.value.width) + (pivotYIn.value * y * imageIn.value.height));
-  material.uniforms.uLine.value = [x, y, z];
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture, 
+    u_resolution: [imageIn.value.width, imageIn.value.height],
+    u_line: [x, y, z],
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+
 }
 
 imageIn.onChange = render;
@@ -1083,125 +1054,116 @@ image.modcolor = `// brightness threshold between 0 - 1.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float umodr;
-uniform float umodg;
-uniform float umodb;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform float u_red;
+uniform float u_green;
+uniform float u_blue;
+varying vec2 v_uv;
 
 void main() {
-  vec2 uv = vUv;
-  vec3 col = texture2D(uInputTexture, uv.st).rgb;
-	col.r += mod(col.r, umodr);
-	col.g += mod(col.g, umodg);
-	col.b += mod(col.b, umodb);
-	gl_FragColor = vec4(col, 1.0);
+  vec2 uv = v_uv;
+  vec4 col = texture2D(u_input_texture, uv.st);
+  col.r += mod(col.r, u_red);
+  col.g += mod(col.g, u_green);
+  col.b += mod(col.b, u_blue);
+  gl_FragColor = col;
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const redIn = node.numberIn('red', 0, { min: 0, max: 1, step: 0.1 });
-const greenIn = node.numberIn('green', 0.1, { min: 0, max: 1, step: 0.1 });
-const blueIn = node.numberIn('blue', 1, { min: 0, max: 1, step: 0.1 });
-
+const redIn = node.numberIn('red', 0, { min: 0, max: 1, step: 0.01 });
+const greenIn = node.numberIn('green', 0.1, { min: 0, max: 1, step: 0.01 });
+const blueIn = node.numberIn('blue', 1, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },
-    umodr: { value: 0 },umodg: { value: 0 },umodb: { value: 0 },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.umodr.value = redIn.value;
-  material.uniforms.umodg.value = greenIn.value;
-  material.uniforms.umodb.value = blueIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_red: redIn.value,
+    u_green: greenIn.value,
+    u_blue: blueIn.value,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
 redIn.onChange = render;
 greenIn.onChange = render;
 blueIn.onChange = render;
-
 `;
 
 image.sobel = `// Sobel edge detection on input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float uWidth;
-uniform float uHeight;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform vec2 u_resolution;
+varying vec2 v_uv;
 
 void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
 {
-	float w = 1.0 / uWidth;
-	float h = 1.0 / uHeight;
+  float w = 1.0 / u_resolution.x;
+  float h = 1.0 / u_resolution.y;
 
-	n[0] = texture2D(tex, coord + vec2( -w, -h));
-	n[1] = texture2D(tex, coord + vec2(0.0, -h));
-	n[2] = texture2D(tex, coord + vec2(  w, -h));
-	n[3] = texture2D(tex, coord + vec2( -w, 0.0));
-	n[4] = texture2D(tex, coord);
-	n[5] = texture2D(tex, coord + vec2(  w, 0.0));
-	n[6] = texture2D(tex, coord + vec2( -w, h));
-	n[7] = texture2D(tex, coord + vec2(0.0, h));
-	n[8] = texture2D(tex, coord + vec2(  w, h));
+  n[0] = texture2D(tex, coord + vec2( -w, -h));
+  n[1] = texture2D(tex, coord + vec2(0.0, -h));
+  n[2] = texture2D(tex, coord + vec2(  w, -h));
+  n[3] = texture2D(tex, coord + vec2( -w, 0.0));
+  n[4] = texture2D(tex, coord);
+  n[5] = texture2D(tex, coord + vec2(  w, 0.0));
+  n[6] = texture2D(tex, coord + vec2( -w, h));
+  n[7] = texture2D(tex, coord + vec2(0.0, h));
+  n[8] = texture2D(tex, coord + vec2(  w, h));
 }
 
 void main() {
-  vec2 uv = vUv;
-	vec4 n[9];
-	make_kernel( n, uInputTexture, uv.st );
+  vec2 uv = v_uv;
+  vec4 n[9];
+  make_kernel(n, u_input_texture, uv.st);
 
-	vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
+  vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
   vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
-	vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
+  vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
 
-	gl_FragColor = vec4( 1.0 - sobel.rgb, 1.0 );
+  gl_FragColor = vec4(1.0 - sobel.rgb, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, {
-    uInputTexture: { value:  null },
-    uWidth: { value: 1 },
-    uHeight: { value: 1 },
-  });
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uWidth.value = imageIn.value.width;
-  material.uniforms.uHeight.value = imageIn.value.height;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_resolution: [imageIn.value.width, imageIn.value.height],
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -1211,44 +1173,40 @@ image.threshold = `// brightness threshold between 0 - 1.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float uThreshold;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform float u_threshold;
+varying vec2 v_uv;
 
 void main() {
-  vec2 uv = vUv;
-  vec3 col = texture2D(uInputTexture, uv.st).rgb;
-  float bright = 0.33333 * (col.r + col.g + col.b);
-  float b = mix(0.0, 1.0, step(uThreshold, bright));
-  gl_FragColor = vec4(vec3(b), 1.0);
+  vec2 uv = v_uv;
+  vec3 col = texture2D(u_input_texture, uv.st).rgb;
+  float brightness = 0.33333 * (col.r + col.g + col.b);
+  float b = mix(0.0, 1.0, step(u_threshold, brightness));
+  gl_FragColor = vec4(b, b, b, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.011 });
-
+const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
-
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderMaterial(fragmentShader, { uInputTexture: { value:  null },
-    uThreshold: { value: 0 },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uThreshold.value = thresholdIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture, 
+    u_threshold: thresholdIn.value,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -1306,7 +1264,7 @@ function modelReady() {
   if (typeIn.value == 'single'){
     poseNet.singlePose(imageIn.value);
   } else {
-  	poseNet.multiPose(imageIn.value);
+    poseNet.multiPose(imageIn.value);
   }
 }
 
@@ -1345,7 +1303,7 @@ function strokeLine(ctx, x1, y1, x2, y2) {
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
- 	if(imageIn.value) {
+   if(imageIn.value) {
       poseOut.set(poses);
     };
 };
@@ -1428,9 +1386,9 @@ function strokeLine(ctx, x1, y1, x2, y2) {
 
 triggerIn.onTrigger = (props) => {
   const { canvas, ctx } = props;
- 	if(poseIn.value) {
+   if(poseIn.value) {
       drawKeypoints(ctx);
-  	  drawSkeleton(ctx);
+      drawSkeleton(ctx);
     };
 };
 `;
@@ -1476,7 +1434,7 @@ const colorIn = node.colorIn('color', [150, 50, 150, 1]);
 let faceapi;
 let detections;
 let options = {
-	withLandmarks: true,
+  withLandmarks: true,
     withDescriptors: false,
  }
 
@@ -1496,9 +1454,9 @@ function drawBox(ctx, detection){
     const alignedRect = detection.alignedRect;
     const {_x, _y, _width, _height} = alignedRect._box;
     ctx.save();
-  	ctx.strokeStyle = g.rgba(...colorIn.value);
-  	ctx.strokeRect(_x, _y, _width, _height);
-  	ctx.restore();
+    ctx.strokeStyle = g.rgba(...colorIn.value);
+    ctx.strokeRect(_x, _y, _width, _height);
+    ctx.restore();
 }
 
 function drawLandmarks(ctx, detection){

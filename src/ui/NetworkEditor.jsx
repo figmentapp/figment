@@ -1,7 +1,9 @@
 import React, { Component } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
-import { clamp } from '../util';
+import * as twgl from 'twgl.js';
+import { v3, m4 } from 'twgl.js';
+
 import {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
@@ -48,6 +50,44 @@ const PORT_COLORS = {
   [PORT_TYPE_OBJECT]: COLORS.gray800,
 };
 
+const VERTEX_SHADER = `
+uniform vec2 u_viewport;
+uniform vec2 u_position;
+uniform vec3 u_camera;
+attribute vec2 a_position;
+attribute vec2 a_uv;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_uv;
+  vec2 pos = a_position / u_viewport;
+  pos.x += u_position.x / u_viewport.x;
+  pos.y += u_position.y / u_viewport.y;
+  pos.x *= u_camera.z;
+  pos.y *= u_camera.z;
+  pos.x += u_camera.x / u_viewport.x;
+  pos.y += u_camera.y / u_viewport.y;
+  // Convert position from 0.0-1.0 to -1.0-1.0
+  pos.x = pos.x * 2.0 - 1.0;
+  pos.y = (1.0 - pos.y) * 2.0 - 1.0;
+  gl_Position = vec4(pos, 0.0, 1.0);
+}
+`;
+
+const FRAGMENT_SHADER = `
+precision mediump float;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
+uniform vec4 u_color;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = u_color * texture2D(u_texture, v_uv);
+}
+`;
+
+function clamp(v, min, max) {
+  return Math.min(Math.max(v, min), max);
+}
+
 function _nodeWidth(node) {
   let portCount = Math.max(node.inPorts.length, node.outPorts.length);
   if (portCount < 6) return 100;
@@ -66,10 +106,13 @@ export default class NetworkEditor extends Component {
   constructor(props) {
     super(props);
     this.state = { x: 0, y: 0, scale: 1.0 };
+    this.MIN_VIEW_SCALE = 0.15;
+    this.MAX_VIEW_SCALE = 10;
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseDrag = this._onMouseDrag.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
+    this._onMouseWheel = this._onMouseWheel.bind(this);
     this._onDoubleClick = this._onDoubleClick.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
@@ -92,20 +135,29 @@ export default class NetworkEditor extends Component {
     this.canvas = this.canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
     this._timer = setInterval(this._draw, 1000);
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: this.previewCanvasRef.current,
-      alpha: false,
-      depth: false,
-      stencil: false,
-      antialias: false,
-    });
-    window.gRenderer = this.renderer;
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
-    this.planeGeometry = new THREE.PlaneBufferGeometry(PREVIEW_GEO_WIDTH, PREVIEW_GEO_HEIGHT);
-    this.nodeGroup = new THREE.Group();
-    this.scene.add(this.nodeGroup);
-    this.meshMap = {};
+    this.gl = twgl.getWebGLContext(this.previewCanvasRef.current);
+    window.gl = this.gl;
+    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+
+    // Create a default checkerboard texture.
+    const checkerTexture = {
+      mag: gl.NEAREST,
+      min: gl.LINEAR,
+      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
+    };
+    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
+
+    // Create a buffer for a node rectangle.
+    let x0 = 0;
+    let x1 = NODE_WIDTH;
+    let y0 = 0;
+    let y1 = NODE_HEIGHT;
+    const arrays = {
+      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
+      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
+      indices: [0, 1, 2, 0, 2, 3],
+    };
+    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
 
     this._draw();
   }
@@ -127,6 +179,7 @@ export default class NetworkEditor extends Component {
           onMouseDown={this._onMouseDown}
           onMouseMove={this._onMouseMove}
           onDoubleClick={this._onDoubleClick}
+          onWheel={this._onMouseWheel}
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>
@@ -163,9 +216,13 @@ export default class NetworkEditor extends Component {
   _networkPosition(e) {
     const mouseX = e.clientX;
     const mouseY = e.clientY - NETWORK_HEADER_HEIGHT;
-    const networkX = mouseX - this.state.x;
-    const networkY = mouseY - this.state.y;
+    const networkX = (mouseX - this.state.x) / this.state.scale;
+    const networkY = (mouseY - this.state.y) / this.state.scale;
     return [networkX, networkY];
+  }
+
+  _coordsToView(pt) {
+    return [(pt.x - this.state.x) / this.state.scale, (pt.y - this.state.y) / this.state.scale];
   }
 
   _onMouseDown(e) {
@@ -236,8 +293,8 @@ export default class NetworkEditor extends Component {
       // FIXME implement box selections
     } else if (this._dragMode === DRAG_MODE_DRAG_NODE) {
       this.props.selection.forEach((node) => {
-        node.x += dx * this.state.scale;
-        node.y += dy * this.state.scale;
+        node.x += dx / this.state.scale;
+        node.y += dy / this.state.scale;
       });
       this._draw();
     } else if (this._dragMode === DRAG_MODE_DRAG_PORT) {
@@ -262,6 +319,23 @@ export default class NetworkEditor extends Component {
     window.removeEventListener('mouseup', this._onMouseUp);
     this._dragMode = DRAG_MODE_IDLE;
     this._draw();
+  }
+
+  _onMouseWheel(e) {
+    // e.preventDefault();
+    const [mouseX, mouseY] = this._networkPosition(e);
+    let scaleDelta = 1 - e.deltaY * 0.001;
+    const newScale = this.state.scale * scaleDelta;
+    if (newScale < this.MIN_VIEW_SCALE) {
+      scaleDelta = this.MIN_VIEW_SCALE / this.state.scale;
+    } else if (newScale > this.MAX_VIEW_SCALE) {
+      scaleDelta = this.MAX_VIEW_SCALE / this.state.scale;
+    }
+    this.setState({
+      x: this.state.x - (mouseX - this.state.x) * (scaleDelta - 1),
+      y: this.state.y - (mouseY - this.state.y) * (scaleDelta - 1),
+      scale: newScale,
+    });
   }
 
   _onDoubleClick(e) {
@@ -315,6 +389,15 @@ export default class NetworkEditor extends Component {
     // Set up the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
+    // -    ctx.setTransform(ratio, 0.0, 0.0, ratio, this.state.x * ratio, this.state.y * ratio);
+    ctx.setTransform(
+      ratio * this.state.scale,
+      0.0,
+      0.0,
+      ratio * this.state.scale,
+      this.state.x * ratio,
+      this.state.y * ratio
+    );
 
     // Draw nodes
     for (const node of network.nodes) {
@@ -325,25 +408,22 @@ export default class NetworkEditor extends Component {
       } else {
         ctx.fillStyle = COLORS.gray700;
       }
-      ctx.fillRect(node.x, node.y, nodeWidth, NODE_BORDER);
-      ctx.fillRect(node.x, node.y + NODE_HEIGHT - NODE_BORDER, nodeWidth, NODE_BORDER);
-      ctx.fillRect(node.x, node.y, NODE_BORDER, NODE_HEIGHT);
-      ctx.fillRect(node.x + nodeWidth - NODE_BORDER, node.y, NODE_BORDER, NODE_HEIGHT);
+      const nodeBorder = clamp(NODE_BORDER / this.state.scale, 1.0, 5.0);
+      ctx.fillRect(node.x, node.y, nodeWidth, nodeBorder);
+      ctx.fillRect(node.x, node.y + NODE_HEIGHT - nodeBorder, nodeWidth, nodeBorder);
+      ctx.fillRect(node.x, node.y, nodeBorder, NODE_HEIGHT);
+      ctx.fillRect(node.x + nodeWidth - nodeBorder, node.y, nodeBorder, NODE_HEIGHT);
 
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y, NODE_PORT_WIDTH - 2, NODE_PORT_HEIGHT);
+
+        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y, NODE_PORT_WIDTH - 2, nodeBorder);
       }
       for (let i = 0; i < node.outPorts.length; i++) {
         const port = node.outPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(
-          node.x + i * NODE_PORT_WIDTH,
-          node.y + NODE_HEIGHT - NODE_PORT_HEIGHT,
-          NODE_PORT_WIDTH - 2,
-          NODE_PORT_HEIGHT
-        );
+        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y + NODE_HEIGHT - nodeBorder, NODE_PORT_WIDTH - 2, nodeBorder);
       }
       this._drawNodePreviews();
     }
@@ -454,18 +534,17 @@ export default class NetworkEditor extends Component {
   }
 
   _drawNodePreviews() {
+    const { gl } = this;
     const { network } = this.props;
     const canvas = this.previewCanvasRef.current;
     const parent = canvas.parentElement;
     canvas.width = parent.clientWidth;
     canvas.height = parent.clientHeight;
-    this.renderer.setSize(canvas.width, canvas.height);
-    this.renderer.setViewport(0, 0, canvas.width, canvas.height);
-    this.renderer.setClearColor(0x22272e);
-    this.renderer.clear();
-    this.camera.right = canvas.width;
-    this.camera.top = canvas.height;
-    this.camera.updateProjectionMatrix();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.05, 0.06, 0.09, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
@@ -478,41 +557,45 @@ export default class NetworkEditor extends Component {
           NODE_HEIGHT - NODE_BORDER * 2
         );
       }
-      if (!this.meshMap[node.id]) {
-        const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-        const mesh = new THREE.Mesh(this.planeGeometry, material);
-        this.nodeGroup.add(mesh);
-        this.meshMap[node.id] = mesh;
-      }
-      this.nodeGroup.position.set(this.state.x, -this.state.y, 0);
 
-      const mesh = this.meshMap[node.id];
-      mesh.position.set(node.x + NODE_WIDTH / 2, canvas.height - node.y - NODE_HEIGHT / 2, 0);
-      if (outPort.value && outPort.value.texture) {
-        let ratio = outPort.value.width / outPort.value.height;
-        let dRatio = PREVIEW_GEO_RATIO / ratio;
-        if (ratio < PREVIEW_GEO_RATIO) {
-          mesh.scale.set(1 / dRatio, 1, 1);
-        } else {
-          mesh.scale.set(1, dRatio, 1);
-        }
-        mesh.material.color.set(0xffffff);
-        mesh.material.map = outPort.value.texture;
-        mesh.material.needsUpdate = true;
+      let nodeColor = [1, 0, 1, 1];
+      let texture, textureWidth, textureHeight;
+      if (outPort.value && outPort.value._fbo) {
+        nodeColor = [1, 1, 1, 1];
+        texture = outPort.value._fbo.attachments[0];
+        textureWidth = outPort.value.width;
+        textureHeight = outPort.value.height;
       } else {
-        mesh.material.color.set(0xff00ff);
-        mesh.material.map = null;
+        texture = this.defaultTexture;
+        textureWidth = NODE_WIDTH;
+        textureHeight = NODE_HEIGHT;
       }
-    }
+      //   let ratio = outPort.value.width / outPort.value.height;
+      //   let dRatio = PREVIEW_GEO_RATIO / ratio;
+      //   if (ratio < PREVIEW_GEO_RATIO) {
+      //     mesh.scale.set(1 / dRatio, 1, 1);
+      //   } else {
+      //     mesh.scale.set(1, dRatio, 1);
+      //   }
+      //   mesh.material.color.set(0xffffff);
+      //   mesh.material.map = outPort.value.texture;
+      //   mesh.material.needsUpdate = true;
+      // } else {
+      //   mesh.material.color.set(0xff00ff);
+      //   mesh.material.map = null;
+      // }
 
-    for (const nodeId of Object.keys(this.meshMap)) {
-      const id = parseInt(nodeId);
-      if (!network.nodes.find((n) => n.id === id)) {
-        this.nodeGroup.remove(this.meshMap[nodeId]);
-        delete this.meshMap[nodeId];
-      }
+      gl.useProgram(this.programInfo.program);
+      twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
+      twgl.setUniforms(this.programInfo, {
+        u_texture: texture,
+        u_color: nodeColor,
+        u_viewport: [canvas.width, canvas.height],
+        u_position: [node.x, node.y],
+        u_resolution: [textureWidth, textureHeight],
+        u_camera: [this.state.x, this.state.y, this.state.scale],
+      });
+      twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
     }
-
-    this.renderer.render(this.scene, this.camera);
   }
 }

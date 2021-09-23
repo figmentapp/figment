@@ -15,40 +15,6 @@ import Port, {
   PORT_OUT,
 } from './Port';
 
-// export const DEFAULT_NETWORK = {
-//   nodes: [
-//     {
-//       id: 1,
-//       name: 'Canvas',
-//       type: 'graphics.canvas',
-//       x: 50,
-//       y: 50
-//     },
-//     {
-//       id: 2,
-//       name: 'Sequence',
-//       type: 'core.sequence',
-//       x: 50,
-//       y: 150
-//     },
-//     {
-//       id: 3,
-//       name: 'Rectangle',
-//       type: 'graphics.rect',
-//       x: 50,
-//       y: 300,
-//       values: {
-//         x: 50,
-//         y: 50
-//       }
-//     }
-//   ],
-//   connections: [
-//     { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
-//     { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
-//   ]
-// };
-
 export const DEFAULT_NETWORK = {
   nodes: [
     {
@@ -137,8 +103,8 @@ export const DEFAULT_NETWORK = {
     },
     {
       id: 10,
-      name: 'Greyscale',
-      type: 'image.greyscale',
+      name: 'Grayscale',
+      type: 'image.grayscale',
       x: 300,
       y: 220,
     },
