@@ -166,6 +166,8 @@ img {
 }
 
 .params {
+  flex: 1;
+  background-color: var(--gray900);
 }
 
 .params__empty {
@@ -184,10 +186,16 @@ img {
 }
 
 .params__header {
+  height: 34px;
+  background: #0d1017;
+  border-bottom: 4px solid var(--gray800);
   color: var(--gray700);
-  background-color: var(--gray800);
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
 }
 
 .params__port {

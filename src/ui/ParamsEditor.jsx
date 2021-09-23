@@ -322,6 +322,7 @@ export default class ParamsEditor extends Component {
     if (selection.size === 0) {
       return (
         <div className="params">
+          <div className="params__header"></div>
           <p className="params__empty">Nothing selected</p>
         </div>
       );
@@ -329,6 +330,7 @@ export default class ParamsEditor extends Component {
     if (selection.size > 1) {
       return (
         <div className="params">
+          <div className="params__header"></div>
           <p className="params__empty">Many nodes selected</p>
         </div>
       );
@@ -336,7 +338,7 @@ export default class ParamsEditor extends Component {
     const node = Array.from(selection)[0];
     return (
       <div className="params">
-        <div className=" p-4 bg-gray-800 mb-5 flex justify-between items-baseline">
+        <div className="params__header">
           <span className="text-gray-200 hover:bg-gray-700 px-2 py-1" onClick={() => onShowNodeRenameDialog(node)}>
             {node.name}
           </span>

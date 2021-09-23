@@ -41,7 +41,7 @@ export default class App extends Component {
       forkDialogNodeType: null,
       lastNetworkPoint,
       mainSplitterWidth: 500,
-      editorSplitterHeight: (window.innerHeight * 2) / 3,
+      editorSplitterWidth: window.innerWidth - 300,
       fullscreen: false,
     };
     const firstNode = network.nodes.find((n) => n.name === 'Canvas');
@@ -353,7 +353,7 @@ export default class App extends Component {
       showForkDialog,
       forkDialogNodeType,
       mainSplitterWidth,
-      editorSplitterHeight,
+      editorSplitterWidth,
       showNodeRenameDialog,
       nodeToRename,
       fullscreen,
@@ -367,11 +367,11 @@ export default class App extends Component {
     }
     return (
       <div className="app">
-        <div className="flex flex-col h-screen" style={{ width: `${mainSplitterWidth}px` }}>
+        <div className="flex-1 flex flex-row h-screen">
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
-            style={{ height: `${editorSplitterHeight}px` }}
+            style={{ width: `${editorSplitterWidth}px` }}
             library={library}
             network={network}
             selection={selection}
@@ -388,9 +388,9 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
           />
           <Splitter
-            direction="horizontal"
-            size={editorSplitterHeight}
-            onChange={(height) => this.setState({ editorSplitterHeight: height })}
+            direction="vertical"
+            size={editorSplitterWidth}
+            onChange={(width) => this.setState({ editorSplitterWidth: width })}
           />
 
           <ParamsEditor
@@ -401,12 +401,12 @@ export default class App extends Component {
             onTriggerButton={this._onTriggerButton}
           />
         </div>
-        <Splitter
+        {/* <Splitter
           direction="vertical"
           size={mainSplitterWidth}
           onChange={(width) => this.setState({ mainSplitterWidth: width })}
         />
-        <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} />
+        <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} /> */}
         {showNodeDialog && (
           <NodeDialog network={network} onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />
         )}
