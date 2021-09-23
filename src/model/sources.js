@@ -825,6 +825,115 @@ widthIn.onChange = render;
 heightIn.onChange = render;
 `;
 
+image.emboss = `// emboss convolution of input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D uInputTexture;
+varying vec2 vUv;
+uniform float uembossW;
+uniform float uembossH;
+
+
+vec4 sample_pixel(in vec2 uv, in float dx, in float dy)
+{
+    return texture2D(uInputTexture, uv + vec2(dx, dy));
+}
+
+float convolve(in float[9] kernel, in vec4[9] color_matrix)
+{
+   float res = 0.0;
+   for (int i=0; i<9; i++)
+   {
+      res += kernel[i] * color_matrix[i].a;
+   }
+   return clamp(res + 0.5, 0.0 ,1.0);
+}
+
+void build_color_matrix(in vec2 uv, out vec4[9] color_matrix)
+{
+    float dxtex = uembossW;
+    float dytex = uembossH;
+
+	color_matrix[0].rgb = sample_pixel(uv, -dxtex, -dytex)	.rgb;
+	color_matrix[1].rgb = sample_pixel(uv, -dxtex, 	0.0)	.rgb;
+    color_matrix[2].rgb = sample_pixel(uv, -dxtex, 	dytex)	.rgb;
+	color_matrix[3].rgb = sample_pixel(uv, 0.0, 	-dytex)	.rgb;
+	color_matrix[4].rgb = sample_pixel(uv, 0.0, 	0.0)	.rgb;
+    color_matrix[5].rgb = sample_pixel(uv, 0.0, 	dytex)	.rgb;
+	color_matrix[6].rgb = sample_pixel(uv, dxtex, 	-dytex)	.rgb;
+	color_matrix[7].rgb = sample_pixel(uv, dxtex, 	0.0)	.rgb;
+    color_matrix[8].rgb = sample_pixel(uv, dxtex, 	dytex)	.rgb;
+}
+
+void build_mean_matrix(inout vec4[9] color_matrix)
+{
+   for (int i=0; i<9; i++)
+   {
+      color_matrix[i].a = (color_matrix[i].r + color_matrix[i].g + color_matrix[i].b) / 3.;
+   }
+}
+
+void main() {
+  vec2 uv = vUv;
+
+  float kerEmboss[9];
+  kerEmboss[0] = 2.0;
+  kerEmboss[1] = 0.0;
+  kerEmboss[2] = 0.0;
+  kerEmboss[3] = 0.0;
+  kerEmboss[4] = -1.;
+  kerEmboss[5] = 0.0;
+  kerEmboss[6] = 0.0;
+  kerEmboss[7] = 0.0;
+  kerEmboss[8] = -1.;
+  
+  vec4 pixel_matrix[9];
+  
+  build_color_matrix(uv, pixel_matrix);
+  build_mean_matrix(pixel_matrix);
+  
+  float convolved = convolve(kerEmboss, pixel_matrix);
+  gl_FragColor = vec4(vec3(convolved) ,1.0);
+
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const embossWIn = node.numberIn('emboss width', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
+const embossHIn = node.numberIn('emboss height', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
+const imageOut = node.imageOut('out');
+
+let camera, material, mesh, target;
+
+node.onStart = (props) => {
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  material = figment.createShaderMaterial(fragmentShader, { 
+    uInputTexture: { value:  null },
+    uembossW: { value: 0.0015 },
+    uembossH: { value: 0.0015 },});
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  mesh = new THREE.Mesh(geometry, material);
+  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+};
+
+function render() {
+  if (!imageIn.value) return;
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  material.uniforms.uInputTexture.value = imageIn.value.texture;
+  material.uniforms.uembossW.value = embossWIn.value;
+  material.uniforms.uembossH.value = embossHIn.value;
+  gRenderer.setRenderTarget(target);
+  gRenderer.render(mesh, camera);
+  gRenderer.setRenderTarget(null);
+  imageOut.set(target);
+}
+
+imageIn.onChange = render;
+embossWIn.onChange = render;
+embossHIn.onChange = render;
+`;
+
 image.greyscale = `// grayscale conversion of input image.
 
 const fragmentShader = \`

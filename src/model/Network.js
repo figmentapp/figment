@@ -156,6 +156,13 @@ export const DEFAULT_NETWORK = {
       x: 300,
       y: 290,
     },
+    {
+      id: 13,
+      name: 'Emboss',
+      type: 'image.emboss',
+      x: 300,
+      y: 340,
+    },
 
     // {
     //   id: 2,
@@ -185,6 +192,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 2, outPort: 'out', inNode: 10, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 11, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 12, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 13, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
