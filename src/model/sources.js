@@ -502,7 +502,6 @@ node.onStart = () => {
 function loadImage() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
-  console.log('loadImage', imageUrl.toString());
   figment.createTextureFromUrl(imageUrl.toString(), onLoad);
 }
 
@@ -722,42 +721,40 @@ widthIn.onChange = render;
 heightIn.onChange = render;
 `;
 
-image.greyscale = `// grayscale conversion of input image.
+image.grayscale = `// grayscale conversion of input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+varying vec2 v_uv;
 
 void main() {
-  vec2 uv = vUv;
-  vec4 color = texture2D(uInputTexture, uv.st);
+  vec2 uv = v_uv;
+  vec4 color = texture2D(u_input_texture, uv.st);
 	float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-	gl_FragColor = vec4(vec3(gray), 1.0);
+	gl_FragColor = vec4(gray, gray, gray, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -781,7 +778,6 @@ const imageOut = node.imageOut('out');
 let program, framebuffer;
 
 node.onStart = (props) => {
-  console.log('onStart', node.id, node.name);
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
@@ -790,7 +786,6 @@ function render() {
   if (!imageIn.value) return;
   if (!program) return;
   if (!framebuffer) return;
-  // debugger;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
@@ -805,21 +800,20 @@ image.mirror = `// Mirror the input image over a specific axis.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform vec2 uAspect;
-uniform vec3 uLine;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform vec2 u_resolution;
+uniform vec3 u_line;
+varying vec2 v_uv;
 void main() {
-  vec2 uv = vUv;
-  vec2 uvp = uv * uAspect;
-  float d = dot(uLine, vec3(uvp, 1.0));
+  vec2 uv = v_uv;
+  vec2 uvp = uv * u_resolution;
+  float d = dot(u_line, vec3(uvp, 1.0));
   if (d > 0.0) {
-    uvp.x = uvp.x - 2.0 * uLine.x * d;
-    uvp.y = uvp.y - 2.0 * uLine.y * d;
-    uv = uvp / uAspect;
+    uvp.x = uvp.x - 2.0 * u_line.x * d;
+    uvp.y = uvp.y - 2.0 * u_line.y * d;
+    uv = uvp / u_resolution;
   }
-  vec4 originalColor = texture2D(uInputTexture, uv);
-  gl_FragColor = originalColor;
+  gl_FragColor = texture2D(u_input_texture, uv);
 }
 \`;
 
@@ -830,34 +824,32 @@ const pivotYIn = node.numberIn('pivotY', 0.5, { min: 0, max: 1, step: 0.01 } );
 const angleIn = node.numberIn('angle', 90, { min: -180, max: 180, step: 1 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderProgram(fragmentShader, {
-    uInputTexture: { value: null },
-    uAspect: { value: [1, 1] },
-    uLine: { value: [0, 0, 0] },
-  })
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uAspect.value = [imageIn.value.width, imageIn.value.height];
+  if (!program) return;
+  if (!framebuffer) return;
   const r = angleIn.value * Math.PI / 180;
   const x = Math.sin(r);
   const y = -Math.cos(r);
   const z = -((pivotXIn.value * x * imageIn.value.width) + (pivotYIn.value * y * imageIn.value.height));
-  material.uniforms.uLine.value = [x, y, z];
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture, 
+    u_resolution: [imageIn.value.width, imageIn.value.height],
+    u_line: [x, y, z],
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+
 }
 
 imageIn.onChange = render;
@@ -870,73 +862,69 @@ image.modcolor = `// brightness threshold between 0 - 1.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float umodr;
-uniform float umodg;
-uniform float umodb;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform float u_red;
+uniform float u_green;
+uniform float u_blue;
+varying vec2 v_uv;
 
 void main() {
-  vec2 uv = vUv;
-  vec3 col = texture2D(uInputTexture, uv.st).rgb;
-	col.r += mod(col.r, umodr);
-	col.g += mod(col.g, umodg);
-	col.b += mod(col.b, umodb);
-	gl_FragColor = vec4(col, 1.0);
+  vec2 uv = v_uv;
+  vec4 col = texture2D(u_input_texture, uv.st);
+	col.r += mod(col.r, u_red);
+	col.g += mod(col.g, u_green);
+	col.b += mod(col.b, u_blue);
+	gl_FragColor = col;
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const redIn = node.numberIn('red', 0, { min: 0, max: 1, step: 0.1 });
-const greenIn = node.numberIn('green', 0.1, { min: 0, max: 1, step: 0.1 });
-const blueIn = node.numberIn('blue', 1, { min: 0, max: 1, step: 0.1 });
-
+const redIn = node.numberIn('red', 0, { min: 0, max: 1, step: 0.01 });
+const greenIn = node.numberIn('green', 0.1, { min: 0, max: 1, step: 0.01 });
+const blueIn = node.numberIn('blue', 1, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null },
-    umodr: { value: 0 },umodg: { value: 0 },umodb: { value: 0 },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.umodr.value = redIn.value;
-  material.uniforms.umodg.value = greenIn.value;
-  material.uniforms.umodb.value = blueIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_red: redIn.value,
+    u_green: greenIn.value,
+    u_blue: blueIn.value,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
 redIn.onChange = render;
 greenIn.onChange = render;
 blueIn.onChange = render;
-
 `;
 
 image.sobel = `// Sobel edge detection on input image.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float uWidth;
-uniform float uHeight;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform vec2 u_resolution;
+varying vec2 v_uv;
 
 void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
 {
-	float w = 1.0 / uWidth;
-	float h = 1.0 / uHeight;
+	float w = 1.0 / u_resolution.x;
+	float h = 1.0 / u_resolution.y;
 
 	n[0] = texture2D(tex, coord + vec2( -w, -h));
 	n[1] = texture2D(tex, coord + vec2(0.0, -h));
@@ -950,45 +938,40 @@ void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
 }
 
 void main() {
-  vec2 uv = vUv;
+  vec2 uv = v_uv;
 	vec4 n[9];
-	make_kernel( n, uInputTexture, uv.st );
+	make_kernel(n, u_input_texture, uv.st);
 
 	vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
   vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
 	vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
 
-	gl_FragColor = vec4( 1.0 - sobel.rgb, 1.0 );
+	gl_FragColor = vec4(1.0 - sobel.rgb, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
+let program, framebuffer;
 
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderProgram(fragmentShader, {
-    uInputTexture: { value:  null },
-    uWidth: { value: 1 },
-    uHeight: { value: 1 },
-  });
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uWidth.value = imageIn.value.width;
-  material.uniforms.uHeight.value = imageIn.value.height;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_resolution: [imageIn.value.width, imageIn.value.height],
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
@@ -998,44 +981,40 @@ image.threshold = `// brightness threshold between 0 - 1.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D uInputTexture;
-uniform float uThreshold;
-varying vec2 vUv;
+uniform sampler2D u_input_texture;
+uniform float u_threshold;
+varying vec2 v_uv;
 
 void main() {
-  vec2 uv = vUv;
-  vec3 col = texture2D(uInputTexture, uv.st).rgb;
-  float bright = 0.33333 * (col.r + col.g + col.b);
-  float b = mix(0.0, 1.0, step(uThreshold, bright));
-  gl_FragColor = vec4(vec3(b), 1.0);
+  vec2 uv = v_uv;
+  vec3 col = texture2D(u_input_texture, uv.st).rgb;
+  float brightness = 0.33333 * (col.r + col.g + col.b);
+  float b = mix(0.0, 1.0, step(u_threshold, brightness));
+  gl_FragColor = vec4(b, b, b, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.011 });
-
+const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let camera, material, mesh, target;
-
 node.onStart = (props) => {
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  material = figment.createShaderProgram(fragmentShader, { uInputTexture: { value:  null },
-    uThreshold: { value: 0 },});
-  const geometry = new THREE.PlaneGeometry(2, 2);
-  mesh = new THREE.Mesh(geometry, material);
-  target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });  
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 };
 
 function render() {
   if (!imageIn.value) return;
-  target.setSize(imageIn.value.width, imageIn.value.height);
-  material.uniforms.uInputTexture.value = imageIn.value.texture;
-  material.uniforms.uThreshold.value = thresholdIn.value;
-  gRenderer.setRenderTarget(target);
-  gRenderer.render(mesh, camera);
-  gRenderer.setRenderTarget(null);
-  imageOut.set(target);
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture, 
+    u_threshold: thresholdIn.value,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;

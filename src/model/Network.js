@@ -15,41 +15,7 @@ import Port, {
   PORT_OUT,
 } from './Port';
 
-// export const DEFAULT_NETWORK = {
-//   nodes: [
-//     {
-//       id: 1,
-//       name: 'Canvas',
-//       type: 'graphics.canvas',
-//       x: 50,
-//       y: 50
-//     },
-//     {
-//       id: 2,
-//       name: 'Sequence',
-//       type: 'core.sequence',
-//       x: 50,
-//       y: 150
-//     },
-//     {
-//       id: 3,
-//       name: 'Rectangle',
-//       type: 'graphics.rect',
-//       x: 50,
-//       y: 300,
-//       values: {
-//         x: 50,
-//         y: 50
-//       }
-//     }
-//   ],
-//   connections: [
-//     { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
-//     { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
-//   ]
-// };
-
-export const DEFAULT_NETWORK_OLD = {
+export const DEFAULT_NETWORK = {
   nodes: [
     {
       id: 1,
@@ -127,8 +93,8 @@ export const DEFAULT_NETWORK_OLD = {
     },
     {
       id: 10,
-      name: 'Greyscale',
-      type: 'image.greyscale',
+      name: 'Grayscale',
+      type: 'image.grayscale',
       x: 300,
       y: 220,
     },
@@ -139,25 +105,6 @@ export const DEFAULT_NETWORK_OLD = {
       x: 300,
       y: 150,
     },
-
-    // {
-    //   id: 2,
-    //   name: 'Sequence',
-    //   type: 'core.sequence',
-    //   x: 50,
-    //   y: 150
-    // },
-    // {
-    //   id: 3,
-    //   name: 'Rectangle',
-    //   type: 'graphics.rect',
-    //   x: 50,
-    //   y: 300,
-    //   values: {
-    //     x: 50,
-    //     y: 50
-    //   }
-    // }
   ],
   connections: [
     { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
@@ -166,43 +113,7 @@ export const DEFAULT_NETWORK_OLD = {
     { outNode: 7, outPort: 'out', inNode: 9, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 10, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 11, inPort: 'in' },
-    // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
-};
-
-export const DEFAULT_NETWORK = {
-  nodes: [
-    {
-      id: 1,
-      name: 'Constant',
-      type: 'image.constant',
-      x: 50,
-      y: 50,
-      values: {
-        color: [255, 0, 255, 1],
-        width: 512,
-        height: 512,
-      },
-    },
-    {
-      id: 2,
-      name: 'Load Image',
-      type: 'image.loadImage',
-      x: 250,
-      y: 50,
-      values: {
-        file: 'examples/assets/kriskross.png',
-      },
-    },
-    {
-      id: 3,
-      name: 'Invert',
-      type: 'image.invert',
-      x: 100,
-      y: 150,
-    },
-  ],
-  connections: [{ outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' }],
 };
 
 export default class Network {
