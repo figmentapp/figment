@@ -1,6 +1,5 @@
 // Functions that are available in the "figment" namespace. Related to project files.
 // Look in preload.js for functions that are exposed in this module (e.g. nodePath).
-import { gl } from 'chroma-js';
 import * as twgl from 'twgl.js';
 
 export function projectFile() {
