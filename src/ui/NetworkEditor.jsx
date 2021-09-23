@@ -324,16 +324,18 @@ export default class NetworkEditor extends Component {
   _onMouseWheel(e) {
     // e.preventDefault();
     const [mouseX, mouseY] = this._networkPosition(e);
-    let scaleDelta = 1 - e.deltaY * 0.001;
-    const newScale = this.state.scale * scaleDelta;
+    const wheel = e.deltaY < 0 ? 1 : -1;
+    const zoom = Math.exp(wheel * 0.2);
+    let newScale = this.state.scale * zoom;
     if (newScale < this.MIN_VIEW_SCALE) {
-      scaleDelta = this.MIN_VIEW_SCALE / this.state.scale;
+      newScale = this.MIN_VIEW_SCALE;
     } else if (newScale > this.MAX_VIEW_SCALE) {
-      scaleDelta = this.MAX_VIEW_SCALE / this.state.scale;
+      newScale = this.MAX_VIEW_SCALE;
     }
+    const scaleDelta = newScale - this.state.scale;
     this.setState({
-      x: this.state.x - (mouseX - this.state.x) * (scaleDelta - 1),
-      y: this.state.y - (mouseY - this.state.y) * (scaleDelta - 1),
+      x: this.state.x - mouseX * scaleDelta,
+      y: this.state.y - mouseY * scaleDelta,
       scale: newScale,
     });
   }
