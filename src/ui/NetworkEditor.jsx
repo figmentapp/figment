@@ -84,6 +84,10 @@ void main() {
 }
 `;
 
+function clamp(v, min, max) {
+  return Math.min(Math.max(v, min), max);
+}
+
 function _nodeWidth(node) {
   let portCount = Math.max(node.inPorts.length, node.outPorts.length);
   if (portCount < 6) return 100;
@@ -404,25 +408,22 @@ export default class NetworkEditor extends Component {
       } else {
         ctx.fillStyle = COLORS.gray700;
       }
-      ctx.fillRect(node.x, node.y, nodeWidth, NODE_BORDER);
-      ctx.fillRect(node.x, node.y + NODE_HEIGHT - NODE_BORDER, nodeWidth, NODE_BORDER);
-      ctx.fillRect(node.x, node.y, NODE_BORDER, NODE_HEIGHT);
-      ctx.fillRect(node.x + nodeWidth - NODE_BORDER, node.y, NODE_BORDER, NODE_HEIGHT);
+      const nodeBorder = clamp(NODE_BORDER / this.state.scale, 1.0, 5.0);
+      ctx.fillRect(node.x, node.y, nodeWidth, nodeBorder);
+      ctx.fillRect(node.x, node.y + NODE_HEIGHT - nodeBorder, nodeWidth, nodeBorder);
+      ctx.fillRect(node.x, node.y, nodeBorder, NODE_HEIGHT);
+      ctx.fillRect(node.x + nodeWidth - nodeBorder, node.y, nodeBorder, NODE_HEIGHT);
 
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y, NODE_PORT_WIDTH - 2, NODE_PORT_HEIGHT);
+
+        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y, NODE_PORT_WIDTH - 2, nodeBorder);
       }
       for (let i = 0; i < node.outPorts.length; i++) {
         const port = node.outPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(
-          node.x + i * NODE_PORT_WIDTH,
-          node.y + NODE_HEIGHT - NODE_PORT_HEIGHT,
-          NODE_PORT_WIDTH - 2,
-          NODE_PORT_HEIGHT
-        );
+        ctx.fillRect(node.x + i * NODE_PORT_WIDTH, node.y + NODE_HEIGHT - nodeBorder, NODE_PORT_WIDTH - 2, nodeBorder);
       }
       this._drawNodePreviews();
     }
