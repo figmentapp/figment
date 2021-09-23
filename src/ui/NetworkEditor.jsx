@@ -432,8 +432,8 @@ export default class NetworkEditor extends Component {
     ctx.fillStyle = COLORS.gray300;
     ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
-      const [textX, textY] = this._coordsToView(node.x + NODE_WIDTH + 10, node.y + NODE_PORT_WIDTH * 1.3);
-      ctx.fillText(node.name, textX, textY);
+      const [textX, textY] = this._coordsToView(node.x + NODE_WIDTH, node.y + NODE_HEIGHT / 2);
+      ctx.fillText(node.name, textX + 10, textY);
     }
 
     // Draw node debug messages
