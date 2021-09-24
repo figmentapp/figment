@@ -627,7 +627,7 @@ node.onStop = () => {
 }
 
 function uploadImage() {
-  if (!_framebuffer) return;
+  if (!_video || !_framebuffer) return;
   if (_video.readyState !== _video.HAVE_ENOUGH_DATA) return;
   _framebuffer.unbind();
   window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
