@@ -176,7 +176,7 @@ class ColorParam extends Component {
     this._onChange = this._onChange.bind(this);
   }
 
-  componentWillReceiveProps(nextProps) {
+  componentDidUpdate(nextProps) {
     if (this.props.port !== nextProps.port) {
       this.setState({ pickerVisible: false });
     }
@@ -203,7 +203,8 @@ class ColorParam extends Component {
     const popover = {
       position: 'absolute',
       zIndex: '2',
-      left: '220px',
+      top: '10px',
+      right: `${window.innerWidth - this.props.editorSplitterWidth + 1}px`,
     };
     const cover = {
       position: 'fixed',
@@ -435,6 +436,7 @@ export default class ParamsEditor extends Component {
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={(value) => this._onChangePortValue(port.name, value)}
+          editorSplitterWidth={this.props.editorSplitterWidth}
         />
       );
     } else if (port.type === PORT_TYPE_FILE) {

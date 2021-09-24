@@ -399,6 +399,7 @@ export default class App extends Component {
             onShowNodeRenameDialog={this._onShowNodeRenameDialog}
             onChangePortValue={this._onChangePortValue}
             onTriggerButton={this._onTriggerButton}
+            editorSplitterWidth={editorSplitterWidth}
           />
         </div>
         {/* <Splitter
