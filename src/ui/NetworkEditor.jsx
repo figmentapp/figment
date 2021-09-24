@@ -28,8 +28,8 @@ const NODE_RATIO = NODE_WIDTH / NODE_HEIGHT;
 const NODE_BORDER = 4;
 const EDITOR_TABS_HEIGHT = 30;
 const NETWORK_HEADER_HEIGHT = 33;
-const PREVIEW_GEO_WIDTH = NODE_WIDTH - NODE_BORDER * 2;
-const PREVIEW_GEO_HEIGHT = NODE_HEIGHT - NODE_BORDER * 2;
+const PREVIEW_GEO_WIDTH = NODE_WIDTH;
+const PREVIEW_GEO_HEIGHT = NODE_HEIGHT;
 const PREVIEW_GEO_RATIO = PREVIEW_GEO_WIDTH / PREVIEW_GEO_HEIGHT;
 
 const DRAG_MODE_IDLE = 'idle';
@@ -80,7 +80,36 @@ uniform vec2 u_resolution;
 uniform vec4 u_color;
 varying vec2 v_uv;
 void main() {
-  gl_FragColor = u_color * texture2D(u_texture, v_uv);
+  // The ratio of the image (width / height)
+  float image_ratio = u_resolution.x / u_resolution.y;
+  // The ratio of the preview node box (width / height)
+  float box_width = ${PREVIEW_GEO_WIDTH}.0;
+  float box_height = ${PREVIEW_GEO_HEIGHT}.0;
+  float box_ratio = ${PREVIEW_GEO_RATIO};
+  float delta_ratio = box_ratio / image_ratio;
+  if (image_ratio >  box_ratio) {
+    // The image is wider than the box
+    float scale_factor = box_width / u_resolution.x;
+    float height_diff = (box_height - u_resolution.y * scale_factor) / box_height;
+    float half_height_diff = height_diff / 2.0;
+    if (v_uv.y < half_height_diff || v_uv.y > 1.0 - half_height_diff) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    } else {
+      vec2 uv = vec2(v_uv.x, (v_uv.y - half_height_diff) / delta_ratio);
+      gl_FragColor = u_color * texture2D(u_texture, uv);
+    }
+  } else {
+    // The image is taller than the box
+    float scale_factor = box_height / u_resolution.y;
+    float width_diff = (box_width - u_resolution.x * scale_factor) / box_width;
+    float half_width_diff = width_diff / 2.0;
+    if (v_uv.x < half_width_diff || v_uv.x > 1.0 - half_width_diff) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    } else {
+      vec2 uv = vec2((v_uv.x - half_width_diff) * delta_ratio, v_uv.y);
+      gl_FragColor = u_color * texture2D(u_texture, uv);
+    }
+  }
 }
 `;
 
