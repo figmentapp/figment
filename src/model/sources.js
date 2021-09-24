@@ -679,7 +679,7 @@ widthIn.onChange = exec;
 heightIn.onChange = exec;
 `;
 
-image.bcs = `// change brightness - contrast - saturation on input image.
+image.levels = `// change brightness - contrast - saturation on input image.
 
 const fragmentShader = \`
 precision mediump float;

@@ -117,8 +117,8 @@ export const DEFAULT_NETWORK = {
     },
     {
       id: 12,
-      name: 'Bcs',
-      type: 'image.bcs',
+      name: 'Levels',
+      type: 'image.levels',
       x: 300,
       y: 290,
       values: {
