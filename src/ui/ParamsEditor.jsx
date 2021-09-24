@@ -65,7 +65,9 @@ class NumberDrag extends Component {
     }
     return (
       <span
-        className={`w-32 text-right mr-4 py-2 ${cursor} ${disabled ? 'text-gray-700' : 'text-gray-500'}`}
+        className={`w-32 text-right mr-4 py-2 whitespace-nowrap ${cursor} ${
+          disabled ? 'text-gray-700' : 'text-gray-500'
+        }`}
         onMouseDown={this._onMouseDown}
       >
         {label}
@@ -129,7 +131,7 @@ class StringParam extends Component {
     const { label, value, disabled, onChange } = this.props;
     return (
       <div className="flex items-center mb-2">
-        <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <input
           type="text"
           spellCheck="false"
@@ -148,7 +150,7 @@ class SelectParam extends Component {
     const { label, value, options, disabled, onChange } = this.props;
     return (
       <div className="flex items-center mb-2">
-        <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <select
           type="text"
           spellCheck="false"
@@ -215,7 +217,7 @@ class ColorParam extends Component {
     };
     return (
       <div className="flex items-center mb-2 relative">
-        <label className="w-32 text-right text-gray-500 mr-4 py-2">{label}</label>
+        <label className="w-32 text-right text-gray-500 mr-4 py-2 whitespace-nowrap">{label}</label>
         <span
           className="w-16 bg-gray-700 h-8"
           style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
@@ -288,7 +290,7 @@ class FileParam extends Component {
     const { label, value } = this.props;
     return (
       <div className="params__row">
-        <label className="w-32 text-right text-gray-500 mr-4">{label}</label>
+        <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
           <span className="w-64 text-gray-700 overflow-hidden">{value}</span>
           <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
