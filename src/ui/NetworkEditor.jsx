@@ -146,7 +146,9 @@ export default class NetworkEditor extends Component {
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
     this._onResize = this._onResize.bind(this);
+    this._onNetworkChange = this._onNetworkChange.bind(this);
     this._draw = this._draw.bind(this);
+    this._drawNodePreviews = this._drawNodePreviews.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
     this._dragPort = null;
@@ -163,7 +165,6 @@ export default class NetworkEditor extends Component {
     window.addEventListener('resize', this._onResize);
     this.canvas = this.canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
-    this._timer = setInterval(this._draw, 500);
     this.gl = twgl.getWebGLContext(this.previewCanvasRef.current);
     window.gl = this.gl;
     this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
@@ -189,6 +190,7 @@ export default class NetworkEditor extends Component {
     this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
 
     this._draw();
+    this.props.network.addChangeListener(this._onNetworkChange);
   }
 
   componentWillUnmount() {
@@ -196,6 +198,7 @@ export default class NetworkEditor extends Component {
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('resize', this._onResize);
     clearInterval(this._timer);
+    this.props.network.removeChangeListener(this._onNetworkChange);
   }
 
   render() {
@@ -405,6 +408,10 @@ export default class NetworkEditor extends Component {
     this._draw();
   }
 
+  _onNetworkChange() {
+    window.requestAnimationFrame(this._drawNodePreviews);
+  }
+
   _draw() {
     const { canvas, ctx } = this;
     const { network, selection } = this.props;
@@ -456,7 +463,6 @@ export default class NetworkEditor extends Component {
           NODE_BORDER * 2
         );
       }
-      this._drawNodePreviews();
     }
 
     // Draw node names
@@ -533,11 +539,10 @@ export default class NetworkEditor extends Component {
         y1 = this._dragY;
       }
       ctx.beginPath();
-      // const [x1scaled, y1scaled] = this._coordsToView(x1, y1);
-      // const [x2scaled, y2scaled] = this._coordsToView(x2, y2);
       this._drawConnectionLine(ctx, x1, y1, x2, y2);
       ctx.stroke();
     }
+    this._drawNodePreviews();
   }
 
   _drawPortTooltip(ctx, overNode, overPort) {

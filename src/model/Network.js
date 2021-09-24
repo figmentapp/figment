@@ -167,6 +167,21 @@ export default class Network {
     this.connections = [];
     this.types = [];
     this._id = 0;
+    this.listeners = [];
+  }
+
+  addChangeListener(listener) {
+    this.listeners.push(listener);
+  }
+
+  removeChangeListener(listener) {
+    this.listeners = this.listeners.filter((l) => l !== listener);
+  }
+
+  _onChange() {
+    for (const listener of this.listeners) {
+      listener(this);
+    }
   }
 
   _nextId() {

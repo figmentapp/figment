@@ -74,6 +74,7 @@ export default class Port {
         }
       }
     }
+    this.node.network._onChange();
   }
 
   setDefaultValue() {
