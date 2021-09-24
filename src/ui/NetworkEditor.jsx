@@ -25,7 +25,7 @@ const NODE_PORT_HEIGHT = 5;
 const NODE_WIDTH = 100;
 const NODE_HEIGHT = 56;
 const NODE_RATIO = NODE_WIDTH / NODE_HEIGHT;
-const NODE_BORDER = 4;
+const NODE_BORDER = 1.5;
 const EDITOR_TABS_HEIGHT = 30;
 const NETWORK_HEADER_HEIGHT = 33;
 const PREVIEW_GEO_WIDTH = NODE_WIDTH;
@@ -442,7 +442,7 @@ export default class NetworkEditor extends Component {
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(nodeX + i * NODE_PORT_WIDTH, nodeY, NODE_PORT_WIDTH - 2, NODE_BORDER);
+        ctx.fillRect(nodeX + i * NODE_PORT_WIDTH, nodeY - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
       }
       for (let i = 0; i < node.outPorts.length; i++) {
         const port = node.outPorts[i];
@@ -451,7 +451,7 @@ export default class NetworkEditor extends Component {
           nodeX + i * NODE_PORT_WIDTH,
           nodeY + NODE_HEIGHT * this.state.scale - NODE_BORDER,
           NODE_PORT_WIDTH - 2,
-          NODE_BORDER
+          NODE_BORDER * 2
         );
       }
       this._drawNodePreviews();
