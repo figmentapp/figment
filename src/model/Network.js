@@ -88,9 +88,6 @@ export const DEFAULT_NETWORK = {
       type: 'image.mirror',
       x: 250,
       y: 500,
-      values: {
-        horizontal: false,
-      },
     },
     {
       id: 7,
@@ -146,25 +143,7 @@ export const DEFAULT_NETWORK = {
       x: 300,
       y: 340,
     },
-
-    // {
-    //   id: 2,
-    //   name: 'Sequence',
-    //   type: 'core.sequence',
-    //   x: 50,
-    //   y: 150
-    // },
-    // {
-    //   id: 3,
-    //   name: 'Rectangle',
-    //   type: 'graphics.rect',
-    //   x: 50,
-    //   y: 300,
-    //   values: {
-    //     x: 50,
-    //     y: 50
-    //   }
-    // }
+    // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [
     { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },

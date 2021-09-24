@@ -592,33 +592,30 @@ triggerIn.onTrigger = (props) => {
 `;
 
 image.camImage = `// webcam stream
+
 const frameRate = node.numberIn('frameRate', 10);
 const imageOut = node.imageOut('image');
-let _video;
-let _stream;
-let _timer;
+
+let _video, _stream, _timer, _framebuffer;
 
 node.onStart = () => {
-  
-if (navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        })
-        .then(function(stream) {
-          _video = document.createElement('video');
-          _video.width = 640;
-          _video.height = 480;
-          _video.srcObject = stream;
-          _video.play();
-          _stream = stream;
-          imageOut.set(_video);
-          _timer = setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
-        })
-        .catch(function(err) {
-          console.error("no camera input!", err);
-        });
-    }
+  navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: false
+  }).then(function(stream) {
+    _video = document.createElement('video');
+    _video.width = 640;
+    _video.height = 480;
+    _video.srcObject = stream;
+    _video.play();
+    _stream = stream;
+    _framebuffer = new figment.Framebuffer(_video.width, _video.height);
+    _timer = setInterval(uploadImage, 1000 / frameRate.value);
+    // uploadImage();
+  })
+  .catch(function(err) {
+    console.error('no camera input!', err);
+  });
 };
 
 node.onStop = () => {
@@ -629,16 +626,26 @@ node.onStop = () => {
   }
 }
 
-frameRate.onChange = () => {
-  clearInterval(_timer);
-  _timer = setInterval(() => imageOut.set(_video), 1000 / frameRate.value);
+function uploadImage() {
+  if (!_framebuffer) return;
+  if (_video.readyState !== _video.HAVE_ENOUGH_DATA) return;
+  _framebuffer.unbind();
+  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _video);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  imageOut.set(_framebuffer);
 }
 
-node.debugDraw = (ctx) => {
-  if (imageOut.value) {
-    ctx.drawImage(imageOut.value, 0, 0, 100, 75);
-  }
+frameRate.onChange = () => {
+  clearInterval(_timer);
+  _timer = setInterval(uploadImage, 1000 / frameRate.value);
 }
+
+// node.debugDraw = (ctx) => {
+//   if (imageOut.value) {
+//     ctx.drawImage(imageOut.value, 0, 0, 100, 75);
+//   }
+// }
 `;
 
 image.pixels = `// pixels from image
