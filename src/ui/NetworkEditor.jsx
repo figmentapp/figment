@@ -163,7 +163,7 @@ export default class NetworkEditor extends Component {
     window.addEventListener('resize', this._onResize);
     this.canvas = this.canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
-    this._timer = setInterval(this._draw, 1000);
+    this._timer = setInterval(this._draw, 500);
     this.gl = twgl.getWebGLContext(this.previewCanvasRef.current);
     window.gl = this.gl;
     this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
@@ -411,8 +411,10 @@ export default class NetworkEditor extends Component {
 
     const ratio = window.devicePixelRatio;
     const bounds = canvas.getBoundingClientRect();
-    canvas.width = bounds.width * ratio;
-    canvas.height = bounds.height * ratio;
+    if (canvas.width !== bounds.width * ratio || canvas.height !== bounds.height * ratio) {
+      canvas.width = bounds.width * ratio;
+      canvas.height = bounds.height * ratio;
+    }
 
     // Detect if we're hovering over a node.
     const overNode = this._findNode(this._networkX, this._networkY);
@@ -578,8 +580,10 @@ export default class NetworkEditor extends Component {
     const { network } = this.props;
     const canvas = this.previewCanvasRef.current;
     const parent = canvas.parentElement;
-    canvas.width = parent.clientWidth;
-    canvas.height = parent.clientHeight;
+    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+    }
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.05, 0.06, 0.09, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
