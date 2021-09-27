@@ -19,12 +19,35 @@ import {
   PORT_TYPE_OBJECT,
 } from '../model/Port';
 
+const NUMBER_DRAG_IDLE = 'idle';
+const NUMBER_DRAG_DRAGGING = 'drag';
+const NUMBER_DRAG_INPUT = 'input';
+
+// Conver the value to a string and round to the correct number of digits.
+function roundToMaxPlaces(v, places = 4) {
+  return (Math.round(v * Math.pow(10, places)) / Math.pow(10, places)).toString();
+  // return +(Math.round(v + 'e+' + places) + 'e-' + places);
+}
+
 class NumberDrag extends Component {
   constructor(props) {
     super(props);
+    this.state = { inputState: NUMBER_DRAG_IDLE, tempValue: '' };
+    this._startX = 0;
+    this._startY = 0;
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseUp = this._onMouseUp.bind(this);
+    this._onInputKey = this._onInputKey.bind(this);
+    this._onInputEnd = this._onInputEnd.bind(this);
+    this.inputRef = React.createRef();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.inputState !== this.props.inputState && this.props.inputState === NUMBER_DRAG_INPUT) {
+      console.log('wedwed');
+      this.inputRef.current.select();
+    }
   }
 
   _onMouseDown(e) {
@@ -33,10 +56,17 @@ class NumberDrag extends Component {
     e.target.requestPointerLock();
     window.addEventListener('mousemove', this._onMouseMove);
     window.addEventListener('mouseup', this._onMouseUp);
+    this._dx = 0;
+    this._dy = 0;
   }
 
   _onMouseMove(e) {
     e.preventDefault();
+    this._dx += Math.abs(e.movementX);
+    this._dy += Math.abs(e.movementY);
+    const totalDistance = this._dx + this._dy;
+    if (totalDistance <= 2) return;
+    this.setState({ inputState: NUMBER_DRAG_DRAGGING });
     if (this.props.direction === 'xy') {
       const value = this.props.value;
       this.props.onChange(new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step));
@@ -53,37 +83,88 @@ class NumberDrag extends Component {
     window.removeEventListener('mousemove', this._onMouseMove);
     window.removeEventListener('mouseup', this._onMouseUp);
     document.exitPointerLock();
+    if (this.state.inputState === NUMBER_DRAG_IDLE) {
+      this.setState({ inputState: NUMBER_DRAG_INPUT, tempValue: roundToMaxPlaces(this.props.value) });
+      window.requestAnimationFrame(() => {
+        this.inputRef.current && this.inputRef.current.select();
+      });
+    } else {
+      this.setState({ inputState: NUMBER_DRAG_IDLE });
+    }
+  }
+
+  _onInputKey(e) {
+    if (e.keyCode === 13) {
+      e.preventDefault();
+      this._onInputEnd();
+    } else if (e.keyCode === 27) {
+      e.preventDefault();
+      this.setState({ inputState: NUMBER_DRAG_IDLE });
+    }
+  }
+
+  _onInputEnd() {
+    let newValue = parseFloat(this.state.tempValue);
+    if (isNaN(newValue)) return;
+    if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
+    if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
+    this.props.onChange(newValue);
+    this.setState({ inputState: NUMBER_DRAG_IDLE });
   }
 
   render() {
-    const { label, direction, disabled } = this.props;
+    const { label, direction, disabled, value } = this.props;
     let cursor;
     if (disabled) {
       cursor = 'cursor-default';
     } else {
       cursor = direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
     }
-    return (
-      <span
-        className={`w-32 text-right mr-4 py-2 whitespace-nowrap ${cursor} ${
-          disabled ? 'text-gray-700' : 'text-gray-500'
-        }`}
-        onMouseDown={this._onMouseDown}
-      >
-        {label}
-      </span>
-    );
+    if (this.state.inputState !== NUMBER_DRAG_INPUT) {
+      return (
+        <span
+          className={`w-32 text-right mr-4 py-2 px-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
+            disabled ? 'text-gray-700' : 'text-gray-500'
+          }`}
+          onMouseDown={this._onMouseDown}
+        >
+          {roundToMaxPlaces(value)}
+        </span>
+      );
+    } else {
+      return (
+        <input
+          ref={this.inputRef}
+          className="w-32 bg-transparent bg-gray-800 border border-gray-700 outline-none mr-4 py-2 px-1 whitespace-nowrap text-gray-100"
+          type="text"
+          autoFocus={true}
+          value={this.state.tempValue}
+          onChange={(e) => this.setState({ tempValue: e.target.value })}
+          onKeyDown={this._onInputKey}
+          onBlur={this._onInputEnd}
+        />
+      );
+    }
   }
 }
 
 class FloatParam extends Component {
   constructor(props) {
     super(props);
+    this.setState({ newValue: props.value });
+    this._onInput = this._onInput.bind(this);
     this._onChange = this._onChange.bind(this);
   }
 
+  _onInput(e) {
+    this.setState({ newValue: e.target.value });
+    if (e.keycode === 13) {
+      this._onChange(e);
+    }
+  }
+
   _onChange(e) {
-    let newValue = parseFloat(e.target.value);
+    let { newValue } = this.state;
     if (isNaN(newValue)) return;
     if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
     if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
@@ -94,6 +175,7 @@ class FloatParam extends Component {
     const { label, value, min, max, step, disabled, onChange } = this.props;
     return (
       <div className="flex items-center mb-2">
+        <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <NumberDrag
           label={label}
           value={value}
@@ -103,14 +185,16 @@ class FloatParam extends Component {
           disabled={disabled}
           onChange={onChange}
         />
-        <input
+        {/* <input
           type="text"
           spellCheck="false"
           disabled={disabled}
           className={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={value.toFixed(4)}
-          onChange={this._onChange}
-        />
+          value={newValue}
+          onInput={this._onInput}
+          onKeyDown={this._onInput}
+          onBlur={this._onChange}
+        /> */}
       </div>
     );
   }
