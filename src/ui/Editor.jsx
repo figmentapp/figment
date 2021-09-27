@@ -39,6 +39,7 @@ export default class Editor extends Component {
           </div>
           {tabs.map((node, i) => (
             <div
+              key={i}
               className={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')}
               onClick={() => onSelectTab(i)}
             >

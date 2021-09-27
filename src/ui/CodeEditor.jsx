@@ -49,7 +49,7 @@ export default class CodeEditor extends Component {
     return (
       <div className="code flex-grow flex flex-col overflow-hidden">
         <div className={'h-full w-full ' + (readOnly ? 'opacity-50' : '')}>
-          <textarea className="code__area" id="code" value={this.state.source} />
+          <textarea className="code__area" id="code" value={this.state.source} readOnly={readOnly} />
         </div>
         <div className="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
           {readOnly && (
