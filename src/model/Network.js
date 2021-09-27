@@ -157,6 +157,13 @@ export const DEFAULT_NETWORK = {
       x: 300,
       y: 690,
     },
+    {
+      id: 16,
+      name: 'Sharpen',
+      type: 'image.sharpen',
+      x: 150,
+      y: 690,
+    },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [
@@ -172,6 +179,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 9, outPort: 'out', inNode: 14, inPort: 'first' },
     { outNode: 7, outPort: 'out', inNode: 14, inPort: 'second' },
     { outNode: 2, outPort: 'out', inNode: 15, inPort: 'in' },
+    { outNode: 7  , outPort: 'out', inNode: 16, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
