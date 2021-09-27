@@ -51,6 +51,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modcolor', type: 'image.modcolor', source: image.modcolor });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
+    this.nodeTypes.push({ name: 'Stitch', type: 'image.stitch', source: image.stitch });
     this.nodeTypes.push({ name: 'Treshold', type: 'image.threshold', source: image.threshold });
 
     // ML

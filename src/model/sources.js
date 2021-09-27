@@ -1176,6 +1176,48 @@ function render() {
 imageIn.onChange = render;
 `;
 
+image.stitch = `// combine 2 images.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform sampler2D u_input_texture2;
+varying vec2 v_uv;
+
+void main() {
+  vec2 uv = v_uv;
+  vec4 color1 = texture2D(u_input_texture, vec2(uv.x*2.0, uv.y));
+  vec4 color2 = texture2D(u_input_texture2, vec2(uv.x*2.0-1.0, uv.y));
+  gl_FragColor = uv.x < 0.5 ? color1 : color2;
+}
+\`;
+
+const imageIn = node.imageIn('first');
+const imageIn2 = node.imageIn('second');
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value || !imageIn2.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width+imageIn2.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_input_texture2: imageIn2.value.texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+imageIn2.onChange = render;
+`;
+
 image.threshold = `// brightness threshold between 0 - 1.
 
 const fragmentShader = \`
