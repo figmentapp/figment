@@ -164,6 +164,13 @@ export const DEFAULT_NETWORK = {
       x: 150,
       y: 690,
     },
+    {
+      id: 17,
+      name: 'Blur',
+      type: 'image.blur',
+      x: 150,
+      y: 750,
+    },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [
@@ -180,6 +187,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 7, outPort: 'out', inNode: 14, inPort: 'second' },
     { outNode: 2, outPort: 'out', inNode: 15, inPort: 'in' },
     { outNode: 7  , outPort: 'out', inNode: 16, inPort: 'in' },
+    { outNode: 7  , outPort: 'out', inNode: 17, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };

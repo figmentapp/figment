@@ -44,6 +44,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
 
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
+    this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
