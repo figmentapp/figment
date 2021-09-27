@@ -824,6 +824,93 @@ widthIn.onChange = render;
 heightIn.onChange = render;
 `;
 
+image.crop = `// Crop input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform float u_left;
+uniform float u_right;
+uniform float u_top;
+uniform float u_bottom;
+varying vec2 v_uv;
+
+vec4 leftCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,xy.x);
+    texColor*=l;
+    return texColor;
+}
+
+vec4 rightCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,1.-xy.x);
+    texColor*=l;
+    return texColor;
+}
+
+vec4 bottomCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,xy.y);
+    texColor*=l;
+    return texColor;
+}
+
+vec4 topCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,1.-xy.y);
+    texColor*=l;
+    return texColor;
+}
+
+void main() {
+  vec2 uv = v_uv;
+  vec4 texColor=texture2D(u_input_texture,uv);
+  
+  texColor=leftCrop(texColor,uv,u_left);
+  texColor=rightCrop(texColor,uv,u_right);
+  texColor=topCrop(texColor,uv,u_top);
+  texColor=bottomCrop(texColor,uv,u_bottom);
+  
+  gl_FragColor = texColor;
+
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const leftIn = node.numberIn('left', 0.25, { min: 0, max: 1, step: 0.01});
+const rightIn = node.numberIn('right', 0.25, { min: 0, max: 1, step: 0.01});
+const topIn = node.numberIn('top', 0.1, { min: 0, max: 1, step: 0.01});
+const bottomIn = node.numberIn('bottom', 0.1, { min: 0, max: 1, step: 0.01});
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
+    u_left: leftIn.value, u_right: rightIn.value,u_top: topIn.value, u_bottom: bottomIn.value, });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+leftIn.onChange = render;
+rightIn.onChange = render;
+topIn.onChange = render;
+bottomIn.onChange = render;
+
+`;
+
 image.emboss = `// Emboss convolution on an input image.
 
 const fragmentShader = \`

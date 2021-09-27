@@ -150,6 +150,13 @@ export const DEFAULT_NETWORK = {
       x: 300,
       y: 640,
     },
+    {
+      id: 15,
+      name: 'Crop',
+      type: 'image.crop',
+      x: 300,
+      y: 690,
+    },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [
@@ -164,6 +171,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 2, outPort: 'out', inNode: 13, inPort: 'in' },
     { outNode: 9, outPort: 'out', inNode: 14, inPort: 'first' },
     { outNode: 7, outPort: 'out', inNode: 14, inPort: 'second' },
+    { outNode: 2, outPort: 'out', inNode: 15, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
