@@ -71,6 +71,8 @@ export default class App extends Component {
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
+    this._offscreenCanvas = new OffscreenCanvas(256, 256);
+    window.gl = this._offscreenCanvas.getContext('webgl');
   }
 
   componentDidMount() {
@@ -386,6 +388,7 @@ export default class App extends Component {
             onShowForkDialog={this._onShowForkDialog}
             onConnect={this._onConnect}
             onDisconnect={this._onDisconnect}
+            offscreenCanvas={this._offscreenCanvas}
           />
           <Splitter
             direction="vertical"

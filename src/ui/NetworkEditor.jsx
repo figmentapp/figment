@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
 import * as twgl from 'twgl.js';
-import { v3, m4 } from 'twgl.js';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -165,14 +164,19 @@ export default class NetworkEditor extends Component {
     window.addEventListener('resize', this._onResize);
     this.canvas = this.canvasRef.current;
     this.ctx = this.canvas.getContext('2d');
-    this.gl = twgl.getWebGLContext(this.previewCanvasRef.current);
-    window.gl = this.gl;
+    if (this.previewCanvasRef.current) {
+      const parent = this.previewCanvasRef.current.parentElement;
+      this.previewCanvasRef.current.width = parent.clientWidth;
+      this.previewCanvasRef.current.height = parent.clientHeight;
+    }
+    this._offscreenCanvas = this.props.offscreenCanvas;
+    this.gl = this._offscreenCanvas.getContext('webgl');
     this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
 
     // Create a default checkerboard texture.
     const checkerTexture = {
-      mag: gl.NEAREST,
-      min: gl.LINEAR,
+      mag: this.gl.NEAREST,
+      min: this.gl.LINEAR,
       src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
     };
     this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
@@ -583,11 +587,15 @@ export default class NetworkEditor extends Component {
   _drawNodePreviews() {
     const { gl } = this;
     const { network } = this.props;
-    const canvas = this.previewCanvasRef.current;
-    const parent = canvas.parentElement;
+    const canvas = this._offscreenCanvas;
+    const previewCanvas = this.previewCanvasRef.current;
+    if (!previewCanvas) return;
+    const parent = previewCanvas.parentElement;
     if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
       canvas.width = parent.clientWidth;
       canvas.height = parent.clientHeight;
+      previewCanvas.width = parent.clientWidth;
+      previewCanvas.height = parent.clientHeight;
     }
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.05, 0.06, 0.09, 1.0);
@@ -646,5 +654,9 @@ export default class NetworkEditor extends Component {
       });
       twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
     }
+
+    const previewContext = previewCanvas.getContext('bitmaprenderer');
+    const bitmap = canvas.transferToImageBitmap();
+    previewContext.transferFromImageBitmap(bitmap);
   }
 }

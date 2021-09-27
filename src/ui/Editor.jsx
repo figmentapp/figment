@@ -62,6 +62,7 @@ export default class Editor extends Component {
             onShowNodeDialog={onShowNodeDialog}
             onConnect={onConnect}
             onDisconnect={onDisconnect}
+            offscreenCanvas={this.props.offscreenCanvas}
           />
         )}
         {activeTabIndex >= 0 && (
