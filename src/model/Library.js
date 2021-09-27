@@ -43,13 +43,13 @@ export default class Library {
     this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
     this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
 
-    this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
     this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
+    this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modcolor', type: 'image.modcolor', source: image.modcolor });
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
