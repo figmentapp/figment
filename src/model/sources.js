@@ -591,7 +591,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-image.camImage = `// webcam stream
+image.camImage = `// Return a webcam stream
 
 const frameRate = node.numberIn('frameRate', 10);
 const imageOut = node.imageOut('image');
@@ -648,7 +648,7 @@ frameRate.onChange = () => {
 // }
 `;
 
-image.pixels = `// pixels from image
+image.pixels = `// Return pixels from an image
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
 const pixelsOut = node.objectOut('pixels');
@@ -686,7 +686,7 @@ widthIn.onChange = exec;
 heightIn.onChange = exec;
 `;
 
-image.levels = `// change brightness - contrast - saturation on input image.
+image.levels = `// Change brightness - contrast - saturation on input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -824,7 +824,7 @@ widthIn.onChange = render;
 heightIn.onChange = render;
 `;
 
-image.emboss = `// emboss convolution of input image.
+image.emboss = `// Emboss convolution on an input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -920,7 +920,7 @@ embossWidthIn.onChange = render;
 embossHeightIn.onChange = render;
 `;
 
-image.grayscale = `// grayscale conversion of input image.
+image.grayscale = `// Grayscale conversion of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1057,7 +1057,7 @@ pivotYIn.onChange = render;
 angleIn.onChange = render;
 `;
 
-image.modcolor = `// brightness threshold between 0 - 1.
+image.modcolor = `// Modulate colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1176,7 +1176,7 @@ function render() {
 imageIn.onChange = render;
 `;
 
-image.stitch = `// combine 2 images.
+image.stitch = `// Combine 2 images.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1218,7 +1218,7 @@ imageIn.onChange = render;
 imageIn2.onChange = render;
 `;
 
-image.threshold = `// brightness threshold between 0 - 1.
+image.threshold = `// Change brightness threshold of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1286,7 +1286,7 @@ const classifier = ml5.imageClassifier('MobileNet', classify);
 imageIn.onChange = classify;
 `;
 
-ml.poseNet = `// return poses from image.
+ml.poseNet = `// Return poses from image.
 // const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
@@ -1369,7 +1369,7 @@ node.debugDraw = (ctx) => {
 }
 `;
 
-ml.poseBodyPart = `// return position of a body part from pose.
+ml.poseBodyPart = `// Return position of a body part from pose.
 const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
 const poseIn = node.objectIn('poses');
 const selectPose = node.numberIn('poseIndex', 0, { min: 0 });
@@ -1394,7 +1394,7 @@ bodyPartIn.onChange = partOutPoint;
 poseIn.onChange = partOutPoint;
 `;
 
-ml.drawSkeleton = `// draw skeleton from pose.
+ml.drawSkeleton = `// Draw skeleton from pose.
 const triggerIn = node.triggerIn('in');
 const colorIn = node.colorIn('color', [255, 255, 0, 1]);
 const pointSizeIn = node.numberIn('size', 3);
@@ -1442,7 +1442,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-ml.teachableMachine = `// returns prediction of teachable machine model.
+ml.teachableMachine = `// Returns prediction of teachable machine model.
 // const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
 const predictOut = node.stringOut('predict');
@@ -1475,7 +1475,7 @@ imageIn.onChange = () => {
 }
 `;
 
-ml.faceApi = `// return faces from face api.
+ml.faceApi = `// Return faces from face api.
 // const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
