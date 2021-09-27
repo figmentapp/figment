@@ -664,29 +664,55 @@ triggerIn.onTrigger = (props) => {
 `;
 
 image.unsplash = `// Fetch a random image from Unsplash.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
 const queryIn = node.stringIn('query', 'kitten');
 const widthIn = node.numberIn('width', 300);
 const heightIn = node.numberIn('height', 300);
 const imageOut = node.imageOut('image');
 
-const exec = async () => {
-  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
-  const res = await fetch(url);
-  const blob = await res.blob();
-  const data = URL.createObjectURL(blob);
-  const img = new Image();
-  img.src = data;
-  img.onload = () => {
-    imageOut.set(img);
-  }
+let _texture, framebuffer, program;
+
+node.onStart = () => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
 }
 
-queryIn.onChange = exec;
-widthIn.onChange = exec;
-heightIn.onChange = exec;
+function loadImage() {
+  if (!queryIn.value || queryIn.value.trim().length === 0) return;
+  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
+  figment.createTextureFromUrl(url, onLoad);
+}
+
+function onLoad(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  if (_texture) {
+    gl.deleteTexture(_texture);
+  }
+  _texture = texture;
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+queryIn.onChange = figment.debounce(loadImage, 300);
+widthIn.onChange = figment.debounce(loadImage, 300);
+heightIn.onChange = figment.debounce(loadImage, 300);
 `;
 
-image.blur  = `// Blur an input image
+image.blur = `// Blur an input image
 
 const fragmentShader = \`
 precision mediump float;
@@ -738,7 +764,6 @@ function render() {
 imageIn.onChange = render;
 blurIn.onChange = render;
 `;
-
 
 image.constant = `// Render a constant color.
 
@@ -1136,7 +1161,6 @@ contrastIn.onChange = render;
 saturationIn.onChange = render;
 `;
 
-
 image.mirror = `// Mirror the input image over a specific axis.
 
 const fragmentShader = \`
@@ -1254,8 +1278,7 @@ greenIn.onChange = render;
 blueIn.onChange = render;
 `;
 
-
-image.sharpen  = `// Sharpen an input image
+image.sharpen = `// Sharpen an input image
 
 const fragmentShader = \`
 precision mediump float;
@@ -1309,7 +1332,6 @@ function render() {
 imageIn.onChange = render;
 sharpenIn.onChange = render;
 `;
-
 
 image.sobel = `// Sobel edge detection on input image.
 
@@ -1513,7 +1535,6 @@ imageIn.onChange = render;
 radiusIn.onChange = render;
 twistIn.onChange = render;
 `;
-
 
 ml.classifyImage = `// Classify an image.
 // const ml5 = require('ml5');
