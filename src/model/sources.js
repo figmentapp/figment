@@ -591,7 +591,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-image.camImage = `// webcam stream
+image.camImage = `// Return a webcam stream
 
 const frameRate = node.numberIn('frameRate', 10);
 const imageOut = node.imageOut('image');
@@ -648,7 +648,7 @@ frameRate.onChange = () => {
 // }
 `;
 
-image.pixels = `// pixels from image
+image.pixels = `// Return pixels from an image
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
 const pixelsOut = node.objectOut('pixels');
@@ -686,71 +686,35 @@ widthIn.onChange = exec;
 heightIn.onChange = exec;
 `;
 
-image.levels = `// change brightness - contrast - saturation on input image.
+image.blur  = `// Blur an input image
 
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
-uniform float u_brightness;
-uniform float u_contrast;
-uniform float u_saturation;
 varying vec2 v_uv;
+uniform float u_step;
 
-mat4 brightnessMatrix( float brightness )
-{
-    return mat4( 1, 0, 0, 0,
-                 0, 1, 0, 0,
-                 0, 0, 1, 0,
-                 brightness, brightness, brightness, 1 );
-}
-
-mat4 contrastMatrix( float contrast )
-{
-  float t = ( 1.0 - contrast ) / 2.0;
-    
-    return mat4( contrast, 0, 0, 0,
-                 0, contrast, 0, 0,
-                 0, 0, contrast, 0,
-                 t, t, t, 1 );
-
-}
-
-mat4 saturationMatrix( float saturation )
-{
-    vec3 luminance = vec3( 0.3086, 0.6094, 0.0820 );
-    float oneMinusSat = 1.0 - saturation;
-    
-    vec3 red = vec3( luminance.x * oneMinusSat );
-    red+= vec3( saturation, 0, 0 );
-    
-    vec3 green = vec3( luminance.y * oneMinusSat );
-    green += vec3( 0, saturation, 0 );
-    
-    vec3 blue = vec3( luminance.z * oneMinusSat );
-    blue += vec3( 0, 0, saturation );
-    
-    return mat4( red,     0,
-                 green,   0,
-                 blue,    0,
-                 0, 0, 0, 1 );
-}
+#define BOT 1.-u_step
+#define TOP 1.+u_step
+#define CEN 1
 
 void main() {
   vec2 uv = v_uv;
-  vec4 color = texture2D( u_input_texture, uv );
-    
-  gl_FragColor = brightnessMatrix( u_brightness ) *
-          contrastMatrix( u_contrast ) * 
-          saturationMatrix( u_saturation ) *
-          color;
 
-  }
+  gl_FragColor = 	texture2D( u_input_texture, uv*vec2(BOT, BOT))/8.
+  +texture2D(u_input_texture, uv*vec2(BOT, BOT))/8.
+  +texture2D(u_input_texture, uv*vec2(TOP, BOT))/8.
+  +texture2D(u_input_texture, uv*vec2(BOT, CEN))/8.
+  +texture2D(u_input_texture, uv*vec2(TOP, CEN))/8.
+  +texture2D(u_input_texture, uv*vec2(BOT, TOP))/8.
+  +texture2D(u_input_texture, uv*vec2(CEN, TOP))/8.
+  +texture2D(u_input_texture, uv*vec2(TOP, TOP))/8.;
+
+}
 \`;
 
 const imageIn = node.imageIn('in');
-const brightnessIn = node.numberIn('brightness', 0.0, { min: -1, max: 1, step: 0.01 });
-const contrastIn = node.numberIn('contrast', 1.0, { min: 0, max: 2, step: 0.01 });
-const saturationIn = node.numberIn('saturation', 1.0, { min: 0, max: 1, step: 0.01 });
+const blurIn = node.numberIn('amount', 0.005, { min: 0, max: 0.02, step: 0.001});
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -766,21 +730,15 @@ function render() {
   if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.drawQuad(program, { 
-    u_input_texture: imageIn.value.texture,
-    u_brightness: brightnessIn.value,
-    u_contrast: contrastIn.value,
-    u_saturation: saturationIn.value
-  });
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: blurIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
-brightnessIn.onChange = render;
-contrastIn.onChange = render;
-saturationIn.onChange = render;
+blurIn.onChange = render;
 `;
+
 
 image.constant = `// Render a constant color.
 
@@ -824,7 +782,94 @@ widthIn.onChange = render;
 heightIn.onChange = render;
 `;
 
-image.emboss = `// emboss convolution of input image.
+image.crop = `// Crop input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform float u_left;
+uniform float u_right;
+uniform float u_top;
+uniform float u_bottom;
+varying vec2 v_uv;
+
+vec4 leftCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,xy.x);
+    texColor*=l;
+    return texColor;
+}
+
+vec4 rightCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,1.-xy.x);
+    texColor*=l;
+    return texColor;
+}
+
+vec4 bottomCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,xy.y);
+    texColor*=l;
+    return texColor;
+}
+
+vec4 topCrop(vec4 texColor,vec2 xy,float size)
+{
+    float l=step(size,1.-xy.y);
+    texColor*=l;
+    return texColor;
+}
+
+void main() {
+  vec2 uv = v_uv;
+  vec4 texColor=texture2D(u_input_texture,uv);
+  
+  texColor=leftCrop(texColor,uv,u_left);
+  texColor=rightCrop(texColor,uv,u_right);
+  texColor=topCrop(texColor,uv,u_top);
+  texColor=bottomCrop(texColor,uv,u_bottom);
+  
+  gl_FragColor = texColor;
+
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const leftIn = node.numberIn('left', 0.25, { min: 0, max: 1, step: 0.01});
+const rightIn = node.numberIn('right', 0.25, { min: 0, max: 1, step: 0.01});
+const topIn = node.numberIn('top', 0.1, { min: 0, max: 1, step: 0.01});
+const bottomIn = node.numberIn('bottom', 0.1, { min: 0, max: 1, step: 0.01});
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
+    u_left: leftIn.value, u_right: rightIn.value,u_top: topIn.value, u_bottom: bottomIn.value, });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+leftIn.onChange = render;
+rightIn.onChange = render;
+topIn.onChange = render;
+bottomIn.onChange = render;
+
+`;
+
+image.emboss = `// Emboss convolution on an input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -920,7 +965,7 @@ embossWidthIn.onChange = render;
 embossHeightIn.onChange = render;
 `;
 
-image.grayscale = `// grayscale conversion of input image.
+image.grayscale = `// Grayscale conversion of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -995,6 +1040,103 @@ function render() {
 imageIn.onChange = render;
 `;
 
+image.levels = `// Change brightness - contrast - saturation on input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform float u_brightness;
+uniform float u_contrast;
+uniform float u_saturation;
+varying vec2 v_uv;
+
+mat4 brightnessMatrix( float brightness )
+{
+    return mat4( 1, 0, 0, 0,
+                 0, 1, 0, 0,
+                 0, 0, 1, 0,
+                 brightness, brightness, brightness, 1 );
+}
+
+mat4 contrastMatrix( float contrast )
+{
+  float t = ( 1.0 - contrast ) / 2.0;
+    
+    return mat4( contrast, 0, 0, 0,
+                 0, contrast, 0, 0,
+                 0, 0, contrast, 0,
+                 t, t, t, 1 );
+
+}
+
+mat4 saturationMatrix( float saturation )
+{
+    vec3 luminance = vec3( 0.3086, 0.6094, 0.0820 );
+    float oneMinusSat = 1.0 - saturation;
+    
+    vec3 red = vec3( luminance.x * oneMinusSat );
+    red+= vec3( saturation, 0, 0 );
+    
+    vec3 green = vec3( luminance.y * oneMinusSat );
+    green += vec3( 0, saturation, 0 );
+    
+    vec3 blue = vec3( luminance.z * oneMinusSat );
+    blue += vec3( 0, 0, saturation );
+    
+    return mat4( red,     0,
+                 green,   0,
+                 blue,    0,
+                 0, 0, 0, 1 );
+}
+
+void main() {
+  vec2 uv = v_uv;
+  vec4 color = texture2D( u_input_texture, uv );
+    
+  gl_FragColor = brightnessMatrix( u_brightness ) *
+          contrastMatrix( u_contrast ) * 
+          saturationMatrix( u_saturation ) *
+          color;
+
+  }
+\`;
+
+const imageIn = node.imageIn('in');
+const brightnessIn = node.numberIn('brightness', 0.0, { min: -1, max: 1, step: 0.01 });
+const contrastIn = node.numberIn('contrast', 1.0, { min: 0, max: 2, step: 0.01 });
+const saturationIn = node.numberIn('saturation', 1.0, { min: 0, max: 1, step: 0.01 });
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { 
+    u_input_texture: imageIn.value.texture,
+    u_brightness: brightnessIn.value,
+    u_contrast: contrastIn.value,
+    u_saturation: saturationIn.value
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+brightnessIn.onChange = render;
+contrastIn.onChange = render;
+saturationIn.onChange = render;
+`;
+
+
 image.mirror = `// Mirror the input image over a specific axis.
 
 const fragmentShader = \`
@@ -1057,7 +1199,7 @@ pivotYIn.onChange = render;
 angleIn.onChange = render;
 `;
 
-image.modcolor = `// brightness threshold between 0 - 1.
+image.modcolor = `// Modulate colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1111,6 +1253,63 @@ redIn.onChange = render;
 greenIn.onChange = render;
 blueIn.onChange = render;
 `;
+
+
+image.sharpen  = `// Sharpen an input image
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+varying vec2 v_uv;
+uniform float u_step;
+//#define STEP .005
+
+#define BOT 1.-u_step
+#define TOP 1.+u_step
+#define CEN 1
+
+void main() {
+  vec2 uv = v_uv;
+
+  gl_FragColor = texture2D( u_input_texture, uv) *2.
+  -texture2D(u_input_texture, uv*vec2(BOT, BOT))/8.
+  -texture2D(u_input_texture, uv*vec2(CEN, BOT))/8.
+  -texture2D(u_input_texture, uv*vec2(TOP, BOT))/8.
+  -texture2D(u_input_texture, uv*vec2(BOT, CEN))/8.
+  -texture2D(u_input_texture, uv*vec2(TOP, CEN))/8.
+  -texture2D(u_input_texture, uv*vec2(BOT, TOP))/8.
+  -texture2D(u_input_texture, uv*vec2(CEN, TOP))/8.
+  -texture2D(u_input_texture, uv*vec2(TOP, TOP))/8.;
+  
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const sharpenIn = node.numberIn('amount', 0.005, { min: 0, max: 0.02, step: 0.001});
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: sharpenIn.value });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+sharpenIn.onChange = render;
+`;
+
 
 image.sobel = `// Sobel edge detection on input image.
 
@@ -1176,7 +1375,49 @@ function render() {
 imageIn.onChange = render;
 `;
 
-image.threshold = `// brightness threshold between 0 - 1.
+image.stitch = `// Combine 2 images.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform sampler2D u_input_texture2;
+varying vec2 v_uv;
+
+void main() {
+  vec2 uv = v_uv;
+  vec4 color1 = texture2D(u_input_texture, vec2(uv.x*2.0, uv.y));
+  vec4 color2 = texture2D(u_input_texture2, vec2(uv.x*2.0-1.0, uv.y));
+  gl_FragColor = uv.x < 0.5 ? color1 : color2;
+}
+\`;
+
+const imageIn = node.imageIn('first');
+const imageIn2 = node.imageIn('second');
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value || !imageIn2.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width+imageIn2.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_input_texture2: imageIn2.value.texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+imageIn2.onChange = render;
+`;
+
+image.threshold = `// Change brightness threshold of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1220,6 +1461,60 @@ imageIn.onChange = render;
 thresholdIn.onChange = render;
 `;
 
+image.wrap = `// Circular wrap of input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform float u_radius;
+uniform float u_twist;
+varying vec2 v_uv;
+
+void main() {
+  vec2 uv = v_uv;
+ vec2 p = -1.0 + 2.0 * uv.st;
+ float r = sqrt(dot(p,p));
+
+p.x = mod(p.x + r * u_twist, 1.0);
+ float a = atan(p.y,p.x);
+
+uv.x = (a + 3.14159265359)/6.28318530718;
+uv.y = r / sqrt(u_radius);
+ vec3 col = texture2D(u_input_texture, uv).rgb;
+ gl_FragColor = vec4(col, 1.0);
+
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const radiusIn = node.numberIn('radius', 2.0, { min: 0, max: 5, step: 0.01 });
+const twistIn = node.numberIn('twist', 0.0, { min: -1, max: 1, step: 0.01 });
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_radius: radiusIn.value,u_twist: twistIn.value });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+radiusIn.onChange = render;
+twistIn.onChange = render;
+`;
+
+
 ml.classifyImage = `// Classify an image.
 // const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
@@ -1244,7 +1539,7 @@ const classifier = ml5.imageClassifier('MobileNet', classify);
 imageIn.onChange = classify;
 `;
 
-ml.poseNet = `// return poses from image.
+ml.poseNet = `// Return poses from image.
 // const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
@@ -1327,7 +1622,7 @@ node.debugDraw = (ctx) => {
 }
 `;
 
-ml.poseBodyPart = `// return position of a body part from pose.
+ml.poseBodyPart = `// Return position of a body part from pose.
 const bodyPartIn = node.selectIn('bodyPart', ['leftAnkle', 'leftEar', 'leftElbow', 'leftEye', 'leftHip', 'leftKnee', 'leftShoulder','leftWrist','nose','rightAnkle', 'rightEar', 'rightElbow', 'rightEye', 'rightHip', 'rightKnee', 'rightShoulder','rightWrist']);
 const poseIn = node.objectIn('poses');
 const selectPose = node.numberIn('poseIndex', 0, { min: 0 });
@@ -1352,7 +1647,7 @@ bodyPartIn.onChange = partOutPoint;
 poseIn.onChange = partOutPoint;
 `;
 
-ml.drawSkeleton = `// draw skeleton from pose.
+ml.drawSkeleton = `// Draw skeleton from pose.
 const triggerIn = node.triggerIn('in');
 const colorIn = node.colorIn('color', [255, 255, 0, 1]);
 const pointSizeIn = node.numberIn('size', 3);
@@ -1400,7 +1695,7 @@ triggerIn.onTrigger = (props) => {
 };
 `;
 
-ml.teachableMachine = `// returns prediction of teachable machine model.
+ml.teachableMachine = `// Returns prediction of teachable machine model.
 // const ml5 = require('ml5');
 const imageIn = node.imageIn('image');
 const predictOut = node.stringOut('predict');
@@ -1433,7 +1728,7 @@ imageIn.onChange = () => {
 }
 `;
 
-ml.faceApi = `// return faces from face api.
+ml.faceApi = `// Return faces from face api.
 // const ml5 = require('ml5');
 const triggerIn = node.triggerIn('in');
 const imageIn = node.imageIn('image');
