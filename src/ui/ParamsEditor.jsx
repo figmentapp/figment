@@ -45,7 +45,6 @@ class NumberDrag extends Component {
 
   componentDidUpdate(prevProps) {
     if (prevProps.inputState !== this.props.inputState && this.props.inputState === NUMBER_DRAG_INPUT) {
-      console.log('wedwed');
       this.inputRef.current.select();
     }
   }
