@@ -50,9 +50,38 @@ let gSettings = new Settings();
 
 function emit(name, filePath) {
   return () => {
-    gMainWindow.webContents.send('menu-event', { name, filePath });
+    gMainWindow.webContents.send('menu', { name, filePath });
   };
 }
+
+async function showOpenProjectDialog() {
+  const { filePaths } = await dialog.showOpenDialog({
+    title: 'Open Project',
+    properties: ['openFile'],
+  });
+  if (!filePaths || filePaths.length < 1) {
+    return;
+  }
+
+  const filePath = filePaths[0];
+  gSettings.addRecentProject(filePath);
+  gMainWindow.setRepresentedFilename(filePath);
+  // gMainWindow.webContents.send('open-project', filePath);
+  return filePath;
+}
+ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
+
+async function showSaveProjectDialog() {
+  const result = await dialog.showSaveDialog({
+    title: 'Save Project',
+  });
+  // console.log('save', filePath);
+  if (result.canceled) return null;
+  gSettings.addRecentProject(result.filePath);
+  gMainWindow.setRepresentedFilename(result.filePath);
+  return result.filePath;
+}
+ipcMain.handle('showSaveProjectDialog', showSaveProjectDialog);
 
 function onTouchProject(filePath) {
   gSettings.addRecentProject(filePath);
@@ -94,7 +123,6 @@ function createMainWindow(file) {
     webPreferences: {
       nativeWindowOpen: true,
       preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true,
       webSecurity: false,
     },
   });

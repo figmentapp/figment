@@ -11,7 +11,7 @@ export function projectFile() {
 export function projectDirectory() {
   if (!window.app) return '';
   if (!window.app.state.filePath) return '';
-  return path.dirname(window.app.state.filePath);
+  return nodePath.dirname(window.app.state.filePath);
 }
 
 export function filePathForAsset(filename) {
@@ -23,7 +23,7 @@ export function filePathForAsset(filename) {
 export function urlForAsset(filename) {
   const filePath = filePathForAsset(filename);
   const absoluteFilePath = nodePath.resolve(filePath);
-  const assetUrl = pathToFileURL(absoluteFilePath);
+  const assetUrl = window.desktop.pathToFileURL(absoluteFilePath);
   return assetUrl;
 }
 

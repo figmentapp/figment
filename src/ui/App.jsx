@@ -1,8 +1,4 @@
 import React, { Component } from 'react';
-// const { ipcRenderer } = nodeElectron;
-// import { ipcRenderer } from 'electron';
-// import { promises } from 'fs';
-// const fs = promises;
 import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
 import { PORT_IN, PORT_OUT } from '../model/Port';
@@ -48,6 +44,9 @@ export default class App extends Component {
     if (firstNode) {
       this.state.selection.add(firstNode);
     }
+    this._onOpenFile = this._onOpenFile.bind(this);
+    this._onMenuEvent = this._onMenuEvent.bind(this);
+    this._openFile = this._openFile.bind(this);
     this._onNewCodeTab = this._onNewCodeTab.bind(this);
     this._onSelectTab = this._onSelectTab.bind(this);
     this._onCloseTab = this._onCloseTab.bind(this);
@@ -77,11 +76,10 @@ export default class App extends Component {
 
   componentDidMount() {
     this.state.network.start();
-    // ipcRenderer.on('menu-event', (_, { name, filePath }) => this._onMenuEvent(name, filePath));
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
-    // ipcRenderer.send('window-created');
     window.app = this;
+    window.desktop.registerListener('menu', this._onMenuEvent);
   }
 
   componentWillUnmount() {
@@ -131,29 +129,31 @@ export default class App extends Component {
   }
 
   async _onOpenFile() {
-    const window = remote.BrowserWindow.getFocusedWindow();
-    const result = await remote.dialog.showOpenDialog(window, {
-      properties: ['openFile'],
-      filters: FILE_FILTERS,
-    });
-    if (result.canceled) return;
-    await this._openFile(result.filePaths[0]);
+    const filePath = await window.desktop.showOpenProjectDialog();
+    // const window = remote.BrowserWindow.getFocusedWindow();
+    // const result = await remote.dialog.showOpenDialog(window, {
+    //   properties: ['openFile'],
+    //   filters: FILE_FILTERS,
+    // });
+    if (!filePath) return;
+    await this._openFile(filePath);
   }
 
   async _openFile(filePath) {
     this._close();
-    const contents = await fs.readFile(filePath, 'utf-8');
+    const contents = await window.desktop.readProjectFile(filePath);
+    // const contents = await fs.readFile(filePath, 'utf-8');
     const json = JSON.parse(contents);
     const network = new Network(this.state.library);
 
-    remote.app.addRecentDocument(filePath);
+    // remote.app.addRecentDocument(filePath);
     this.setState({ filePath, network, selection: new Set() }, () => {
       network.parse(json);
       network.start();
       network.doFrame();
     });
     this._setFilePath(filePath);
-    ipcRenderer.send('open-project', filePath);
+    // ipcRenderer.send('open-project', filePath);
   }
 
   async _onSaveFile() {
@@ -163,12 +163,8 @@ export default class App extends Component {
   }
 
   async _onSaveFileAs() {
-    const window = remote.BrowserWindow.getFocusedWindow();
-    const result = await remote.dialog.showSaveDialog(window, {
-      filters: FILE_FILTERS,
-    });
-    if (result.canceled) return;
-    const filePath = result.filePath;
+    const filePath = await window.desktop.showSaveProjectDialog();
+    if (!filePath) return;
     await this._saveFile(filePath);
     this._setFilePath(filePath);
   }
@@ -176,14 +172,13 @@ export default class App extends Component {
   async _saveFile(filePath) {
     const json = this.state.network.serialize();
     const contents = JSON.stringify(json, null, 2);
-    await fs.writeFile(filePath, contents);
-    ipcRenderer.send('save-project', filePath);
+    await window.desktop.writeProjectFile(filePath, contents);
   }
 
   _close() {
     if (this.state.network) {
       this.state.network.stop();
-      document.getElementById('viewer').innerHTML = '';
+      // document.getElementById('viewer').innerHTML = '';
     }
     this.setState({
       filePath: undefined,
@@ -196,12 +191,12 @@ export default class App extends Component {
   }
 
   _setFilePath(filePath, dirty = false) {
-    const window = remote.BrowserWindow.getFocusedWindow();
-    if (window) {
-      // FIXME: how to clear the represented filename?
-      filePath && window.setRepresentedFilename(filePath);
-      window.setDocumentEdited(!dirty);
-    }
+    // const window = remote.BrowserWindow.getFocusedWindow();
+    // if (window) {
+    //   // FIXME: how to clear the represented filename?
+    //   filePath && window.setRepresentedFilename(filePath);
+    //   window.setDocumentEdited(!dirty);
+    // }
     this.setState({ filePath, dirty });
   }
 
