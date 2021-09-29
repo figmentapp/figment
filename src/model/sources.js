@@ -812,10 +812,9 @@ image.crop = `// Crop input image.
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
-uniform float u_left;
-uniform float u_right;
-uniform float u_top;
-uniform float u_bottom;
+uniform vec2 u_resolution;
+uniform vec2 u_offset;
+uniform vec2 u_outputsize;
 varying vec2 v_uv;
 
 vec4 leftCrop(vec4 texColor,vec2 xy,float size)
@@ -825,23 +824,9 @@ vec4 leftCrop(vec4 texColor,vec2 xy,float size)
     return texColor;
 }
 
-vec4 rightCrop(vec4 texColor,vec2 xy,float size)
-{
-    float l=step(size,1.-xy.x);
-    texColor*=l;
-    return texColor;
-}
-
-vec4 bottomCrop(vec4 texColor,vec2 xy,float size)
-{
-    float l=step(size,xy.y);
-    texColor*=l;
-    return texColor;
-}
-
 vec4 topCrop(vec4 texColor,vec2 xy,float size)
 {
-    float l=step(size,1.-xy.y);
+    float l=step(size,xy.y);
     texColor*=l;
     return texColor;
 }
@@ -849,48 +834,44 @@ vec4 topCrop(vec4 texColor,vec2 xy,float size)
 void main() {
   vec2 uv = v_uv;
   vec4 texColor=texture2D(u_input_texture,uv);
-  
-  texColor=leftCrop(texColor,uv,u_left);
-  texColor=rightCrop(texColor,uv,u_right);
-  texColor=topCrop(texColor,uv,u_top);
-  texColor=bottomCrop(texColor,uv,u_bottom);
-  
+  texColor=leftCrop(texColor,uv.xy,u_offset.x/u_outputsize.x);
+  texColor=topCrop(texColor,uv.xy,u_offset.y/u_outputsize.y);
   gl_FragColor = texColor;
-
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const leftIn = node.numberIn('left', 0.25, { min: 0, max: 1, step: 0.01});
-const rightIn = node.numberIn('right', 0.25, { min: 0, max: 1, step: 0.01});
-const topIn = node.numberIn('top', 0.1, { min: 0, max: 1, step: 0.01});
-const bottomIn = node.numberIn('bottom', 0.1, { min: 0, max: 1, step: 0.01});
+const offsetxIn = node.numberIn('offsetx', 100.0, { min: 1, max: 4096, step: 1 });
+const offsetyIn = node.numberIn('offsety', 100.0, { min: 1, max: 4096, step: 1 });
+const widthIn = node.numberIn('width', 512.0, { min: 1, max: 4096, step: 1 });
+const heightIn = node.numberIn('height', 512.0, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
 node.onStart = (props) => {
   program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
 };
 
 function render() {
   if (!imageIn.value) return;
   if (!program) return;
   if (!framebuffer) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
-    u_left: leftIn.value, u_right: rightIn.value,u_top: topIn.value, u_bottom: bottomIn.value, });
+    u_offset: [offsetxIn.value, offsetyIn.value],
+    u_outputsize: [widthIn.value, heightIn.value]});
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
 
 imageIn.onChange = render;
-leftIn.onChange = render;
-rightIn.onChange = render;
-topIn.onChange = render;
-bottomIn.onChange = render;
+widthIn.onChange = render;
+heightIn.onChange = render;
+offsetxIn.onChange = render;
+offsetyIn.onChange = render;
 
 `;
 
