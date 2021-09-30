@@ -178,7 +178,7 @@ export const DEFAULT_NETWORK = {
       x: 450,
       y: 100,
       values: {
-        folder: 'examples/assets/',
+        folder: 'examples/assets/waves',
         filter: '*.jpg',
       },
     },
