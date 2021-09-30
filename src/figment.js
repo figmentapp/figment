@@ -69,6 +69,15 @@ export function createTextureFromUrl(url, callback) {
   return twgl.createTexture(window.gl, { src: url }, callback);
 }
 
+export function createErrorTexture() {
+  const checkerTexture = {
+    mag: window.gl.NEAREST,
+    min: window.gl.LINEAR,
+    src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
+  };
+  return twgl.createTexture(window.gl, checkerTexture);
+}
+
 export class Framebuffer {
   constructor(width = 0, height = 0) {
     if (width > 0 && height > 0) {

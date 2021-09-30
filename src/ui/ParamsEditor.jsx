@@ -16,6 +16,7 @@ import {
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
+  PORT_TYPE_DIRECTORY,
   PORT_TYPE_OBJECT,
 } from '../model/Port';
 
@@ -358,14 +359,9 @@ class FileParam extends Component {
   }
 
   async _onSelectFile() {
-    const window = remote.BrowserWindow.getFocusedWindow();
-    console.assert(window);
-    const result = await remote.dialog.showOpenDialog(window, {
-      properties: ['openFile'],
-    });
-    if (result.canceled || !result.filePaths) return;
-    const absoluteFile = result.filePaths[0];
-    const file = figment.filePathToRelative(absoluteFile);
+    const filePath = await window.desktop.showOpenImageDialog();
+    if (!filePath) return;
+    const file = figment.filePathToRelative(filePath);
     this.props.onChange(file);
   }
 
@@ -375,8 +371,44 @@ class FileParam extends Component {
       <div className="params__row">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
-          <span className="w-64 text-gray-700 overflow-hidden">{value}</span>
+          <span className="w-32 text-gray-700 overflow-hidden whitespace-nowrap" onClick={this._onSelectFile}>
+            {value}
+          </span>
           <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
+            Open…
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+class DirectoryParam extends Component {
+  constructor(props) {
+    super(props);
+    this._onSelectDirectory = this._onSelectDirectory.bind(this);
+  }
+
+  async _onSelectDirectory() {
+    const filePath = await window.desktop.showOpenDirectoryDialog();
+    if (!filePath) return;
+    const directory = figment.filePathToRelative(filePath);
+    this.props.onChange(directory);
+  }
+
+  render() {
+    const { label, value } = this.props;
+    return (
+      <div className="params__row">
+        <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
+        <div className="flex items-center">
+          <span className="w-32 text-gray-700 overflow-hidden whitespace-nowrap" onClick={this._onSelectDirectory}>
+            {value}
+          </span>
+          <button
+            className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none"
+            onClick={this._onSelectDirectory}
+          >
             Open…
           </button>
         </div>
@@ -527,6 +559,16 @@ export default class ParamsEditor extends Component {
     } else if (port.type === PORT_TYPE_FILE) {
       field = (
         <FileParam
+          key={port.name}
+          label={label}
+          value={port.value}
+          disabled={network.isConnected(port)}
+          onChange={(value) => this._onChangePortValue(port.name, value)}
+        />
+      );
+    } else if (port.type === PORT_TYPE_DIRECTORY) {
+      field = (
+        <DirectoryParam
           key={port.name}
           label={label}
           value={port.value}

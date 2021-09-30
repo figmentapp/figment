@@ -20,7 +20,7 @@ export default class Splitter extends Component {
   _onMouseMove(e) {
     e.preventDefault();
     if (this.props.direction === VERTICAL) {
-      this.props.onChange(this.props.size + e.movementX);
+      this.props.onChange(this.props.size - e.movementX);
     } else {
       this.props.onChange(this.props.size + e.movementY);
     }

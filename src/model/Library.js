@@ -38,6 +38,12 @@ export default class Library {
 
     // Image
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
+    this.nodeTypes.push({
+      name: 'Load Image Folder',
+      type: 'image.loadImageFolder',
+      source: image.loadImageFolder,
+    });
+
     this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.camImage', source: image.camImage });
     this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
