@@ -11,6 +11,7 @@
     "format": "prettier --write src/**/*.{js,jsx}"
   },
   "dependencies": {
+    "@mediapipe/pose": "^0.4.1630009814",
     "chroma-js": "2.1.2",
     "codemirror": "5.62.3",
     "lodash": "4.17.21",

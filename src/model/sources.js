@@ -1,3 +1,6 @@
+import { Pose } from '@mediapipe/pose';
+window.Pose = Pose;
+
 export const core = {};
 export const math = {};
 export const graphics = {};
@@ -1612,6 +1615,73 @@ function render() {
 imageIn.onChange = render;
 radiusIn.onChange = render;
 twistIn.onChange = render;
+`;
+
+ml.detectPose = `// Detect human poses in input image.
+const imageIn = node.imageIn('in');
+const imageOut = node.imageOut('out');
+
+let program, framebuffer, pose, canvas, ctx;
+
+node.onStart = (props) => {
+  // program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+  pose = new Pose({locateFile: (file) => {
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
+  }});
+  pose.setOptions({
+    modelComplexity: 1, 
+    smoothLandmarks: true,
+  });
+  pose.onResults(onResults);
+  canvas = new OffscreenCanvas(1, 1);
+  ctx = canvas.getContext('2d');
+};
+
+function detectPose() {
+  if (!imageIn.value) return;
+  // Draw the image on an ImageData object.
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+
+  if (width !== canvas.width || height !== canvas.height) {
+    canvas.width = width;
+    canvas.height = height;
+    data = new ImageData(width, height);
+    framebuffer.setSize(width, height);
+  }
+  imageIn.value.bind();
+  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
+  imageIn.value.unbind();
+  pose.send({ image: data });
+}
+
+function onResults(results) {
+  imageOut.set(framebuffer);
+  if (!results.poseLandmarks) return;
+  const landmarks = results.poseLandmarks;
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = 'white';
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < landmarks.length; i++) {
+    const landmark = landmarks[i];
+    let { x, y } = landmark;
+    ctx.moveTo(x * width + 10, y * height);
+    ctx.arc(x * width, y * height, 10, 0, 2 * Math.PI);
+  }
+  ctx.fill();
+  ctx.stroke();
+  window.gl.bindTexture(gl.TEXTURE_2D, imageOut.value.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  window.gl.bindTexture(gl.TEXTURE_2D, null);
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = detectPose;
 `;
 
 ml.classifyImage = `// Classify an image.
