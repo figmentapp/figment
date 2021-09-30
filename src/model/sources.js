@@ -523,6 +523,72 @@ function onError(err) {
 fileIn.onChange = loadImage;
 `;
 
+image.loadImageFolder = `// Load a folder of images.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
+const folderIn = node.directoryIn('folder', 'examples/assets');
+const filterIn = node.stringIn('filter', '*');
+const imageOut = node.imageOut('out');
+
+let texture, framebuffer, program;
+
+node.onStart = () => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+}
+
+function loadDirectory() {
+  if (!folderIn.value || folderIn.value.trim().length === 0) return;
+  window.desktop.globFiles(folderIn.value, filterIn.value, onLoadDirectory);
+}
+
+function onLoadDirectory(err, files) {
+  if (err) {
+    console.error(err);
+    onLoadError();
+    return;
+  }
+  if (files.length === 0) {
+    onLoadError();
+    return;
+  }
+  const file = files[0];
+  const imageUrl = figment.urlForAsset(file);
+  figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
+}
+
+function onLoadError() {
+  const texture = figment.createErrorTexture();
+  framebuffer.setSize(100, 56);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+function onLoadImage(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+folderIn.onChange = loadDirectory;
+filterIn.onChange = loadDirectory;
+`;
+
 image.drawImage = `// Draw the image on the canvas.
 const triggerIn = node.triggerIn('in');
 const triggerOut = node.triggerOut('out');

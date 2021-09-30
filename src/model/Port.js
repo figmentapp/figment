@@ -9,6 +9,7 @@ export const PORT_TYPE_SELECT = 'select';
 export const PORT_TYPE_COLOR = 'color';
 export const PORT_TYPE_POINT = 'point';
 export const PORT_TYPE_FILE = 'file';
+export const PORT_TYPE_DIRECTORY = 'directory';
 export const PORT_TYPE_IMAGE = 'image';
 export const PORT_TYPE_OBJECT = 'object';
 

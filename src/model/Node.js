@@ -8,6 +8,7 @@ import Port, {
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
+  PORT_TYPE_DIRECTORY,
   PORT_TYPE_IMAGE,
   PORT_TYPE_OBJECT,
   PORT_IN,
@@ -135,6 +136,22 @@ export default class Node {
       return oldPort;
     } else {
       const inPort = new Port(this, name, PORT_TYPE_FILE, PORT_IN, value);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
+  directoryIn(name, value) {
+    if (!value) value = '';
+    const oldPort = this.inPorts.find((p) => p.name === name);
+    if (oldPort) {
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_DIRECTORY, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }
