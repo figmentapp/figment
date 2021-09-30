@@ -358,14 +358,9 @@ class FileParam extends Component {
   }
 
   async _onSelectFile() {
-    const window = remote.BrowserWindow.getFocusedWindow();
-    console.assert(window);
-    const result = await remote.dialog.showOpenDialog(window, {
-      properties: ['openFile'],
-    });
-    if (result.canceled || !result.filePaths) return;
-    const absoluteFile = result.filePaths[0];
-    const file = figment.filePathToRelative(absoluteFile);
+    const filePath = await window.desktop.showOpenImageDialog();
+    if (!filePath) return;
+    const file = figment.filePathToRelative(filePath);
     this.props.onChange(file);
   }
 
@@ -375,7 +370,9 @@ class FileParam extends Component {
       <div className="params__row">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
-          <span className="w-64 text-gray-700 overflow-hidden">{value}</span>
+          <span className="w-32 text-gray-700 overflow-hidden whitespace-nowrap" onClick={this._onSelectFile}>
+            {value}
+          </span>
           <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
             Open…
           </button>

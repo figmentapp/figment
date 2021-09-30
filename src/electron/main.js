@@ -71,6 +71,21 @@ async function showOpenProjectDialog() {
 }
 ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
 
+async function showOpenImageDialog() {
+  const { filePaths } = await dialog.showOpenDialog({
+    title: 'Open Image',
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] }],
+  });
+  if (!filePaths || filePaths.length < 1) {
+    return;
+  }
+
+  const filePath = filePaths[0];
+  return filePath;
+}
+ipcMain.handle('showOpenImageDialog', showOpenImageDialog);
+
 async function showSaveProjectDialog() {
   const result = await dialog.showSaveDialog({
     title: 'Save Project',

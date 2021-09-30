@@ -18,6 +18,11 @@ async function showOpenProjectDialog() {
   return filePath;
 }
 
+async function showOpenImageDialog() {
+  const filePath = await ipcRenderer.invoke('showOpenImageDialog');
+  return filePath;
+}
+
 async function showSaveProjectDialog() {
   const filePath = await ipcRenderer.invoke('showSaveProjectDialog');
   return filePath;
@@ -45,6 +50,7 @@ function registerListener(name, fn) {
 contextBridge.exposeInMainWorld('desktop', {
   showOpenProjectDialog,
   showSaveProjectDialog,
+  showOpenImageDialog,
   readProjectFile,
   writeProjectFile,
   pathToFileURL,
