@@ -534,15 +534,18 @@ void main() {
 }
 \`;
 
-const folderIn = node.directoryIn('folder', 'examples/assets');
-const filterIn = node.stringIn('filter', '*');
+const folderIn = node.directoryIn('folder', 'examples/assets/waves');
+const filterIn = node.stringIn('filter', '*.jpg');
+const animateIn = node.toggleIn('animate', false);
+const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
 const imageOut = node.imageOut('out');
 
-let texture, framebuffer, program;
+let files, fileIndex, texture, framebuffer, program, timerHandle;
 
 node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
+  fileIndex = 0;
 }
 
 function loadDirectory() {
@@ -550,7 +553,8 @@ function loadDirectory() {
   window.desktop.globFiles(folderIn.value, filterIn.value, onLoadDirectory);
 }
 
-function onLoadDirectory(err, files) {
+function onLoadDirectory(err, _files) {
+  files = _files;
   if (err) {
     console.error(err);
     onLoadError();
@@ -560,9 +564,8 @@ function onLoadDirectory(err, files) {
     onLoadError();
     return;
   }
-  const file = files[0];
-  const imageUrl = figment.urlForAsset(file);
-  figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
+  fileIndex = -1;
+  nextImage();
 }
 
 function onLoadError() {
@@ -585,8 +588,39 @@ function onLoadImage(err, texture, image) {
   imageOut.set(framebuffer);
 }
 
+function nextImage() {
+  fileIndex++;
+  if (fileIndex >= files.length) {
+    fileIndex = 0;
+  }
+  if (texture) {
+    window.gl.deleteTexture(texture);
+  }
+
+  const file = files[fileIndex];
+  const imageUrl = figment.urlForAsset(file);
+  figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
+}
+
+function toggleAnimate() {
+  if (animateIn.value) {
+    timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
+  } else {
+    window.clearInterval(timerHandle);
+  }
+}
+
+function changeFrameRate() {
+  window.clearInterval(timerHandle);
+  if (animateIn.value) {
+   timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
+  }
+}
+
 folderIn.onChange = loadDirectory;
 filterIn.onChange = loadDirectory;
+animateIn.onChange = toggleAnimate;
+frameRateIn.onChange = changeFrameRate;
 `;
 
 image.drawImage = `// Draw the image on the canvas.
