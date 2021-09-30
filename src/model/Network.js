@@ -10,6 +10,7 @@ import Port, {
   PORT_TYPE_POINT,
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
+  PORT_TYPE_DIRECTORY,
   PORT_TYPE_IMAGE,
   PORT_IN,
   PORT_OUT,
@@ -317,6 +318,8 @@ export default class Network {
           } else if (port.type === PORT_TYPE_COLOR) {
             port.value = value.slice();
           } else if (port.type === PORT_TYPE_FILE) {
+            port.value = value;
+          } else if (port.type === PORT_TYPE_DIRECTORY) {
             port.value = value;
           } else {
             warnings.push(
