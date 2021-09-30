@@ -815,36 +815,33 @@ uniform sampler2D u_input_texture;
 uniform vec2 u_resolution;
 uniform vec2 u_offset;
 uniform vec2 u_outputsize;
+uniform vec2 u_inputsize;
 varying vec2 v_uv;
 
-vec4 leftCrop(vec4 texColor,vec2 xy,float size)
-{
-    float l=step(size,xy.x);
-    texColor*=l;
-    return texColor;
-}
-
-vec4 topCrop(vec4 texColor,vec2 xy,float size)
-{
-    float l=step(size,xy.y);
-    texColor*=l;
-    return texColor;
+vec4 cropImage(sampler2D img, vec2 texCoord) {
+  if (texCoord.x < u_offset.x/u_inputsize.x || 
+    texCoord.x > ((u_offset.x+u_outputsize.x)/u_inputsize.x) || 
+    texCoord.y < u_offset.y/u_inputsize.y || 
+    texCoord.y > ((u_offset.y+u_outputsize.y)/u_inputsize.y)) {
+    discard;
+    //return vec4(0);
+  }
+  return texture2D(img, texCoord);
 }
 
 void main() {
   vec2 uv = v_uv;
   vec4 texColor=texture2D(u_input_texture,uv);
-  texColor=leftCrop(texColor,uv.xy,u_offset.x/u_outputsize.x);
-  texColor=topCrop(texColor,uv.xy,u_offset.y/u_outputsize.y);
+  texColor = cropImage(u_input_texture,uv);
   gl_FragColor = texColor;
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const offsetxIn = node.numberIn('offsetx', 100.0, { min: 1, max: 4096, step: 1 });
-const offsetyIn = node.numberIn('offsety', 100.0, { min: 1, max: 4096, step: 1 });
-const widthIn = node.numberIn('width', 512.0, { min: 1, max: 4096, step: 1 });
-const heightIn = node.numberIn('height', 512.0, { min: 1, max: 4096, step: 1 });
+const offsetxIn = node.numberIn('offsetx', 50.0, { min: 1, max: 4096, step: 1 });
+const offsetyIn = node.numberIn('offsety', 50.0, { min: 1, max: 4096, step: 1 });
+const widthIn = node.numberIn('width', 256.0, { min: 1, max: 4096, step: 1 });
+const heightIn = node.numberIn('height', 256.0, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -862,7 +859,8 @@ function render() {
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_offset: [offsetxIn.value, offsetyIn.value],
-    u_outputsize: [widthIn.value, heightIn.value]});
+    u_outputsize: [widthIn.value, heightIn.value],
+    u_inputsize: [imageIn.value.width, imageIn.value.height]});
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
