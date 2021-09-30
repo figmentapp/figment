@@ -36,9 +36,9 @@ export default class App extends Component {
       showForkDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
-      mainSplitterWidth: 500,
-      editorSplitterWidth: window.innerWidth - 300,
+      editorSplitterWidth: 300,
       fullscreen: false,
+      version: 1,
     };
     const firstNode = network.nodes.find((n) => n.name === 'Canvas');
     if (firstNode) {
@@ -70,6 +70,7 @@ export default class App extends Component {
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
+    this._forceRedraw = this._forceRedraw.bind(this);
     this._offscreenCanvas = new OffscreenCanvas(256, 256);
     window.gl = this._offscreenCanvas.getContext('webgl');
   }
@@ -78,6 +79,7 @@ export default class App extends Component {
     this.state.network.start();
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('resize', this._forceRedraw);
     window.app = this;
     window.desktop.registerListener('menu', this._onMenuEvent);
   }
@@ -85,6 +87,10 @@ export default class App extends Component {
   componentWillUnmount() {
     window.removeEventListener('keydown', this._onKeyDown);
     window.app = undefined;
+  }
+
+  _forceRedraw() {
+    this.setState({ version: this.state.version + 1 });
   }
 
   _onKeyDown(e) {
@@ -368,7 +374,7 @@ export default class App extends Component {
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
-            style={{ width: `${editorSplitterWidth}px` }}
+            style={{ width: `${window.innerWidth - editorSplitterWidth}px` }}
             library={library}
             network={network}
             selection={selection}
