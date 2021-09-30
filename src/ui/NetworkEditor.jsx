@@ -148,12 +148,14 @@ export default class NetworkEditor extends Component {
     this._onNetworkChange = this._onNetworkChange.bind(this);
     this._draw = this._draw.bind(this);
     this._drawNodePreviews = this._drawNodePreviews.bind(this);
+    this._animate = this._animate.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
     this._dragPort = null;
     this._networkX = this._networkY = 0;
     this._dragX = this._dragY = 0;
     this._timer = undefined;
+    this._shouldDraw = true;
     this.canvasRef = React.createRef();
     this.previewCanvasRef = React.createRef();
   }
@@ -195,6 +197,7 @@ export default class NetworkEditor extends Component {
 
     this._draw();
     this.props.network.addChangeListener(this._onNetworkChange);
+    this._animate();
   }
 
   componentWillUnmount() {
@@ -413,7 +416,7 @@ export default class NetworkEditor extends Component {
   }
 
   _onNetworkChange() {
-    window.requestAnimationFrame(this._drawNodePreviews);
+    this._shouldDraw = true;
   }
 
   _draw() {
@@ -658,5 +661,13 @@ export default class NetworkEditor extends Component {
     const previewContext = previewCanvas.getContext('bitmaprenderer');
     const bitmap = canvas.transferToImageBitmap();
     previewContext.transferFromImageBitmap(bitmap);
+  }
+
+  _animate() {
+    if (this._shouldDraw) {
+      this._drawNodePreviews();
+      this._shouldDraw = false;
+    }
+    window.requestAnimationFrame(this._animate);
   }
 }
