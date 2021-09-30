@@ -908,6 +908,7 @@ heightIn.onChange = render;
 `;
 
 image.crop = `// Crop input image.
+
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
@@ -916,6 +917,7 @@ uniform vec2 u_offset;
 uniform vec2 u_outputsize;
 uniform vec2 u_inputsize;
 varying vec2 v_uv;
+
 vec4 cropImage(sampler2D img, vec2 texCoord) {
   if (texCoord.x < u_offset.x/u_inputsize.x || 
     texCoord.x > ((u_offset.x+u_outputsize.x)/u_inputsize.x) || 
@@ -926,6 +928,7 @@ vec4 cropImage(sampler2D img, vec2 texCoord) {
   }
   return texture2D(img, texCoord);
 }
+
 void main() {
   vec2 uv = v_uv;
   vec4 texColor=texture2D(u_input_texture,uv);
@@ -933,17 +936,21 @@ void main() {
   gl_FragColor = texColor;
 }
 \`;
+
 const imageIn = node.imageIn('in');
 const offsetxIn = node.numberIn('offsetx', 50.0, { min: 1, max: 4096, step: 1 });
 const offsetyIn = node.numberIn('offsety', 50.0, { min: 1, max: 4096, step: 1 });
 const widthIn = node.numberIn('width', 256.0, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 256.0, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
+
 let program, framebuffer;
+
 node.onStart = (props) => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
 };
+
 function render() {
   if (!imageIn.value) return;
   if (!program) return;
@@ -957,6 +964,7 @@ function render() {
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
+
 imageIn.onChange = render;
 widthIn.onChange = render;
 heightIn.onChange = render;
