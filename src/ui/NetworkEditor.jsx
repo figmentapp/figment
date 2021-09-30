@@ -125,8 +125,8 @@ function clamp(v, min, max) {
 function _hitTest(node, x, y) {
   const x1 = node.x;
   const x2 = x1 + NODE_WIDTH;
-  const y1 = node.y;
-  const y2 = y1 + NODE_HEIGHT;
+  const y1 = node.y - 10; // Some slack for the input ports
+  const y2 = y1 + NODE_HEIGHT + 10; // Some slack for the output ports
   return x >= x1 && x <= x2 && y >= y1 && y <= y2;
 }
 
@@ -242,12 +242,15 @@ export default class NetworkEditor extends Component {
     const dy = (y - node.y) * this.state.scale;
     const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
     if (this._dragMode === DRAG_MODE_DRAG_PORT) {
-      return node.inPorts[portIndex];
+      const inPort = node.inPorts[portIndex];
+      if (inPort && inPort.type === PORT_TYPE_IMAGE) return inPort;
     } else {
       if (dy <= 10) {
-        return node.inPorts[portIndex];
-      } else if (dy >= NODE_HEIGHT - 10) {
-        return node.outPorts[portIndex];
+        const inPort = node.inPorts[portIndex];
+        if (inPort && inPort.type === PORT_TYPE_IMAGE) return inPort;
+      } else if (dy >= NODE_HEIGHT * this.state.scale - 10) {
+        const outPort = node.outPorts[portIndex];
+        if (outPort && outPort.type === PORT_TYPE_IMAGE) return outPort;
       }
     }
   }
@@ -457,6 +460,7 @@ export default class NetworkEditor extends Component {
 
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
+        if (port.type !== PORT_TYPE_IMAGE) continue;
         ctx.fillStyle = PORT_COLORS[port.type];
         ctx.fillRect(nodeX + i * NODE_PORT_WIDTH, nodeY - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
       }
