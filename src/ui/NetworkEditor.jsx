@@ -122,14 +122,6 @@ function clamp(v, min, max) {
 //   return portCount * NODE_PORT_WIDTH;
 // }
 
-function _hitTest(node, x, y) {
-  const x1 = node.x;
-  const x2 = x1 + NODE_WIDTH;
-  const y1 = node.y - 10; // Some slack for the input ports
-  const y2 = y1 + NODE_HEIGHT + 10; // Some slack for the output ports
-  return x >= x1 && x <= x2 && y >= y1 && y <= y2;
-}
-
 export default class NetworkEditor extends Component {
   constructor(props) {
     super(props);
@@ -229,9 +221,18 @@ export default class NetworkEditor extends Component {
     this._draw();
   }
 
+  _hitTest(node, x, y) {
+    const padding = 5 / this.state.scale;
+    const x1 = node.x;
+    const x2 = node.x + NODE_WIDTH;
+    const y1 = node.y - padding; // Some slack for the input ports
+    const y2 = node.y + NODE_HEIGHT + padding; // Some slack for the output ports
+    return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+  }
+
   _findNode(x, y) {
     for (const node of this.props.network.nodes) {
-      if (_hitTest(node, x, y)) {
+      if (this._hitTest(node, x, y)) {
         return node;
       }
     }
