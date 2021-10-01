@@ -1,13 +1,8 @@
 ## TODO
 
-- Use better security for Node.js: https://nodejs.org/api/url.html#url_url_pathtofileurl_path
-- Define concept of "rendered node" within the network.
-- Write unit tests that test the new functionality of the network.
+- Speed up image / webcam pose detection
 - Crop input image
 - Composite two images
-- Use levels to brighten the image
-- Change hue/saturation/brightness of the image
-- Canny edge detection (using OpenCV ? https://www.npmjs.com/package/opencv-wasm)
 - Blob detection
 - Pose detection (mediapipe)
 - Face detection (mediapipe)
@@ -25,3 +20,11 @@
 - Move to model where nodes contain information and not do something directly.
 - Use better color picker
 - Switch from Three.js to twgl.js.
+- Load movie
+- Define concept of "rendered node" within the network.
+- Use levels to brighten the image
+- Change hue/saturation/brightness of the image
+- Canny edge detection (using OpenCV ? https://www.npmjs.com/package/opencv-wasm)
+- Resize images
+- Write unit tests that test the new functionality of the network.
+- Use better security for Node.js: https://nodejs.org/api/url.html#url_url_pathtofileurl_path
