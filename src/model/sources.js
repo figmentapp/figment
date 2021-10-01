@@ -815,6 +815,13 @@ greenIn.onChange = render;
 blueIn.onChange = render;
 `;
 
+image.null = `// Does nothing.
+const imageIn = node.imageIn('in');
+const imageOut = node.imageOut('out');
+
+imageIn.onChange = () => imageOut.set(imageIn.value);
+`;
+
 image.pixelate = `// Pixelate input image.
 
 const fragmentShader = \`
