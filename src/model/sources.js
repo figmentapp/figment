@@ -878,7 +878,7 @@ uniform vec2 u_scale;
 varying vec2 v_uv;
 
 void main() {
-  vec2 uv =  u_scale * (v_uv - 0.5) + 0.5;
+  vec2 uv = u_scale * (v_uv - 0.5) + 0.5;
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
     gl_FragColor = u_background_color;
   } else {
