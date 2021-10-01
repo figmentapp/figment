@@ -820,7 +820,6 @@ void main() {
 const imageIn = node.imageIn('in');
 const pixelsX = node.numberIn('amountX', 20, { min: 0.0, max: 100.0, step: 1.0 });
 const pixelsY = node.numberIn('amountY', 10, { min: 0.0, max: 100.0, step: 1.0 });
-
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -845,7 +844,6 @@ imageIn.onChange = render;
 pixelsX.onChange = render;
 pixelsY.onChange = render;
 `;
-
 
 image.sharpen = `// Sharpen an input image
 
