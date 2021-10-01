@@ -1268,9 +1268,10 @@ twistIn.onChange = render;
 
 ml.detectPose = `// Detect human poses in input image.
 const imageIn = node.imageIn('in');
+const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer, pose, canvas, ctx;
+let program, framebuffer, pose, canvas, ctx, poseLandmarks;
 
 node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
@@ -1315,9 +1316,13 @@ function detectPose() {
 }
 
 function onResults(results) {
-  imageOut.set(framebuffer);
   if (!results.poseLandmarks) return;
-  const landmarks = results.poseLandmarks;
+  poseLandmarks = results.poseLandmarks;
+  drawResults();
+}
+
+function drawResults() {
+  if (!poseLandmarks) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
   ctx.clearRect(0, 0, width, height);
@@ -1325,21 +1330,23 @@ function onResults(results) {
   ctx.strokeStyle = 'black';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  for (let i = 0; i < landmarks.length; i++) {
-    const landmark = landmarks[i];
+  let radius = radiusIn.value;
+  for (let i = 0; i < poseLandmarks.length; i++) {
+    const landmark = poseLandmarks[i];
     let { x, y } = landmark;
-    ctx.moveTo(x * width + 10, y * height);
-    ctx.arc(x * width, y * height, 10, 0, 2 * Math.PI);
+    ctx.moveTo(x * width + radius, y * height);
+    ctx.arc(x * width, y * height, radius, 0, 2 * Math.PI);
   }
   ctx.fill();
   ctx.stroke();
-  window.gl.bindTexture(gl.TEXTURE_2D, imageOut.value.texture);
+  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
   window.gl.bindTexture(gl.TEXTURE_2D, null);
   imageOut.set(framebuffer);
 }
 
 imageIn.onChange = detectPose;
+radiusIn.onChange = drawResults;
 `;
 
 image.unsplash = `// Fetch a random image from Unsplash.
