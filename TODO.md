@@ -1,10 +1,8 @@
 ## TODO
 
 - Use better security for Node.js: https://nodejs.org/api/url.html#url_url_pathtofileurl_path
-- Move to model where nodes contain information and not do something directly.
 - Define concept of "rendered node" within the network.
 - Write unit tests that test the new functionality of the network.
-- Use better color picker
 - Crop input image
 - Composite two images
 - Use levels to brighten the image
@@ -24,3 +22,6 @@
 - Switch to Vite
 - Draw previews of nodes
 - Use [react-color](https://casesandberg.github.io/react-color/) for the color picker
+- Move to model where nodes contain information and not do something directly.
+- Use better color picker
+- Switch from Three.js to twgl.js.
