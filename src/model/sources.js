@@ -6,257 +6,6 @@ window.m4 = m4;
 export const image = {};
 export const ml = {};
 
-image.loadImage = `// Load an image from a file.
-
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-\`;
-
-const fileIn = node.fileIn('file', '');
-const imageOut = node.imageOut('out');
-
-let texture, framebuffer, program;
-
-node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-}
-
-function loadImage() {
-  if (!fileIn.value || fileIn.value.trim().length === 0) return;
-  const imageUrl = figment.urlForAsset(fileIn.value);
-  figment.createTextureFromUrl(imageUrl.toString(), onLoad);
-}
-
-function onLoad(err, texture, image) {
-  if (err) {
-    throw new Error(\`Image load error: \${err\}\`);
-  }
-  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-  framebuffer.bind();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-}
-
-function onError(err) {
-  console.error('image.loadImage error', err);
-}
-
-fileIn.onChange = loadImage;
-`;
-
-image.loadImageFolder = `// Load a folder of images.
-
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-\`;
-
-const folderIn = node.directoryIn('folder', 'examples/assets/waves');
-const filterIn = node.stringIn('filter', '*.jpg');
-const animateIn = node.toggleIn('animate', false);
-const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
-const imageOut = node.imageOut('out');
-
-let files, fileIndex, texture, framebuffer, program, timerHandle;
-
-node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-  fileIndex = 0;
-}
-
-function loadDirectory() {
-  if (!folderIn.value || folderIn.value.trim().length === 0) return;
-  window.desktop.globFiles(folderIn.value, filterIn.value, onLoadDirectory);
-}
-
-function onLoadDirectory(err, _files) {
-  files = _files;
-  if (err) {
-    console.error(err);
-    onLoadError();
-    return;
-  }
-  if (files.length === 0) {
-    onLoadError();
-    return;
-  }
-  fileIndex = -1;
-  nextImage();
-}
-
-function onLoadError() {
-  const texture = figment.createErrorTexture();
-  framebuffer.setSize(100, 56);
-  framebuffer.bind();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-}
-
-function onLoadImage(err, texture, image) {
-  if (err) {
-    throw new Error(\`Image load error: \${err\}\`);
-  }
-  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-  framebuffer.bind();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-}
-
-function nextImage() {
-  fileIndex++;
-  if (fileIndex >= files.length) {
-    fileIndex = 0;
-  }
-  if (texture) {
-    window.gl.deleteTexture(texture);
-  }
-
-  const file = files[fileIndex];
-  const imageUrl = figment.urlForAsset(file);
-  figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
-}
-
-function toggleAnimate() {
-  if (animateIn.value) {
-    timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
-  } else {
-    window.clearInterval(timerHandle);
-  }
-}
-
-function changeFrameRate() {
-  window.clearInterval(timerHandle);
-  if (animateIn.value) {
-   timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
-  }
-}
-
-folderIn.onChange = loadDirectory;
-filterIn.onChange = loadDirectory;
-animateIn.onChange = toggleAnimate;
-frameRateIn.onChange = changeFrameRate;
-`;
-
-image.camImage = `// Return a webcam stream
-
-const frameRate = node.numberIn('frameRate', 10);
-const imageOut = node.imageOut('image');
-
-let _video, _stream, _timer, _framebuffer;
-
-node.onStart = () => {
-  navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: false
-  }).then(function(stream) {
-    _video = document.createElement('video');
-    _video.width = 640;
-    _video.height = 480;
-    _video.srcObject = stream;
-    _video.play();
-    _stream = stream;
-    _framebuffer = new figment.Framebuffer(_video.width, _video.height);
-    _timer = setInterval(uploadImage, 1000 / frameRate.value);
-    // uploadImage();
-  })
-  .catch(function(err) {
-    console.error('no camera input!', err.name);
-  });
-};
-
-node.onStop = () => {
-  clearInterval(_timer);
-  if (_stream && _stream.active) {
-    _stream.getTracks().forEach(track => track.stop())
-    _video = null;
-  }
-}
-
-function uploadImage() {
-  if (!_video || !_framebuffer) return;
-  if (_video.readyState !== _video.HAVE_ENOUGH_DATA) return;
-  _framebuffer.unbind();
-  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _video);
-  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
-  imageOut.set(_framebuffer);
-}
-
-frameRate.onChange = () => {
-  clearInterval(_timer);
-  _timer = setInterval(uploadImage, 1000 / frameRate.value);
-}
-
-// node.debugDraw = (ctx) => {
-//   if (imageOut.value) {
-//     ctx.drawImage(imageOut.value, 0, 0, 100, 75);
-//   }
-// }
-`;
-
-image.unsplash = `// Fetch a random image from Unsplash.
-
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-\`;
-
-const queryIn = node.stringIn('query', 'kitten');
-const widthIn = node.numberIn('width', 300);
-const heightIn = node.numberIn('height', 300);
-const imageOut = node.imageOut('image');
-
-let _texture, framebuffer, program;
-
-node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-}
-
-function loadImage() {
-  if (!queryIn.value || queryIn.value.trim().length === 0) return;
-  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
-  figment.createTextureFromUrl(url, onLoad);
-}
-
-function onLoad(err, texture, image) {
-  if (err) {
-    throw new Error(\`Image load error: \${err\}\`);
-  }
-  if (_texture) {
-    gl.deleteTexture(_texture);
-  }
-  _texture = texture;
-  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-  framebuffer.bind();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-}
-
-queryIn.onChange = figment.debounce(loadImage, 300);
-widthIn.onChange = figment.debounce(loadImage, 300);
-heightIn.onChange = figment.debounce(loadImage, 300);
-`;
-
 image.blur = `// Blur an input image
 
 const fragmentShader = \`
@@ -696,6 +445,151 @@ imageIn.onChange = render;
 brightnessIn.onChange = render;
 contrastIn.onChange = render;
 saturationIn.onChange = render;
+`;
+
+image.loadImage = `// Load an image from a file.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
+const fileIn = node.fileIn('file', '');
+const imageOut = node.imageOut('out');
+
+let texture, framebuffer, program;
+
+node.onStart = () => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+}
+
+function loadImage() {
+  if (!fileIn.value || fileIn.value.trim().length === 0) return;
+  const imageUrl = figment.urlForAsset(fileIn.value);
+  figment.createTextureFromUrl(imageUrl.toString(), onLoad);
+}
+
+function onLoad(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+function onError(err) {
+  console.error('image.loadImage error', err);
+}
+
+fileIn.onChange = loadImage;
+`;
+
+image.loadImageFolder = `// Load a folder of images.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
+const folderIn = node.directoryIn('folder', 'examples/assets/waves');
+const filterIn = node.stringIn('filter', '*.jpg');
+const animateIn = node.toggleIn('animate', false);
+const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
+const imageOut = node.imageOut('out');
+
+let files, fileIndex, texture, framebuffer, program, timerHandle;
+
+node.onStart = () => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+  fileIndex = 0;
+}
+
+function loadDirectory() {
+  if (!folderIn.value || folderIn.value.trim().length === 0) return;
+  window.desktop.globFiles(folderIn.value, filterIn.value, onLoadDirectory);
+}
+
+function onLoadDirectory(err, _files) {
+  files = _files;
+  if (err) {
+    console.error(err);
+    onLoadError();
+    return;
+  }
+  if (files.length === 0) {
+    onLoadError();
+    return;
+  }
+  fileIndex = -1;
+  nextImage();
+}
+
+function onLoadError() {
+  const texture = figment.createErrorTexture();
+  framebuffer.setSize(100, 56);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+function onLoadImage(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+function nextImage() {
+  fileIndex++;
+  if (fileIndex >= files.length) {
+    fileIndex = 0;
+  }
+  if (texture) {
+    window.gl.deleteTexture(texture);
+  }
+
+  const file = files[fileIndex];
+  const imageUrl = figment.urlForAsset(file);
+  figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
+}
+
+function toggleAnimate() {
+  if (animateIn.value) {
+    timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
+  } else {
+    window.clearInterval(timerHandle);
+  }
+}
+
+function changeFrameRate() {
+  window.clearInterval(timerHandle);
+  if (animateIn.value) {
+   timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
+  }
+}
+
+folderIn.onChange = loadDirectory;
+filterIn.onChange = loadDirectory;
+animateIn.onChange = toggleAnimate;
+frameRateIn.onChange = changeFrameRate;
 `;
 
 image.mirror = `// Mirror the input image over a specific axis.
@@ -1375,6 +1269,106 @@ function onResults(results) {
 }
 
 imageIn.onChange = detectPose;
+`;
+
+image.unsplash = `// Fetch a random image from Unsplash.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+\`;
+
+const queryIn = node.stringIn('query', 'kitten');
+const widthIn = node.numberIn('width', 300);
+const heightIn = node.numberIn('height', 300);
+const imageOut = node.imageOut('image');
+
+let _texture, framebuffer, program;
+
+node.onStart = () => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+}
+
+function loadImage() {
+  if (!queryIn.value || queryIn.value.trim().length === 0) return;
+  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
+  figment.createTextureFromUrl(url, onLoad);
+}
+
+function onLoad(err, texture, image) {
+  if (err) {
+    throw new Error(\`Image load error: \${err\}\`);
+  }
+  if (_texture) {
+    gl.deleteTexture(_texture);
+  }
+  _texture = texture;
+  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_image: texture });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+queryIn.onChange = figment.debounce(loadImage, 500);
+widthIn.onChange = figment.debounce(loadImage, 500);
+heightIn.onChange = figment.debounce(loadImage, 500);
+`;
+
+image.webcamImage = `// Return a webcam stream
+
+const frameRate = node.numberIn('frameRate', 10);
+const imageOut = node.imageOut('image');
+
+let _video, _stream, _timer, _framebuffer;
+
+node.onStart = () => {
+  navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: false
+  }).then(function(stream) {
+    _video = document.createElement('video');
+    _video.width = 640;
+    _video.height = 480;
+    _video.srcObject = stream;
+    _video.play();
+    _stream = stream;
+    _framebuffer = new figment.Framebuffer(_video.width, _video.height);
+    _timer = setInterval(uploadImage, 1000 / frameRate.value);
+    // uploadImage();
+  })
+  .catch(function(err) {
+    console.error('no camera input!', err.name);
+  });
+};
+
+node.onStop = () => {
+  clearInterval(_timer);
+  if (_stream && _stream.active) {
+    _stream.getTracks().forEach(track => track.stop())
+    _video = null;
+  }
+}
+
+function uploadImage() {
+  if (!_video || !_framebuffer) return;
+  if (_video.readyState !== _video.HAVE_ENOUGH_DATA) return;
+  _framebuffer.unbind();
+  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _video);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  imageOut.set(_framebuffer);
+}
+
+frameRate.onChange = () => {
+  clearInterval(_timer);
+  _timer = setInterval(uploadImage, 1000 / frameRate.value);
+}
 `;
 
 export default { image, ml };

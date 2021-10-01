@@ -37,16 +37,9 @@ export default class Library {
     // this.nodeTypes.push({ name: 'HSL Color', type: 'color.hsl', source: color.hsl });
 
     // Image
-    this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
-    this.nodeTypes.push({
-      name: 'Load Image Folder',
-      type: 'image.loadImageFolder',
-      source: image.loadImageFolder,
-    });
+
     // this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
-    this.nodeTypes.push({ name: 'Webcam Image', type: 'image.camImage', source: image.camImage });
     // this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
-    this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
     this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
@@ -54,6 +47,8 @@ export default class Library {
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
+    this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
+    this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modcolor', type: 'image.modcolor', source: image.modcolor });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
@@ -64,6 +59,8 @@ export default class Library {
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
     this.nodeTypes.push({ name: 'Treshold', type: 'image.threshold', source: image.threshold });
     this.nodeTypes.push({ name: 'Transform', type: 'image.transform', source: image.transform });
+    this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
+    this.nodeTypes.push({ name: 'Webcam Image', type: 'image.webcamImage', source: image.webcamImage });
 
     // ML
     this.nodeTypes.push({ name: 'Detect Pose', type: 'ml.detectPose', source: ml.detectPose });
