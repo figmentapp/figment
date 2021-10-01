@@ -83,10 +83,14 @@ export default class ForkDialog extends Component {
     this.setState({ typeNameChanged: newTypeName !== proposedTypeName, newTypeName });
   }
 
-  render({ nodeType, network }, { ns, newName, newTypeName, currentNodes, selectedNodes }) {
+  render() {
+    const { ns, newName, newTypeName, currentNodes, selectedNodes } = this.state;
     return (
       <div className="dialog-wrapper">
-        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2" style="height: 40vh">
+        <div
+          className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2"
+          style={{ height: '40vh' }}
+        >
           <div className="flex">
             <input
               id="fork-dialog-input"
@@ -94,7 +98,7 @@ export default class ForkDialog extends Component {
               className="p-6 bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
               value={newName}
               onInput={(e) => this._onChangeName(e.target.value)}
-              autofocus
+              autoFocus
             ></input>
             <div className="flex">
               <span
@@ -130,7 +134,7 @@ export default class ForkDialog extends Component {
             <div className="overflow-auto">
               {currentNodes &&
                 currentNodes.map((node) => (
-                  <label className="block py-2 pr-2">
+                  <label className="block py-2 pr-2" key={node.id}>
                     <input
                       type="checkbox"
                       checked={selectedNodes.has(node)}
