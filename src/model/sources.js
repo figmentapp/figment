@@ -1,10 +1,6 @@
 import { Pose } from '@mediapipe/pose';
 window.Pose = Pose;
 
-export const core = {};
-export const math = {};
-export const graphics = {};
-export const color = {};
 export const image = {};
 export const ml = {};
 
@@ -1128,4 +1124,4 @@ function onResults(results) {
 imageIn.onChange = detectPose;
 `;
 
-export default { core, math, graphics, image, ml };
+export default { image, ml };

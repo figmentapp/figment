@@ -1,4 +1,4 @@
-import { core, math, graphics, color, image, ml } from './sources';
+import { image, ml } from './sources';
 
 export default class Library {
   constructor() {
