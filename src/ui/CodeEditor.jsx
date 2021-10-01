@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/javascript/javascript.js';
+import 'codemirror/theme/darcula.css';
 
 export default class CodeEditor extends Component {
   constructor(props) {
