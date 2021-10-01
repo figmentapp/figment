@@ -357,15 +357,15 @@ precision mediump float;
 uniform sampler2D u_input_texture;
 uniform vec2 u_resolution;
 uniform vec2 u_offset;
-uniform vec2 u_outputsize;
-uniform vec2 u_inputsize;
+uniform vec2 u_output_size;
+uniform vec2 u_input_size;
 varying vec2 v_uv;
 
 vec4 cropImage(sampler2D img, vec2 texCoord) {
-  if (texCoord.x < u_offset.x/u_inputsize.x || 
-    texCoord.x > ((u_offset.x+u_outputsize.x)/u_inputsize.x) || 
-    texCoord.y < u_offset.y/u_inputsize.y || 
-    texCoord.y > ((u_offset.y+u_outputsize.y)/u_inputsize.y)) {
+  if (texCoord.x < u_offset.x/u_input_size.x || 
+    texCoord.x > ((u_offset.x+u_output_size.x)/u_input_size.x) || 
+    texCoord.y < u_offset.y/u_input_size.y || 
+    texCoord.y > ((u_offset.y+u_output_size.y)/u_input_size.y)) {
     discard;
     //return vec4(0);
   }
@@ -381,8 +381,8 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
-const offsetxIn = node.numberIn('offsetx', 50.0, { min: 1, max: 4096, step: 1 });
-const offsetyIn = node.numberIn('offsety', 50.0, { min: 1, max: 4096, step: 1 });
+const offsetXIn = node.numberIn('offsetX', 50.0, { min: 1, max: 4096, step: 1 });
+const offsetYIn = node.numberIn('offsetX', 50.0, { min: 1, max: 4096, step: 1 });
 const widthIn = node.numberIn('width', 256.0, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 256.0, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
@@ -401,9 +401,9 @@ function render() {
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
-    u_offset: [offsetxIn.value, offsetyIn.value],
-    u_outputsize: [widthIn.value, heightIn.value],
-    u_inputsize: [imageIn.value.width, imageIn.value.height]});
+    u_offset: [offsetXIn.value, offsetYIn.value],
+    u_output_size: [widthIn.value, heightIn.value],
+    u_input_size: [imageIn.value.width, imageIn.value.height]});
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
@@ -411,8 +411,8 @@ function render() {
 imageIn.onChange = render;
 widthIn.onChange = render;
 heightIn.onChange = render;
-offsetxIn.onChange = render;
-offsetyIn.onChange = render;
+offsetXIn.onChange = render;
+offsetYIn.onChange = render;
 `;
 
 image.emboss = `// Emboss convolution on an input image.
@@ -649,7 +649,7 @@ void main() {
 
 const imageIn = node.imageIn('in');
 const brightnessIn = node.numberIn('brightness', 0.0, { min: -1, max: 1, step: 0.01 });
-const contrastIn = node.numberIn('contrast', 1.0, { min: 0, max: 2, step: 0.01 });
+const contrastIn = node.numberIn('contrast', 1.0, { min: 0, max: 4, step: 0.01 });
 const saturationIn = node.numberIn('saturation', 1.0, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
@@ -922,20 +922,20 @@ image.stitch = `// Combine 2 images.
 
 const fragmentShader = \`
 precision mediump float;
-uniform sampler2D u_input_texture;
-uniform sampler2D u_input_texture2;
+uniform sampler2D u_input_texture_1;
+uniform sampler2D u_input_texture_2;
 varying vec2 v_uv;
 
 void main() {
   vec2 uv = v_uv;
-  vec4 color1 = texture2D(u_input_texture, vec2(uv.x*2.0, uv.y));
-  vec4 color2 = texture2D(u_input_texture2, vec2(uv.x*2.0-1.0, uv.y));
+  vec4 color1 = texture2D(u_input_texture_1, vec2(uv.x*2.0, uv.y));
+  vec4 color2 = texture2D(u_input_texture_2, vec2(uv.x*2.0-1.0, uv.y));
   gl_FragColor = uv.x < 0.5 ? color1 : color2;
 }
 \`;
 
-const imageIn = node.imageIn('first');
-const imageIn2 = node.imageIn('second');
+const imageIn1 = node.imageIn('image 1');
+const imageIn2 = node.imageIn('image 2');
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -946,17 +946,17 @@ node.onStart = (props) => {
 };
 
 function render() {
-  if (!imageIn.value || !imageIn2.value) return;
+  if (!imageIn1.value || !imageIn2.value) return;
   if (!program) return;
   if (!framebuffer) return;
-  framebuffer.setSize(imageIn.value.width+imageIn2.value.width, imageIn.value.height);
+  framebuffer.setSize(imageIn1.value.width+imageIn2.value.width, imageIn1.value.height);
   framebuffer.bind();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_input_texture2: imageIn2.value.texture });
+  figment.drawQuad(program, { u_input_texture_1: imageIn1.value.texture,u_input_texture_2: imageIn2.value.texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
 
-imageIn.onChange = render;
+imageIn1.onChange = render;
 imageIn2.onChange = render;
 `;
 
