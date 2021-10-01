@@ -799,6 +799,54 @@ greenIn.onChange = render;
 blueIn.onChange = render;
 `;
 
+image.pixelate = `// Pixelate input image.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform vec2 _pixels;
+varying vec2 v_uv;
+
+void main() {
+  vec2 p = v_uv.st;
+  p.x -= mod(p.x, 1.0 / _pixels.x);
+  p.y -= mod(p.y, 1.0 / _pixels.y);
+    
+  vec3 col = texture2D(u_input_texture, p).rgb;
+  gl_FragColor = vec4(col, 1.0);
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const pixelsX = node.numberIn('amountX', 20, { min: 0.0, max: 100.0, step: 1.0 });
+const pixelsY = node.numberIn('amountY', 10, { min: 0.0, max: 100.0, step: 1.0 });
+
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  if (!program) return;
+  if (!framebuffer) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture, _pixels: [pixelsX.value, pixelsY.value] });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+pixelsX.onChange = render;
+pixelsY.onChange = render;
+`;
+
+
 image.sharpen = `// Sharpen an input image
 
 const fragmentShader = \`

@@ -183,6 +183,13 @@ export const DEFAULT_NETWORK = {
         filter: '*.jpg',
       },
     },
+    {
+      id: 19,
+      name: 'Pixelate',
+      type: 'image.pixelate',
+      x: 400,
+      y: 400,
+    },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [
@@ -200,6 +207,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 2, outPort: 'out', inNode: 15, inPort: 'in' },
     { outNode: 7, outPort: 'out', inNode: 16, inPort: 'in' },
     { outNode: 7, outPort: 'out', inNode: 17, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 19, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
