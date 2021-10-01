@@ -58,7 +58,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
-    this.nodeTypes.push({ name: 'Treshold', type: 'image.threshold', source: image.threshold });
+    this.nodeTypes.push({ name: 'Threshold', type: 'image.threshold', source: image.threshold });
     this.nodeTypes.push({ name: 'Transform', type: 'image.transform', source: image.transform });
     this.nodeTypes.push({ name: 'Unsplash Image', type: 'image.unsplash', source: image.unsplash });
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.webcamImage', source: image.webcamImage });
