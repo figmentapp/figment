@@ -146,8 +146,8 @@ export const DEFAULT_NETWORK = {
     },
     {
       id: 14,
-      name: 'Stitch',
-      type: 'image.stitch',
+      name: 'Stack',
+      type: 'image.stack',
       x: 300,
       y: 640,
     },

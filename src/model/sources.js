@@ -966,27 +966,35 @@ function render() {
 imageIn.onChange = render;
 `;
 
-image.stitch = `// Combine 2 images.
+image.stack = `// Combine 2 images horizontally / vertically.
 
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture_1;
 uniform sampler2D u_input_texture_2;
+uniform float u_mode;
 varying vec2 v_uv;
 
 void main() {
   vec2 uv = v_uv;
+  if(u_mode==0.0){
   vec4 color1 = texture2D(u_input_texture_1, vec2(uv.x*2.0, uv.y));
   vec4 color2 = texture2D(u_input_texture_2, vec2(uv.x*2.0-1.0, uv.y));
   gl_FragColor = uv.x < 0.5 ? color1 : color2;
+}else{
+  vec4 color1 = texture2D(u_input_texture_1, vec2(uv.x, uv.y*2.0));
+  vec4 color2 = texture2D(u_input_texture_2, vec2(uv.x, uv.y*2.0-1.0));
+  gl_FragColor = uv.y < 0.5 ? color1 : color2;
+}
 }
 \`;
 
 const imageIn1 = node.imageIn('image 1');
 const imageIn2 = node.imageIn('image 2');
+const modeIn = node.selectIn('Direction', ['Horizontal', 'Vertical']);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let program, framebuffer,m;
 
 node.onStart = (props) => {
   program = figment.createShaderProgram(fragmentShader);
@@ -997,15 +1005,23 @@ function render() {
   if (!imageIn1.value || !imageIn2.value) return;
   if (!program) return;
   if (!framebuffer) return;
+  console.log(modeIn.value);
+  if(modeIn.value === 'Horizontal'){
+  m = 0;
   framebuffer.setSize(imageIn1.value.width+imageIn2.value.width, imageIn1.value.height);
+}else{
+  m = 1;
+  framebuffer.setSize(imageIn1.value.width, imageIn1.value.height+imageIn2.value.height);
+}
   framebuffer.bind();
-  figment.drawQuad(program, { u_input_texture_1: imageIn1.value.texture,u_input_texture_2: imageIn2.value.texture });
+  figment.drawQuad(program, { u_input_texture_1: imageIn1.value.texture,u_input_texture_2: imageIn2.value.texture,u_mode: m });
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
 
 imageIn1.onChange = render;
 imageIn2.onChange = render;
+modeIn.onChange = render;
 `;
 
 image.threshold = `// Change brightness threshold of input image.
