@@ -174,13 +174,13 @@ node.onStart = () => {
     // uploadImage();
   })
   .catch(function(err) {
-    console.error('no camera input!', err);
+    console.error('no camera input!', err.name);
   });
 };
 
 node.onStop = () => {
   clearInterval(_timer);
-  if (_stream.active) {
+  if (_stream && _stream.active) {
     _stream.getTracks().forEach(track => track.stop())
     _video = null;
   }
