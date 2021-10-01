@@ -61,6 +61,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
     this.nodeTypes.push({ name: 'Treshold', type: 'image.threshold', source: image.threshold });
+    this.nodeTypes.push({ name: 'Transform', type: 'image.transform', source: image.transform });
 
     // ML
     this.nodeTypes.push({ name: 'Detect Pose', type: 'ml.detectPose', source: ml.detectPose });

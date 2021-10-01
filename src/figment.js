@@ -52,16 +52,19 @@ void main() {
 
 const _shaderProgramCache = {};
 
-export function createShaderProgram(fragmentShader) {
-  const cachedShaderProgram = _shaderProgramCache[fragmentShader];
+export function createShaderProgram(shader1, shader2 = null) {
+  let vertexShader, fragmentShader;
+  if (shader2) {
+    vertexShader = shader1;
+    fragmentShader = shader2;
+  } else {
+    vertexShader = DEFAULT_VERTEX_SHADER;
+    fragmentShader = shader1;
+  }
+  const cachedShaderProgram = _shaderProgramCache[vertexShader + fragmentShader];
   if (cachedShaderProgram) return cachedShaderProgram;
-  const shaderProgram = twgl.createProgramInfo(window.gl, [DEFAULT_VERTEX_SHADER, fragmentShader]);
-  // let material = new THREE.RawShaderMaterial({
-  //   vertexShader: DEFAULT_VERTEX_SHADER,
-  //   fragmentShader,
-  //   uniforms,
-  // });
-  _shaderProgramCache[fragmentShader] = shaderProgram;
+  const shaderProgram = twgl.createProgramInfo(window.gl, [vertexShader, fragmentShader]);
+  _shaderProgramCache[vertexShader + fragmentShader] = shaderProgram;
   return shaderProgram;
 }
 
@@ -112,6 +115,12 @@ export class Framebuffer {
   get texture() {
     return this._fbo.attachments[0];
   }
+}
+
+export function clear() {
+  const gl = window.gl;
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
 }
 
 let _quadBufferInfo = null;

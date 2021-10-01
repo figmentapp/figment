@@ -190,6 +190,13 @@ export const DEFAULT_NETWORK = {
       x: 400,
       y: 400,
     },
+    {
+      id: 20,
+      name: 'Transform',
+      type: 'image.transform',
+      x: 550,
+      y: 450,
+    },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [
@@ -208,6 +215,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 7, outPort: 'out', inNode: 16, inPort: 'in' },
     { outNode: 7, outPort: 'out', inNode: 17, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 19, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 20, inPort: 'in' },
     // { outNode: 2, outPort: 'out1', inNode: 3, inPort: 'in' }
   ],
 };
