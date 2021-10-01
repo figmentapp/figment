@@ -71,11 +71,17 @@ async function showOpenProjectDialog() {
 }
 ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
 
-async function showOpenImageDialog() {
+const FILTER_MAP = {
+  image: { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] },
+  video: { name: 'Videos', extensions: ['mp4', 'webm'] },
+  generic: { name: 'All Files', extensions: ['*'] },
+};
+
+async function showOpenFileDialog(fileType = 'generic') {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Open Image',
     properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] }],
+    filters: [FILTER_MAP[fileType]],
   });
   if (!filePaths || filePaths.length < 1) {
     return;
@@ -84,7 +90,7 @@ async function showOpenImageDialog() {
   const filePath = filePaths[0];
   return filePath;
 }
-ipcMain.handle('showOpenImageDialog', showOpenImageDialog);
+ipcMain.handle('showOpenFileDialog', showOpenFileDialog);
 
 async function showOpenDirectoryDialog() {
   const { filePaths } = await dialog.showOpenDialog({

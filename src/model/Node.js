@@ -125,7 +125,7 @@ export default class Node {
     }
   }
 
-  fileIn(name, value) {
+  fileIn(name, value, options) {
     if (!value) value = '';
     const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
@@ -135,7 +135,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_FILE, PORT_IN, value);
+      const inPort = new Port(this, name, PORT_TYPE_FILE, PORT_IN, value, options);
       this.inPorts.push(inPort);
       return inPort;
     }

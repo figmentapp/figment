@@ -31,6 +31,7 @@ export default class Port {
     this.min = options.min !== undefined ? options.min : undefined;
     this.max = options.max !== undefined ? options.max : undefined;
     this.step = options.step || 1;
+    this.fileType = options.fileType || 'generic';
   }
 
   hasDefaultValue() {

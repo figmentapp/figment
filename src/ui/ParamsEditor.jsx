@@ -349,7 +349,7 @@ class FileParam extends Component {
   }
 
   async _onSelectFile() {
-    const filePath = await window.desktop.showOpenImageDialog();
+    const filePath = await window.desktop.showOpenFileDialog(this.props.fileType);
     if (!filePath) return;
     const file = figment.filePathToRelative(filePath);
     this.props.onChange(file);
@@ -552,6 +552,7 @@ export default class ParamsEditor extends Component {
           key={port.name}
           label={label}
           value={port.value}
+          fileType={port.fileType}
           disabled={network.isConnected(port)}
           onChange={(value) => this._onChangePortValue(port.name, value)}
         />

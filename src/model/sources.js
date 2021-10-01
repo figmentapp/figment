@@ -449,7 +449,7 @@ saturationIn.onChange = render;
 
 image.loadImage = `// Load an image from a file.
 
-const fileIn = node.fileIn('file', '');
+const fileIn = node.fileIn('file', '', { fileType: 'image' });
 const imageOut = node.imageOut('out');
 
 let texture, framebuffer, program;
@@ -576,7 +576,7 @@ frameRateIn.onChange = changeFrameRate;
 
 image.loadMovie = `// Load a movie file.
 
-const fileIn = node.fileIn('file', '');
+const fileIn = node.fileIn('file', '', { fileType: 'movie' });
 const animateIn = node.toggleIn('animate', true);
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
 const restartIn = node.triggerButtonIn('restart');
