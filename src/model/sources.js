@@ -809,8 +809,8 @@ varying vec2 v_uv;
 
 void main() {
   vec2 p = v_uv.st;
-  p.x -= mod(p.x, 1.0 / _pixels.x);
-  p.y -= mod(p.y, 1.0 / _pixels.y);
+  p.x -= mod(p.x, 1.0 / (100.0-_pixels.x));
+  p.y -= mod(p.y, 1.0 / (100.0-_pixels.y));
     
   vec3 col = texture2D(u_input_texture, p).rgb;
   gl_FragColor = vec4(col, 1.0);
