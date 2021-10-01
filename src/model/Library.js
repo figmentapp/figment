@@ -59,7 +59,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Pixelate', type: 'image.pixelate', source: image.pixelate });
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
-    this.nodeTypes.push({ name: 'Stitch', type: 'image.stitch', source: image.stitch });
+    this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
     this.nodeTypes.push({ name: 'Treshold', type: 'image.threshold', source: image.threshold });
 
     // ML
