@@ -449,22 +449,13 @@ saturationIn.onChange = render;
 
 image.loadImage = `// Load an image from a file.
 
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-\`;
-
 const fileIn = node.fileIn('file', '');
 const imageOut = node.imageOut('out');
 
 let texture, framebuffer, program;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
+  program = figment.createShaderProgram();
   framebuffer = new figment.Framebuffer();
 }
 
@@ -494,15 +485,6 @@ fileIn.onChange = loadImage;
 
 image.loadImageFolder = `// Load a folder of images.
 
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-\`;
-
 const folderIn = node.directoryIn('folder', 'examples/assets/waves');
 const filterIn = node.stringIn('filter', '*.jpg');
 const animateIn = node.toggleIn('animate', false);
@@ -512,7 +494,7 @@ const imageOut = node.imageOut('out');
 let files, fileIndex, texture, framebuffer, program, timerHandle;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
+  program = figment.createShaderProgram();
   framebuffer = new figment.Framebuffer();
   fileIndex = 0;
 }
@@ -588,6 +570,74 @@ function changeFrameRate() {
 
 folderIn.onChange = loadDirectory;
 filterIn.onChange = loadDirectory;
+animateIn.onChange = toggleAnimate;
+frameRateIn.onChange = changeFrameRate;
+`;
+
+image.loadMovie = `// Load a movie file.
+
+const fileIn = node.fileIn('file', '');
+const animateIn = node.toggleIn('animate', false);
+const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
+const imageOut = node.imageOut('out');
+
+let framebuffer, program, video, timerHandle;
+
+node.onStart = () => {
+  framebuffer = new figment.Framebuffer();
+}
+
+function loadMovie() {
+  if (!fileIn.value || fileIn.value.trim().length === 0) return;
+  clearInterval(timerHandle);
+  video = document.createElement('video');
+  const fileUrl = figment.urlForAsset(fileIn.value);
+  video.src = fileUrl;
+  video.loop = true;
+  video.autoplay = animateIn.value;
+  video.muted = true;
+  video.addEventListener('canplay', onLoadMovie);
+}
+
+function onLoadMovie() {
+  framebuffer.setSize(video.videoWidth, video.videoHeight);
+  timerHandle = window.setInterval(uploadImage, 1000 / frameRateIn.value);
+  video.play();
+}
+
+function uploadImage() {
+  if (!video || !framebuffer) return;
+  framebuffer.unbind();
+  window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
+  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  imageOut.set(framebuffer);
+}
+
+node.onStop = () => {
+  clearInterval(timerHandle);
+  if (_stream && _stream.active) {
+    _stream.getTracks().forEach(track => track.stop())
+    _video = null;
+  }
+}
+
+function toggleAnimate() {
+  if (animateIn.value) {
+    timerHandle = window.setInterval(uploadImage, 1000 / frameRateIn.value);
+  } else {
+    window.clearInterval(timerHandle);
+  }
+}
+
+function changeFrameRate() {
+  window.clearInterval(timerHandle);
+  if (animateIn.value) {
+   timerHandle = window.setInterval(uploadImage, 1000 / frameRateIn.value);
+  }
+}
+
+fileIn.onChange = loadMovie;
 animateIn.onChange = toggleAnimate;
 frameRateIn.onChange = changeFrameRate;
 `;

@@ -204,6 +204,16 @@ export const DEFAULT_NETWORK = {
       x: 550,
       y: 550,
     },
+    {
+      id: 22,
+      name: 'Load Movie',
+      type: 'image.loadMovie',
+      x: 450,
+      y: 200,
+      values: {
+        file: 'examples/assets/waves.mp4',
+      },
+    },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },
   ],
   connections: [

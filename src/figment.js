@@ -50,16 +50,28 @@ void main() {
   gl_Position = vec4(a_position, 1.0);
 }`;
 
+const DEFAULT_FRAGMENT_SHADER = `
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_uv;
+void main() {
+  gl_FragColor = texture2D(u_image, v_uv);
+}
+`;
+
 const _shaderProgramCache = {};
 
-export function createShaderProgram(shader1, shader2 = null) {
+export function createShaderProgram(shader1 = null, shader2 = null) {
   let vertexShader, fragmentShader;
-  if (shader2) {
-    vertexShader = shader1;
-    fragmentShader = shader2;
-  } else {
+  if (shader1 === null && shader2 === null) {
+    vertexShader = DEFAULT_VERTEX_SHADER;
+    fragmentShader = DEFAULT_FRAGMENT_SHADER;
+  } else if (shader2 === null) {
     vertexShader = DEFAULT_VERTEX_SHADER;
     fragmentShader = shader1;
+  } else {
+    vertexShader = shader1;
+    fragmentShader = shader2;
   }
   const cachedShaderProgram = _shaderProgramCache[vertexShader + fragmentShader];
   if (cachedShaderProgram) return cachedShaderProgram;

@@ -49,6 +49,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
     this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
+    this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modcolor', type: 'image.modcolor', source: image.modcolor });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
