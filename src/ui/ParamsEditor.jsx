@@ -303,7 +303,7 @@ class ColorParam extends Component {
       <div className="flex items-center mb-2 relative">
         <label className="w-32 text-right text-gray-500 mr-4 py-2 whitespace-nowrap">{label}</label>
         <span
-          className="w-16 bg-gray-700 h-8"
+          className="w-16 bg-gray-700 h-8 border border-gray-800"
           style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
           onClick={this._onToggleColorPicker}
         />
