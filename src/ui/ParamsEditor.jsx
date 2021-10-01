@@ -124,7 +124,7 @@ class NumberDrag extends Component {
       return (
         <span
           className={`w-32 text-right mr-4 py-2 px-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
-            disabled ? 'text-gray-700' : 'text-gray-500'
+            disabled ? 'text-gray-700' : 'text-gray-400'
           }`}
           onMouseDown={this._onMouseDown}
         >
@@ -185,16 +185,6 @@ class FloatParam extends Component {
           disabled={disabled}
           onChange={onChange}
         />
-        {/* <input
-          type="text"
-          spellCheck="false"
-          disabled={disabled}
-          className={'w-32 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={newValue}
-          onInput={this._onInput}
-          onKeyDown={this._onInput}
-          onBlur={this._onChange}
-        /> */}
       </div>
     );
   }
@@ -220,7 +210,7 @@ class StringParam extends Component {
           type="text"
           spellCheck="false"
           disabled={disabled}
-          className={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
+          className={'w-64 mr-4 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-400')}
           value={value}
           onInput={this._onChange}
         />
@@ -371,7 +361,7 @@ class FileParam extends Component {
       <div className="params__row">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
-          <span className="w-32 text-gray-700 overflow-hidden whitespace-nowrap" onClick={this._onSelectFile}>
+          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectFile}>
             {value}
           </span>
           <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
@@ -402,7 +392,7 @@ class DirectoryParam extends Component {
       <div className="params__row">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
-          <span className="w-32 text-gray-700 overflow-hidden whitespace-nowrap" onClick={this._onSelectDirectory}>
+          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectDirectory}>
             {value}
           </span>
           <button
