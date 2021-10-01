@@ -290,7 +290,7 @@ class ColorParam extends Component {
       position: 'absolute',
       zIndex: '2',
       top: '10px',
-      right: `${window.innerWidth - this.props.editorSplitterWidth + 1}px`,
+      right: `${this.props.editorSplitterWidth + 2}px`,
     };
     const cover = {
       position: 'fixed',
