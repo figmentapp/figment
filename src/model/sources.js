@@ -612,6 +612,9 @@ node.onFrame = () => {
   window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
   window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  // To avoid re-uploading the video frame, we pass it along into the framebuffer object.
+  // If the next node turns out to be a mediapose node, it will pick up the image object and work with it directly.
+  framebuffer._directImageHack = video;
   imageOut.set(framebuffer);
 }
 
@@ -1299,10 +1302,16 @@ function detectPose() {
     data = new ImageData(width, height);
     framebuffer.setSize(width, height);
   }
-  imageIn.value.bind();
-  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
-  imageIn.value.unbind();
-  pose.send({ image: data });
+  // Video nodes pass along this extra object with the framebuffer.
+  // This allows mediapose to avoid reading the texture first from the framebuffer.
+  if (imageIn.value._directImageHack) {
+    pose.send({ image: imageIn.value._directImageHack });
+  } else {
+    imageIn.value.bind();
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
+    imageIn.value.unbind();
+    pose.send({ image: data });
+  }
 }
 
 function onResults(results) {
