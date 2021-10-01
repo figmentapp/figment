@@ -1270,22 +1270,25 @@ const imageOut = node.imageOut('out');
 let program, framebuffer, pose, canvas, ctx;
 
 node.onStart = (props) => {
-  // program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
-  pose = new Pose({locateFile: (file) => {
+  canvas = new OffscreenCanvas(1, 1);
+  ctx = canvas.getContext('2d');
+  const _pose = new Pose({locateFile: (file) => {
     return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
   }});
-  pose.setOptions({
+  _pose.setOptions({
     modelComplexity: 1, 
     smoothLandmarks: true,
   });
-  pose.onResults(onResults);
-  canvas = new OffscreenCanvas(1, 1);
-  ctx = canvas.getContext('2d');
+  _pose.onResults(onResults);
+  _pose.initialize().then(() => {
+    pose = _pose;
+  });
 };
 
 function detectPose() {
   if (!imageIn.value) return;
+  if (!pose) return;
   // Draw the image on an ImageData object.
   const width = imageIn.value.width;
   const height = imageIn.value.height;
