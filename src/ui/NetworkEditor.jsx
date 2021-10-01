@@ -650,6 +650,7 @@ export default class NetworkEditor extends Component {
       //   mesh.material.map = null;
       // }
 
+      twgl.bindFramebufferInfo(gl, null);
       gl.useProgram(this.programInfo.program);
       twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
       twgl.setUniforms(this.programInfo, {
