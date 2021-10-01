@@ -577,11 +577,12 @@ frameRateIn.onChange = changeFrameRate;
 image.loadMovie = `// Load a movie file.
 
 const fileIn = node.fileIn('file', '');
-const animateIn = node.toggleIn('animate', false);
-const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
+const animateIn = node.toggleIn('animate', true);
+const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
+const restartIn = node.triggerButtonIn('restart');
 const imageOut = node.imageOut('out');
 
-let framebuffer, program, video, timerHandle;
+let framebuffer, program, video, timerHandle, videoReady = false;
 
 node.onStart = () => {
   framebuffer = new figment.Framebuffer();
@@ -590,23 +591,23 @@ node.onStart = () => {
 function loadMovie() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   clearInterval(timerHandle);
+  videoReady = false;
   video = document.createElement('video');
   const fileUrl = figment.urlForAsset(fileIn.value);
   video.src = fileUrl;
   video.loop = true;
   video.autoplay = animateIn.value;
   video.muted = true;
-  video.addEventListener('canplay', onLoadMovie);
+  video.playbackRate = speedIn.value;
+  video.addEventListener('canplay', () => {
+    videoReady = true;
+    framebuffer.setSize(video.videoWidth, video.videoHeight);
+  });
 }
 
-function onLoadMovie() {
-  framebuffer.setSize(video.videoWidth, video.videoHeight);
-  timerHandle = window.setInterval(uploadImage, 1000 / frameRateIn.value);
-  video.play();
-}
-
-function uploadImage() {
-  if (!video || !framebuffer) return;
+node.onFrame = () => {
+  if (!video || !framebuffer || !videoReady) return;
+  if (!animateIn.value) return;
   framebuffer.unbind();
   window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
@@ -622,24 +623,32 @@ node.onStop = () => {
   }
 }
 
-function toggleAnimate() {
-  if (animateIn.value) {
-    timerHandle = window.setInterval(uploadImage, 1000 / frameRateIn.value);
-  } else {
-    window.clearInterval(timerHandle);
+function changeSpeed() {
+  if (video) {
+    video.playbackRate = speedIn.value;
   }
 }
 
-function changeFrameRate() {
-  window.clearInterval(timerHandle);
-  if (animateIn.value) {
-   timerHandle = window.setInterval(uploadImage, 1000 / frameRateIn.value);
+function toggleAnimate() {
+  if (video) {
+    if (animateIn.value) {
+      video.play();
+    } else {
+      video.pause();
+    }
+  }
+}
+
+function restartVideo() {
+  if (video) {
+    video.currentTime = 0;
   }
 }
 
 fileIn.onChange = loadMovie;
+speedIn.onChange = changeSpeed;
 animateIn.onChange = toggleAnimate;
-frameRateIn.onChange = changeFrameRate;
+restartIn.onTrigger = restartVideo;
 `;
 
 image.mirror = `// Mirror the input image over a specific axis.
