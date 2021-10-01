@@ -358,35 +358,52 @@ const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
 uniform vec2 u_resolution;
+uniform vec4 u_color;
 uniform vec2 u_offset;
 uniform vec2 u_output_size;
-uniform vec2 u_input_size;
 varying vec2 v_uv;
 
-vec4 cropImage(sampler2D img, vec2 texCoord) {
-  if (texCoord.x < u_offset.x/u_input_size.x || 
-    texCoord.x > ((u_offset.x+u_output_size.x)/u_input_size.x) || 
-    texCoord.y < u_offset.y/u_input_size.y || 
-    texCoord.y > ((u_offset.y+u_output_size.y)/u_input_size.y)) {
-    discard;
-    //return vec4(0);
-  }
-  return texture2D(img, texCoord);
-}
-
 void main() {
-  vec2 uv = v_uv;
-  vec4 texColor=texture2D(u_input_texture,uv);
-  texColor = cropImage(u_input_texture,uv);
-  gl_FragColor = texColor;
+  float image_ratio = u_resolution.x / u_resolution.y;
+  // Crop size box (width / height)
+  float crop_width = u_output_size.x;
+  float crop_height = u_output_size.x;
+  float crop_ratio = crop_width/crop_height;
+  float delta_ratio = crop_ratio / image_ratio;
+  if (image_ratio >  crop_ratio) {
+    // The image is wider than the box
+    float scale_factor = crop_width / u_resolution.x;
+    float height_diff = (crop_height - u_resolution.y * scale_factor) / crop_height;
+    float half_height_diff = height_diff / 2.0;
+    if (v_uv.y < half_height_diff || v_uv.y > 1.0 - half_height_diff) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    } else {
+      vec2 uv = vec2(v_uv.x, (v_uv.y - half_height_diff) / delta_ratio);
+      vec4 texColor = texture2D(u_input_texture,uv);
+      gl_FragColor = texColor;
+      // gl_FragColor = u_color * texture2D(u_input_texture, uv);
+    }
+  } else {
+    float scale_factor = crop_height / u_resolution.y;
+    float width_diff = (crop_width - u_resolution.x * scale_factor) / crop_width;
+    float half_width_diff = width_diff / 2.0;
+    if (v_uv.x < half_width_diff || v_uv.x > 1.0 - half_width_diff) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    } else {
+      vec2 uv = vec2((v_uv.x - half_width_diff) * delta_ratio, v_uv.y);
+      vec4 texColor = texture2D(u_input_texture,uv);
+      gl_FragColor = texColor;
+     // gl_FragColor = u_color * texture2D(u_input_texture, uv);
+    }
+  }
 }
 \`;
 
 const imageIn = node.imageIn('in');
 const offsetXIn = node.numberIn('offsetX', 50.0, { min: 1, max: 4096, step: 1 });
-const offsetYIn = node.numberIn('offsetX', 50.0, { min: 1, max: 4096, step: 1 });
-const widthIn = node.numberIn('width', 256.0, { min: 1, max: 4096, step: 1 });
-const heightIn = node.numberIn('height', 256.0, { min: 1, max: 4096, step: 1 });
+const offsetYIn = node.numberIn('offsetY', 50.0, { min: 1, max: 4096, step: 1 });
+const widthIn = node.numberIn('width', 512.0, { min: 1, max: 4096, step: 1 });
+const heightIn = node.numberIn('height', 512.0, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -402,10 +419,10 @@ function render() {
   if (!framebuffer) return;
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_offset: [offsetXIn.value, offsetYIn.value],
-    u_output_size: [widthIn.value, heightIn.value],
-    u_input_size: [imageIn.value.width, imageIn.value.height]});
+    u_output_size: [widthIn.value, heightIn.value]});
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
