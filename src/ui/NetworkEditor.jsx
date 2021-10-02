@@ -507,6 +507,18 @@ export default class NetworkEditor extends Component {
 
     // Draw connections
     ctx.lineWidth = 2;
+
+    // Clip out the node previews so the lines appear below them.
+    ctx.save();
+    const clipPath = new Path2D();
+    clipPath.rect(0, 0, canvas.width, canvas.height);
+    for (const node of network.nodes) {
+      let x = this.state.x + node.x * this.state.scale;
+      let y = this.state.y + node.y * this.state.scale;
+      clipPath.rect(x, y, NODE_WIDTH * this.state.scale, NODE_HEIGHT * this.state.scale);
+    }
+    ctx.clip(clipPath, 'evenodd');
+
     for (const conn of network.connections) {
       const outNode = network.nodes.find((node) => node.id === conn.outNode);
       const outPortIndex = outNode.outPorts.findIndex((port) => port.name === conn.outPort);
@@ -522,6 +534,7 @@ export default class NetworkEditor extends Component {
       ctx.strokeStyle = PORT_COLORS[outPort.type];
       this._drawConnectionLine(ctx, outX, outY, inX, inY);
     }
+    ctx.restore();
 
     this._drawPortTooltip(ctx, overNode, overPort);
 
