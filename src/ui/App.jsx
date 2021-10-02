@@ -120,9 +120,6 @@ export default class App extends Component {
       case 'export-image':
         this._onExportImage();
         break;
-      case 'quit':
-        remote.app.quit();
-        break;
       default:
         console.error('Unknown menu event:', name);
     }

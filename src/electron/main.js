@@ -207,9 +207,15 @@ function createApplicationMenu() {
   const macAppMenu = {
     label: app.name,
     submenu: [
-      {
-        role: 'quit',
-      },
+      { role: 'about' },
+      { type: 'separator' },
+      { role: 'services' },
+      { type: 'separator' },
+      { role: 'hide' },
+      { role: 'hideOthers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit' },
     ],
   };
 
