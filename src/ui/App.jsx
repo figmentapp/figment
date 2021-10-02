@@ -34,7 +34,7 @@ export default class App extends Component {
       showForkDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
-      editorSplitterWidth: 300,
+      editorSplitterWidth: 320,
       fullscreen: false,
       version: 1,
     };
