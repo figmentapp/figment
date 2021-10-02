@@ -5,5 +5,8 @@ import { resolve } from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   root: resolve(__dirname, './src/ui'),
-  plugins: [reactRefresh()]
+  plugins: [reactRefresh()],
+  build: {
+    chunkSizeWarningLimit: 1_000_000,
+  },
 });

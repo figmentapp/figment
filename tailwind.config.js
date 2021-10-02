@@ -5,9 +5,9 @@ module.exports = {
       'row-resize': 'row-resize',
       move: 'move',
       pointer: 'pointer',
-      default: 'default'
-    }
+      default: 'default',
+    },
   },
   variants: {},
-  plugins: []
+  plugins: [],
 };
