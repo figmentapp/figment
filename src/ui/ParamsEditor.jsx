@@ -361,7 +361,7 @@ class FileParam extends Component {
       <div className="params__row">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
-          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectFile}>
+          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectFile} title={value}>
             {value}
           </span>
           <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
@@ -392,7 +392,7 @@ class DirectoryParam extends Component {
       <div className="params__row">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <div className="flex items-center">
-          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectDirectory}>
+          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectDirectory} title={value}>
             {value}
           </span>
           <button
