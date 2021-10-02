@@ -23,6 +23,11 @@ async function showOpenProjectDialog() {
   return filePath;
 }
 
+async function showSaveProjectDialog() {
+  const filePath = await ipcRenderer.invoke('showSaveProjectDialog');
+  return filePath;
+}
+
 async function showOpenFileDialog(fileType = 'generic') {
   const filePath = await ipcRenderer.invoke('showOpenFileDialog', fileType);
   return filePath;
@@ -33,9 +38,13 @@ async function showOpenDirectoryDialog() {
   return filePath;
 }
 
-async function showSaveProjectDialog() {
-  const filePath = await ipcRenderer.invoke('showSaveProjectDialog');
+async function showSaveImageDialog() {
+  const filePath = await ipcRenderer.invoke('showSaveImageDialog');
   return filePath;
+}
+
+async function showNodeContextMenu() {
+  await ipcRenderer.invoke('showNodeContextMenu');
 }
 
 async function readProjectFile(filePath) {
@@ -50,6 +59,10 @@ async function writeProjectFile(filePath, data) {
 async function globFiles(baseDir, pattern, cb) {
   const globPattern = path.join(baseDir, pattern);
   glob(globPattern, cb);
+}
+
+async function saveBufferToFile(buffer, filePath) {
+  await fs.writeFile(filePath, Buffer.from(buffer));
 }
 
 const pathToFileURL = (filename) => url.pathToFileURL(filename).toString();
@@ -68,9 +81,12 @@ contextBridge.exposeInMainWorld('desktop', {
   showSaveProjectDialog,
   showOpenFileDialog,
   showOpenDirectoryDialog,
+  showSaveImageDialog,
+  showNodeContextMenu,
   readProjectFile,
   writeProjectFile,
   globFiles,
+  saveBufferToFile,
   pathToFileURL,
   registerListener,
 });

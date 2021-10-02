@@ -272,7 +272,7 @@ export default class NetworkEditor extends Component {
 
   _onMouseDown(e) {
     e.preventDefault();
-    if (e.button === 2 || e.button === 1 || this._spaceDown) {
+    if (e.button === 1 || this._spaceDown) {
       this._dragMode = DRAG_MODE_PANNING;
     } else if (e.button === 0) {
       this._dragMode = DRAG_MODE_SELECTING;
@@ -397,6 +397,15 @@ export default class NetworkEditor extends Component {
 
   _onContextMenu(e) {
     e.preventDefault();
+    const [networkX, networkY] = this._networkPosition(e);
+    const node = this._findNode(networkX, networkY);
+    this._dragMode = DRAG_MODE_IDLE;
+    if (node) {
+      this.props.onSelectNode(node);
+      window.desktop.showNodeContextMenu(node.id);
+    } else {
+      // FIXME: Show network context menu
+    }
   }
 
   _onKeyDown(e) {

@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
-import { PORT_IN, PORT_OUT } from '../model/Port';
+import { PORT_TYPE_IMAGE } from '../model/Port';
 import Editor from './Editor';
 import Viewer from './Viewer';
 import ParamsEditor from './ParamsEditor';
@@ -10,8 +10,6 @@ import Splitter from './Splitter';
 import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
-
-const FILE_FILTERS = [{ name: 'Figment Project', extensions: ['fgmt'] }];
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -40,7 +38,7 @@ export default class App extends Component {
       fullscreen: false,
       version: 1,
     };
-    const firstNode = network.nodes.find((n) => n.name === 'Canvas');
+    const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);
     }
@@ -68,6 +66,7 @@ export default class App extends Component {
     this._onRenameNode = this._onRenameNode.bind(this);
     this._onConnect = this._onConnect.bind(this);
     this._onDisconnect = this._onDisconnect.bind(this);
+    this._onExportImage = this._onExportImage.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._forceRedraw = this._forceRedraw.bind(this);
@@ -100,6 +99,7 @@ export default class App extends Component {
   }
 
   _onMenuEvent(name, filePath) {
+    console.log('_onMenuEvent', name);
     switch (name) {
       case 'new':
         this._newProject();
@@ -117,9 +117,14 @@ export default class App extends Component {
       case 'save-as':
         this._onSaveFileAs();
         break;
+      case 'export-image':
+        this._onExportImage();
+        break;
       case 'quit':
         remote.app.quit();
         break;
+      default:
+        console.error('Unknown menu event:', name);
     }
   }
 
@@ -336,6 +341,32 @@ export default class App extends Component {
 
   _onDisconnect(inPort) {
     this.state.network.disconnect(inPort);
+  }
+
+  async _onExportImage() {
+    const filePath = await window.desktop.showSaveImageDialog();
+    if (!filePath) return;
+    // Get the selected node. Bail out if there is more than one.
+    if (this.state.selection.size !== 1) return;
+    const node = this.state.selection.values().next().value;
+    // Get the output image of the node.
+    const outPort = node.outPorts[0];
+    if (outPort.type !== PORT_TYPE_IMAGE) return;
+    const framebuffer = outPort.value;
+    // Read out the pixels of the framebuffer.
+    const imageData = new ImageData(framebuffer.width, framebuffer.height);
+    framebuffer.bind();
+    window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
+    framebuffer.unbind();
+    // Put the image data into an offscreen canvas.
+    const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
+    const ctx = canvas.getContext('2d');
+    ctx.putImageData(imageData, 0, 0);
+    // Convert the canvas to a PNG blob, then to a buffer.
+    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    const pngBuffer = await blob.arrayBuffer();
+    // Write the buffer to the given file path.
+    await window.desktop.saveBufferToFile(pngBuffer, filePath);
   }
 
   _onFrame() {

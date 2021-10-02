@@ -4,6 +4,13 @@ const fs = require('fs').promises;
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 
+const FILTER_MAP = {
+  project: { name: 'Figment Project', extensions: ['fgmt'] },
+  image: { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] },
+  video: { name: 'Videos', extensions: ['mp4', 'webm'] },
+  generic: { name: 'All Files', extensions: ['*'] },
+};
+
 class Settings {
   settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
@@ -58,6 +65,7 @@ async function showOpenProjectDialog() {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Open Project',
     properties: ['openFile'],
+    filters: [FILTER_MAP.project],
   });
   if (!filePaths || filePaths.length < 1) {
     return;
@@ -70,12 +78,6 @@ async function showOpenProjectDialog() {
   return filePath;
 }
 ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
-
-const FILTER_MAP = {
-  image: { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] },
-  video: { name: 'Videos', extensions: ['mp4', 'webm'] },
-  generic: { name: 'All Files', extensions: ['*'] },
-};
 
 async function showOpenFileDialog(fileType = 'generic') {
   const { filePaths } = await dialog.showOpenDialog({
@@ -108,14 +110,35 @@ ipcMain.handle('showOpenDirectoryDialog', showOpenDirectoryDialog);
 async function showSaveProjectDialog() {
   const result = await dialog.showSaveDialog({
     title: 'Save Project',
+    filters: [FILTER_MAP.project],
   });
-  // console.log('save', filePath);
   if (result.canceled) return null;
   gSettings.addRecentProject(result.filePath);
   gMainWindow.setRepresentedFilename(result.filePath);
   return result.filePath;
 }
 ipcMain.handle('showSaveProjectDialog', showSaveProjectDialog);
+
+async function showSaveImageDialog() {
+  const result = await dialog.showSaveDialog({
+    title: 'Save Image',
+    filters: [FILTER_MAP.image],
+  });
+  if (result.canceled) return null;
+  return result.filePath;
+}
+ipcMain.handle('showSaveImageDialog', showSaveImageDialog);
+
+function showNodeContextMenu(nodeId) {
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'Export Image…',
+      click: emit('export-image'),
+    },
+  ]);
+  menu.popup(gMainWindow);
+}
+ipcMain.handle('showNodeContextMenu', showNodeContextMenu);
 
 function onTouchProject(filePath) {
   gSettings.addRecentProject(filePath);
