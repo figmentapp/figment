@@ -163,13 +163,13 @@ function createMainWindow(file) {
 
   // Load the index.html of the app.
   if (process.env.NODE_ENV === 'development') {
-    gMainWindow.loadURL('http://localhost:3000/');
+    gMainWindow.loadURL(`http://localhost:3000/?appPath=${app.getAppPath()}`);
     gMainWindow.webContents.openDevTools();
   } else {
     const electronDir = __dirname;
     const asarDir = path.join(electronDir, '../../');
     const uiDir = path.join(asarDir, 'build');
-    gMainWindow.loadURL(`file:///${uiDir}/index.html`);
+    gMainWindow.loadURL(`file:///${uiDir}/index.html?appPath=${app.getAppPath()}`);
   }
 
   // Open the window

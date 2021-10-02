@@ -9,10 +9,13 @@ const listeners = {
   menu: null,
 };
 
+const windowParams = new URLSearchParams(document.location.search.substring(1));
+const appPath = windowParams.get('appPath');
+
 contextBridge.exposeInMainWorld('nodePath', path);
 
 function getPackagedFile(filePath) {
-  return path.resolve(__dirname, '../../', filePath);
+  return path.resolve(appPath, filePath);
 }
 
 async function showOpenProjectDialog() {
