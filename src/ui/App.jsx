@@ -10,6 +10,7 @@ import Splitter from './Splitter';
 import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
+import ExportSequenceDialog from './ExportSequenceDialog';
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -32,11 +33,13 @@ export default class App extends Component {
       selection: new Set(),
       showNodeDialog: false,
       showForkDialog: false,
+      showExportSequenceDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
       editorSplitterWidth: 320,
       fullscreen: false,
       version: 1,
+      isPlaying: true,
     };
     const firstNode = network.nodes[0];
     if (firstNode) {
@@ -58,6 +61,9 @@ export default class App extends Component {
     this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
     this._onShowForkDialog = this._onShowForkDialog.bind(this);
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
+    this._onshowExportSequenceDialog = this._onshowExportSequenceDialog.bind(this);
+    this._onHideExportSequenceDialog = this._onHideExportSequenceDialog.bind(this);
+    this._onExportSequence = this._onExportSequence.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onShowNodeRenameDialog = this._onShowNodeRenameDialog.bind(this);
@@ -68,6 +74,8 @@ export default class App extends Component {
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onExportImage = this._onExportImage.bind(this);
     this._onFrame = this._onFrame.bind(this);
+    this._onStart = this._onStart.bind(this);
+    this._onStop = this._onStop.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._forceRedraw = this._forceRedraw.bind(this);
     this._offscreenCanvas = new OffscreenCanvas(256, 256);
@@ -120,6 +128,10 @@ export default class App extends Component {
       case 'export-image':
         this._onExportImage();
         break;
+      case 'export-dialog':
+        this._onshowExportSequenceDialog();
+        break;
+
       default:
         console.error('Unknown menu event:', name);
     }
@@ -305,6 +317,21 @@ export default class App extends Component {
     });
   }
 
+  _onshowExportSequenceDialog() {
+    this._onStop();
+    this.setState({ showExportSequenceDialog: true });
+  }
+
+  _onHideExportSequenceDialog() {
+    this.setState({ showExportSequenceDialog: false });
+  }
+
+  _onExportSequence(node, startFrame, endFrame, directory, prefix) {
+    this.setState({ showExportSequenceDialog: false });
+    alert('Not implemented yet.');
+    this._onStart();
+  }
+
   _onCreateNode(nodeType) {
     console.assert(typeof nodeType === 'object');
     const pt = this.state.lastNetworkPoint;
@@ -367,10 +394,20 @@ export default class App extends Component {
   }
 
   _onFrame() {
+    if (!this.state.isPlaying) return;
     if (this.state.network) {
       this.state.network.doFrame();
     }
     window.requestAnimationFrame(this._onFrame);
+  }
+
+  _onStart() {
+    this.setState({ isPlaying: true });
+    window.requestAnimationFrame(this._onFrame);
+  }
+
+  _onStop() {
+    this.setState({ isPlaying: false });
   }
 
   render() {
@@ -386,6 +423,7 @@ export default class App extends Component {
       mainSplitterWidth,
       editorSplitterWidth,
       showNodeRenameDialog,
+      showExportSequenceDialog,
       nodeToRename,
       fullscreen,
     } = this.state;
@@ -459,8 +497,14 @@ export default class App extends Component {
             onCancel={this._onHideNodeRenameDialog}
           />
         )}
+        {showExportSequenceDialog && (
+          <ExportSequenceDialog
+            network={network}
+            onExportSequence={this._onExportSequence}
+            onCancel={this._onHideExportSequenceDialog}
+          />
+        )}
       </div>
     );
   }
 }
-//

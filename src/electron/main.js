@@ -248,10 +248,12 @@ function createApplicationMenu() {
       { type: 'separator' },
       { label: 'Save', accelerator: 'CmdOrCtrl+S', click: emit('save') },
       {
-        label: 'Save As...',
+        label: 'Save As…',
         accelerator: 'CmdOrCtrl+Shift+S',
         click: emit('save-as'),
       },
+      { type: 'separator' },
+      { label: 'Export…', accelerator: 'CmdOrCtrl+Shift+E', click: emit('export-dialog') },
     ],
   };
   if (!isMac) {
