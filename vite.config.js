@@ -5,7 +5,7 @@ import { resolve } from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   root: resolve(__dirname, './src/ui/'),
-  base: resolve(__dirname, './build/') + '/',
+  base: './',
   plugins: [reactRefresh()],
   build: {
     outDir: resolve(__dirname, './build/'),
