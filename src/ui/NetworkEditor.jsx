@@ -134,6 +134,7 @@ export default class NetworkEditor extends Component {
     this._onMouseUp = this._onMouseUp.bind(this);
     this._onMouseWheel = this._onMouseWheel.bind(this);
     this._onDoubleClick = this._onDoubleClick.bind(this);
+    this._onContextMenu = this._onContextMenu.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._onKeyUp = this._onKeyUp.bind(this);
     this._onResize = this._onResize.bind(this);
@@ -211,7 +212,7 @@ export default class NetworkEditor extends Component {
           onMouseMove={this._onMouseMove}
           onDoubleClick={this._onDoubleClick}
           onWheel={this._onMouseWheel}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={this._onContextMenu}
         />
       </div>
     );
@@ -392,6 +393,10 @@ export default class NetworkEditor extends Component {
     } else {
       this.props.onShowNodeDialog(new Point(networkX, networkY));
     }
+  }
+
+  _onContextMenu(e) {
+    e.preventDefault();
   }
 
   _onKeyDown(e) {
