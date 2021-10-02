@@ -11,6 +11,10 @@ const listeners = {
 
 contextBridge.exposeInMainWorld('nodePath', path);
 
+function getPackagedFile(filePath) {
+  return path.resolve(__dirname, '../../', filePath);
+}
+
 async function showOpenProjectDialog() {
   const filePath = await ipcRenderer.invoke('showOpenProjectDialog');
   return filePath;
@@ -56,6 +60,7 @@ function registerListener(name, fn) {
 }
 
 contextBridge.exposeInMainWorld('desktop', {
+  getPackagedFile,
   showOpenProjectDialog,
   showSaveProjectDialog,
   showOpenFileDialog,

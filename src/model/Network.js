@@ -73,7 +73,7 @@ export const DEFAULT_NETWORK = {
       x: 300,
       y: 50,
       values: {
-        file: 'examples/assets/mountain.jpg',
+        file: window.desktop.getPackagedFile('examples/assets/mountain.jpg'),
       },
     },
     {
@@ -179,7 +179,7 @@ export const DEFAULT_NETWORK = {
       x: 450,
       y: 100,
       values: {
-        folder: 'examples/assets/waves',
+        folder: window.desktop.getPackagedFile('examples/assets/waves'),
         filter: '*.jpg',
       },
     },
@@ -211,7 +211,7 @@ export const DEFAULT_NETWORK = {
       x: 450,
       y: 200,
       values: {
-        file: 'examples/assets/waves.mp4',
+        file: window.desktop.getPackagedFile('examples/assets/waves.mp4'),
       },
     },
     // { id: 14, name: 'Webcam', type: 'image.camImage', x: 20, y: 260 },

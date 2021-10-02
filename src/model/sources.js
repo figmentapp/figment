@@ -485,7 +485,7 @@ fileIn.onChange = loadImage;
 
 image.loadImageFolder = `// Load a folder of images.
 
-const folderIn = node.directoryIn('folder', 'examples/assets/waves');
+const folderIn = node.directoryIn('folder', '');
 const filterIn = node.stringIn('filter', '*.jpg');
 const animateIn = node.toggleIn('animate', false);
 const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });

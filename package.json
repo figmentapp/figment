@@ -45,6 +45,7 @@
     "afterSign": "scripts/notarize.js",
     "files": [
       "build/**/*",
+      "examples/**/*",
       "src/electron/**/*"
     ],
     "directories": {
