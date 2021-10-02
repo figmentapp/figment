@@ -14,6 +14,7 @@ exports.default = async function notarizing(context) {
     appBundleId: 'be.emrg.figment',
     appPath: `${appOutDir}/${appName}.app`,
     appleId: process.env.APPLE_ID,
-    appleIdPassword: process.env.APPLE_APP_PASSWORD
+    appleIdPassword: process.env.APPLE_APP_PASSWORD,
+    ascProvider: process.env.APPLE_ASC_PROVIDER,
   });
 };
