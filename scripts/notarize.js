@@ -7,6 +7,10 @@ exports.default = async function notarizing(context) {
     return;
   }
 
+  if (process.env.DIST_ENV === 'development') {
+    return;
+  }
+
   console.log('Notarizing application...');
 
   const appName = context.packager.appInfo.productFilename;
