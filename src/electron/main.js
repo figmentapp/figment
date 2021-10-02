@@ -166,7 +166,10 @@ function createMainWindow(file) {
     gMainWindow.loadURL('http://localhost:3000/');
     gMainWindow.webContents.openDevTools();
   } else {
-    gMainWindow.loadURL(`file:///${__dirname}/build/index.html`);
+    const electronDir = __dirname;
+    const asarDir = path.join(electronDir, '../../');
+    const uiDir = path.join(asarDir, 'build');
+    gMainWindow.loadURL(`file:///${uiDir}/index.html`);
   }
 
   // Open the window

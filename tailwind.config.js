@@ -1,4 +1,5 @@
 module.exports = {
+  purge: ['./src/ui/**/*.html', './src/ui/**/*.jsx'],
   theme: {
     cursor: {
       'col-resize': 'col-resize',
