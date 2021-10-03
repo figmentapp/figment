@@ -75,6 +75,7 @@ export default class App extends Component {
     this._onConnect = this._onConnect.bind(this);
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onExportImage = this._onExportImage.bind(this);
+    this._onViewNodeSource = this._onViewNodeSource.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onStart = this._onStart.bind(this);
     this._onStop = this._onStop.bind(this);
@@ -128,6 +129,9 @@ export default class App extends Component {
         break;
       case 'export-image':
         this._onExportImage();
+        break;
+      case 'view-node-source':
+        this._onViewNodeSource();
         break;
       case 'export-dialog':
         this._onshowExportSequenceDialog();
@@ -410,6 +414,13 @@ export default class App extends Component {
     const pngBuffer = await blob.arrayBuffer();
     // Write the buffer to the given file path.
     await window.desktop.saveBufferToFile(pngBuffer, filePath);
+  }
+
+  _onViewNodeSource() {
+    // Get the selected node. Bail out if there is more than one.
+    if (this.state.selection.size !== 1) return;
+    const node = this.state.selection.values().next().value;
+    this._onNewCodeTab(node);
   }
 
   _onFrame() {

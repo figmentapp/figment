@@ -135,6 +135,11 @@ function showNodeContextMenu(nodeId) {
       label: 'Export Image…',
       click: emit('export-image'),
     },
+    { type: 'separator' },
+    {
+      label: 'View Node Source',
+      click: emit('view-node-source'),
+    },
   ]);
   menu.popup(gMainWindow);
 }
