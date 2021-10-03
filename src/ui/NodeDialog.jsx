@@ -44,7 +44,7 @@ export default class NodeDialog extends Component {
     return (
       <div className="dialog-wrapper">
         <div
-          className="dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
+          className="bg-gray-800 dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
           style={{ height: '80vh' }}
         >
           <div className="flex">
