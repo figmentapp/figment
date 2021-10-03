@@ -10,7 +10,7 @@
     "start": "cross-env NODE_ENV=development electron .",
     "build": "cross-env NODE_ENV=production vite build",
     "dist": "rimraf build && rimraf dist && yarn build && electron-builder --mac --universal && electron-builder --win --x64",
-    "testdist": "rimraf build && rimraf dist && yarn build && cross-env DIST_ENV=development electron-builder --dir",
+    "fastdist": "rimraf build && rimraf dist && yarn build && cross-env DIST_ENV=development electron-builder --dir",
     "format": "prettier --write src/**/*.{js,jsx}"
   },
   "dependencies": {
