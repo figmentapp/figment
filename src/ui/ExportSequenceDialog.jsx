@@ -51,8 +51,7 @@ export default class ExportSequenceDialog extends Component {
   async _onSelectDirectory() {
     const filePath = await window.desktop.showOpenDirectoryDialog();
     if (!filePath) return;
-    const directory = figment.filePathToRelative(filePath);
-    this.setState({ directory });
+    this.setState({ directory: filePath });
   }
 
   render() {
