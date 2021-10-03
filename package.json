@@ -1,6 +1,6 @@
 {
   "name": "figment",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Visual coding environment for creative AI",
   "author": "EMRG",
   "main": "src/electron/main.js",
