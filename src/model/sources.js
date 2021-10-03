@@ -647,7 +647,7 @@ function restartVideo() {
     video.currentTime = 0;
   }
 }
-
+node.onReset = restartVideo;
 fileIn.onChange = loadMovie;
 speedIn.onChange = changeSpeed;
 animateIn.onChange = toggleAnimate;

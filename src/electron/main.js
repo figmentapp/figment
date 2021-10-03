@@ -97,7 +97,8 @@ ipcMain.handle('showOpenFileDialog', showOpenFileDialog);
 async function showOpenDirectoryDialog() {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Choose Directory',
-    properties: ['openDirectory'],
+    button: 'Choose Directory',
+    properties: ['openDirectory', 'createDirectory'],
   });
   if (!filePaths || filePaths.length < 1) {
     return;

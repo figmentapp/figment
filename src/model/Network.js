@@ -289,6 +289,19 @@ export default class Network {
     this.started = true;
   }
 
+  reset() {
+    for (const node of this.nodes) {
+      if (node.onReset) {
+        try {
+          node.onReset(node);
+        } catch (e) {
+          console.error(e && e.stack);
+        }
+      }
+    }
+    this.started = false;
+  }
+
   _startNode(node) {
     if (node.onStart) {
       try {

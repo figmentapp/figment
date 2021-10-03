@@ -65,7 +65,6 @@ export default class App extends Component {
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
     this._onshowExportSequenceDialog = this._onshowExportSequenceDialog.bind(this);
     this._onHideExportSequenceDialog = this._onHideExportSequenceDialog.bind(this);
-    this._onExportSequence = this._onExportSequence.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onShowNodeRenameDialog = this._onShowNodeRenameDialog.bind(this);
@@ -75,6 +74,7 @@ export default class App extends Component {
     this._onConnect = this._onConnect.bind(this);
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onExportImage = this._onExportImage.bind(this);
+    this._exportImage = this._exportImage.bind(this);
     this._onViewNodeSource = this._onViewNodeSource.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onStart = this._onStart.bind(this);
@@ -341,18 +341,11 @@ export default class App extends Component {
   }
 
   _onshowExportSequenceDialog() {
-    this._onStop();
     this.setState({ showExportSequenceDialog: true });
   }
 
   _onHideExportSequenceDialog() {
     this.setState({ showExportSequenceDialog: false });
-  }
-
-  _onExportSequence(node, startFrame, endFrame, directory, prefix) {
-    this.setState({ showExportSequenceDialog: false });
-    alert('Not implemented yet.');
-    this._onStart();
   }
 
   _onCreateNode(nodeType) {
@@ -390,12 +383,7 @@ export default class App extends Component {
     this.state.network.disconnect(inPort);
   }
 
-  async _onExportImage() {
-    const filePath = await window.desktop.showSaveImageDialog();
-    if (!filePath) return;
-    // Get the selected node. Bail out if there is more than one.
-    if (this.state.selection.size !== 1) return;
-    const node = this.state.selection.values().next().value;
+  async _exportImage(node, filePath) {
     // Get the output image of the node.
     const outPort = node.outPorts[0];
     if (outPort.type !== PORT_TYPE_IMAGE) return;
@@ -414,6 +402,15 @@ export default class App extends Component {
     const pngBuffer = await blob.arrayBuffer();
     // Write the buffer to the given file path.
     await window.desktop.saveBufferToFile(pngBuffer, filePath);
+  }
+
+  async _onExportImage() {
+    const filePath = await window.desktop.showSaveImageDialog();
+    if (!filePath) return;
+    // Get the selected node. Bail out if there is more than one.
+    if (this.state.selection.size !== 1) return;
+    const node = this.state.selection.values().next().value;
+    await this._exportImage(node, filePath);
   }
 
   _onViewNodeSource() {
@@ -532,7 +529,7 @@ export default class App extends Component {
         {showExportSequenceDialog && (
           <ExportSequenceDialog
             network={network}
-            onExportSequence={this._onExportSequence}
+            exportImage={this._exportImage}
             onCancel={this._onHideExportSequenceDialog}
           />
         )}

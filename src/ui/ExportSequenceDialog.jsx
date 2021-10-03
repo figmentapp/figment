@@ -1,53 +1,47 @@
 import React, { Component } from 'react';
+import { padWithZeroes } from '../util';
 
 export default class ExportSequenceDialog extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      exportedNodeId: props.network.nodes[0].id,
       exportedNode: null,
-      startFrame: 0,
-      endFrame: 100,
+      frameCount: 100,
+      currentFrame: 0,
       directory: '',
-      filePrefix: 'image-',
+      filePrefix: 'image',
+      isExporting: false,
     };
-    // this._onKeyDown = this._onKeyDown.bind(this);
-    // this._onChangeName = this._onChangeName.bind(this);
     this._onExport = this._onExport.bind(this);
     this._onSelectDirectory = this._onSelectDirectory.bind(this);
+    this._exportFrame = this._exportFrame.bind(this);
   }
-
-  componentDidMount() {
-    // window.addEventListener('keydown', this._onKeyDown);
-    // document.getElementById('fork-dialog-input').select();
-  }
-
-  componentWillUnmount() {
-    // window.removeEventListener('keydown', this._onKeyDown);
-  }
-
-  //   _onKeyDown(e) {
-  //     if (e.keyCode === 27) {
-  //       e.preventDefault();
-  //       this.props.onCancel();
-  //     } else if (e.keyCode === 13) {
-  //       e.preventDefault();
-  //       this._onFork();
-  //     }
-  //   }
 
   _onExport() {
-    // const newTypeName = this.state.newTypeName.trim();
-    // if (newTypeName.length === 0) return this.props.onCancel();
-    // const newName = this.state.newName.trim();
-    // if (newName.length === 0) return this.props.onCancel();
-    // const fullTypeName = this.state.ns + '.' + newTypeName;
-    this.props.onExportSequence(
-      this.state.exportedNode,
-      this.state.startFrame,
-      this.state.endFrame,
+    const exportedNode = this.props.network.nodes.find((n) => n.id === this.state.exportedNodeId);
+    if (!exportedNode) {
+      console.error(`Could not find node with id ${this.state.exportedNodeId}`);
+      console.error(this.props.network.nodes);
+      return;
+    }
+    this.setState({ isExporting: true, currentFrame: 1, exportedNode });
+    this.props.network.reset();
+    window.requestAnimationFrame(this._exportFrame);
+  }
+
+  _exportFrame() {
+    const filePath = nodePath.join(
       this.state.directory,
-      this.state.filePrefix
+      `${this.state.filePrefix}-${padWithZeroes(this.state.currentFrame)}.png`
     );
+    this.props.exportImage(this.state.exportedNode, filePath);
+    this.setState({ currentFrame: this.state.currentFrame + 1 });
+    if (this.state.currentFrame <= this.state.frameCount) {
+      window.requestAnimationFrame(this._exportFrame);
+    } else {
+      this.setState({ isExporting: false });
+    }
   }
 
   async _onSelectDirectory() {
@@ -55,11 +49,9 @@ export default class ExportSequenceDialog extends Component {
     if (!filePath) return;
     const directory = figment.filePathToRelative(filePath);
     this.setState({ directory });
-    // this.props.onChange(directory);
   }
 
   render() {
-    //const { ns, newName, newTypeName, currentNodes, selectedNodes } = this.state;
     const exportDisabled = this.state.directory.length === 0;
 
     return (
@@ -82,10 +74,10 @@ export default class ExportSequenceDialog extends Component {
               <span className="text-right w-32 mr-2 text-gray-400 px-4">Node</span>
               <select
                 className="bg-gray-800 text-gray-400 p-2 outline-none w-64"
-                onChange={(e) => this.setState({ exportedNode: e.target.value })}
+                onChange={(e) => this.setState({ exportedNodeId: parseInt(e.target.value) })}
               >
                 {this.props.network.nodes.map((node) => (
-                  <option key={node.id} value={node}>
+                  <option key={node.id} value={node.id}>
                     {node.name}
                   </option>
                 ))}
@@ -96,20 +88,12 @@ export default class ExportSequenceDialog extends Component {
 
             {/* Time range */}
             <div className="flex flex-row items-center">
-              <span className="text-right w-32 mr-2 text-gray-400 px-4">Range</span>
-              <span className="w-16 px-2 text-gray-600 text-right">Start</span>
+              <span className="text-right w-32 mr-2 text-gray-400 px-4">Frames</span>
               <input
                 className="bg-gray-800 text-gray-300 p-2 w-24"
                 type="number"
-                value={this.state.startFrame}
-                onChange={(e) => this.setState({ startFrame: parseInt(e.target.value) })}
-              />
-              <span className="ml-8 w-16 px-2 text-gray-600 text-right">End</span>
-              <input
-                className="bg-gray-800 text-gray-300 p-2 w-24"
-                type="number"
-                value={this.state.endFrame}
-                onChange={(e) => this.setState({ endFrame: parseInt(e.target.value) })}
+                value={this.state.frameCount}
+                onChange={(e) => this.setState({ frameCount: parseInt(e.target.value) })}
               />
             </div>
 
@@ -150,15 +134,22 @@ export default class ExportSequenceDialog extends Component {
             {/* Bottom row */}
             <div className="flex-1"></div>
             <div className="self-end flex flex-row-reverse justify-between items-center px-6 pb-6">
-              <button
-                disabled={exportDisabled}
-                className={`w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none ${
-                  exportDisabled ? 'opacity-30' : ''
-                }`}
-                onClick={this._onExport}
-              >
-                Export
-              </button>
+              {!this.state.isExporting && (
+                <button
+                  disabled={exportDisabled}
+                  className={`w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none ${
+                    exportDisabled ? 'opacity-30' : ''
+                  }`}
+                  onClick={this._onExport}
+                >
+                  Export
+                </button>
+              )}
+              {this.state.isExporting && (
+                <span className="text-gray-300 p-2">
+                  Exporting [{this.state.currentFrame} / {this.state.frameCount}]…
+                </span>
+              )}
             </div>
           </div>
         </div>
