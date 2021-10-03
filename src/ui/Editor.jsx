@@ -19,6 +19,8 @@ export default class Editor extends Component {
       onSelectTab,
       onCloseTab,
       onSelectNode,
+      onToggleSelectNode,
+      onSelectNodes,
       onClearSelection,
       onDeleteSelection,
       onShowNodeDialog,
@@ -57,6 +59,8 @@ export default class Editor extends Component {
             network={network}
             selection={selection}
             onSelectNode={onSelectNode}
+            onToggleSelectNode={onToggleSelectNode}
+            onSelectNodes={onSelectNodes}
             onClearSelection={onClearSelection}
             onDeleteSelection={onDeleteSelection}
             onNewCodeTab={onNewCodeTab}

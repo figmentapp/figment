@@ -52,6 +52,8 @@ export default class App extends Component {
     this._onSelectTab = this._onSelectTab.bind(this);
     this._onCloseTab = this._onCloseTab.bind(this);
     this._onSelectNode = this._onSelectNode.bind(this);
+    this._onToggleSelectNode = this._onToggleSelectNode.bind(this);
+    this._onSelectNodes = this._onSelectNodes.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onDeleteSelection = this._onDeleteSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
@@ -107,7 +109,6 @@ export default class App extends Component {
   }
 
   _onMenuEvent(name, filePath) {
-    console.log('_onMenuEvent', name);
     switch (name) {
       case 'new':
         this._newProject();
@@ -252,6 +253,24 @@ export default class App extends Component {
     // }
     this.forceUpdate();
     //this.setState({ selection: })
+  }
+
+  _onToggleSelectNode(node) {
+    const { selection } = this.state;
+    if (selection.has(node)) {
+      selection.delete(node);
+    } else {
+      selection.add(node);
+    }
+    this.forceUpdate();
+  }
+
+  _onSelectNodes(nodes) {
+    const { selection } = this.state;
+    Array.from(nodes).forEach((node) => {
+      selection.add(node);
+    });
+    this.forceUpdate();
   }
 
   _onClearSelection() {
@@ -448,6 +467,8 @@ export default class App extends Component {
             onSelectTab={this._onSelectTab}
             onCloseTab={this._onCloseTab}
             onSelectNode={this._onSelectNode}
+            onToggleSelectNode={this._onToggleSelectNode}
+            onSelectNodes={this._onSelectNodes}
             onClearSelection={this._onClearSelection}
             onDeleteSelection={this._onDeleteSelection}
             onChangeSource={this._onChangeSource}

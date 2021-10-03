@@ -271,22 +271,33 @@ export default class NetworkEditor extends Component {
   }
 
   _onMouseDown(e) {
-    e.preventDefault();
-    if (e.button === 1 || this._spaceDown) {
-      this._dragMode = DRAG_MODE_PANNING;
-    } else if (e.button === 0) {
-      this._dragMode = DRAG_MODE_SELECTING;
-    } else {
-      this._dragMode = DRAG_MODE_IDLE;
+    if (e.button !== 0) {
       return;
     }
+    e.preventDefault();
+    // if (e.button === 0 && e.shiftKey) {
+    //   this._dragMode = DRAG_MODE_SELECTING;
+    // } else {
+    //   this._dragMode = DRAG_MODE_IDLE;
+    //   return;
+    // }
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
     this.prevX = mouseX;
     this.prevY = mouseY;
-    if (this._dragMode === DRAG_MODE_SELECTING) {
-      const [networkX, networkY] = this._networkPosition(e);
-      const node = this._findNode(networkX, networkY);
+    const [networkX, networkY] = this._networkPosition(e);
+    const node = this._findNode(networkX, networkY);
+    if (!node) {
+      if (e.shiftKey) {
+        this._dragMode = DRAG_MODE_SELECTING;
+        this._dragX = networkX;
+        this._dragY = networkY;
+      } else {
+        this.props.onClearSelection();
+        this._dragMode = DRAG_MODE_PANNING;
+      }
+    } else {
+      // Mouse is over a node.
       const port = node && this._findPort(node, networkX, networkY);
       if (port && port.direction === PORT_OUT) {
         this._dragMode = DRAG_MODE_DRAG_PORT;
@@ -308,12 +319,16 @@ export default class NetworkEditor extends Component {
           this._dragX = x;
           this._dragY = y;
         }
-      } else if (node) {
-        this._dragMode = DRAG_MODE_DRAG_NODE;
-        this.props.onSelectNode(node);
-        this._draw();
       } else {
-        this.props.onClearSelection();
+        // Mouse is over a node, but not a port.
+        if (e.shiftKey) {
+          this.props.onToggleSelectNode(node);
+          this._dragMode = DRAG_MODE_IDLE;
+        } else {
+          this._dragMode = DRAG_MODE_DRAG_NODE;
+          this.props.onSelectNode(node);
+          this._draw();
+        }
       }
     }
     window.addEventListener('mousemove', this._onMouseDrag);
@@ -359,6 +374,15 @@ export default class NetworkEditor extends Component {
       const node = this._findNode(networkX, networkY);
       const port = node && this._findPort(node, networkX, networkY);
       if (port && port.direction === PORT_IN) this.props.onConnect(this._dragPort, port);
+    } else if (this._dragMode === DRAG_MODE_SELECTING) {
+      // Find out which nodes are in the selection rectangle.
+      const newSelection = new Set();
+      for (const node of this.props.network.nodes) {
+        if (node.x >= this._dragX && node.x <= this._networkX && node.y >= this._dragY && node.y <= this._networkY) {
+          newSelection.add(node);
+        }
+      }
+      this.props.onSelectNodes(newSelection);
     }
     window.removeEventListener('mousemove', this._onMouseDrag);
     window.removeEventListener('mouseup', this._onMouseUp);
@@ -581,6 +605,25 @@ export default class NetworkEditor extends Component {
       this._drawConnectionLine(ctx, x1, y1, x2, y2);
       ctx.stroke();
     }
+
+    // Draw drag rectangle
+    if (this._dragMode === DRAG_MODE_SELECTING) {
+      ctx.strokeStyle = COLORS.gray300;
+      ctx.lineWidth = 1;
+      let x1 = this._dragX;
+      let y1 = this._dragY;
+      let x2 = this._networkX - this._dragX;
+      let y2 = this._networkY - this._dragY;
+      ctx.beginPath();
+      ctx.rect(
+        this.state.scale * x1 + this.state.x,
+        this.state.scale * y1 + this.state.y,
+        this.state.scale * x2,
+        this.state.scale * y2
+      );
+      ctx.stroke();
+    }
+
     this._drawNodePreviews();
   }
 
