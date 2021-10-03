@@ -149,6 +149,7 @@ export default class App extends Component {
     network.parse(DEFAULT_NETWORK);
     network.start();
     network.doFrame();
+    this._onStart();
     this.setState({ network, selection: new Set() });
     this._setFilePath(undefined);
   }
@@ -178,6 +179,7 @@ export default class App extends Component {
       network.doFrame();
     });
     this._setFilePath(filePath);
+    this._onStart();
     // ipcRenderer.send('open-project', filePath);
   }
 

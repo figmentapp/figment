@@ -218,7 +218,11 @@ export default class NetworkEditor extends Component {
     );
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps) {
+    if (prevProps.network !== this.props.network) {
+      prevProps.network.removeChangeListener(this._onNetworkChange);
+      this.props.network.addChangeListener(this._onNetworkChange);
+    }
     this._draw();
   }
 
