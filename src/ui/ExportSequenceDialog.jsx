@@ -8,6 +8,7 @@ export default class ExportSequenceDialog extends Component {
       exportedNodeId: props.network.nodes[0].id,
       exportedNode: null,
       frameCount: 100,
+      frameRate: 60,
       currentFrame: 0,
       directory: '',
       filePrefix: 'image',
@@ -27,6 +28,7 @@ export default class ExportSequenceDialog extends Component {
     }
     this.setState({ isExporting: true, currentFrame: 1, exportedNode });
     this.props.network.reset();
+    this._startTime = Date.now();
     window.requestAnimationFrame(this._exportFrame);
   }
 
@@ -38,9 +40,11 @@ export default class ExportSequenceDialog extends Component {
     this.props.exportImage(this.state.exportedNode, filePath);
     this.setState({ currentFrame: this.state.currentFrame + 1 });
     if (this.state.currentFrame <= this.state.frameCount) {
-      window.requestAnimationFrame(this._exportFrame);
+      window.setTimeout(this._exportFrame, 1000 / this.state.frameRate);
     } else {
-      this.setState({ isExporting: false });
+      window.setTimeout(() => {
+        this.setState({ isExporting: false });
+      }, 1000);
     }
   }
 
@@ -71,7 +75,7 @@ export default class ExportSequenceDialog extends Component {
 
             {/* Node selection */}
             <div className="flex flex-row items-center">
-              <span className="text-right w-32 mr-2 text-gray-400 px-4">Node</span>
+              <span className="text-right w-40 mr-2 text-gray-400 px-4">Node</span>
               <select
                 className="bg-gray-800 text-gray-400 p-2 outline-none w-64"
                 onChange={(e) => this.setState({ exportedNodeId: parseInt(e.target.value) })}
@@ -87,8 +91,8 @@ export default class ExportSequenceDialog extends Component {
             <hr className="border-gray-800 my-6" />
 
             {/* Time range */}
-            <div className="flex flex-row items-center">
-              <span className="text-right w-32 mr-2 text-gray-400 px-4">Frames</span>
+            <div className="flex flex-row items-center mb-6">
+              <span className="text-right w-40 mr-2 text-gray-400 px-4">Frames</span>
               <input
                 className="bg-gray-800 text-gray-300 p-2 w-24"
                 type="number"
@@ -96,12 +100,21 @@ export default class ExportSequenceDialog extends Component {
                 onChange={(e) => this.setState({ frameCount: parseInt(e.target.value) })}
               />
             </div>
+            <div className="flex flex-row items-center">
+              <span className="text-right w-40 mr-2 text-gray-400 px-4 truncate">Frame rate</span>
+              <input
+                className="bg-gray-800 text-gray-300 p-2 w-24"
+                type="number"
+                value={this.state.frameRate}
+                onChange={(e) => this.setState({ frameRate: parseInt(e.target.value) })}
+              />
+            </div>
 
             <hr className="border-gray-800 my-6" />
 
             {/* Folder picker */}
             <div className="flex flex-row items-center mb-4">
-              <span className="text-right w-32 mr-2 text-gray-400 px-4">Folder</span>
+              <span className="text-right w-40 mr-2 text-gray-400 px-4">Folder</span>
               <div className="flex items-center">
                 <span
                   className="h-10 p-2 w-64 text-gray-400 truncate bg-gray-900 border border-gray-800"
@@ -119,7 +132,7 @@ export default class ExportSequenceDialog extends Component {
               </div>
             </div>
             <div className="flex flex-row items-center">
-              <span className="text-right w-32 mr-2 text-gray-400 px-4">Prefix</span>
+              <span className="text-right w-40 mr-2 text-gray-400 px-4">Prefix</span>
               <div className="flex items-center">
                 <input
                   className="h-10 p-2 w-64 text-gray-400 truncate bg-gray-900 border border-gray-800"
@@ -145,10 +158,13 @@ export default class ExportSequenceDialog extends Component {
                   Export
                 </button>
               )}
-              {this.state.isExporting && (
+              {this.state.isExporting && this.state.currentFrame < this.state.frameCount && (
                 <span className="text-gray-300 p-2">
                   Exporting [{this.state.currentFrame} / {this.state.frameCount}]…
                 </span>
+              )}
+              {this.state.isExporting && this.state.currentFrame >= this.state.frameCount && (
+                <span className="text-gray-300 p-2">Exporting done.</span>
               )}
             </div>
           </div>
