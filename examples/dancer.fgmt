@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Load Movie",
+      "type": "image.loadMovie",
+      "x": 150,
+      "y": 100,
+      "values": {
+        "file": "assets/dancer.mp4"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 121,
+      "y": 222,
+      "values": {
+        "fit": "contain",
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "Stack",
+      "type": "image.stack",
+      "x": 200,
+      "y": 600
+    },
+    {
+      "id": 7,
+      "name": "Detect Pose",
+      "type": "ml.detectPose",
+      "x": 343,
+      "y": 217
+    },
+    {
+      "id": 8,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 324,
+      "y": 385,
+      "values": {
+        "fit": "contain",
+        "background": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 6,
+      "inPort": "image 1"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 7,
+      "inPort": "in"
+    },
+    {
+      "outNode": 7,
+      "outPort": "out",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 8,
+      "outPort": "out",
+      "inNode": 6,
+      "inPort": "image 2"
+    }
+  ],
+  "types": []
+}

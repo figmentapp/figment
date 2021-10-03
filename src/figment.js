@@ -152,3 +152,7 @@ export function drawQuad(shaderProgram, uniforms) {
   twgl.setUniforms(shaderProgram, uniforms);
   twgl.drawBufferInfo(gl, _quadBufferInfo);
 }
+
+export function toCanvasColor(color) {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
+}

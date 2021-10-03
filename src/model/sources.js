@@ -1,6 +1,4 @@
-import { Pose } from '@mediapipe/pose';
 import { m4 } from 'twgl.js';
-window.Pose = Pose;
 window.m4 = m4;
 
 export const image = {};
@@ -1268,6 +1266,7 @@ twistIn.onChange = render;
 
 ml.detectPose = `// Detect human poses in input image.
 const imageIn = node.imageIn('in');
+const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
 const imageOut = node.imageOut('out');
 
@@ -1325,7 +1324,8 @@ function drawResults() {
   if (!poseLandmarks) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
-  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
+  ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = 'white';
   ctx.strokeStyle = 'black';
   ctx.lineWidth = 2;
@@ -1346,6 +1346,7 @@ function drawResults() {
 }
 
 imageIn.onChange = detectPose;
+backgroundIn.onChange = drawResults;
 radiusIn.onChange = drawResults;
 `;
 
