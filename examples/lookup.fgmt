@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Load Movie",
+      "type": "image.loadMovie",
+      "x": 220.8584782998471,
+      "y": 135.42923914992343,
+      "values": {
+        "file": "assets/waves.mp4"
+      }
+    },
+    {
+      "id": 7,
+      "name": "Lookup",
+      "type": "image.lookup",
+      "x": 320.6388989292071,
+      "y": 373.04568727372043
+    },
+    {
+      "id": 8,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 368.6975357146291,
+      "y": 272.0527836327073,
+      "values": {
+        "file": "assets/gradient-smooth.png"
+      }
+    },
+    {
+      "id": 9,
+      "name": "Mirror",
+      "type": "image.mirror",
+      "x": 219.62870575015228,
+      "y": 209.94855918329887,
+      "values": {
+        "angle": -90
+      }
+    },
+    {
+      "id": 10,
+      "name": "Mirror",
+      "type": "image.mirror",
+      "x": 216.72729457887652,
+      "y": 286.34708035417657,
+      "values": {
+        "angle": 180
+      }
+    },
+    {
+      "id": 12,
+      "name": "Levels",
+      "type": "image.levels",
+      "x": 319.0087457001889,
+      "y": 443.9424641375393,
+      "values": {
+        "contrast": 2,
+        "saturation": 0.5899999999999996
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 8,
+      "outPort": "out",
+      "inNode": 7,
+      "inPort": "lookup"
+    },
+    {
+      "outNode": 9,
+      "outPort": "out",
+      "inNode": 10,
+      "inPort": "in"
+    },
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 10,
+      "outPort": "out",
+      "inNode": 7,
+      "inPort": "source"
+    },
+    {
+      "outNode": 7,
+      "outPort": "out",
+      "inNode": 12,
+      "inPort": "in"
+    }
+  ],
+  "types": []
+}
