@@ -286,6 +286,9 @@ export default class Network {
     for (const node of this.nodes) {
       this._startNode(node);
     }
+    for (const node of this.nodes) {
+      this._forceSetAllPorts(node);
+    }
     this.started = true;
   }
 
@@ -310,6 +313,9 @@ export default class Network {
         console.error(e && e.stack);
       }
     }
+  }
+
+  _forceSetAllPorts(node) {
     // Force set all ports
     try {
       for (const port of node.inPorts) {

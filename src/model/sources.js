@@ -44,8 +44,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: blurIn.value });
@@ -159,8 +157,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.clear();
@@ -257,8 +253,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { 
@@ -301,8 +295,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
@@ -337,8 +329,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
@@ -425,8 +415,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { 
@@ -699,8 +687,6 @@ function updateShader() {
 function render() {
   if (!sourceIn.value) return;
   if (!lookupIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(sourceIn.value.width, sourceIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { 
@@ -753,8 +739,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   const r = angleIn.value * Math.PI / 180;
   const x = Math.sin(r);
   const y = -Math.cos(r);
@@ -813,8 +797,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { 
@@ -872,8 +854,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture, _pixels: [pixelsX.value, pixelsY.value] });
@@ -924,8 +904,6 @@ const PORTRAIT = 2;
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   let inRatio = imageIn.value.width / imageIn.value.height;
   let outRatio = widthIn.value / heightIn.value;
   let aspect;
@@ -1019,8 +997,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: sharpenIn.value });
@@ -1081,8 +1057,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { 
@@ -1137,8 +1111,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn1.value || !imageIn2.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   let u_direction;
   if (directionIn.value === 'Horizontal') {
     u_direction = 0.0;
@@ -1191,8 +1163,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { 
@@ -1244,8 +1214,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   let transform = m4.identity();
   let factorX = 1.0 / imageIn.value.width;
   let factorY = 1.0 / imageIn.value.height;
@@ -1314,8 +1282,6 @@ node.onStart = (props) => {
 
 function render() {
   if (!imageIn.value) return;
-  if (!program) return;
-  if (!framebuffer) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_radius: radiusIn.value,u_twist: twistIn.value });
