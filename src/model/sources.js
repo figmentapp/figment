@@ -620,9 +620,9 @@ node.onFrame = () => {
 
 node.onStop = () => {
   clearInterval(timerHandle);
-  if (_stream && _stream.active) {
-    _stream.getTracks().forEach(track => track.stop())
-    _video = null;
+  if (video) {
+    video.pause();
+    video = null;
   }
 }
 
