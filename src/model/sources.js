@@ -845,7 +845,7 @@ const imageIn = node.imageIn('in');
 const widthIn = node.numberIn('width', 512, { min: 0 });
 const heightIn = node.numberIn('height', 512, { min: 0 });
 const fitIn = node.selectIn('fit', ['fill', 'contain', 'cover'], 'cover');
-const backgroundIn = node.colorIn('background', [0, 0, 0, 0]);
+const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
