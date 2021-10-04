@@ -60,7 +60,7 @@ image.composite = `// Combine two images together.
 const image1In = node.imageIn('image 1');
 const image2In = node.imageIn('image 2');
 const factorIn = node.numberIn('factor', 0.5, { min: 0, max: 1, step: 0.01 });
-const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', '---', 'difference'], 'blend');
+const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', '---', 'difference'], 'normal');
 const imageOut = node.imageOut('out');
 
 function updateShader() {
@@ -75,6 +75,8 @@ function updateShader() {
     blendFunction = 'u_factor * vec3(max(c1.r, c2.r), max(c1.g, c2.g), max(c1.b, c2.b)) + (1.0 - u_factor) * c1.rgb';
   } else if (operationIn.value === 'difference') {
     blendFunction = 'u_factor * abs(c1.rgb - c2.rgb) + (1.0 - u_factor) * c1.rgb';
+  } else {
+    throw new Error(\`Unknown operation: \${operationIn.value}\`);
   }
   const fragmentShader = \`
   precision mediump float;
