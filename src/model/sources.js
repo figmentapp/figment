@@ -55,6 +55,71 @@ imageIn.onChange = render;
 blurIn.onChange = render;
 `;
 
+image.composite = `// Combine two images together.
+
+const image1In = node.imageIn('image 1');
+const image2In = node.imageIn('image 2');
+const factorIn = node.numberIn('factor', 0.5, { min: 0, max: 1, step: 0.01 });
+const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', '---', 'difference'], 'blend');
+const imageOut = node.imageOut('out');
+
+function updateShader() {
+  let blendFunction;
+  if (operationIn.value === 'normal') {
+    blendFunction = 'u_factor * c2.rgb + (1.0 - u_factor) * c1.rgb';
+  } else if (operationIn.value === 'darken') {
+    blendFunction = 'u_factor * vec3(min(c1.r, c2.r), min(c1.g, c2.g), min(c1.b, c2.b)) + (1.0 - u_factor) * c1.rgb';
+  } else if (operationIn.value === 'multiply') {
+    blendFunction = 'u_factor * (c1.rgb * c2.rgb) + (1.0 - u_factor) * c1.rgb';
+  } else if (operationIn.value === 'lighten') {
+    blendFunction = 'u_factor * vec3(max(c1.r, c2.r), max(c1.g, c2.g), max(c1.b, c2.b)) + (1.0 - u_factor) * c1.rgb';
+  } else if (operationIn.value === 'difference') {
+    blendFunction = 'u_factor * abs(c1.rgb - c2.rgb) + (1.0 - u_factor) * c1.rgb';
+  }
+  const fragmentShader = \`
+  precision mediump float;
+  uniform sampler2D u_image_1;
+  uniform sampler2D u_image_2;
+  uniform float u_factor;
+  varying vec2 v_uv;
+  void main() {
+    vec4 c1 = texture2D(u_image_1, v_uv);
+    vec4 c2 = texture2D(u_image_2, v_uv);
+    vec3 color = \${blendFunction};
+    gl_FragColor = vec4(color, c1.a);
+  }
+  \`;
+  program = figment.createShaderProgram(fragmentShader);
+  render();
+}
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  updateShader();
+  framebuffer = new figment.Framebuffer();
+}
+
+function render() {
+  if (!image1In.value || !image2In.value) return;
+  framebuffer.setSize(image1In.value.width, image1In.value.height);
+  framebuffer.bind();
+  figment.clear();
+  figment.drawQuad(program, {
+    u_image_1: image1In.value.texture,
+    u_image_2: image2In.value.texture,
+    u_factor: factorIn.value,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+image1In.onChange = render;
+image2In.onChange = render;
+factorIn.onChange = render;
+operationIn.onChange = updateShader;
+`;
+
 image.constant = `// Render a constant color.
 
 const fragmentShader = \`
@@ -66,7 +131,7 @@ void main() {
 }
 \`;
 
-const colorIn = node.colorIn('color');
+const colorIn = node.colorIn('color', [128, 128, 128, 1.0]);
 const widthIn = node.numberIn('width', 1024, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 512, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');

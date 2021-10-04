@@ -233,11 +233,17 @@ class SelectParam extends Component {
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
+          {options.map((option, index) =>
+            option === '---' ? (
+              <option disabled key={index}>
+                ───────────────
+              </option>
+            ) : (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            )
+          )}
         </select>
       </div>
     );
