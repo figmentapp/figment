@@ -67,6 +67,7 @@ export default class Library {
 
     // ML
     this.nodeTypes.push({ name: 'Detect Pose', type: 'ml.detectPose', source: ml.detectPose });
+    this.nodeTypes.push({ name: 'Segment Pose', type: 'ml.segmentPose', source: ml.segmentPose });
     // this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });
     // this.nodeTypes.push({ name: 'Pose Net', type: 'ml.poseNet', source: ml.poseNet });
     // this.nodeTypes.push({ name: 'Pose Body Part', type: 'ml.poseBodyPart', source: ml.poseBodyPart });

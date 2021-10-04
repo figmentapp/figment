@@ -4,6 +4,10 @@ window.m4 = m4;
 export const image = {};
 export const ml = {};
 
+////////////////////////////////////////////////////////////////////////////////
+//// IMAGE OPERATIONS //////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 image.blur = `// Blur an input image
 
 const fragmentShader = \`
@@ -1363,92 +1367,6 @@ radiusIn.onChange = render;
 twistIn.onChange = render;
 `;
 
-ml.detectPose = `// Detect human poses in input image.
-const imageIn = node.imageIn('in');
-const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
-const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
-const imageOut = node.imageOut('out');
-
-let program, framebuffer, pose, canvas, ctx, poseLandmarks;
-
-node.onStart = (props) => {
-  framebuffer = new figment.Framebuffer();
-  canvas = new OffscreenCanvas(1, 1);
-  ctx = canvas.getContext('2d');
-  const _pose = new Pose({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
-  }});
-  _pose.setOptions({
-    modelComplexity: 1, 
-    smoothLandmarks: true,
-  });
-  _pose.onResults(onResults);
-  _pose.initialize().then(() => {
-    pose = _pose;
-  });
-};
-
-function detectPose() {
-  if (!imageIn.value) return;
-  if (!pose) return;
-  // Draw the image on an ImageData object.
-  const width = imageIn.value.width;
-  const height = imageIn.value.height;
-
-  if (width !== canvas.width || height !== canvas.height) {
-    canvas.width = width;
-    canvas.height = height;
-    data = new ImageData(width, height);
-    framebuffer.setSize(width, height);
-  }
-  // Video nodes pass along this extra object with the framebuffer.
-  // This allows mediapose to avoid reading the texture first from the framebuffer.
-  if (imageIn.value._directImageHack) {
-    pose.send({ image: imageIn.value._directImageHack });
-  } else {
-    imageIn.value.bind();
-    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
-    imageIn.value.unbind();
-    pose.send({ image: data });
-  }
-}
-
-function onResults(results) {
-  if (!results.poseLandmarks) return;
-  poseLandmarks = results.poseLandmarks;
-  drawResults();
-}
-
-function drawResults() {
-  if (!poseLandmarks) return;
-  const width = imageIn.value.width;
-  const height = imageIn.value.height;
-  ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = 'white';
-  ctx.strokeStyle = 'black';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  let radius = radiusIn.value;
-  for (let i = 0; i < poseLandmarks.length; i++) {
-    const landmark = poseLandmarks[i];
-    let { x, y } = landmark;
-    ctx.moveTo(x * width + radius, y * height);
-    ctx.arc(x * width, y * height, radius, 0, 2 * Math.PI);
-  }
-  ctx.fill();
-  ctx.stroke();
-  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-  window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.set(framebuffer);
-}
-
-imageIn.onChange = detectPose;
-backgroundIn.onChange = drawResults;
-radiusIn.onChange = drawResults;
-`;
-
 image.unsplash = `// Fetch a random image from Unsplash.
 
 const fragmentShader = \`
@@ -1547,6 +1465,190 @@ frameRate.onChange = () => {
   clearInterval(_timer);
   _timer = setInterval(uploadImage, 1000 / frameRate.value);
 }
+`;
+
+////////////////////////////////////////////////////////////////////////////////
+//// MACHINE LEARNING //////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+ml.detectPose = `// Detect human poses in input image.
+const imageIn = node.imageIn('in');
+const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
+const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
+const imageOut = node.imageOut('out');
+
+let program, framebuffer, pose, canvas, ctx, poseLandmarks;
+
+node.onStart = (props) => {
+  framebuffer = new figment.Framebuffer();
+  canvas = new OffscreenCanvas(1, 1);
+  ctx = canvas.getContext('2d');
+  const _pose = new Pose({locateFile: (file) => {
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
+  }});
+  _pose.setOptions({
+    modelComplexity: 1, 
+    smoothLandmarks: true,
+  });
+  _pose.onResults(onResults);
+  _pose.initialize().then(() => {
+    pose = _pose;
+  });
+};
+
+function detectPose() {
+  if (!imageIn.value) return;
+  if (!pose) return;
+  // Draw the image on an ImageData object.
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+
+  if (width !== canvas.width || height !== canvas.height) {
+    canvas.width = width;
+    canvas.height = height;
+    data = new ImageData(width, height);
+    framebuffer.setSize(width, height);
+  }
+  // Video nodes pass along this extra object with the framebuffer.
+  // This allows mediapose to avoid reading the texture first from the framebuffer.
+  if (imageIn.value._directImageHack) {
+    pose.send({ image: imageIn.value._directImageHack });
+  } else {
+    imageIn.value.bind();
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
+    imageIn.value.unbind();
+    pose.send({ image: data });
+  }
+}
+
+function onResults(results) {
+  if (!results.poseLandmarks) return;
+  poseLandmarks = results.poseLandmarks;
+  drawResults();
+}
+
+function drawResults() {
+  if (!poseLandmarks) return;
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+  ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = 'white';
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let radius = radiusIn.value;
+  for (let i = 0; i < poseLandmarks.length; i++) {
+    const landmark = poseLandmarks[i];
+    let { x, y } = landmark;
+    ctx.moveTo(x * width + radius, y * height);
+    ctx.arc(x * width, y * height, radius, 0, 2 * Math.PI);
+  }
+  ctx.fill();
+  ctx.stroke();
+  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  window.gl.bindTexture(gl.TEXTURE_2D, null);
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = detectPose;
+backgroundIn.onChange = drawResults;
+radiusIn.onChange = drawResults;
+`;
+
+ml.segmentPose = `// Remove the background from an image.
+
+const imageIn = node.imageIn('in');
+const operationIn = node.selectIn('remove', ['background', 'foreground']);
+const imageOut = node.imageOut('out');
+
+let program, framebuffer, canvas, results;
+
+node.onStart = (props) => {
+  framebuffer = new figment.Framebuffer();
+  canvas = new OffscreenCanvas(1, 1);
+  ctx = canvas.getContext('2d');
+  const _pose = new Pose({locateFile: (file) => {
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
+  }});
+  _pose.setOptions({
+    modelComplexity: 1, 
+    smoothLandmarks: true,
+    enableSegmentation: true,
+  });
+  _pose.onResults(onResults);
+  _pose.initialize().then(() => {
+    pose = _pose;
+  });
+};
+
+
+function segmentBackground() {
+  if (!imageIn.value) return;
+  if (!pose) return;
+  // Draw the image on an ImageData object.
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+
+  if (width !== canvas.width || height !== canvas.height) {
+    canvas.width = width;
+    canvas.height = height;
+    data = new ImageData(width, height);
+    framebuffer.setSize(width, height);
+  }
+  // Video nodes pass along this extra object with the framebuffer.
+  // This allows mediapose to avoid reading the texture first from the framebuffer.
+  if (imageIn.value._directImageHack) {
+    pose.send({ image: imageIn.value._directImageHack });
+  } else {
+    imageIn.value.bind();
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
+    imageIn.value.unbind();
+    pose.send({ image: data });
+  }
+}
+
+function onResults(_results) {
+  if (!_results.segmentationMask) return;
+  results = _results;
+  drawResults();
+}
+
+function drawResults() {
+  if (!results || !results.segmentationMask) return;
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (operationIn.value === 'background') {    
+    // Draw the segmentation mask.
+    ctx.drawImage(results.segmentationMask, 0, 0);
+
+    // Only overwrite existing pixels (i.e. the mask) with the image.
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.drawImage(results.image, 0, 0);
+  } else {
+    // Fill the destination.
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw everything outside of the segmentation mask.
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.drawImage(results.segmentationMask, 0, 0);
+
+    // Overwrite the existing pixels (i.e. the background) with the image.
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.drawImage(results.image, 0, 0);
+  }
+  ctx.restore();
+  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  window.gl.bindTexture(gl.TEXTURE_2D, null);
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = segmentBackground;
 `;
 
 export default { image, ml };
