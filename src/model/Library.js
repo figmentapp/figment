@@ -75,6 +75,9 @@ export default class Library {
     // this.nodeTypes.push({ name: 'Face Api', type: 'ml.faceApi', source: ml.faceApi });
 
     for (const nodeType of this.nodeTypes) {
+      if (!nodeType.source) {
+        throw new Error(`Node type ${nodeType.type} has no source`);
+      }
       const description = nodeType.source.match(/\/\/(.*)/);
       if (description) {
         nodeType.description = description[1].trim();
