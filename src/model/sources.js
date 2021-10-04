@@ -1311,8 +1311,8 @@ void main() {
 const imageIn = node.imageIn('in');
 const translateXIn = node.numberIn('translateX', 0, { min: -1, max: 1, step: 0.01 });
 const translateYIn = node.numberIn('translateY', 0, { min: -1, max: 1, step: 0.01 });
-const scaleXIn = node.numberIn('scaleX', 1, { min: 0, max: 10, step: 0.01 });
-const scaleYIn = node.numberIn('scaleY', 1, { min: 0, max: 10, step: 0.01 });
+const scaleXIn = node.numberIn('scaleX', 1, { min: -10, max: 10, step: 0.01 });
+const scaleYIn = node.numberIn('scaleY', 1, { min: -10, max: 10, step: 0.01 });
 const rotateIn = node.numberIn('rotate', 0.0, { min: -360, max: 360, step: 1 });
 const imageOut = node.imageOut('out');
 
