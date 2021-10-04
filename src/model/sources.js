@@ -1221,6 +1221,8 @@ const imageIn = node.imageIn('in');
 const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
+let program, framebuffer;
+
 node.onStart = (props) => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
