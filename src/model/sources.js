@@ -1251,6 +1251,43 @@ imageIn.onChange = render;
 thresholdIn.onChange = render;
 `;
 
+image.trail = `// Don't erase the previous input image, creating a trail.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+varying vec2 v_uv;
+
+void main() {
+  vec4 color = texture2D(u_input_texture, v_uv);
+  gl_FragColor = color;
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.drawQuad(program, {
+    u_input_texture: imageIn.value.texture,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+`;
+
 image.transform = `// Transform the image.
 
 const vertexShader = \`
