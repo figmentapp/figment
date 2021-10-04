@@ -70,15 +70,15 @@ const imageOut = node.imageOut('out');
 function updateShader() {
   let blendFunction;
   if (operationIn.value === 'normal') {
-    blendFunction = 'u_factor * c2.rgb + (1.0 - u_factor) * c1.rgb';
+    blendFunction = 'factor * c2.rgb + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'darken') {
-    blendFunction = 'u_factor * vec3(min(c1.r, c2.r), min(c1.g, c2.g), min(c1.b, c2.b)) + (1.0 - u_factor) * c1.rgb';
+    blendFunction = 'factor * vec3(min(c1.r, c2.r), min(c1.g, c2.g), min(c1.b, c2.b)) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'multiply') {
-    blendFunction = 'u_factor * (c1.rgb * c2.rgb) + (1.0 - u_factor) * c1.rgb';
+    blendFunction = 'factor * (c1.rgb * c2.rgb) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'lighten') {
-    blendFunction = 'u_factor * vec3(max(c1.r, c2.r), max(c1.g, c2.g), max(c1.b, c2.b)) + (1.0 - u_factor) * c1.rgb';
+    blendFunction = 'factor * vec3(max(c1.r, c2.r), max(c1.g, c2.g), max(c1.b, c2.b)) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'difference') {
-    blendFunction = 'u_factor * abs(c1.rgb - c2.rgb) + (1.0 - u_factor) * c1.rgb';
+    blendFunction = 'factor * abs(c1.rgb - c2.rgb) + (1.0 - factor) * c1.rgb';
   } else {
     throw new Error(\`Unknown operation: \${operationIn.value}\`);
   }
@@ -91,6 +91,7 @@ function updateShader() {
   void main() {
     vec4 c1 = texture2D(u_image_1, v_uv);
     vec4 c2 = texture2D(u_image_2, v_uv);
+    float factor = u_factor * c2.a;
     vec3 color = \${blendFunction};
     gl_FragColor = vec4(color, c1.a);
   }
