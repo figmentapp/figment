@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 7,
+      "name": "Webcam Image",
+      "type": "image.webcamImage",
+      "x": 207.39390043506793,
+      "y": 151.78780087013587,
+      "values": {
+        "frameRate": 30
+      }
+    },
+    {
+      "id": 8,
+      "name": "Segment Pose",
+      "type": "ml.segmentPose",
+      "x": 207.47688596209528,
+      "y": 219.76786393170264
+    },
+    {
+      "id": 9,
+      "name": "Composite",
+      "type": "image.composite",
+      "x": 364.4019281258807,
+      "y": 418.31689936318173,
+      "values": {
+        "factor": 1
+      }
+    },
+    {
+      "id": 10,
+      "name": "Load Movie",
+      "type": "image.loadMovie",
+      "x": 417.7581488792153,
+      "y": 216.1178287107181,
+      "values": {
+        "file": "assets/waves.mp4"
+      }
+    },
+    {
+      "id": 11,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 207.34851643648605,
+      "y": 292.69416889323577,
+      "values": {
+        "width": 1920,
+        "height": 1080,
+        "fit": "contain",
+        "background": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 10,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "image 1"
+    },
+    {
+      "outNode": 8,
+      "outPort": "out",
+      "inNode": 11,
+      "inPort": "in"
+    },
+    {
+      "outNode": 11,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "image 2"
+    }
+  ],
+  "types": []
+}
