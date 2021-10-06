@@ -1601,7 +1601,7 @@ const imageIn = node.imageIn('in');
 const operationIn = node.selectIn('remove', ['background', 'foreground']);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer, canvas, results;
+let program, framebuffer, canvas, results, pose;
 
 node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
