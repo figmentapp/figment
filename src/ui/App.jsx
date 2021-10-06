@@ -1,4 +1,6 @@
 import React, { Component } from 'react';
+import { PNG } from 'pngjs/browser';
+
 import Network, { DEFAULT_NETWORK } from '../model/Network';
 import { Point } from '../g';
 import { PORT_TYPE_IMAGE } from '../model/Port';
@@ -396,12 +398,17 @@ export default class App extends Component {
     window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
     framebuffer.unbind();
     // Put the image data into an offscreen canvas.
-    const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
-    const ctx = canvas.getContext('2d');
-    ctx.putImageData(imageData, 0, 0);
+    // const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
+    // const ctx = canvas.getContext('2d');
+    // ctx.putImageData(imageData, 0, 0);
     // Convert the canvas to a PNG blob, then to a buffer.
-    const blob = await canvas.convertToBlob({ type: 'image/png' });
-    const pngBuffer = await blob.arrayBuffer();
+    // const blob = await canvas.convertToBlob({ type: 'image/png' });
+    // const pngBuffer = await blob.arrayBuffer();
+    const COLOR_TYPE_COLOR_NO_ALPHA = 2;
+    const png = new PNG({ filterType: 4, width: framebuffer.width, height: framebuffer.height });
+    png.data = imageData.data;
+    const pngBuffer = await PNG.sync.write(png, { colorType: COLOR_TYPE_COLOR_NO_ALPHA });
+
     // Write the buffer to the given file path.
     await window.desktop.saveBufferToFile(pngBuffer, filePath);
   }
