@@ -1515,7 +1515,7 @@ const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer, pose, canvas, ctx, poseLandmarks;
+let program, framebuffer, pose, canvas, ctx, results;
 
 node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
@@ -1559,31 +1559,28 @@ function detectPose() {
   }
 }
 
-function onResults(results) {
-  if (!results.poseLandmarks) return;
-  poseLandmarks = results.poseLandmarks;
+function onResults(_results) {
+  results = _results;
   drawResults();
 }
 
 function drawResults() {
-  if (!poseLandmarks) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
   ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = 'white';
-  ctx.strokeStyle = 'black';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  let radius = radiusIn.value;
-  for (let i = 0; i < poseLandmarks.length; i++) {
-    const landmark = poseLandmarks[i];
-    let { x, y } = landmark;
-    ctx.moveTo(x * width + radius, y * height);
-    ctx.arc(x * width, y * height, radius, 0, 2 * Math.PI);
+  if (results.poseLandmarks) {
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    let radius = radiusIn.value;
+    for (let i = 0; i < results.poseLandmarks.length; i++) {
+      const landmark = results.poseLandmarks[i];
+      let { x, y } = landmark;
+      ctx.moveTo(x * width + radius, y * height);
+      ctx.arc(x * width, y * height, radius, 0, 2 * Math.PI);
+    }
+    ctx.fill();
   }
-  ctx.fill();
-  ctx.stroke();
   window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
   window.gl.bindTexture(gl.TEXTURE_2D, null);
@@ -1648,36 +1645,37 @@ function segmentBackground() {
 }
 
 function onResults(_results) {
-  if (!_results.segmentationMask) return;
   results = _results;
   drawResults();
 }
 
 function drawResults() {
-  if (!results || !results.segmentationMask) return;
+  if (!results) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (operationIn.value === 'background') {    
-    // Draw the segmentation mask.
-    ctx.drawImage(results.segmentationMask, 0, 0);
+  if (results.segmentationMask) {
+    if (operationIn.value === 'background') {
+      // Draw the segmentation mask.
+      ctx.drawImage(results.segmentationMask, 0, 0);
 
-    // Only overwrite existing pixels (i.e. the mask) with the image.
-    ctx.globalCompositeOperation = 'source-in';
-    ctx.drawImage(results.image, 0, 0);
-  } else {
-    // Fill the destination.
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Only overwrite existing pixels (i.e. the mask) with the image.
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.drawImage(results.image, 0, 0);
+    } else {
+      // Fill the destination.
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw everything outside of the segmentation mask.
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.drawImage(results.segmentationMask, 0, 0);
+      // Draw everything outside of the segmentation mask.
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.drawImage(results.segmentationMask, 0, 0);
 
-    // Overwrite the existing pixels (i.e. the background) with the image.
-    ctx.globalCompositeOperation = 'source-in';
-    ctx.drawImage(results.image, 0, 0);
+      // Overwrite the existing pixels (i.e. the background) with the image.
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.drawImage(results.image, 0, 0);
+    }
   }
   ctx.restore();
   window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
