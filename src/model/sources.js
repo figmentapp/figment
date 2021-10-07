@@ -1260,11 +1260,16 @@ varying vec2 v_uv;
 
 void main() {
   vec4 color = texture2D(u_input_texture, v_uv);
-  gl_FragColor = color;
+  if (color.a <= 0.01) {
+    discard;
+  } else {
+    gl_FragColor = color;
+  }
 }
 \`;
 
 const imageIn = node.imageIn('in');
+const clearButtonIn = node.triggerButtonIn('clear');
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -1285,7 +1290,15 @@ function render() {
   imageOut.set(framebuffer);
 }
 
+function clear() {
+  framebuffer.bind();
+  figment.clear();
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
 imageIn.onChange = render;
+clearButtonIn.onTrigger = clear;
 `;
 
 image.transform = `// Transform the image.
