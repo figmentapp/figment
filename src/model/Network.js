@@ -66,6 +66,13 @@ export const DEFAULT_NETWORK = {
       x: 200,
       y: 600,
     },
+    {
+      id: 7,
+      name: 'Out',
+      type: 'core.out',
+      x: 200,
+      y: 700,
+    },
   ],
   connections: [
     { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
@@ -74,6 +81,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 4, outPort: 'out', inNode: 5, inPort: 'in' },
     { outNode: 2, outPort: 'out', inNode: 6, inPort: 'image 1' },
     { outNode: 5, outPort: 'out', inNode: 6, inPort: 'image 2' },
+    { outNode: 6, outPort: 'out', inNode: 7, inPort: 'in' },
   ],
 };
 

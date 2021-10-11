@@ -136,7 +136,9 @@ export default class App extends Component {
       case 'export-dialog':
         this._onshowExportSequenceDialog();
         break;
-
+      case 'enter-full-screen':
+        this._onToggleFullscreen();
+        break;
       default:
         console.error('Unknown menu event:', name);
     }
@@ -368,7 +370,7 @@ export default class App extends Component {
   _onToggleFullscreen() {
     const fullscreen = !this.state.fullscreen;
     this.setState({ fullscreen });
-    remote.BrowserWindow.getFocusedWindow().setFullScreen(fullscreen);
+    window.desktop.setFullScreen(fullscreen);
   }
 
   _onRenameNode(node, newName) {
@@ -459,7 +461,12 @@ export default class App extends Component {
     if (fullscreen) {
       return (
         <div className="app">
-          <Viewer fullscreen={fullscreen} onToggleFullscreen={this._onToggleFullscreen} />
+          <Viewer
+            network={network}
+            offscreenCanvas={this._offscreenCanvas}
+            fullscreen={fullscreen}
+            onToggleFullscreen={this._onToggleFullscreen}
+          />
         </div>
       );
     }

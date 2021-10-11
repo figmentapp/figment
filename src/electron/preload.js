@@ -47,6 +47,10 @@ async function showNodeContextMenu() {
   await ipcRenderer.invoke('showNodeContextMenu');
 }
 
+async function setFullScreen(fullscreen) {
+  await ipcRenderer.invoke('setFullScreen', fullscreen);
+}
+
 async function readProjectFile(filePath) {
   const data = await fs.readFile(filePath, 'utf8');
   return data;
@@ -83,6 +87,7 @@ contextBridge.exposeInMainWorld('desktop', {
   showOpenDirectoryDialog,
   showSaveImageDialog,
   showNodeContextMenu,
+  setFullScreen,
   readProjectFile,
   writeProjectFile,
   globFiles,

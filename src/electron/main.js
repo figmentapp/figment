@@ -146,6 +146,11 @@ function showNodeContextMenu(nodeId) {
 }
 ipcMain.handle('showNodeContextMenu', showNodeContextMenu);
 
+function setFullScreen(_, fullscreen) {
+  gMainWindow.setFullScreen(fullscreen);
+}
+ipcMain.handle('setFullScreen', setFullScreen);
+
 function onTouchProject(filePath) {
   gSettings.addRecentProject(filePath);
   createApplicationMenu();
@@ -268,13 +273,21 @@ function createApplicationMenu() {
       role: 'quit',
     });
   }
-  const template = [
-    ...(isMac ? [macAppMenu] : []),
-    fileMenu,
-    { role: 'editMenu' },
-    { role: 'viewMenu' },
-    { role: 'windowMenu' },
-  ];
+
+  const viewMenu = {
+    role: 'viewMenu',
+    label: 'View',
+    submenu: [
+      { label: 'Enter Full Screen', accelerator: 'CmdOrCtrl+Shift+F', click: emit('enter-full-screen') },
+      { type: 'separator' },
+      { role: 'reload' },
+      { role: 'forcereload' },
+      { role: 'toggledevtools' },
+      { type: 'separator' },
+    ],
+  };
+
+  const template = [...(isMac ? [macAppMenu] : []), fileMenu, { role: 'editMenu' }, viewMenu, { role: 'windowMenu' }];
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }
