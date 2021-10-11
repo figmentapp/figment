@@ -4,8 +4,12 @@ import { padWithZeroes } from '../util';
 export default class ExportSequenceDialog extends Component {
   constructor(props) {
     super(props);
+    let defaultNode = props.network.nodes.find((n) => n.type === 'core.out');
+    if (!defaultNode) {
+      defaultNode = props.network.nodes[0];
+    }
     this.state = {
-      exportedNodeId: props.network.nodes[0].id,
+      exportedNodeId: defaultNode.id,
       exportedNode: null,
       frameCount: 100,
       frameRate: 60,
@@ -76,6 +80,7 @@ export default class ExportSequenceDialog extends Component {
             <div className="flex flex-row items-center">
               <span className="text-right w-40 mr-2 text-gray-400 px-4">Node</span>
               <select
+                value={this.state.exportedNodeId}
                 className="bg-gray-800 text-gray-400 p-2 outline-none w-64"
                 onChange={(e) => this.setState({ exportedNodeId: parseInt(e.target.value) })}
               >
