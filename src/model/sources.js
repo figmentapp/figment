@@ -1497,7 +1497,7 @@ heightIn.onChange = figment.debounce(loadImage, 500);
 
 image.webcamImage = `// Return a webcam stream
 
-const frameRate = node.numberIn('frameRate', 10);
+const frameRate = node.numberIn('frameRate', 30);
 const imageOut = node.imageOut('image');
 
 let _video, _stream, _timer, _framebuffer;
@@ -1515,7 +1515,6 @@ node.onStart = () => {
     _stream = stream;
     _framebuffer = new figment.Framebuffer(_video.width, _video.height);
     _timer = setInterval(uploadImage, 1000 / frameRate.value);
-    // uploadImage();
   })
   .catch(function(err) {
     console.error('no camera input!', err.name);
