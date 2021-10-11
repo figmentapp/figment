@@ -58,6 +58,13 @@
         "contrast": 2,
         "saturation": 0.5899999999999996
       }
+    },
+    {
+      "id": 13,
+      "name": "Out",
+      "type": "core.out",
+      "x": 318,
+      "y": 518
     }
   ],
   "connections": [
@@ -89,6 +96,12 @@
       "outNode": 7,
       "outPort": "out",
       "inNode": 12,
+      "inPort": "in"
+    },
+    {
+      "outNode": 12,
+      "outPort": "out",
+      "inNode": 13,
       "inPort": "in"
     }
   ],

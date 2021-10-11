@@ -18,13 +18,7 @@
       "x": 121,
       "y": 222,
       "values": {
-        "fit": "contain",
-        "background": [
-          0,
-          0,
-          0,
-          1
-        ]
+        "fit": "contain"
       }
     },
     {
@@ -48,14 +42,15 @@
       "x": 324,
       "y": 385,
       "values": {
-        "fit": "contain",
-        "background": [
-          0,
-          0,
-          0,
-          1
-        ]
+        "fit": "contain"
       }
+    },
+    {
+      "id": 9,
+      "name": "Out",
+      "type": "core.out",
+      "x": 199,
+      "y": 677
     }
   ],
   "connections": [
@@ -88,6 +83,12 @@
       "outPort": "out",
       "inNode": 6,
       "inPort": "image 2"
+    },
+    {
+      "outNode": 6,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
     }
   ],
   "types": []
