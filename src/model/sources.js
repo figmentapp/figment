@@ -50,6 +50,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: blurIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -327,6 +328,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();  
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture,
     u_emboss: [embossWidthIn.value, embossHeightIn.value]  
@@ -369,6 +371,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();  
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -403,6 +406,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -489,6 +493,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture,
     u_brightness: brightnessIn.value,
@@ -529,6 +534,7 @@ function onLoad(err, texture, image) {
   }
   framebuffer.setSize(image.naturalWidth, image.naturalHeight);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_image: texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -592,6 +598,7 @@ function onLoadImage(err, texture, image) {
   }
   framebuffer.setSize(image.naturalWidth, image.naturalHeight);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_image: texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -761,6 +768,7 @@ function render() {
   if (!lookupIn.value) return;
   framebuffer.setSize(sourceIn.value.width, sourceIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { 
     u_source_texture: sourceIn.value.texture,
     u_lookup_texture: lookupIn.value.texture,
@@ -818,6 +826,7 @@ function render() {
 
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture, 
     u_resolution: [imageIn.value.width, imageIn.value.height],
@@ -871,6 +880,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture,
     u_red: redIn.value,
@@ -928,6 +938,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture, _pixels: [pixelsX.value, pixelsY.value] });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1071,6 +1082,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: sharpenIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1131,6 +1143,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
@@ -1239,6 +1252,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture, 
     u_threshold: thresholdIn.value,
@@ -1408,6 +1422,7 @@ function render() {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_radius: radiusIn.value,u_twist: twistIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1457,6 +1472,7 @@ function onLoad(err, texture, image) {
   _texture = texture;
   framebuffer.setSize(image.naturalWidth, image.naturalHeight);
   framebuffer.bind();
+  figment.clear();
   figment.drawQuad(program, { u_image: texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
