@@ -1210,6 +1210,48 @@ function render() {
 imageIn.onChange = render;
 `;
 
+image.squares = `// return input image as squares.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform vec2 u_resolution;
+varying vec2 v_uv;
+uniform float u_factor;
+
+void main() {
+  vec2 uv = v_uv;
+  vec2 uv2 = floor( uv * u_factor ) / u_factor;   
+  vec3 col = texture2D(u_input_texture, uv2).rgb;     
+  gl_FragColor = vec4(col,1.);
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const factorIn = node.numberIn('amount', 10.0, { min: 2.0, max: 200.0, step: 1.0});
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+function render() {
+  if (!imageIn.value) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.clear();  
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+}
+
+imageIn.onChange = render;
+factorIn.onChange = render;
+`;
+
 image.stack = `// Combine 2 images horizontally / vertically.
 
 const fragmentShader = \`
