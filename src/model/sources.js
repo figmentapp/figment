@@ -1649,7 +1649,7 @@ node.onStart = async () => {
   _canvas = document.createElement('canvas');
   _ctx = _canvas.getContext('2d');
   _framebuffer = new figment.Framebuffer(1, 1);
-  _model = await figment.loadModel('coco-ssd');
+  _model = await figment.loadModel('coco-ssd', 'cocoSsd');
 };
 
 function stringToColor(s) {

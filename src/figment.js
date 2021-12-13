@@ -191,11 +191,17 @@ export function framebufferToImageData(framebuffer) {
   return _imageData;
 }
 
+export function canvasToFramebuffer(canvas, framebuffer) {
+  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  window.gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
 const _modelCache = {};
-export async function loadModel(modelName) {
+export async function loadModel(modelName, modelGlobal, options) {
   if (_modelCache[modelName]) return _modelCache[modelName];
 
-  await figment.loadScripts(['https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd']);
+  await figment.loadScripts([`https://cdn.jsdelivr.net/npm/@tensorflow-models/${modelName}`]);
   // await tf.ready();
   // const tfContext = new tf.webgl.GPGPUContext(window.gl);
   // tf.ENV.registerBackend('custom-webgl', () => {
@@ -203,7 +209,7 @@ export async function loadModel(modelName) {
   // });
   // tf.setBackend('custom-webgl');
 
-  const model = await cocoSsd.load();
+  const model = await window[modelGlobal].load(options);
   _modelCache[modelName] = model;
   return model;
 }
