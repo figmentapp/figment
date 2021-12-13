@@ -1,5 +1,5 @@
 module.exports = {
-  purge: ['./src/ui/**/*.html', './src/ui/**/*.jsx'],
+  content: ['./src/ui/**/*.html', './src/ui/**/*.jsx'],
   theme: {
     cursor: {
       'col-resize': 'col-resize',
@@ -9,6 +9,5 @@ module.exports = {
       default: 'default',
     },
   },
-  variants: {},
   plugins: [],
 };
