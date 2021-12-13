@@ -1635,6 +1635,8 @@ frameRate.onChange = () => {
 
 ml.detectObjects = `// Detect objects in an image.
 const imageIn = node.imageIn('in');
+const drawingModeIn = node.selectIn('drawingMode', ['boxes', 'mask']);
+const filterIn = node.stringIn('filter', '*');
 const imageOut = node.imageOut('out');
 const objectsOut = node.stringOut('objects');
 
@@ -1675,7 +1677,7 @@ function drawClassLabel(ctx, className, classColor, x, y) {
 }
 
 function detectObjects() {
-  if (!imageIn.value) return;
+  if (!imageIn.value || imageIn.value.width === 0 || imageIn.value.height === 0) return;
   if (!_model) return;
   if (_canvas.width !== imageIn.value.width || _canvas.height !== imageIn.value.height) {
     _canvas.width = imageIn.value.width;
@@ -1685,15 +1687,29 @@ function detectObjects() {
 
   const imageData = figment.framebufferToImageData(imageIn.value);
   _model.detect(imageData).then(predictions => {
+    let filteredPredictions = predictions;
+    if (filterIn.value !== '*') {
+      const filteredLabels = filterIn.value.split(',').map(s => s.trim());
+      filteredPredictions = predictions.filter(prediction => filteredLabels.includes(prediction.class));
+    }
     _ctx.lineWidth = 2;
     _ctx.font = '12px sans-serif';
-    _ctx.putImageData(imageData, 0, 0);
-    for (const prediction of predictions) {
-      const classColor = stringToColor(prediction.class);
-      _ctx.strokeStyle = classColor;
-      _ctx.strokeRect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
-      drawClassLabel(_ctx, prediction.class, classColor, prediction.bbox[0], prediction.bbox[1]);
+    if (drawingModeIn.value === 'boxes') {
+      _ctx.putImageData(imageData, 0, 0);
+      for (const prediction of filteredPredictions) {
+        const classColor = stringToColor(prediction.class);
+        _ctx.strokeStyle = classColor;
+        _ctx.strokeRect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
+        drawClassLabel(_ctx, prediction.class, classColor, prediction.bbox[0], prediction.bbox[1]);
+      }
+    } else if (drawingModeIn.value === 'mask') {
+      _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+      for (const prediction of filteredPredictions) {
+        const bbox = prediction.bbox;
+        _ctx.putImageData(imageData, 0, 0, bbox[0], bbox[1], bbox[2], bbox[3]);
+      }
     }
+
     // console.log('Predictions: ', predictions);
     window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
     window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _canvas);
