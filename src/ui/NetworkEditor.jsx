@@ -127,7 +127,7 @@ export default class NetworkEditor extends Component {
     super(props);
     this.state = { x: 0, y: 0, scale: 1.0 };
     this.MIN_VIEW_SCALE = 0.15;
-    this.MAX_VIEW_SCALE = 10;
+    this.MAX_VIEW_SCALE = 15;
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
     this._onMouseDrag = this._onMouseDrag.bind(this);
