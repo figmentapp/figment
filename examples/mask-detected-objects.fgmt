@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Load Movie",
+      "type": "image.loadMovie",
+      "x": 150,
+      "y": 100,
+      "values": {
+        "file": "assets/busy-street.mp4"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Detect Objects",
+      "type": "ml.detectObjects",
+      "x": 149.58383909241613,
+      "y": 171.40329233766548,
+      "values": {
+        "drawingMode": "mask",
+        "filter": "person"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Out",
+      "type": "core.out",
+      "x": 162.60517081814962,
+      "y": 332.8201919384617
+    },
+    {
+      "id": 4,
+      "name": "Trail",
+      "type": "image.trail",
+      "x": 155.20009843407416,
+      "y": 248.2953267336423
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 4,
+      "inPort": "in"
+    },
+    {
+      "outNode": 4,
+      "outPort": "out",
+      "inNode": 3,
+      "inPort": "in"
+    }
+  ],
+  "types": []
+}
