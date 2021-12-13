@@ -1549,6 +1549,64 @@ frameRate.onChange = () => {
 //// MACHINE LEARNING //////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+ml.detectObjects = `// Detect objects in an image.
+const imageIn = node.imageIn('in');
+const imageOut = node.imageOut('image');
+const objectsOut = node.stringOut('objects');
+
+let _model, _canvas, _ctx, _framebuffer;
+
+node.onStart = async () => {
+  console.log('start')
+  _canvas = document.createElement('canvas');
+  _ctx = _canvas.getContext('2d');
+  _framebuffer = new figment.Framebuffer();
+  _model = await figment.loadModel('coco-ssd');
+};
+
+function stringToColor(s) {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = s.charCodeAt(i) + ((hash << 5) - hash);
+    hash |= 0;
+  }
+  return \`rgb(\${(hash & 0xFF0000) >> 16}, \${(hash & 0x00FF00) >> 8}, \${hash & 0x0000FF})\`;
+}
+
+function detectObjects() {
+  if (!imageIn.value) return;
+  if (!_model) return;
+  const imageData = figment.framebufferToImageData(imageIn.value);
+  _model.detect(imageData).then(predictions => {
+    _ctx.lineWidth = 2;
+    _ctx.font = '12px sans-serif';
+    _ctx.putImageData(imageData, 0, 0);
+    for (const prediction of predictions) {
+      if (_canvas.width !== imageIn.value.width || _canvas.height !== imageIn.value.height) {
+        _canvas.width = imageIn.value.width;
+        _canvas.height = imageIn.value.height;
+        _framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+      }
+      const classColor = stringToColor(prediction.class);
+      _ctx.strokeStyle = classColor;
+      _ctx.strokeRect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
+      _ctx.fillStyle = classColor;
+      const textWidth = _ctx.measureText(prediction.class).width;
+      _ctx.fillRect(prediction.bbox[0], prediction.bbox[1], textWidth + 10, 18);
+      _ctx.fillStyle = 'white';
+      _ctx.fillText(prediction.class, prediction.bbox[0] + 2, prediction.bbox[1] + 12);
+    }
+    // console.log('Predictions: ', predictions);
+    window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
+    window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _canvas);
+    window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+    imageOut.set(_framebuffer);
+  });
+}
+
+imageIn.onChange = detectObjects;
+`;
+
 ml.detectPose = `// Detect human poses in input image.
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);

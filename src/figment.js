@@ -41,6 +41,22 @@ export function filePathToRelative(filename) {
   return nodePath.relative(projectDirectory(), filename);
 }
 
+export async function loadScripts(scripts) {
+  const loadScript = (script) => {
+    return new Promise((resolve, reject) => {
+      const scriptElement = document.createElement('script');
+      scriptElement.src = script;
+      scriptElement.onload = resolve;
+      scriptElement.onerror = reject;
+      document.head.appendChild(scriptElement);
+    });
+  };
+
+  for (const script of scripts) {
+    await loadScript(script);
+  }
+}
+
 const DEFAULT_VERTEX_SHADER = `
 attribute vec3 a_position;
 attribute vec2 a_uv;
@@ -155,4 +171,39 @@ export function drawQuad(shaderProgram, uniforms) {
 
 export function toCanvasColor(color) {
   return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
+}
+
+const _canvas = new OffscreenCanvas(1, 1);
+let _imageData;
+export function framebufferToImageData(framebuffer) {
+  const width = framebuffer.width;
+  const height = framebuffer.height;
+
+  if (framebuffer.width !== _canvas.width || framebuffer.height !== _canvas.height) {
+    _canvas.width = framebuffer.width;
+    _canvas.height = height;
+    _imageData = new ImageData(width, height);
+    framebuffer.setSize(width, height);
+  }
+  framebuffer.bind();
+  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
+  framebuffer.unbind();
+  return _imageData;
+}
+
+const _modelCache = {};
+export async function loadModel(modelName) {
+  if (_modelCache[modelName]) return _modelCache[modelName];
+
+  await figment.loadScripts(['https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd']);
+  // await tf.ready();
+  // const tfContext = new tf.webgl.GPGPUContext(window.gl);
+  // tf.ENV.registerBackend('custom-webgl', () => {
+  //   return new tf.webgl.MathBackendWebGL(tfContext);
+  // });
+  // tf.setBackend('custom-webgl');
+
+  const model = await cocoSsd.load();
+  _modelCache[modelName] = model;
+  return model;
 }

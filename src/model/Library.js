@@ -69,6 +69,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Webcam Image', type: 'image.webcamImage', source: image.webcamImage });
 
     // ML
+    this.nodeTypes.push({ name: 'Detect Objects', type: 'ml.detectObjects', source: ml.detectObjects });
     this.nodeTypes.push({ name: 'Detect Pose', type: 'ml.detectPose', source: ml.detectPose });
     this.nodeTypes.push({ name: 'Segment Pose', type: 'ml.segmentPose', source: ml.segmentPose });
     // this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });
