@@ -1635,7 +1635,7 @@ frameRate.onChange = () => {
 
 ml.detectObjects = `// Detect objects in an image.
 const imageIn = node.imageIn('in');
-const imageOut = node.imageOut('image');
+const imageOut = node.imageOut('out');
 const objectsOut = node.stringOut('objects');
 
 let _model, _canvas, _ctx, _framebuffer;

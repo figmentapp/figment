@@ -36,7 +36,7 @@
     },
     {
       "outNode": 2,
-      "outPort": "image",
+      "outPort": "out",
       "inNode": 3,
       "inPort": "in"
     }
