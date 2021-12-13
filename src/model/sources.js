@@ -1613,7 +1613,7 @@ const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer, pose, canvas, ctx, results;
+let program, framebuffer, pose, canvas, ctx, data, results;
 
 node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
