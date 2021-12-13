@@ -1641,10 +1641,9 @@ const objectsOut = node.stringOut('objects');
 let _model, _canvas, _ctx, _framebuffer;
 
 node.onStart = async () => {
-  console.log('start')
   _canvas = document.createElement('canvas');
   _ctx = _canvas.getContext('2d');
-  _framebuffer = new figment.Framebuffer();
+  _framebuffer = new figment.Framebuffer(1, 1);
   _model = await figment.loadModel('coco-ssd');
 };
 
@@ -1700,6 +1699,7 @@ function detectObjects() {
     window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _canvas);
     window.gl.bindTexture(window.gl.TEXTURE_2D, null);
     imageOut.set(_framebuffer);
+    objectsOut.set(predictions);
   });
 }
 
