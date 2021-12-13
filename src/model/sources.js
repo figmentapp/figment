@@ -676,10 +676,12 @@ function loadMovie() {
   video.autoplay = animateIn.value;
   video.muted = true;
   video.playbackRate = speedIn.value;
-  video.addEventListener('canplay', () => {
-    videoReady = true;
-    framebuffer.setSize(video.videoWidth, video.videoHeight);
-  });
+  video.addEventListener('canplay', onVideoReady);
+}
+
+function onVideoReady() {
+  videoReady = true;
+  framebuffer.setSize(video.videoWidth, video.videoHeight);
 }
 
 node.onFrame = () => {
@@ -699,6 +701,7 @@ node.onStop = () => {
   clearInterval(timerHandle);
   if (video) {
     video.pause();
+    video.removeEventListener('canplay', onVideoReady);
     video = null;
   }
 }
