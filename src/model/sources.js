@@ -1941,7 +1941,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _framebuffer = new figment.Framebuffer(1, 1);
   _model = await figment.loadModel('body-pix', 'bodyPix');
-  _segmentTexture = twgl.createTexture(window.gl, { width: 640, height: 480, format: gl.RED, type: gl.UNSIGNED_BYTE });
+  _segmentTexture = twgl.createTexture(window.gl, { width: 640, height: 480, format: gl.LUMINANCE, type: gl.UNSIGNED_BYTE });
   _segmentBuffer = new Uint8Array(640 * 480);
 };
 
@@ -1956,7 +1956,17 @@ async function segmentPersons() {
 
   const imageDataIn = figment.framebufferToImageData(imageIn.value);
   const segmentation = await _model.segmentMultiPerson(imageDataIn, {});
-  // const imageDataOut = new ImageData(640, 480);
+  let segmentationWidth = 640;
+  let segmentationHeight = 480;
+  if (segmentation.length > 0) {
+    segmentationWidth = segmentation[0].width;
+    segmentationHeight = segmentation[0].height;
+    if (_segmentTexture.width !== segmentationWidth || _segmentTexture.height !== segmentationHeight) {
+      gl.deleteTexture(_segmentTexture);
+      _segmentTexture = twgl.createTexture(window.gl, { width: segmentationWidth, height: segmentationHeight, format: gl.LUMINANCE, type: gl.UNSIGNED_BYTE });
+      _segmentBuffer = new Uint8Array(segmentationWidth * segmentationHeight);
+    }
+  }
 
   _segmentBuffer.fill(0);
   for (const segment of segmentation) {
@@ -1966,7 +1976,7 @@ async function segmentPersons() {
       _segmentBuffer[i] = buffer[i];
     }
   }
-  twgl.setTextureFromArray(window.gl, _segmentTexture, _segmentBuffer, { width: 640, height: 480, format: window.gl.LUMINANCE });
+  twgl.setTextureFromArray(window.gl, _segmentTexture, _segmentBuffer, { width: segmentationWidth, height: segmentationHeight, format: window.gl.LUMINANCE });
   _framebuffer.bind();
   figment.clear();
   figment.drawQuad(_program, {

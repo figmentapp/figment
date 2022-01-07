@@ -81,8 +81,8 @@ export default class App extends Component {
     this._onStop = this._onStop.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._forceRedraw = this._forceRedraw.bind(this);
-    this._offscreenCanvas = new OffscreenCanvas(256, 256);
-    window.gl = this._offscreenCanvas.getContext('webgl');
+    this._offscreenCanvas = tf.backend().canvas; // new OffscreenCanvas(256, 256);
+    window.gl = this._offscreenCanvas.getContext('webgl2');
   }
 
   componentDidMount() {

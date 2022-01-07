@@ -165,7 +165,7 @@ export default class NetworkEditor extends Component {
       this.previewCanvasRef.current.height = parent.clientHeight;
     }
     this._offscreenCanvas = this.props.offscreenCanvas;
-    this.gl = this._offscreenCanvas.getContext('webgl');
+    this.gl = this._offscreenCanvas.getContext('webgl2');
     this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
 
     // Create a default checkerboard texture.
