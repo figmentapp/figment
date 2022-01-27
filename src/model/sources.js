@@ -632,7 +632,8 @@ node.onStart = () => {
 
 function loadDirectory() {
   if (!folderIn.value || folderIn.value.trim().length === 0) return;
-  window.desktop.globFiles(folderIn.value, filterIn.value, onLoadDirectory);
+  const baseDir = figment.filePathForAsset(folderIn.value);
+  window.desktop.globFiles(baseDir, filterIn.value, onLoadDirectory);
 }
 
 function onLoadDirectory(err, _files) {
