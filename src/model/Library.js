@@ -43,6 +43,7 @@ export default class Library {
     // this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     // this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
     this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
+    this.nodeTypes.push({ name: 'Border', type: 'image.border', source: image.border });
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
