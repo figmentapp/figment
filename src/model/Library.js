@@ -46,6 +46,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
+    this.nodeTypes.push({ name: 'Mask Ellipse', type: 'image.maskCircle', source: image.maskCircle });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
