@@ -387,7 +387,7 @@ export default class App extends Component {
     this.state.network.disconnect(inPort);
   }
 
-  async _exportImage(node, filePath) {
+  async _exportImage(node, filePath, imageType = 'image/png', imageQuality = 1.0) {
     // Get the output image of the node.
     const outPort = node.outPorts[0];
     if (outPort.type !== PORT_TYPE_IMAGE) return;
@@ -402,7 +402,7 @@ export default class App extends Component {
     const ctx = canvas.getContext('2d');
     ctx.putImageData(imageData, 0, 0);
     // Convert the canvas to a PNG blob, then to a buffer.
-    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });
     const pngBuffer = await blob.arrayBuffer();
     // Write the buffer to the given file path.
     await window.desktop.saveBufferToFile(pngBuffer, filePath);

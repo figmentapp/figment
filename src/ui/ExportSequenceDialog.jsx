@@ -1,6 +1,11 @@
 import React, { Component } from 'react';
 import { padWithZeroes } from '../util';
 
+const FILE_EXTENSION_MAP = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+};
+
 export default class ExportSequenceDialog extends Component {
   constructor(props) {
     super(props);
@@ -16,6 +21,8 @@ export default class ExportSequenceDialog extends Component {
       currentFrame: 0,
       directory: '',
       filePrefix: 'image',
+      imageFormat: 'image/png',
+      imageQuality: 1.0,
       isExporting: false,
     };
     this._onExport = this._onExport.bind(this);
@@ -37,11 +44,13 @@ export default class ExportSequenceDialog extends Component {
   }
 
   _exportFrame() {
+    const fileExt = FILE_EXTENSION_MAP[this.state.imageFormat];
+    const imageQuality = this.state.imageFormat === 'image/png' ? 1.0 : this.state.imageQuality;
     const filePath = nodePath.join(
       this.state.directory,
-      `${this.state.filePrefix}-${padWithZeroes(this.state.currentFrame)}.png`
+      `${this.state.filePrefix}-${padWithZeroes(this.state.currentFrame)}.${fileExt}`
     );
-    this.props.exportImage(this.state.exportedNode, filePath);
+    this.props.exportImage(this.state.exportedNode, filePath, this.state.imageFormat, imageQuality);
     this.setState({ currentFrame: this.state.currentFrame + 1 });
     if (this.state.currentFrame <= this.state.frameCount) {
       window.setTimeout(this._exportFrame, 1000 / this.state.frameRate);
@@ -144,6 +153,35 @@ export default class ExportSequenceDialog extends Component {
                   onChange={(e) => this.setState({ filePrefix: e.target.value })}
                 />
               </div>
+            </div>
+
+            <hr className="border-gray-800 my-6" />
+
+            {/* Image Format */}
+            <div className="flex flex-row items-center">
+              <span className="text-right w-40 mr-2 text-gray-400 px-4">Image Format</span>
+              <select
+                value={this.state.imageFormat}
+                className="bg-gray-800 text-gray-400 p-2 outline-none w-64"
+                onChange={(e) => this.setState({ imageFormat: e.target.value })}
+              >
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg">JPEG</option>
+              </select>
+              {this.state.imageFormat === 'image/jpeg' && (
+                <div className="flex flex-row items-center">
+                  <span className="text-right w-40 mr-2 text-gray-400 px-4">Image Quality</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={this.state.imageQuality}
+                    onChange={(e) => this.setState({ imageQuality: parseFloat(e.target.value) })}
+                  />
+                  <span className="ml-4 text-sm text-gray-400">{Math.round(this.state.imageQuality * 100)} </span>
+                </div>
+              )}
             </div>
 
             <hr className="border-gray-800 my-6" />
