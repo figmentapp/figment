@@ -267,6 +267,8 @@ export default class Network {
             value = port.value.slice();
           } else if (port.type === PORT_TYPE_FILE) {
             value = port.value;
+          } else if (port.type === PORT_TYPE_DIRECTORY) {
+            value = port.value;
           }
           values[port.name] = value;
         }
