@@ -11,6 +11,7 @@
     "build": "cross-env NODE_ENV=production vite build",
     "dist": "rimraf build && rimraf dist && yarn build && electron-builder --mac --universal && electron-builder --win --x64",
     "fastdist": "rimraf build && rimraf dist && yarn build && cross-env DIST_ENV=development electron-builder --dir",
+    "test": "jest",
     "format": "prettier --write src/**/*.{js,jsx}"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "electron": "16.0.4",
     "electron-builder": "22",
     "electron-notarize": "1.1.1",
+    "jest": "27.4.7",
     "postcss": "8.4.5",
     "prettier": "2.4.1",
     "rimraf": "3.0.2",
