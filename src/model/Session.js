@@ -26,41 +26,47 @@ export default class Session {
 
   // Given the current network, build a dependency graph to see which nodes to execute first.
   // This topologically sorts the graph so that nodes that depend on other nodes come later in the list.
-  // If nodes are indepdent from each other they are at the same "level", and
+  // If nodes are independent from each other they are at the same "level", and
   // Given a graph like this:
   //  A -->--+
   //         +-->-- C -->-- D
   //  B -->--+
   // If elements in the list can be executed at the same time, these are indicated by their level.
   buildDependencyGraph() {
-    // First create a key-value map to indicate the connections between nodes.
-    const connections = {};
+    // First create two key-value maps to indicate the upstream/downstream connections between nodes.
+    const upstreamConnections = {};
+    const downstreamConnections = {};
     for (const conn of this.network.connections) {
       const { outNode, inNode } = conn;
-      if (!connections[outNode]) {
-        connections[outNode] = [];
+      if (!upstreamConnections[inNode]) {
+        upstreamConnections[inNode] = [];
       }
-      connections[outNode].push(inNode);
+      upstreamConnections[inNode].push(outNode);
+
+      if (!downstreamConnections[outNode]) {
+        downstreamConnections[outNode] = [];
+      }
+      downstreamConnections[outNode].push(inNode);
     }
 
     const visited = new Set();
     const stack = [];
     for (const node of this.network.nodes) {
-      if (!visited.has(node.id)) {
-        this._visit(node.id, connections, visited, stack);
-      }
+      // Only visit nodes with no downstream connections (root nodes).
+      if (visited.has(node.id)) continue;
+      if (downstreamConnections[node.id] && downstreamConnections[node.id].length > 0) continue;
+      this._visit(node.id, upstreamConnections, visited, stack);
     }
-
-    stack.reverse();
     return stack;
   }
 
-  _visit(nodeId, connections, visited, stack) {
+  _visit(nodeId, upstreamConnections, visited, stack) {
     visited.add(nodeId);
-    const downstreamConnections = connections[nodeId];
-    if (downstreamConnections) {
-      for (const downstreamNodeId of downstreamConnections) {
-        this._visit(downstreamNodeId, connections, visited, stack);
+    const upstreams = upstreamConnections[nodeId];
+    if (upstreams) {
+      for (const upstreamId of upstreams) {
+        if (visited.has(upstreamId)) continue;
+        this._visit(upstreamId, upstreamConnections, visited, stack);
       }
     }
     stack.push(nodeId);
