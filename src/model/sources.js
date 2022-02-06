@@ -1,7 +1,9 @@
 import * as twgl from 'twgl.js';
 import { m4 } from 'twgl.js';
-window.m4 = m4;
-window.twgl = twgl;
+if (typeof window !== 'undefined') {
+  window.m4 = m4;
+  window.twgl = twgl;
+}
 
 export const core = {};
 export const image = {};

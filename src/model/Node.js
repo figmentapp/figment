@@ -256,4 +256,20 @@ export default class Node {
     this.outPorts.push(outPort);
     return outPort;
   }
+
+  findInPort(name) {
+    return this.inPorts.find((p) => p.name === name);
+  }
+
+  findOutPort(name) {
+    return this.outPorts.find((p) => p.name === name);
+  }
+
+  set(name, value) {
+    const port = this.inPorts.find((p) => p.name === name);
+    if (!port) {
+      throw new Error(`Node ${this.name} [${this.id}]: Port ${name} not found`);
+    }
+    port.set(value);
+  }
 }

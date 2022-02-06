@@ -16,74 +16,78 @@ import Port, {
   PORT_OUT,
 } from './Port';
 
-export const DEFAULT_NETWORK = {
-  nodes: [
-    {
-      id: 1,
-      name: 'Load Movie',
-      type: 'image.loadMovie',
-      x: 150,
-      y: 100,
-      values: {
-        file: window.desktop.getPackagedFile('examples/assets/waves.mp4'),
+const _global = global || window;
+
+export function createDefaultNetwork() {
+  return {
+    nodes: [
+      {
+        id: 1,
+        name: 'Load Movie',
+        type: 'image.loadMovie',
+        x: 150,
+        y: 100,
+        values: {
+          file: window.desktop.getPackagedFile('examples/assets/waves.mp4'),
+        },
       },
-    },
-    {
-      id: 2,
-      name: 'Resize',
-      type: 'image.resize',
-      x: 150,
-      y: 200,
-    },
-    {
-      id: 3,
-      name: 'Sobel',
-      type: 'image.sobel',
-      x: 250,
-      y: 300,
-    },
-    {
-      id: 4,
-      name: 'Invert',
-      type: 'image.invert',
-      x: 250,
-      y: 400,
-    },
-    {
-      id: 5,
-      name: 'Threshold',
-      type: 'image.threshold',
-      x: 250,
-      y: 500,
-      values: {
-        threshold: 0.75,
+      {
+        id: 2,
+        name: 'Resize',
+        type: 'image.resize',
+        x: 150,
+        y: 200,
       },
-    },
-    {
-      id: 6,
-      name: 'Stack',
-      type: 'image.stack',
-      x: 200,
-      y: 600,
-    },
-    {
-      id: 7,
-      name: 'Out',
-      type: 'core.out',
-      x: 200,
-      y: 700,
-    },
-  ],
-  connections: [
-    { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
-    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
-    { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
-    { outNode: 4, outPort: 'out', inNode: 5, inPort: 'in' },
-    { outNode: 2, outPort: 'out', inNode: 6, inPort: 'image 1' },
-    { outNode: 5, outPort: 'out', inNode: 6, inPort: 'image 2' },
-    { outNode: 6, outPort: 'out', inNode: 7, inPort: 'in' },
-  ],
-};
+      {
+        id: 3,
+        name: 'Sobel',
+        type: 'image.sobel',
+        x: 250,
+        y: 300,
+      },
+      {
+        id: 4,
+        name: 'Invert',
+        type: 'image.invert',
+        x: 250,
+        y: 400,
+      },
+      {
+        id: 5,
+        name: 'Threshold',
+        type: 'image.threshold',
+        x: 250,
+        y: 500,
+        values: {
+          threshold: 0.75,
+        },
+      },
+      {
+        id: 6,
+        name: 'Stack',
+        type: 'image.stack',
+        x: 200,
+        y: 600,
+      },
+      {
+        id: 7,
+        name: 'Out',
+        type: 'core.out',
+        x: 200,
+        y: 700,
+      },
+    ],
+    connections: [
+      { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
+      { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
+      { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
+      { outNode: 4, outPort: 'out', inNode: 5, inPort: 'in' },
+      { outNode: 2, outPort: 'out', inNode: 6, inPort: 'image 1' },
+      { outNode: 5, outPort: 'out', inNode: 6, inPort: 'image 2' },
+      { outNode: 6, outPort: 'out', inNode: 7, inPort: 'in' },
+    ],
+  };
+}
 
 export default class Network {
   constructor(library) {
@@ -152,7 +156,7 @@ export default class Network {
     const source = nodeType.source;
     try {
       const fn = new Function('node', source);
-      fn.call(window, node);
+      fn.call(_global, node);
     } catch (e) {
       console.error(e && e.stack);
     }
@@ -227,7 +231,7 @@ export default class Network {
         continue;
       }
       const inPort = inNode.inPorts.find((port) => port.name === connObj.inPort);
-      if (!outPort) {
+      if (!inPort) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: input port does not exist.`);
         continue;
       }
@@ -408,6 +412,9 @@ export default class Network {
   }
 
   connect(outPort, inPort) {
+    if (!outPort && !inPort) {
+      throw new Error(`Cannot connect ${outPort} to ${inPort}: Either ${outPort} or ${inPort} is undefined.`);
+    }
     const outNode = outPort.node;
     const inNode = inPort.node;
     // Remove existing connections.

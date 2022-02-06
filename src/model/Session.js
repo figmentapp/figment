@@ -3,8 +3,19 @@
 export default class Session {
   constructor(network) {
     this.network = network;
-    this.dirtyNodes = Set();
+    this.dirtyNodes = new Set();
     this.dag = [];
+  }
+
+  markAllDirty() {
+    this.dirtyNodes.clear();
+    for (const node of this.network.nodes) {
+      this.markDirty(node);
+    }
+  }
+
+  markDirty(node) {
+    this.dirtyNodes.add(node);
   }
 
   run(frame = 0) {
@@ -32,11 +43,11 @@ export default class Session {
       connections[outNode].push(inNode);
     }
 
-    const visited = Set();
+    const visited = new Set();
     const stack = [];
     for (const node of this.network.nodes) {
-      if (!visited.has(node)) {
-        this._visit(node, visited, stack);
+      if (!visited.has(node.id)) {
+        this._visit(node.id, connections, visited, stack);
       }
     }
 
@@ -44,12 +55,14 @@ export default class Session {
     return stack;
   }
 
-  _visit(node, visited, stack) {
-    visited.add(node);
-    const downstreamConnections = connections[node];
-    for (const downstreamNode of downstreamConnections) {
-      this._visit(downstreamNode, visited, stack);
+  _visit(nodeId, connections, visited, stack) {
+    visited.add(nodeId);
+    const downstreamConnections = connections[nodeId];
+    if (downstreamConnections) {
+      for (const downstreamNodeId of downstreamConnections) {
+        this._visit(downstreamNodeId, connections, visited, stack);
+      }
     }
-    stack.push(node);
+    stack.push(nodeId);
   }
 }
