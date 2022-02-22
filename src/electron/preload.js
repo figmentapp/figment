@@ -3,7 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const url = require('url');
 const { ipcRenderer } = require('electron');
-const glob = require('glob');
+const glob = require('node-glob');
 
 const listeners = {
   menu: null,
