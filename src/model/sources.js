@@ -1930,7 +1930,61 @@ imageIn.onChange = detectFaces;
 colorIn.onChange = detectFaces;
 toggleIn.onChange = detectFaces;
 sizeIn.onChange = detectFaces;
+`;
 
+ml.detectFaces2 = `// Detect faces in an image using FaceMesh
+const imageIn = node.imageIn('in');
+const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
+const imageOut = node.imageOut('out');
+
+let _faceMesh, _canvas, _ctx, _framebuffer, _imageData;
+
+node.onStart = async () => {
+  _framebuffer = new figment.Framebuffer();
+  _canvas = new OffscreenCanvas(1, 1);
+  _ctx = _canvas.getContext('2d');
+  await figment.loadScripts([
+    'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
+    'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js'
+  ]);
+  _faceMesh = new FaceMesh({locateFile: (file) => {
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}\`;
+  }});
+};
+
+async function detectFaces() {
+  if (!imageIn.value || imageIn.value.width === 0 || imageIn.value.height === 0) return;
+  if (!faceMesh) return;
+
+  // Draw the image on an ImageData object.
+  const width = imageIn.value.width;
+  const height = imageIn.value.height;
+
+  if (width !== canvas.width || height !== canvas.height) {
+    _canvas.width = width;
+    _canvas.height = height;
+    _imageData = new ImageData(width, height);
+    _framebuffer.setSize(width, height);
+  }
+
+  // Video nodes pass along this extra object with the framebuffer.
+  // This allows mediapose to avoid reading the texture first from the framebuffer.
+  let result;
+  if (imageIn.value._directImageHack) {
+    result = await _faceMesh.send({ image: imageIn.value._directImageHack });
+  } else {
+    imageIn.value.bind();
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
+    imageIn.value.unbind();
+    result = await _faceMesh.send({ image: _imageData });
+  }
+  console.log(result);
+
+}
+
+imageIn.onChange = detectPose;
+backgroundIn.onChange = drawResults;
+radiusIn.onChange = drawResults;
 `;
 
 ml.detectObjects = `// Detect objects in an image.
