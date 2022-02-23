@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 2,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 113,
+      "y": 183
+    },
+    {
+      "id": 6,
+      "name": "Stack",
+      "type": "image.stack",
+      "x": 135,
+      "y": 468
+    },
+    {
+      "id": 7,
+      "name": "Out",
+      "type": "core.out",
+      "x": 200,
+      "y": 700
+    },
+    {
+      "id": 9,
+      "name": "Detect Faces 2",
+      "type": "ml.detectFaces2",
+      "x": 341,
+      "y": 247
+    },
+    {
+      "id": 10,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 77,
+      "y": 59,
+      "values": {
+        "file": "assets/face.jpg"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 6,
+      "inPort": "image 1"
+    },
+    {
+      "outNode": 6,
+      "outPort": "out",
+      "inNode": 7,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 9,
+      "outPort": "out",
+      "inNode": 6,
+      "inPort": "image 2"
+    },
+    {
+      "outNode": 10,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    }
+  ],
+  "types": []
+}

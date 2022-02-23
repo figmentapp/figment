@@ -41,6 +41,7 @@ export function filePathToRelative(filename) {
   return nodePath.relative(projectDirectory(), filename);
 }
 
+const _loadedScripts = new Set();
 export async function loadScripts(scripts) {
   const loadScript = (script) => {
     return new Promise((resolve, reject) => {
@@ -53,7 +54,9 @@ export async function loadScripts(scripts) {
   };
 
   for (const script of scripts) {
+    if (_loadedScripts.has(script)) continue;
     await loadScript(script);
+    _loadedScripts.add(script);
   }
 }
 
