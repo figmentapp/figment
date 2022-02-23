@@ -1,4 +1,5 @@
 import { COLORS } from '../colors';
+import { startCase } from 'lodash';
 
 export const PORT_TYPE_TRIGGER = 'trigger';
 export const PORT_TYPE_TOGGLE = 'toggle';
@@ -23,6 +24,7 @@ export default class Port {
     this.__id = ++gPortId;
     this.node = node;
     this.name = name;
+    this.label = startCase(name);
     this.type = type;
     this.direction = direction;
     this.value = value;
@@ -44,9 +46,7 @@ export default class Port {
   trigger(props) {
     // Find if this port is connected.
     const network = this.node.network;
-    const connections = network.connections.filter(
-      (conn) => conn.outNode === this.node.id && conn.outPort === this.name
-    );
+    const connections = network.connections.filter((conn) => conn.outNode === this.node.id && conn.outPort === this.name);
     for (const conn of connections) {
       const inNode = network.nodes.find((node) => node.id === conn.inNode);
       const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
@@ -64,9 +64,7 @@ export default class Port {
       this.onChange && this.onChange(this.value);
     } else {
       const network = this.node.network;
-      const connections = network.connections.filter(
-        (conn) => conn.outNode === this.node.id && conn.outPort === this.name
-      );
+      const connections = network.connections.filter((conn) => conn.outNode === this.node.id && conn.outPort === this.name);
       for (const conn of connections) {
         const inNode = network.nodes.find((node) => node.id === conn.inNode);
         const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
