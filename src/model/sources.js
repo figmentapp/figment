@@ -2156,15 +2156,28 @@ imageIn.onChange = detectObjects;
 ml.detectPose = `// Detect human poses in input image.
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
-const radiusIn = node.numberIn('radius', 5, { min: 0, max: 10, step: 0.1 });
+const pointsToggleIn = node.toggleIn('draw points', true);
+const pointsColorIn = node.colorIn('points color', [255, 255, 255, 1]);
+const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step: 0.1 });
+const linesToggleIn = node.toggleIn('draw lines', true);
+const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
+const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
 const imageOut = node.imageOut('out');
+pointsColorIn.label = 'Color';
+pointsRadiusIn.label = 'Radius';
+linesColorIn.label = 'Color';
+linesWidthIn.label = 'Line Width';
 
 let program, framebuffer, pose, canvas, ctx, data, results;
 
-node.onStart = (props) => {
+node.onStart = async (props) => {
   framebuffer = new figment.Framebuffer();
   canvas = new OffscreenCanvas(1, 1);
   ctx = canvas.getContext('2d');
+  await figment.loadScripts([
+    'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
+    'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js'
+  ]);
   const _pose = new Pose({locateFile: (file) => {
     return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
   }});
@@ -2209,6 +2222,7 @@ function onResults(_results) {
 }
 
 function drawResults() {
+  if (!imageIn.value || !results) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
   ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
@@ -2216,14 +2230,12 @@ function drawResults() {
   if (results.poseLandmarks) {
     ctx.fillStyle = 'white';
     ctx.beginPath();
-    let radius = radiusIn.value;
-    for (let i = 0; i < results.poseLandmarks.length; i++) {
-      const landmark = results.poseLandmarks[i];
-      let { x, y } = landmark;
-      ctx.moveTo(x * width + radius, y * height);
-      ctx.arc(x * width, y * height, radius, 0, 2 * Math.PI);
+    if (pointsToggleIn.value) {
+      drawLandmarks(ctx, results.poseLandmarks, {color: figment.toCanvasColor(pointsColorIn.value), lineWidth: pointsRadiusIn.value});
     }
-    ctx.fill();
+    if (linesToggleIn.value) {
+      drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: figment.toCanvasColor(linesColorIn.value), lineWidth: linesWidthIn.value, visibilityMin: 0});
+    }
   }
   window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
@@ -2233,7 +2245,12 @@ function drawResults() {
 
 imageIn.onChange = detectPose;
 backgroundIn.onChange = drawResults;
-radiusIn.onChange = drawResults;
+pointsToggleIn.onChange = drawResults;
+pointsColorIn.onChange = drawResults;
+pointsRadiusIn.onChange = drawResults;
+linesToggleIn.onChange = drawResults;
+linesColorIn.onChange = drawResults;
+linesWidthIn.onChange = drawResults;
 `;
 
 ml.segmentPose = `// Remove the background from an image.
@@ -2244,10 +2261,13 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer, canvas, results, pose;
 
-node.onStart = (props) => {
+node.onStart = async (props) => {
   framebuffer = new figment.Framebuffer();
   canvas = new OffscreenCanvas(1, 1);
   ctx = canvas.getContext('2d');
+  await figment.loadScripts([
+    'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js'
+  ]);
   const _pose = new Pose({locateFile: (file) => {
     return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
   }});
