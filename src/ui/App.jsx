@@ -85,8 +85,8 @@ export default class App extends Component {
     window.gl = this._offscreenCanvas.getContext('webgl');
   }
 
-  componentDidMount() {
-    this.state.network.start();
+  async componentDidMount() {
+    await this.state.network.start();
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('resize', this._forceRedraw);
@@ -144,12 +144,12 @@ export default class App extends Component {
     }
   }
 
-  _newProject() {
+  async _newProject() {
     this._close();
     const library = new Library();
     const network = new Network(library);
     network.parse(DEFAULT_NETWORK);
-    network.start();
+    await network.start();
     network.doFrame();
     this._onStart();
     this.setState({ network, selection: new Set() });
@@ -175,13 +175,13 @@ export default class App extends Component {
     const network = new Network(this.state.library);
 
     // remote.app.addRecentDocument(filePath);
-    this.setState({ filePath, network, selection: new Set() }, () => {
+    this.setState({ filePath, network, selection: new Set() }, async () => {
       network.parse(json);
-      network.start();
+      await network.start();
       network.doFrame();
+      this._setFilePath(filePath);
+      this._onStart();
     });
-    this._setFilePath(filePath);
-    this._onStart();
     // ipcRenderer.send('open-project', filePath);
   }
 
@@ -495,11 +495,7 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
           />
-          <Splitter
-            direction="vertical"
-            size={editorSplitterWidth}
-            onChange={(width) => this.setState({ editorSplitterWidth: width })}
-          />
+          <Splitter direction="vertical" size={editorSplitterWidth} onChange={(width) => this.setState({ editorSplitterWidth: width })} />
 
           <ParamsEditor
             network={network}
@@ -516,9 +512,7 @@ export default class App extends Component {
           onChange={(width) => this.setState({ mainSplitterWidth: width })}
         />
         <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} /> */}
-        {showNodeDialog && (
-          <NodeDialog network={network} onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />
-        )}
+        {showNodeDialog && <NodeDialog network={network} onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />}
         {showForkDialog && (
           <ForkDialog
             network={network}
@@ -529,18 +523,10 @@ export default class App extends Component {
           />
         )}
         {showNodeRenameDialog && (
-          <NodeRenameDialog
-            node={nodeToRename}
-            onRenameNode={this._onRenameNode}
-            onCancel={this._onHideNodeRenameDialog}
-          />
+          <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
         )}
         {showExportSequenceDialog && (
-          <ExportSequenceDialog
-            network={network}
-            exportImage={this._exportImage}
-            onCancel={this._onHideExportSequenceDialog}
-          />
+          <ExportSequenceDialog network={network} exportImage={this._exportImage} onCancel={this._onHideExportSequenceDialog} />
         )}
       </div>
     );

@@ -203,9 +203,7 @@ export default class Network {
           } else if (port.type === PORT_TYPE_DIRECTORY) {
             port.value = value;
           } else {
-            warnings.push(
-              `Node ${node.name} (${node.id}) - port ${portName}: unsupported port type ${port.type} ${value}.`
-            );
+            warnings.push(`Node ${node.name} (${node.id}) - port ${portName}: unsupported port type ${port.type} ${value}.`);
           }
         }
       }
@@ -292,9 +290,9 @@ export default class Network {
     }
   }
 
-  start() {
+  async start() {
     for (const node of this.nodes) {
-      this._startNode(node);
+      await this._startNode(node);
     }
     for (const node of this.nodes) {
       this._forceSetAllPorts(node);
@@ -315,11 +313,12 @@ export default class Network {
     this.started = false;
   }
 
-  _startNode(node) {
+  async _startNode(node) {
     if (node.onStart) {
       try {
-        node.onStart(node);
+        await node.onStart(node);
       } catch (e) {
+        debugger;
         console.error(e && e.stack);
       }
     }
@@ -436,9 +435,7 @@ export default class Network {
       this._stopNode(node);
     }
     this.nodes = this.nodes.filter((node) => !nodes.includes(node));
-    this.connections = this.connections.filter(
-      (conn) => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode))
-    );
+    this.connections = this.connections.filter((conn) => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode)));
     this.doFrame();
   }
 

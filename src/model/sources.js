@@ -910,6 +910,7 @@ function loadMovie() {
 
 function onVideoReady() {
   videoReady = true;
+  // debugger;
   framebuffer.setSize(video.videoWidth, video.videoHeight);
 }
 
@@ -1953,7 +1954,7 @@ bboxLineWidthIn.label = 'line width';
 
 const imageOut = node.imageOut('out');
 
-let _faceMesh, _canvas, _ctx, _framebuffer, _imageData, _results;
+let _faceMesh, _canvas, _ctx, _framebuffer, _imageData, _results, _isProcessing;
 
 node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
@@ -1961,10 +1962,10 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
     'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-    'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js'
+    'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js'
   ]);
   _faceMesh = new FaceMesh({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/\${file\}\`;
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/\${file\}\`;
   }});
   _faceMesh.setOptions({
     maxNumFaces: 1,
@@ -1975,9 +1976,13 @@ node.onStart = async () => {
 };
 
 function _detect(image) {
+  // Check if only one image is processed at the same time.
+  if (_isProcessing) return;
   return new Promise((resolve) => {
+    _isProcessing = true;
     _faceMesh.onResults((results) => {
       _faceMesh.onResults(null);
+      _isProcessing = false;
       resolve(results);
     });
     _faceMesh.send({ image });
@@ -2168,79 +2173,86 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let program, framebuffer, pose, canvas, ctx, data, results;
+let _framebuffer, _pose, _canvas, _ctx, _imageData, _results, _isProcessing;
 
 node.onStart = async (props) => {
-  framebuffer = new figment.Framebuffer();
-  canvas = new OffscreenCanvas(1, 1);
-  ctx = canvas.getContext('2d');
+  _framebuffer = new figment.Framebuffer();
+  _canvas = new OffscreenCanvas(1, 1);
+  _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
     'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-    'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js'
+    'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js'
   ]);
-  const _pose = new Pose({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
+  _pose = new Pose({locateFile: (file) => {
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/\${file}\`;
   }});
   _pose.setOptions({
     modelComplexity: 1, 
     smoothLandmarks: true,
   });
-  _pose.onResults(onResults);
-  _pose.initialize().then(() => {
-    pose = _pose;
-  });
+  await _pose.initialize();
 };
 
-function detectPose() {
+function _detect(image) {
+  // Check if only one image is processed at the same time.
+  if (_isProcessing) return;
+  return new Promise((resolve) => {
+    _isProcessing = true;
+    _pose.onResults((results) => {
+      _pose.onResults(null);
+      _isProcessing = false;
+      resolve(results);
+    });
+    _pose.send({ image });
+  });
+}
+
+async function detectPose() {
   if (!imageIn.value) return;
-  if (!pose) return;
+  if (!_pose) return;
   // Draw the image on an ImageData object.
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
-  if (width !== canvas.width || height !== canvas.height) {
-    canvas.width = width;
-    canvas.height = height;
-    data = new ImageData(width, height);
-    framebuffer.setSize(width, height);
+  if (width !== _canvas.width || height !== _canvas.height) {
+    _canvas.width = width;
+    _canvas.height = height;
+    _imageData = new ImageData(width, height);
+    _framebuffer.setSize(width, height);
   }
   // Video nodes pass along this extra object with the framebuffer.
   // This allows mediapose to avoid reading the texture first from the framebuffer.
   if (imageIn.value._directImageHack) {
-    pose.send({ image: imageIn.value._directImageHack });
+    _results = await _detect(imageIn.value._directImageHack);
   } else {
     imageIn.value.bind();
-    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
     imageIn.value.unbind();
-    pose.send({ image: data });
+    _results = await _detect(_imageData);
   }
-}
-
-function onResults(_results) {
-  results = _results;
   drawResults();
 }
 
 function drawResults() {
-  if (!imageIn.value || !results) return;
+  if (!imageIn.value || !_results) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
-  ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  ctx.fillRect(0, 0, width, height);
-  if (results.poseLandmarks) {
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    if (pointsToggleIn.value) {
-      drawLandmarks(ctx, results.poseLandmarks, {color: figment.toCanvasColor(pointsColorIn.value), lineWidth: pointsRadiusIn.value});
-    }
+  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
+  _ctx.fillRect(0, 0, width, height);
+  if (_results.poseLandmarks) {
+    _ctx.fillStyle = 'white';
+    _ctx.beginPath();
     if (linesToggleIn.value) {
-      drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: figment.toCanvasColor(linesColorIn.value), lineWidth: linesWidthIn.value, visibilityMin: 0});
+      drawConnectors(_ctx, _results.poseLandmarks, POSE_CONNECTIONS, {color: figment.toCanvasColor(linesColorIn.value), lineWidth: linesWidthIn.value, visibilityMin: 0});
+    }
+    if (pointsToggleIn.value) {
+      drawLandmarks(_ctx, _results.poseLandmarks, {color: figment.toCanvasColor(pointsColorIn.value), lineWidth: pointsRadiusIn.value});
     }
   }
-  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
   window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.set(framebuffer);
+  imageOut.set(_framebuffer);
 }
 
 imageIn.onChange = detectPose;
@@ -2259,96 +2271,105 @@ const imageIn = node.imageIn('in');
 const operationIn = node.selectIn('remove', ['background', 'foreground']);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer, canvas, results, pose;
+let _framebuffer, _canvas, _results, _pose, _imageData, _isProcessing;
 
 node.onStart = async (props) => {
-  framebuffer = new figment.Framebuffer();
-  canvas = new OffscreenCanvas(1, 1);
-  ctx = canvas.getContext('2d');
+  console.log('ml.segmentPose start');
+  _framebuffer = new figment.Framebuffer();
+  _canvas = new OffscreenCanvas(1, 1);
+  _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js'
+    'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js'
   ]);
-  const _pose = new Pose({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose/\${file}\`;
+  console.log('ml.segmentPose script load done');
+  _pose = new Pose({locateFile: (file) => {
+    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/\${file}\`;
   }});
   _pose.setOptions({
     modelComplexity: 1, 
     smoothLandmarks: true,
     enableSegmentation: true,
   });
-  _pose.onResults(onResults);
-  _pose.initialize().then(() => {
-    pose = _pose;
-  });
+  await _pose.initialize();
 };
 
+function _detect(image) {
+  // Check if only one image is processed at the same time.
+  if (_isProcessing) return;
+  return new Promise((resolve) => {
+    _isProcessing = true;
+    _pose.onResults((results) => {
+      _pose.onResults(null);
+      _isProcessing = false;
+      resolve(results);
+    });
+    _pose.send({ image });
+  });
+}
 
-function segmentBackground() {
+async function segmentBackground() {
   if (!imageIn.value) return;
-  if (!pose) return;
+  if (!_pose) return;
   // Draw the image on an ImageData object.
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
-  if (width !== canvas.width || height !== canvas.height) {
-    canvas.width = width;
-    canvas.height = height;
-    data = new ImageData(width, height);
-    framebuffer.setSize(width, height);
+  if (width !== _canvas.width || height !== _canvas.height) {
+    _canvas.width = width;
+    _canvas.height = height;
+    _imageData = new ImageData(width, height);
+    _framebuffer.setSize(width, height);
   }
   // Video nodes pass along this extra object with the framebuffer.
   // This allows mediapose to avoid reading the texture first from the framebuffer.
   if (imageIn.value._directImageHack) {
-    pose.send({ image: imageIn.value._directImageHack });
+    _results = await _detect(imageIn.value._directImageHack);
   } else {
     imageIn.value.bind();
-    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
     imageIn.value.unbind();
-    pose.send({ image: data });
+    _results = await _detect(_imageData);
   }
-}
-
-function onResults(_results) {
-  results = _results;
   drawResults();
 }
 
 function drawResults() {
-  if (!results) return;
+  if (!imageIn.value || !_results) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (results.segmentationMask) {
+  _ctx.save();
+  _ctx.globalCompositeOperation = 'source-over';
+  _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+  if (_results.segmentationMask) {
     if (operationIn.value === 'background') {
       // Draw the segmentation mask.
-      ctx.drawImage(results.segmentationMask, 0, 0);
+      _ctx.drawImage(_results.segmentationMask, 0, 0);
 
       // Only overwrite existing pixels (i.e. the mask) with the image.
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.drawImage(results.image, 0, 0);
+      _ctx.globalCompositeOperation = 'source-in';
+      _ctx.drawImage(_results.image, 0, 0);
     } else {
       // Fill the destination.
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      _ctx.fillRect(0, 0, _canvas.width, _canvas.height);
 
       // Draw everything outside of the segmentation mask.
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.drawImage(results.segmentationMask, 0, 0);
+      _ctx.globalCompositeOperation = 'destination-out';
+      _ctx.drawImage(_results.segmentationMask, 0, 0);
 
       // Overwrite the existing pixels (i.e. the background) with the image.
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.drawImage(results.image, 0, 0);
+      _ctx.globalCompositeOperation = 'source-in';
+      _ctx.drawImage(_results.image, 0, 0);
     }
   }
-  ctx.restore();
-  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  _ctx.restore();
+  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
   window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.set(framebuffer);
+  imageOut.set(_framebuffer);
 }
 
 imageIn.onChange = segmentBackground;
+operationIn.onChange = drawResults;
 `;
 
 ml.segmentPose2 = `// Remove the background from an image.
