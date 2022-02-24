@@ -892,7 +892,7 @@ node.onRender = async () => {
 node.onStop = () => {
   if (video) {
     video.pause();
-    video.removeEventListener('canplay', onVideoReady);
+    video.remove();
     video = null;
   }
 }
@@ -1913,7 +1913,7 @@ function _detect(image) {
   });
 }
 
-async function detectFaces() {
+node.onRender = async () => {
   if (!imageIn.value || imageIn.value.width === 0 || imageIn.value.height === 0) return;
   if (!_faceMesh) return;
 
@@ -1940,7 +1940,7 @@ async function detectFaces() {
     _results = await _detect(_imageData);
   }
   drawResults();
-}
+};
 
 function drawResults() {
   if (!imageIn.value || imageIn.value.width === 0 || imageIn.value.height === 0) return;
@@ -1983,14 +1983,14 @@ function drawResults() {
   imageOut.set(_framebuffer);
 }
 
-imageIn.onChange = detectFaces;
-backgroundIn.onChange = drawResults;
-tesselationToggleIn.onChange = drawResults;
-tesselationColorIn.onChange = drawResults;
-tesselationLineWidthIn.onChange = drawResults;
-contoursToggleIn.onChange = drawResults;
-contoursColorIn.onChange = drawResults;
-contoursLineWidthIn.onChange = drawResults;
+// imageIn.onChange = detectFaces;
+// backgroundIn.onChange = drawResults;
+// tesselationToggleIn.onChange = drawResults;
+// tesselationColorIn.onChange = drawResults;
+// tesselationLineWidthIn.onChange = drawResults;
+// contoursToggleIn.onChange = drawResults;
+// contoursColorIn.onChange = drawResults;
+// contoursLineWidthIn.onChange = drawResults;
 `;
 
 ml.detectObjects = `// Detect objects in an image.
@@ -2036,7 +2036,7 @@ function drawClassLabel(ctx, className, classColor, x, y) {
   }
 }
 
-function detectObjects() {
+node.onRender = async () => {
   if (!imageIn.value || imageIn.value.width === 0 || imageIn.value.height === 0) return;
   if (!_model) return;
   if (_canvas.width !== imageIn.value.width || _canvas.height !== imageIn.value.height) {
@@ -2046,40 +2046,39 @@ function detectObjects() {
   }
 
   const imageData = figment.framebufferToImageData(imageIn.value);
-  _model.detect(imageData).then(predictions => {
-    let filteredPredictions = predictions;
-    if (filterIn.value !== '*') {
-      const filteredLabels = filterIn.value.split(',').map(s => s.trim());
-      filteredPredictions = predictions.filter(prediction => filteredLabels.includes(prediction.class));
+  const predictions = await _model.detect(imageData);
+  let filteredPredictions = predictions;
+  if (filterIn.value !== '*') {
+    const filteredLabels = filterIn.value.split(',').map(s => s.trim());
+    filteredPredictions = predictions.filter(prediction => filteredLabels.includes(prediction.class));
+  }
+  _ctx.lineWidth = 2;
+  _ctx.font = '12px sans-serif';
+  if (drawingModeIn.value === 'boxes') {
+    _ctx.putImageData(imageData, 0, 0);
+    for (const prediction of filteredPredictions) {
+      const classColor = stringToColor(prediction.class);
+      _ctx.strokeStyle = classColor;
+      _ctx.strokeRect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
+      drawClassLabel(_ctx, prediction.class, classColor, prediction.bbox[0], prediction.bbox[1]);
     }
-    _ctx.lineWidth = 2;
-    _ctx.font = '12px sans-serif';
-    if (drawingModeIn.value === 'boxes') {
-      _ctx.putImageData(imageData, 0, 0);
-      for (const prediction of filteredPredictions) {
-        const classColor = stringToColor(prediction.class);
-        _ctx.strokeStyle = classColor;
-        _ctx.strokeRect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
-        drawClassLabel(_ctx, prediction.class, classColor, prediction.bbox[0], prediction.bbox[1]);
-      }
-    } else if (drawingModeIn.value === 'mask') {
-      _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
-      for (const prediction of filteredPredictions) {
-        const bbox = prediction.bbox;
-        _ctx.putImageData(imageData, 0, 0, bbox[0], bbox[1], bbox[2], bbox[3]);
-      }
+  } else if (drawingModeIn.value === 'mask') {
+    _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+    for (const prediction of filteredPredictions) {
+      const bbox = prediction.bbox;
+      _ctx.putImageData(imageData, 0, 0, bbox[0], bbox[1], bbox[2], bbox[3]);
     }
+  }
 
-    // console.log('Predictions: ', predictions);
-    window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
-    window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _canvas);
-    window.gl.bindTexture(window.gl.TEXTURE_2D, null);
-    imageOut.set(_framebuffer);
-    objectsOut.set(predictions);
-  });
+  // console.log('Predictions: ', predictions);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _canvas);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  imageOut.set(_framebuffer);
+  objectsOut.set(predictions);
 }
 
-imageIn.onChange = detectObjects;
+// imageIn.onChange = detectObjects;
 `;
 
 ml.detectPose = `// Detect human poses in input image.
@@ -2131,7 +2130,7 @@ function _detect(image) {
   });
 }
 
-async function detectPose() {
+node.onRender = async () => {
   if (!imageIn.value) return;
   if (!_pose) return;
   // Draw the image on an ImageData object.
@@ -2155,7 +2154,7 @@ async function detectPose() {
     _results = await _detect(_imageData);
   }
   drawResults();
-}
+};
 
 function drawResults() {
   if (!imageIn.value || !_results) return;
@@ -2179,14 +2178,14 @@ function drawResults() {
   imageOut.set(_framebuffer);
 }
 
-imageIn.onChange = detectPose;
-backgroundIn.onChange = drawResults;
-pointsToggleIn.onChange = drawResults;
-pointsColorIn.onChange = drawResults;
-pointsRadiusIn.onChange = drawResults;
-linesToggleIn.onChange = drawResults;
-linesColorIn.onChange = drawResults;
-linesWidthIn.onChange = drawResults;
+// imageIn.onChange = detectPose;
+// backgroundIn.onChange = drawResults;
+// pointsToggleIn.onChange = drawResults;
+// pointsColorIn.onChange = drawResults;
+// pointsRadiusIn.onChange = drawResults;
+// linesToggleIn.onChange = drawResults;
+// linesColorIn.onChange = drawResults;
+// linesWidthIn.onChange = drawResults;
 `;
 
 ml.segmentPose = `// Remove the background from an image.
@@ -2231,7 +2230,7 @@ function _detect(image) {
   });
 }
 
-async function segmentBackground() {
+node.onRender = async () => {
   if (!imageIn.value) return;
   if (!_pose) return;
   // Draw the image on an ImageData object.
@@ -2255,7 +2254,7 @@ async function segmentBackground() {
     _results = await _detect(_imageData);
   }
   drawResults();
-}
+};
 
 function drawResults() {
   if (!imageIn.value || !_results) return;
@@ -2292,8 +2291,8 @@ function drawResults() {
   imageOut.set(_framebuffer);
 }
 
-imageIn.onChange = segmentBackground;
-operationIn.onChange = drawResults;
+// imageIn.onChange = segmentBackground;
+// operationIn.onChange = drawResults;
 `;
 
 ml.segmentPose2 = `// Remove the background from an image.
