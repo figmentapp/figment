@@ -87,6 +87,7 @@ export default class App extends Component {
 
   async componentDidMount() {
     await this.state.network.start();
+    await this.state.network.render();
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('resize', this._forceRedraw);
@@ -150,7 +151,8 @@ export default class App extends Component {
     const network = new Network(library);
     network.parse(DEFAULT_NETWORK);
     await network.start();
-    network.doFrame();
+    await network.render();
+    // network.doFrame();
     this._onStart();
     this.setState({ network, selection: new Set() });
     this._setFilePath(undefined);
@@ -424,10 +426,10 @@ export default class App extends Component {
     this._onNewCodeTab(node);
   }
 
-  _onFrame() {
+  async _onFrame() {
     if (!this.state.isPlaying) return;
     if (this.state.network) {
-      this.state.network.doFrame();
+      await this.state.network.doFrame();
     }
     window.requestAnimationFrame(this._onFrame);
   }

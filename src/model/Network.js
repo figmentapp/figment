@@ -15,6 +15,7 @@ import Port, {
   PORT_IN,
   PORT_OUT,
 } from './Port';
+import DependencyGraph from './DependencyGraph';
 
 export const DEFAULT_NETWORK = {
   nodes: [
@@ -94,6 +95,11 @@ export default class Network {
     this.types = [];
     this._id = 0;
     this.listeners = [];
+    this._dag = new DependencyGraph(this);
+  }
+
+  _rebuildDependencyGraph() {
+    this._dag.build();
   }
 
   addChangeListener(listener) {
@@ -154,10 +160,11 @@ export default class Network {
       const fn = new Function('node', source);
       fn.call(window, node);
     } catch (e) {
-      console.error(e && e.stack);
+      console.error(`Error creating ${typeId}: ${e && e.stack}`);
     }
 
     this.nodes.push(node);
+    this._rebuildDependencyGraph();
     if (this.started) {
       this._startNode(node);
     }
@@ -232,6 +239,8 @@ export default class Network {
       this.connections.push(connObj);
     }
 
+    this._rebuildDependencyGraph();
+
     if (warnings.length) {
       console.warn(warnings);
     }
@@ -300,6 +309,12 @@ export default class Network {
     this.started = true;
   }
 
+  async render() {
+    for (const node of this._dag.nodeOrder) {
+      await this._renderNode(node);
+    }
+  }
+
   reset() {
     for (const node of this.nodes) {
       if (node.onReset) {
@@ -321,6 +336,41 @@ export default class Network {
         debugger;
         console.error(e && e.stack);
       }
+    }
+  }
+
+  async _renderNode(node) {
+    if (node.isDirty && node.onRender) {
+      // console.log(`render ${node.id} ${node.name}`);
+      try {
+        await node.onRender();
+      } catch (e) {
+        console.error(e && e.stack);
+      }
+      // Set the value of the connected input ports to the output ports of this node.
+      for (const conn of this.connections) {
+        if (conn.outNode === node.id) {
+          // Find the output port.
+          const outPort = node.outPorts.find((port) => port.name === conn.outPort);
+          if (!outPort) {
+            console.warn(`Connection ${JSON.stringify(conn)}: output port does not exist.`);
+            continue;
+          }
+          // Find the input node.
+          const inNode = this.nodes.find((n) => n.id === conn.inNode);
+          if (!inNode) {
+            console.warn(`Connection ${JSON.stringify(conn)}: input node does not exist.`);
+            break;
+          }
+          const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
+          if (!inPort) {
+            console.warn(`Connection ${JSON.stringify(conn)}: input connection does not exist.`);
+            break;
+          }
+          inPort.set(outPort.value);
+        }
+      }
+      node.isDirty = false;
     }
   }
 
@@ -364,12 +414,13 @@ export default class Network {
   //   this.start();
   // }
 
-  doFrame() {
+  async doFrame() {
     for (const node of this.nodes) {
-      if (node.onFrame) {
-        node.onFrame(node);
+      if (node.timeDependent) {
+        this.markNodeDirty(node);
       }
     }
+    await this.render();
   }
 
   setNodeTypeSource(nodeType, source) {
@@ -386,17 +437,17 @@ export default class Network {
     for (const node of nodes) {
       this.changeNodeType(node, nodeType);
     }
-    this.doFrame();
+    // this.doFrame();
   }
 
   setPortValue(node, portName, value) {
     const port = node.inPorts.find((p) => p.name === portName);
-    console.assert(port, `Port ${name} does not exist.`);
+    console.assert(port, `Port ${portName} does not exist.`);
     port.value = value;
-    if (port.onChange) {
+    if (typeof port.onChange === 'function') {
       port.onChange();
     }
-    this.doFrame();
+    port.forceUpdate();
   }
 
   triggerButton(node, port) {
@@ -419,14 +470,17 @@ export default class Network {
     };
     this.connections.push(conn);
     outPort.forceUpdate();
-    this.doFrame();
+    // this.doFrame();
+    this._rebuildDependencyGraph();
+    this.markNodeDirty(outNode);
   }
 
   disconnect(inPort) {
     const inNode = inPort.node;
     this.connections = this.connections.filter((conn) => !(conn.inNode === inNode.id && conn.inPort === inPort.name));
     inPort.setDefaultValue();
-    this.doFrame();
+    this._rebuildDependencyGraph();
+    // this.doFrame();
   }
 
   deleteNodes(nodes) {
@@ -436,7 +490,8 @@ export default class Network {
     }
     this.nodes = this.nodes.filter((node) => !nodes.includes(node));
     this.connections = this.connections.filter((conn) => !(nodeIds.includes(conn.inNode) || nodeIds.includes(conn.outNode)));
-    this.doFrame();
+    this._rebuildDependencyGraph();
+    // this.doFrame();
   }
 
   forkNodeType(nodeType, newName, newTypeName) {
@@ -473,9 +528,46 @@ export default class Network {
       if (newPort.type !== oldPort.type) continue;
       newPort.value = oldPort.cloneValue();
     }
+    this._rebuildDependencyGraph();
+    this.markNodeDirty(node);
   }
 
   renameNode(node, newName) {
     node.name = newName;
+  }
+
+  markNodeDirty(node, visited = null) {
+    if (visited === null) {
+      visited = new Set();
+    } else if (visited.has(node)) {
+      return;
+    }
+    node.isDirty = true;
+    visited.add(node);
+    // Find all output connections of this node and mark them dirty.
+    const downstreams = this._dag.downstreamConnections[node.id];
+    if (!downstreams) return;
+    for (const nodeId of downstreams) {
+      const inputNode = this.nodes.find((n) => n.id === nodeId);
+      if (!inputNode) {
+        console.warn(`Could not find input node ${conn.inNode} for connection ${conn.outNode} -> ${conn.inNode}`);
+        continue;
+      }
+      this.markNodeDirty(inputNode);
+    }
+  }
+
+  markDownstreamDirty(node) {
+    const visited = new Set();
+    const downstreams = this._dag.downstreamConnections[node.id];
+    if (!downstreams) return;
+    for (const nodeId of downstreams) {
+      const inputNode = this.nodes.find((n) => n.id === nodeId);
+      if (!inputNode) {
+        console.warn(`Could not find input node ${conn.inNode} for connection ${conn.outNode} -> ${conn.inNode}`);
+        continue;
+      }
+      this.markNodeDirty(inputNode, visited);
+    }
   }
 }

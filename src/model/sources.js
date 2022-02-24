@@ -15,7 +15,9 @@ core.out = `// Signifies that this is the output of the network.
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-imageIn.onChange = () => imageOut.set(imageIn.value);
+node.onRender = () => {
+  imageOut.set(imageIn.value);
+}
 `;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,12 +57,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -69,9 +71,6 @@ function render() {
   framebuffer.unbind();
   imageOut.set(framebuffer);
 }
-
-imageIn.onChange = render;
-blurIn.onChange = render;
 `;
 
 image.border = `// Generate a border around the image.
@@ -102,12 +101,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -120,11 +119,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-borderSize.onChange = render;
-borderColor.onChange = render;
+};
 `;
 
 image.canny = `// canny edge detection on input image.
@@ -223,12 +218,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -241,11 +236,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-thicknessIn.onChange = render;
-factorIn.onChange = render;
+};
 `;
 
 image.composite = `// Combine two images together.
@@ -286,7 +277,6 @@ function updateShader() {
   }
   \`;
   program = figment.createShaderProgram(fragmentShader);
-  render();
 }
 
 let program, framebuffer;
@@ -296,7 +286,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 }
 
-function render() {
+node.onRender = () => {
   if (!image1In.value || !image2In.value) return;
   framebuffer.setSize(image1In.value.width, image1In.value.height);
   framebuffer.bind();
@@ -308,11 +298,8 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
+};
 
-image1In.onChange = render;
-image2In.onChange = render;
-factorIn.onChange = render;
 operationIn.onChange = updateShader;
 `;
 
@@ -334,12 +321,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
 };
 
-function render() {
+node.onRender = () => {
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.clear();
@@ -348,11 +335,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-colorIn.onChange = render;
-widthIn.onChange = render;
-heightIn.onChange = render;
+};
 `;
 
 image.crop = `// Crop input image.
@@ -362,7 +345,7 @@ precision mediump float;
 uniform sampler2D u_input_texture;
 uniform vec2 u_resolution;
 uniform vec4 u_color;
-uniform vec2 u_offset;
+// uniform vec2 u_offset;
 uniform vec2 u_output_size;
 varying vec2 v_uv;
 
@@ -383,8 +366,8 @@ void main() {
     } else {
       vec2 uv = vec2(v_uv.x, (v_uv.y - half_height_diff) / delta_ratio);
       vec4 texColor = texture2D(u_input_texture,uv);
-      gl_FragColor = texColor;
-      // gl_FragColor = u_color * texture2D(u_input_texture, uv);
+      // gl_FragColor = texColor;
+      gl_FragColor = u_color * texture2D(u_input_texture, uv);
     }
   } else {
     float scale_factor = crop_height / u_resolution.y;
@@ -395,16 +378,16 @@ void main() {
     } else {
       vec2 uv = vec2((v_uv.x - half_width_diff) * delta_ratio, v_uv.y);
       vec4 texColor = texture2D(u_input_texture,uv);
-      gl_FragColor = texColor;
-     // gl_FragColor = u_color * texture2D(u_input_texture, uv);
+      // gl_FragColor = texColor;
+     gl_FragColor = u_color * texture2D(u_input_texture, uv);
     }
   }
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const offsetXIn = node.numberIn('offsetX', 50.0, { min: 1, max: 4096, step: 1 });
-const offsetYIn = node.numberIn('offsetY', 50.0, { min: 1, max: 4096, step: 1 });
+// const offsetXIn = node.numberIn('offsetX', 50.0, { min: 1, max: 4096, step: 1 });
+// const offsetYIn = node.numberIn('offsetY', 50.0, { min: 1, max: 4096, step: 1 });
 const widthIn = node.numberIn('width', 512.0, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 512.0, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
@@ -416,26 +399,20 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
-    u_offset: [offsetXIn.value, offsetYIn.value],
+    // u_offset: [offsetXIn.value, offsetYIn.value],
     u_output_size: [widthIn.value, heightIn.value]});
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-widthIn.onChange = render;
-heightIn.onChange = render;
-offsetXIn.onChange = render;
-offsetYIn.onChange = render;
+};
 `;
 
-image.maskCircle = `// draw an circle mask of an image or constant.
+image.maskCircle = `// Draw a circular mask of an image or constant.
 
 const fragmentShader = \`
 precision mediump float;
@@ -466,12 +443,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -480,11 +457,7 @@ function render() {
     u_radius: radiusIn.value,u_invert: invertIn.value});
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-radiusIn.onChange = render;
-invertIn.onChange = render;
+};
 `;
 
 image.emboss = `// Emboss convolution on an input image.
@@ -564,7 +537,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -575,11 +548,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-embossWidthIn.onChange = render;
-embossHeightIn.onChange = render;
+};
 `;
 
 image.grayscale = `// Grayscale conversion of input image.
@@ -607,7 +576,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -615,9 +584,7 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
+};
 `;
 
 image.invert = `// Invert colors of input image.
@@ -637,12 +604,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -650,12 +617,10 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
+};
 `;
 
-image.levels = `// Change brightness - contrast - saturation on input image.
+image.levels = `// Change the brightness/contrast/saturation.
 
 const fragmentShader = \`
 precision mediump float;
@@ -724,12 +689,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -742,12 +707,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-brightnessIn.onChange = render;
-contrastIn.onChange = render;
-saturationIn.onChange = render;
+};
 `;
 
 image.loadImage = `// Load an image from a file.
@@ -755,36 +715,32 @@ image.loadImage = `// Load an image from a file.
 const fileIn = node.fileIn('file', '', { fileType: 'image' });
 const imageOut = node.imageOut('out');
 
-let texture, framebuffer, program;
+let _texture, _framebuffer, _program;
 
 node.onStart = () => {
-  program = figment.createShaderProgram();
-  framebuffer = new figment.Framebuffer();
-}
+  _program = figment.createShaderProgram();
+  _framebuffer = new figment.Framebuffer();
+};
 
-function loadImage() {
+node.onRender = async () => {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
-  figment.createTextureFromUrl(imageUrl.toString(), onLoad);
-}
-
-function onLoad(err, texture, image) {
-  if (err) {
-    throw new Error(\`Image load error: \${err\}\`);
+  if (_texture) {
+    gl.deleteTexture(_texture);
   }
-  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-}
-
-function onError(err) {
-  console.error('image.loadImage error', err);
-}
-
-fileIn.onChange = loadImage;
+  try {
+    const { texture, image } = await figment.createTextureFromUrlAsync(imageUrl.toString());
+    _texture = texture;
+    _framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+    _framebuffer.bind();
+    figment.clear();
+    figment.drawQuad(_program, { u_image: _texture });
+    _framebuffer.unbind();
+    imageOut.set(_framebuffer);
+  } catch (err) {
+      throw new Error(\`Image load error: \${err\}\`);
+  }
+};
 `;
 
 image.loadImageFolder = `// Load a folder of images.
@@ -881,40 +837,46 @@ frameRateIn.onChange = changeFrameRate;
 `;
 
 image.loadMovie = `// Load a movie file.
-
+node.timeDependent = true;
 const fileIn = node.fileIn('file', '', { fileType: 'movie' });
 const animateIn = node.toggleIn('animate', true);
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
 const restartIn = node.triggerButtonIn('restart');
 const imageOut = node.imageOut('out');
 
-let framebuffer, program, video, timerHandle, videoReady = false;
+let framebuffer, program, video, videoReady, shouldLoad;
 
 node.onStart = () => {
   framebuffer = new figment.Framebuffer();
-}
-
-function loadMovie() {
-  if (!fileIn.value || fileIn.value.trim().length === 0) return;
-  clearInterval(timerHandle);
   videoReady = false;
-  video = document.createElement('video');
-  const fileUrl = figment.urlForAsset(fileIn.value);
-  video.src = fileUrl;
-  video.loop = true;
-  video.autoplay = animateIn.value;
-  video.muted = true;
-  video.playbackRate = speedIn.value;
-  video.addEventListener('canplay', onVideoReady);
+  shouldLoad = true;
 }
 
-function onVideoReady() {
+async function loadMovie() {
+  if (!fileIn.value || fileIn.value.trim().length === 0) return;
+  if (video) {
+    video.remove();
+  }
+  await new Promise((resolve) => {
+    video = document.createElement('video');
+    videoReady = false;
+    const fileUrl = figment.urlForAsset(fileIn.value);
+    video.src = fileUrl;
+    video.loop = true;
+    video.autoplay = animateIn.value;
+    video.muted = true;
+    video.playbackRate = speedIn.value;
+    video.addEventListener('canplay', resolve, { once: true });
+  });
   videoReady = true;
-  // debugger;
   framebuffer.setSize(video.videoWidth, video.videoHeight);
 }
 
-node.onFrame = () => {
+node.onRender = async () => {
+  if (shouldLoad) {
+    await loadMovie();
+    shouldLoad = false;
+  }
   if (!video || !framebuffer || !videoReady) return;
   if (!animateIn.value) return;
   framebuffer.unbind();
@@ -925,10 +887,9 @@ node.onFrame = () => {
   // If the next node turns out to be a mediapose node, it will pick up the image object and work with it directly.
   framebuffer._directImageHack = video;
   imageOut.set(framebuffer);
-}
+};
 
 node.onStop = () => {
-  clearInterval(timerHandle);
   if (video) {
     video.pause();
     video.removeEventListener('canplay', onVideoReady);
@@ -958,7 +919,7 @@ function restartVideo() {
   }
 }
 node.onReset = restartVideo;
-fileIn.onChange = loadMovie;
+fileIn.onChange = () => { shouldLoad = true; };
 speedIn.onChange = changeSpeed;
 animateIn.onChange = toggleAnimate;
 restartIn.onTrigger = restartVideo;
@@ -1005,10 +966,9 @@ function updateShader() {
   }
   \`;
   program = figment.createShaderProgram(fragmentShader);
-  render();
 }
 
-function render() {
+node.onRender = () => {
   if (!sourceIn.value) return;
   if (!lookupIn.value) return;
   framebuffer.setSize(sourceIn.value.width, sourceIn.value.height);
@@ -1020,10 +980,8 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
+};
 
-sourceIn.onChange = render;
-lookupIn.onChange = render;
 methodIn.onChange = updateShader;
 `;
 
@@ -1062,7 +1020,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   const r = angleIn.value * Math.PI / 180;
   const x = Math.sin(r);
@@ -1081,11 +1039,6 @@ function render() {
   imageOut.set(framebuffer);
 
 }
-
-imageIn.onChange = render;
-pivotXIn.onChange = render;
-pivotYIn.onChange = render;
-angleIn.onChange = render;
 `;
 
 image.modcolor = `// Modulate colors of input image.
@@ -1116,12 +1069,12 @@ const imageOut = node.imageOut('out');
 
 let program, framebuffer;
 
-node.onStart = (props) => {
+node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1134,19 +1087,16 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-redIn.onChange = render;
-greenIn.onChange = render;
-blueIn.onChange = render;
+};
 `;
 
 image.null = `// Does nothing.
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-imageIn.onChange = () => imageOut.set(imageIn.value);
+node.onRender = () => {
+  imageOut.set(imageIn.value);
+};
 `;
 
 image.pixelate = `// Pixelate input image.
@@ -1179,7 +1129,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1187,11 +1137,7 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture, _pixels: [pixelsX.value, pixelsY.value] });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-pixelsX.onChange = render;
-pixelsY.onChange = render;
+};
 `;
 
 image.reduceColor = `// reduce the amount of colors of input image.
@@ -1222,7 +1168,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1230,10 +1176,7 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-factorIn.onChange = render;
+};
 `;
 
 image.resize = `// Resize the input image
@@ -1272,7 +1215,7 @@ node.onStart = (props) => {
 const LANDSCAPE = 1;
 const PORTRAIT = 2;
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   let inRatio = imageIn.value.width / imageIn.value.height;
   let outRatio = widthIn.value / heightIn.value;
@@ -1316,13 +1259,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-widthIn.onChange = render;
-heightIn.onChange = render;
-fitIn.onChange = render;
-backgroundIn.onChange = render;
+};
 `;
 
 image.sharpen = `// Sharpen an input image
@@ -1355,7 +1292,7 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
-const sharpenIn = node.numberIn('amount', 0.005, { min: 0, max: 0.02, step: 0.001});
+const sharpenIn = node.numberIn('amount', 0.005, { min: 0, max: 0.1, step: 0.001});
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -1365,7 +1302,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1373,10 +1310,7 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_step: sharpenIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-sharpenIn.onChange = render;
+};
 `;
 
 image.sobel = `// Sobel edge detection on input image.
@@ -1426,7 +1360,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1437,9 +1371,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
+};
 `;
 
 image.squares = `// return input image as squares.
@@ -1470,7 +1402,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1478,10 +1410,7 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-factorIn.onChange = render;
+};
 `;
 
 image.stack = `// Combine 2 images horizontally / vertically.
@@ -1523,7 +1452,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn1.value || !imageIn2.value) return;
   let u_direction;
   if (directionIn.value === 'Horizontal') {
@@ -1542,11 +1471,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn1.onChange = render;
-imageIn2.onChange = render;
-directionIn.onChange = render;
+};
 `;
 
 image.threshold = `// Change brightness threshold of input image.
@@ -1577,7 +1502,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1588,10 +1513,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-thresholdIn.onChange = render;
+};
 `;
 
 image.trail = `// Don't erase the previous input image, creating a trail.
@@ -1622,7 +1544,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1631,7 +1553,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
+};
 
 function clear() {
   framebuffer.bind();
@@ -1640,7 +1562,6 @@ function clear() {
   imageOut.set(framebuffer);
 }
 
-imageIn.onChange = render;
 clearButtonIn.onTrigger = clear;
 `;
 
@@ -1679,7 +1600,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   let transform = m4.identity();
   let factorX = 1.0 / imageIn.value.width;
@@ -1700,14 +1621,7 @@ function render() {
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-translateXIn.onChange = render;
-translateYIn.onChange = render;
-scaleXIn.onChange = render;
-scaleYIn.onChange = render;
-rotateIn.onChange = render;
+};
 `;
 
 image.wrap = `// Circular wrap of input image.
@@ -1747,7 +1661,7 @@ node.onStart = (props) => {
   framebuffer = new figment.Framebuffer();
 };
 
-function render() {
+node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
@@ -1755,11 +1669,7 @@ function render() {
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_radius: radiusIn.value,u_twist: twistIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
-}
-
-imageIn.onChange = render;
-radiusIn.onChange = render;
-twistIn.onChange = render;
+};
 `;
 
 image.unsplash = `// Fetch a random image from Unsplash.
@@ -1778,52 +1688,60 @@ const widthIn = node.numberIn('width', 300);
 const heightIn = node.numberIn('height', 300);
 const imageOut = node.imageOut('image');
 
-let _texture, framebuffer, program;
+let _texture, framebuffer, program, shouldLoad;
 
 node.onStart = () => {
   program = figment.createShaderProgram(fragmentShader);
   framebuffer = new figment.Framebuffer();
+  shouldLoad = true;
 }
 
-function loadImage() {
+node.onRender = async () => {
+  if (!shouldLoad) return;
   if (!queryIn.value || queryIn.value.trim().length === 0) return;
   const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
-  figment.createTextureFromUrl(url, onLoad);
+  try {
+    const { texture, image } = await figment.createTextureFromUrlAsync(url);
+    shouldLoad = false;
+    if (_texture) {
+      gl.deleteTexture(_texture);
+    }
+    _texture = texture;
+    framebuffer.setSize(image.naturalWidth, image.naturalHeight);
+    framebuffer.bind();
+    figment.clear();
+    figment.drawQuad(program, { u_image: texture });
+    framebuffer.unbind();
+    imageOut.set(framebuffer);
+  } catch (err) {
+    console.error(\`Image load error: \${err\}\`);
+  }
 }
 
-function onLoad(err, texture, image) {
-  if (err) {
-    throw new Error(\`Image load error: \${err\}\`);
-  }
-  if (_texture) {
-    gl.deleteTexture(_texture);
-  }
-  _texture = texture;
-  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+function setShouldLoad() {
+  shouldLoad = true;
 }
 
-queryIn.onChange = figment.debounce(loadImage, 500);
-widthIn.onChange = figment.debounce(loadImage, 500);
-heightIn.onChange = figment.debounce(loadImage, 500);
+queryIn.onChange = figment.debounce(setShouldLoad, 500);
+widthIn.onChange = setShouldLoad;
+heightIn.onChange = setShouldLoad;
 `;
 
 image.webcamImage = `// Return a webcam stream
-
+node.timeDependent = true;
 const frameRate = node.numberIn('frameRate', 30);
 const imageOut = node.imageOut('image');
 
-let _video, _stream, _timer, _framebuffer;
+let _video, _stream, _timer, _framebuffer, shouldLoad;
 
-node.onStart = () => {
-  navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: false
-  }).then(function(stream) {
+node.onStart = async () => {
+  shouldLoad = false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false
+    });
+  
     _video = document.createElement('video');
     _video.width = 640;
     _video.height = 480;
@@ -1831,11 +1749,23 @@ node.onStart = () => {
     _video.play();
     _stream = stream;
     _framebuffer = new figment.Framebuffer(_video.width, _video.height);
-    _timer = setInterval(uploadImage, 1000 / frameRate.value);
-  })
-  .catch(function(err) {
+    _timer = setInterval(setShouldLoad, 1000 / frameRate.value);
+    shouldLoad = true;
+  } catch (err) {
     console.error('no camera input!', err.name);
-  });
+  }
+};
+
+node.onRender = () => {
+  if (!_video || !_framebuffer) return;
+  if (_video.readyState !== _video.HAVE_ENOUGH_DATA) return;
+  if (!shouldLoad) return;
+  _framebuffer.unbind();
+  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _video);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  imageOut.set(_framebuffer);
+  shouldLoad = false;
 };
 
 node.onStop = () => {
@@ -1844,22 +1774,16 @@ node.onStop = () => {
     _stream.getTracks().forEach(track => track.stop())
     _video = null;
   }
-}
+};
 
-function uploadImage() {
-  if (!_video || !_framebuffer) return;
-  if (_video.readyState !== _video.HAVE_ENOUGH_DATA) return;
-  _framebuffer.unbind();
-  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _video);
-  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
-  imageOut.set(_framebuffer);
+function setShouldLoad() {
+  shouldLoad = true;
 }
 
 frameRate.onChange = () => {
   clearInterval(_timer);
-  _timer = setInterval(uploadImage, 1000 / frameRate.value);
-}
+  _timer = setInterval(setShouldLoad, 1000 / frameRate.value);
+};
 `;
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -103,6 +103,18 @@ export function createTextureFromUrl(url, callback) {
   return twgl.createTexture(window.gl, { src: url }, callback);
 }
 
+export function createTextureFromUrlAsync(url) {
+  return new Promise((resolve, reject) => {
+    return twgl.createTexture(window.gl, { src: url }, (err, texture, image) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve({ texture, image });
+    });
+  });
+}
+
 export function createErrorTexture() {
   const checkerTexture = {
     mag: window.gl.NEAREST,

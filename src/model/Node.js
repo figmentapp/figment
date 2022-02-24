@@ -28,6 +28,11 @@ export default class Node {
     this.y = y;
     this.inPorts = [];
     this.outPorts = [];
+    this.isDirty = true;
+  }
+
+  _markDirty() {
+    this.network.markNodeDirty(this);
   }
 
   triggerIn(name) {

@@ -61,18 +61,21 @@ export default class Port {
 
   forceUpdate() {
     if (this.direction === PORT_IN) {
-      this.onChange && this.onChange(this.value);
+      this.node._markDirty();
+      // this.onChange && this.onChange(this.value);
     } else {
-      const network = this.node.network;
-      const connections = network.connections.filter((conn) => conn.outNode === this.node.id && conn.outPort === this.name);
-      for (const conn of connections) {
-        const inNode = network.nodes.find((node) => node.id === conn.inNode);
-        const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
-        if (inPort) {
-          inPort.value = this.value;
-          inPort.onChange && inPort.onChange(this.value);
-        }
-      }
+      // Mark all connected nodes dirty.
+      this.node.network.markDownstreamDirty(this.node);
+
+      // const connections = network.connections.filter((conn) => conn.outNode === this.node.id && conn.outPort === this.name);
+      // for (const conn of connections) {
+      //   const inNode = network.nodes.find((node) => node.id === conn.inNode);
+      //   const inPort = inNode.inPorts.find((port) => port.name === conn.inPort);
+      //   if (inPort) {
+      //     inPort.value = this.value;
+      //     inPort.onChange && inPort.onChange(this.value);
+      //   }
+      // }
     }
     this.node.network._onChange();
   }
