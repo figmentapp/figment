@@ -1865,7 +1865,7 @@ frameRate.onChange = () => {
 //// MACHINE LEARNING //////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-ml.detectFaces = `// Detect faces in an image (blazeface model)
+ml.detectFacesBlazeFace = `// Detect faces in an image (blazeface model)
 const imageIn = node.imageIn('in');
 const sizeIn = node.numberIn('size',5);
 const colorIn = node.colorIn('color', [0, 220, 20, 1.0]);
@@ -1932,7 +1932,7 @@ toggleIn.onChange = detectFaces;
 sizeIn.onChange = detectFaces;
 `;
 
-ml.detectFaces2 = `// Detect faces in an image using FaceMesh
+ml.detectFaces = `// Detect faces in an image using FaceMesh
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const contoursToggleIn = node.toggleIn('draw contours', true);
