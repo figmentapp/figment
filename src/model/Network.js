@@ -303,9 +303,6 @@ export default class Network {
     for (const node of this.nodes) {
       await this._startNode(node);
     }
-    for (const node of this.nodes) {
-      this._forceSetAllPorts(node);
-    }
     this.started = true;
   }
 
@@ -371,20 +368,6 @@ export default class Network {
         }
       }
       node.isDirty = false;
-    }
-  }
-
-  _forceSetAllPorts(node) {
-    // Force set all ports
-    try {
-      for (const port of node.inPorts) {
-        port.forceUpdate();
-      }
-      for (const port of node.outPorts) {
-        port.forceUpdate();
-      }
-    } catch (e) {
-      console.error(e && e.stack);
     }
   }
 
