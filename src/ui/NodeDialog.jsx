@@ -13,8 +13,7 @@ export default class NodeDialog extends Component {
   _onSearch(e) {
     const q = e.target.value;
     const results = this.nodeTypes.filter(
-      (node) =>
-        node.name.toLowerCase().includes(q.toLowerCase()) || node.description.toLowerCase().includes(q.toLowerCase())
+      (node) => node.name.toLowerCase().includes(q.toLowerCase()) || node.description.toLowerCase().includes(q.toLowerCase())
     );
     this.setState({ q, results });
   }
@@ -66,9 +65,7 @@ export default class NodeDialog extends Component {
               &times;
             </span>
           </div>
-          <div className="flex flex-col h-full overflow-y-auto flex-grow">
-            {results.map((nodeType) => this._renderNodeType(nodeType))}
-          </div>
+          <div className="flex flex-col h-full overflow-y-auto flex-grow">{results.map((nodeType) => this._renderNodeType(nodeType))}</div>
         </div>
       </div>
     );
@@ -77,7 +74,7 @@ export default class NodeDialog extends Component {
   _renderNodeType(nodeType) {
     return (
       <div
-        key={nodeType.name}
+        key={nodeType.type}
         className="bg-gray-800 p-4 flex items-center border-t border-gray-700 cursor-pointer"
         onDoubleClick={() => this._onCreateNode(nodeType)}
       >
@@ -88,7 +85,7 @@ export default class NodeDialog extends Component {
           <p className="text-gray-500 text-sm">{nodeType.description}</p>
         </div>
         <div className="ml-5">
-          <div className="block rounded-sm bg-gray-700 text-gray-400 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
+          <div className="rounded-sm bg-gray-700 text-gray-400 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
             <div onClick={() => this._onCreateNode(nodeType)}>+</div>
           </div>
         </div>
