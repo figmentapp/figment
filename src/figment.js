@@ -188,15 +188,12 @@ export function toCanvasColor(color) {
   return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
 }
 
-const _canvas = new OffscreenCanvas(1, 1);
 let _imageData;
 export function framebufferToImageData(framebuffer) {
   const width = framebuffer.width;
   const height = framebuffer.height;
 
-  if (framebuffer.width !== _canvas.width || framebuffer.height !== _canvas.height) {
-    _canvas.width = framebuffer.width;
-    _canvas.height = height;
+  if (!_imageData || framebuffer.width !== _imageData.width || framebuffer.height !== _imageData.height) {
     _imageData = new ImageData(width, height);
     framebuffer.setSize(width, height);
   }
