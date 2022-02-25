@@ -79,6 +79,8 @@ export default class Library {
     this.nodeTypes.push({ name: 'Detect Faces', type: 'ml.detectFaces', source: ml.detectFaces });
     this.nodeTypes.push({ name: 'Detect Pose', type: 'ml.detectPose', source: ml.detectPose });
     this.nodeTypes.push({ name: 'Segment Pose', type: 'ml.segmentPose', source: ml.segmentPose });
+    this.nodeTypes.push({ name: 'Image to Image Model', type: 'ml.imageToImageModel', source: ml.imageToImageModel });
+
     // this.nodeTypes.push({ name: 'Segment Pose 2', type: 'ml.segmentPose2', source: ml.segmentPose2 });
     // this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });
     // this.nodeTypes.push({ name: 'Pose Net', type: 'ml.poseNet', source: ml.poseNet });

@@ -2372,4 +2372,51 @@ async function segmentPersons() {
 imageIn.onChange = segmentPersons;
 `;
 
+ml.imageToImageModel = `// Run a generative image to image model (pix2pix).
+const imageIn = node.imageIn('in');
+const modelDir = node.directoryIn('model');
+const imageOut = node.imageOut('out');
+
+let oldModelDir, model, canvas, framebuffer;
+
+node.onStart = () => {
+  canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  framebuffer = new figment.Framebuffer(512, 512);
+};
+
+async function loadModel() {
+  if (!modelDir.value) return;
+  const modelUrl = figment.urlForAsset(modelDir.value + "/model.json");
+  model = await tf.loadGraphModel(modelUrl);
+  oldModelDir = modelDir.value;
+}
+
+node.onRender = async () => {
+  if (oldModelDir !== modelDir.value) {
+    await loadModel();
+  }
+  if (!model) return;
+  if (!imageIn.value) return;
+  if (imageIn.value.width !== 512 || imageIn.value.height !== 512) {
+    throw new Error('Image must be 512x512');
+  }
+  const imageData = figment.framebufferToImageData(imageIn.value);
+  let tensor = tf.expandDims(tf.browser.fromPixels(imageData), 0);
+  // Normalize values between -1 and 1
+  tensor = tensor.div(tf.scalar(127)).sub(tf.scalar(1));
+  
+  // Execute the model
+  let result = await model.execute(tensor);
+  // Convert results back to 0-1 range
+  result = result.mul(tf.scalar(0.5)).add(tf.scalar(0.5));
+  
+  await tf.browser.toPixels(result.squeeze(), canvas);
+  figment.canvasToFramebuffer(canvas, framebuffer);
+  
+  imageOut.set(framebuffer);
+};
+`;
+
 export default { image, ml };
