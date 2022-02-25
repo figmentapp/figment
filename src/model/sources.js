@@ -2380,9 +2380,7 @@ const imageOut = node.imageOut('out');
 let oldModelDir, model, canvas, framebuffer;
 
 node.onStart = () => {
-  canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas = new OffscreenCanvas(512, 512);
   framebuffer = new figment.Framebuffer(512, 512);
 };
 
