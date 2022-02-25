@@ -536,7 +536,7 @@ export default class Network {
         console.warn(`Could not find input node ${conn.inNode} for connection ${conn.outNode} -> ${conn.inNode}`);
         continue;
       }
-      this.markNodeDirty(inputNode);
+      this.markNodeDirty(inputNode, visited);
     }
   }
 
