@@ -744,19 +744,39 @@ node.onRender = async () => {
 `;
 
 image.loadImageFolder = `// Load a folder of images.
-
+node.timeDependent = true;
 const folderIn = node.directoryIn('folder', '');
 const filterIn = node.stringIn('filter', '*.jpg');
 const animateIn = node.toggleIn('animate', false);
 const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
 const imageOut = node.imageOut('out');
 
-let files, fileIndex, texture, framebuffer, program, timerHandle;
+let _files = [], _fileIndex, _texture, _image, _framebuffer, _program, _lastTime;
 
 node.onStart = () => {
-  program = figment.createShaderProgram();
-  framebuffer = new figment.Framebuffer();
-  fileIndex = 0;
+  _program = figment.createShaderProgram();
+  _framebuffer = new figment.Framebuffer();
+  _fileIndex = 0;
+  _lastTime = Date.now();
+}
+
+node.onRender = () => {
+  const deltaTime = Date.now() - _lastTime;
+  if (deltaTime > 1000 / frameRateIn.value) {
+    _lastTime = Date.now();
+    if (animateIn.value) {
+      nextImage();
+    }
+  }
+
+  if (_image && _texture) {
+    _framebuffer.setSize(_image.naturalWidth, _image.naturalHeight);
+    _framebuffer.bind();
+    figment.clear();
+    figment.drawQuad(_program, { u_image: _texture });
+    _framebuffer.unbind();
+    imageOut.set(_framebuffer);
+  }
 }
 
 function loadDirectory() {
@@ -765,8 +785,8 @@ function loadDirectory() {
   window.desktop.globFiles(baseDir, filterIn.value, onLoadDirectory);
 }
 
-function onLoadDirectory(err, _files) {
-  files = _files;
+function onLoadDirectory(err, files) {
+  _files = files;
   if (err) {
     console.error(err);
     onLoadError();
@@ -776,64 +796,47 @@ function onLoadDirectory(err, _files) {
     onLoadError();
     return;
   }
-  fileIndex = -1;
+  _fileIndex = -1;
   nextImage();
 }
 
 function onLoadError() {
+  _image = null;
+  _texture = null;
   const texture = figment.createErrorTexture();
-  framebuffer.setSize(100, 56);
-  framebuffer.bind();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  _framebuffer.setSize(100, 56);
+  _framebuffer.bind();
+  figment.drawQuad(_program, { u_image: texture });
+  _framebuffer.unbind();
+  imageOut.set(_framebuffer);
 }
 
 function onLoadImage(err, texture, image) {
   if (err) {
     throw new Error(\`Image load error: \${err\}\`);
   }
-  framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_image: texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  _texture = texture;
+  _image = image;
 }
 
 function nextImage() {
-  fileIndex++;
-  if (fileIndex >= files.length) {
-    fileIndex = 0;
+  if (_files.length === 0) return;
+  _fileIndex++;
+  if (_fileIndex >= _files.length) {
+    _fileIndex = 0;
   }
-  if (texture) {
-    window.gl.deleteTexture(texture);
+  if (_texture) {
+    window.gl.deleteTexture(_texture);
+    _texture = null;
   }
 
-  const file = files[fileIndex];
+  const file = _files[_fileIndex];
   const imageUrl = figment.urlForAsset(file);
   figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
 }
 
-function toggleAnimate() {
-  if (animateIn.value) {
-    timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
-  } else {
-    window.clearInterval(timerHandle);
-  }
-}
-
-function changeFrameRate() {
-  window.clearInterval(timerHandle);
-  if (animateIn.value) {
-   timerHandle = window.setInterval(nextImage, 1000 / frameRateIn.value);
-  }
-}
-
 folderIn.onChange = loadDirectory;
 filterIn.onChange = loadDirectory;
-animateIn.onChange = toggleAnimate;
-frameRateIn.onChange = changeFrameRate;
 `;
 
 image.loadMovie = `// Load a movie file.
