@@ -5,7 +5,8 @@ export default class NodeDialog extends Component {
   constructor(props) {
     super(props);
     this.nodeTypes = props.network.allNodeTypes();
-    this.state = { q: '', results: this.nodeTypes };
+    this.state = { q: '', results: this.nodeTypes, selectedIndex: 0 };
+    this.currentNodeTypeRef = React.createRef();
     this._onSearch = this._onSearch.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
@@ -15,7 +16,7 @@ export default class NodeDialog extends Component {
     const results = this.nodeTypes.filter(
       (node) => node.name.toLowerCase().includes(q.toLowerCase()) || node.description.toLowerCase().includes(q.toLowerCase())
     );
-    this.setState({ q, results });
+    this.setState({ q, results, selectedIndex: 0 });
   }
 
   _onCreateNode(nodeType) {
@@ -31,12 +32,36 @@ export default class NodeDialog extends Component {
     window.removeEventListener('keydown', this._onKeyDown);
   }
 
+  isElementInViewport(el) {
+    const rect = el.getBoundingClientRect();
+    const parentRect = el.parentElement.getBoundingClientRect();
+    return rect.top >= parentRect.top && rect.bottom <= parentRect.bottom;
+  }
+
   _onKeyDown(e) {
-    if (e.keyCode === 27) {
+    if (e.key === 'Escape') {
       this.props.onCancel();
-    } else if (e.keyCode === 13) {
-      if (this.state.results.length > 0) {
-        this.props.onCreateNode(this.state.results[0]);
+    } else if (e.key === 'ArrowDown') {
+      let newIndex = this.state.selectedIndex + 1;
+      if (newIndex >= this.state.results.length) {
+        newIndex = 0;
+      }
+      this.setState({ selectedIndex: newIndex });
+      if (this.currentNodeTypeRef.current && !this.isElementInViewport(this.currentNodeTypeRef.current)) {
+        this.currentNodeTypeRef.current.scrollIntoView({ behavior: 'auto' });
+      }
+    } else if (e.key === 'ArrowUp') {
+      let newIndex = this.state.selectedIndex - 1;
+      if (newIndex < 0) {
+        newIndex = this.state.results.length - 1;
+      }
+      this.setState({ selectedIndex: newIndex });
+      if (this.currentNodeTypeRef.current && !this.isElementInViewport(this.currentNodeTypeRef.current)) {
+        this.currentNodeTypeRef.current.scrollIntoView({ behavior: 'auto' });
+      }
+    } else if (e.key === 'Enter') {
+      if (this.state.selectedIndex >= 0 && this.state.selectedIndex < this.state.results.length) {
+        this.props.onCreateNode(this.state.results[this.state.selectedIndex]);
       }
     }
   }
@@ -65,17 +90,22 @@ export default class NodeDialog extends Component {
               &times;
             </span>
           </div>
-          <div className="flex flex-col h-full overflow-y-auto flex-grow">{results.map((nodeType) => this._renderNodeType(nodeType))}</div>
+          <div className="flex flex-col h-full overflow-y-auto flex-grow">
+            {results.map((nodeType, index) => this._renderNodeType(nodeType, index))}
+          </div>
         </div>
       </div>
     );
   }
 
-  _renderNodeType(nodeType) {
+  _renderNodeType(nodeType, index) {
     return (
       <div
+        ref={(index === this.state.selectedIndex && this.currentNodeTypeRef) || null}
         key={nodeType.type}
-        className="bg-gray-800 p-4 flex items-center border-t border-gray-700 cursor-pointer"
+        className={`${
+          index === this.state.selectedIndex ? 'bg-gray-600' : 'bg-gray-800'
+        } p-4 flex items-center border-t border-gray-700 cursor-pointer`}
         onDoubleClick={() => this._onCreateNode(nodeType)}
       >
         <div className="flex-grow">
