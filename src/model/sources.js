@@ -2109,14 +2109,15 @@ node.onStart = async (props) => {
     'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
     'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js'
   ]);
-  _pose = new Pose({locateFile: (file) => {
+  const pose = new Pose({locateFile: (file) => {
     return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/\${file}\`;
   }});
-  _pose.setOptions({
+  pose.setOptions({
     modelComplexity: 1, 
     smoothLandmarks: true,
   });
-  await _pose.initialize();
+  await pose.initialize();
+  _pose = pose;
 };
 
 function _detect(image) {
@@ -2207,16 +2208,16 @@ node.onStart = async (props) => {
   await figment.loadScripts([
     'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js'
   ]);
-  console.log('ml.segmentPose script load done');
-  _pose = new Pose({locateFile: (file) => {
+  const pose = new Pose({locateFile: (file) => {
     return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/\${file}\`;
   }});
-  _pose.setOptions({
+  pose.setOptions({
     modelComplexity: 1, 
     smoothLandmarks: true,
     enableSegmentation: true,
   });
-  await _pose.initialize();
+  await pose.initialize();
+  _pose = pose;
 };
 
 function _detect(image) {
