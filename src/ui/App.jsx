@@ -171,6 +171,10 @@ export default class App extends Component {
 
   async _openFile(filePath) {
     this._close();
+    this.setState({ isPlaying: false }, this._realOpenFile.bind(this, filePath));
+  }
+
+  async _realOpenFile(filePath) {
     const contents = await window.desktop.readProjectFile(filePath);
     // const contents = await fs.readFile(filePath, 'utf-8');
     const json = JSON.parse(contents);
