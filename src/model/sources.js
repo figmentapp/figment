@@ -2404,19 +2404,30 @@ node.onRender = async () => {
   if (imageIn.value.width !== 512 || imageIn.value.height !== 512) {
     throw new Error('Image must be 512x512');
   }
+
   const imageData = figment.framebufferToImageData(imageIn.value);
-  let tensor = tf.expandDims(tf.browser.fromPixels(imageData), 0);
-  // Normalize values between -1 and 1
-  tensor = tensor.div(tf.scalar(127)).sub(tf.scalar(1));
+  const inputTensor = tf.tidy(() => {
+    let tensor = tf.expandDims(tf.browser.fromPixels(imageData), 0);
+    // Normalize values between -1 and 1
+    tensor = tensor.toFloat().div(tf.scalar(127.5)).sub(tf.scalar(1));
+    return tensor;
+  });
   
   // Execute the model
-  let result = await model.execute(tensor);
-  // Convert results back to 0-1 range
-  result = result.mul(tf.scalar(0.5)).add(tf.scalar(0.5));
+  let outputTensor = await model.execute(inputTensor);
+
+  const result = tf.tidy(() => {
+    // Convert results back to 0-1 range
+    return outputTensor.mul(tf.scalar(0.5)).add(tf.scalar(0.5)).squeeze();
+  })
   
-  await tf.browser.toPixels(result.squeeze(), canvas);
+  await tf.browser.toPixels(result, canvas);
   figment.canvasToFramebuffer(canvas, framebuffer);
-  
+
+  inputTensor.dispose();
+  outputTensor.dispose();
+  result.dispose();
+
   imageOut.set(framebuffer);
 };
 `;
