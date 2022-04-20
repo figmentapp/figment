@@ -161,8 +161,7 @@ async function onClearRecentProjects() {
   createApplicationMenu();
 }
 
-ipcMain.on('open-project', (e, filePath) => onTouchProject(filePath));
-ipcMain.on('save-project', (e, filePath) => onTouchProject(filePath));
+ipcMain.handle('addToRecentFiles', (_, filePath) => onTouchProject(filePath));
 ipcMain.on('window-created', () => {
   if (argv.file) {
     emit('open', argv.file)();

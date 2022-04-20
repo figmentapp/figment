@@ -188,7 +188,7 @@ export default class App extends Component {
       this._setFilePath(filePath);
       this._onStart();
     });
-    // ipcRenderer.send('open-project', filePath);
+    window.desktop.addToRecentFiles(filePath);
   }
 
   async _onSaveFile() {
@@ -208,6 +208,7 @@ export default class App extends Component {
     const json = this.state.network.serialize();
     const contents = JSON.stringify(json, null, 2);
     await window.desktop.writeProjectFile(filePath, contents);
+    window.desktop.addToRecentFiles(filePath);
   }
 
   _close() {

@@ -47,6 +47,10 @@ async function showNodeContextMenu() {
   await ipcRenderer.invoke('showNodeContextMenu');
 }
 
+async function addToRecentFiles(filePath) {
+  await ipcRenderer.invoke('addToRecentFiles', filePath);
+}
+
 async function setFullScreen(fullscreen) {
   await ipcRenderer.invoke('setFullScreen', fullscreen);
 }
@@ -87,6 +91,7 @@ contextBridge.exposeInMainWorld('desktop', {
   showOpenDirectoryDialog,
   showSaveImageDialog,
   showNodeContextMenu,
+  addToRecentFiles,
   setFullScreen,
   readProjectFile,
   writeProjectFile,
