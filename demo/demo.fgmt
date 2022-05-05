@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Load Movie",
+      "type": "image.loadMovie",
+      "x": 150,
+      "y": 100,
+      "values": {
+        "file": "assets/waves.mp4"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 150,
+      "y": 200
+    },
+    {
+      "id": 7,
+      "name": "Out",
+      "type": "core.out",
+      "x": 200,
+      "y": 700
+    },
+    {
+      "id": 8,
+      "name": "Blur",
+      "type": "image.blur",
+      "x": 165.06019577658722,
+      "y": 293.79727330001646,
+      "values": {
+        "amount": 0.00899999999999999
+      }
+    },
+    {
+      "id": 9,
+      "name": "Mirror",
+      "type": "image.mirror",
+      "x": 181.72462136734194,
+      "y": 387.0180129374439
+    },
+    {
+      "id": 10,
+      "name": "Lookup",
+      "type": "image.lookup",
+      "x": 190.42574732951746,
+      "y": 569.1921281990778
+    },
+    {
+      "id": 11,
+      "name": "Load Image",
+      "type": "image.loadImage",
+      "x": 316.5876819806549,
+      "y": 462.24096333444277,
+      "values": {
+        "file": "assets/gradient-stepped.png"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    },
+    {
+      "outNode": 2,
+      "outPort": "out",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 8,
+      "outPort": "out",
+      "inNode": 9,
+      "inPort": "in"
+    },
+    {
+      "outNode": 9,
+      "outPort": "out",
+      "inNode": 10,
+      "inPort": "source"
+    },
+    {
+      "outNode": 11,
+      "outPort": "out",
+      "inNode": 10,
+      "inPort": "lookup"
+    },
+    {
+      "outNode": 10,
+      "outPort": "out",
+      "inNode": 7,
+      "inPort": "in"
+    }
+  ],
+  "types": []
+}

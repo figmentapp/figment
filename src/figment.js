@@ -15,12 +15,14 @@ export function projectDirectory() {
 }
 
 export function filePathForAsset(filename) {
+  if (typeof window.figmentPlayer !== 'undefined') return filename;
   if (nodePath.isAbsolute(filename)) return filename;
   const filePath = nodePath.join(projectDirectory(), filename);
   return filePath;
 }
 
 export function urlForAsset(filename) {
+  if (typeof window.figmentPlayer !== 'undefined') return filename;
   const filePath = filePathForAsset(filename);
   const absoluteFilePath = nodePath.resolve(filePath);
   const assetUrl = window.desktop.pathToFileURL(absoluteFilePath);

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <canvas id="c" width="512" height="512"></canvas>
+    <script src="build/figment-player.js"></script>
+    <script>
+      let player;
+      async function main() {
+        player = new figmentPlayer.Player('c');
+        await player.load('demo.fgmt');
+        await player.start();
+
+        // const animate = async () => {
+        //   await player.render();
+        //   requestAnimationFrame(animate);
+        // };
+
+        // requestAnimationFrame(animate);
+
+        await player.render();
+      }
+      main();
+    </script>
+  </body>
+</html>

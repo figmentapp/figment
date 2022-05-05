@@ -17,7 +17,7 @@ import Port, {
 } from './Port';
 import DependencyGraph from './DependencyGraph';
 
-export const DEFAULT_NETWORK = {
+export const getDefaultNetwork = () => ({
   nodes: [
     {
       id: 1,
@@ -84,7 +84,7 @@ export const DEFAULT_NETWORK = {
     { outNode: 5, outPort: 'out', inNode: 6, inPort: 'image 2' },
     { outNode: 6, outPort: 'out', inNode: 7, inPort: 'in' },
   ],
-};
+});
 
 export default class Network {
   constructor(library) {

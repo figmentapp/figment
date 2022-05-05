@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import Network, { DEFAULT_NETWORK } from '../model/Network';
+import Network, { getDefaultNetwork } from '../model/Network';
 import { Point } from '../g';
 import { PORT_TYPE_IMAGE } from '../model/Port';
 import Editor from './Editor';
@@ -21,7 +21,7 @@ export default class App extends Component {
     super(props);
     const library = new Library();
     const network = new Network(library);
-    network.parse(DEFAULT_NETWORK);
+    network.parse(getDefaultNetwork());
     const lastNetworkPoint = new Point(0, 0);
     this.state = {
       filePath: undefined,
@@ -149,7 +149,7 @@ export default class App extends Component {
     this._close();
     const library = new Library();
     const network = new Network(library);
-    network.parse(DEFAULT_NETWORK);
+    network.parse(getDefaultNetwork());
     await network.start();
     await network.render();
     // network.doFrame();
