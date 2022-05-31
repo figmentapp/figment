@@ -6,6 +6,7 @@ import { resolve } from 'path';
 export default defineConfig({
   root: resolve(__dirname, './src/ui/'),
   base: './',
+  publicDir: 'assets',
   plugins: [reactRefresh()],
   build: {
     outDir: resolve(__dirname, './build/'),

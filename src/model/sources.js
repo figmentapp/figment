@@ -1888,11 +1888,11 @@ node.onStart = async () => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-    'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js'
+    '/assets/mediapipe/drawing_utils.js',
+    '/assets/mediapipe/face_mesh.js'
   ]);
   _faceMesh = new FaceMesh({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/\${file\}\`;
+    return \`/assets/mediapipe/\${file\}\`;
   }});
   _faceMesh.setOptions({
     maxNumFaces: 1,
