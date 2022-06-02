@@ -2243,15 +2243,6 @@ function drawResults() {
   window.gl.bindTexture(gl.TEXTURE_2D, null);
   imageOut.set(_framebuffer);
 }
-
-// imageIn.onChange = detectPose;
-// backgroundIn.onChange = drawResults;
-// pointsToggleIn.onChange = drawResults;
-// pointsColorIn.onChange = drawResults;
-// pointsRadiusIn.onChange = drawResults;
-// linesToggleIn.onChange = drawResults;
-// linesColorIn.onChange = drawResults;
-// linesWidthIn.onChange = drawResults;
 `;
 
 ml.segmentPose = `// Remove the background from an image.
@@ -2356,9 +2347,6 @@ function drawResults() {
   window.gl.bindTexture(gl.TEXTURE_2D, null);
   imageOut.set(_framebuffer);
 }
-
-// imageIn.onChange = segmentBackground;
-// operationIn.onChange = drawResults;
 `;
 
 ml.segmentPose2 = `// Remove the background from an image.
