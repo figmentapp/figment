@@ -2012,6 +2012,7 @@ function drawResults() {
   if (!_results) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
+  _ctx.clearRect(0, 0, width, height);
   _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   _ctx.fillRect(0, 0, width, height);
   if (_results.multiFaceLandmarks) {
@@ -2226,6 +2227,7 @@ function drawResults() {
   if (!imageIn.value || !_results) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
+  _ctx.clearRect(0, 0, width, height);
   _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   _ctx.fillRect(0, 0, width, height);
   if (_results.poseLandmarks) {
