@@ -1,5 +1,14 @@
 # CHANGES
 
+## Version 0.3.8 (2022-05-09)
+
+- Pose detection / segmentation loads now load correctly from disk.
+- Fixed a memory leak in the Image to Image model node.
+- Add support for using the arrow keys in the new node dialog.
+- Fix the loadImageFolder node.
+- Opened files are now added correctly ro "recent files".
+- Add a lens distortion node.
+
 ## Version 0.3.7 (2022-02-25)
 
 - Image to Image model (only supports 512x512 images at the moment)
