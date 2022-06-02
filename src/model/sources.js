@@ -1950,11 +1950,11 @@ node.onStart = async () => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-    'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js'
+    '/assets/mediapipe/drawing_utils.js',
+    '/assets/mediapipe/face_mesh.js'
   ]);
   _faceMesh = new FaceMesh({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/\${file\}\`;
+    return \`/assets/mediapipe/\${file\}\`;
   }});
   _faceMesh.setOptions({
     maxNumFaces: 1,
@@ -2168,11 +2168,11 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-    'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/pose.js'
+    '/assets/mediapipe/drawing_utils.js',
+    '/assets/mediapipe/pose.js'
   ]);
   const pose = new Pose({locateFile: (file) => {
-    return \`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1635988162/\${file}\`;
+    return \`/assets/mediapipe/\${file}\`;
   }});
   pose.setOptions({
     modelComplexity: 1, 
