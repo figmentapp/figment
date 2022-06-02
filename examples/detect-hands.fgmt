@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 8,
+      "name": "Detect Hands",
+      "type": "ml.detectHands",
+      "x": 158.25353761586842,
+      "y": 210.36112528856256,
+      "values": {
+        "background": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "Webcam Image",
+      "type": "image.webcamImage",
+      "x": 83.90847400164317,
+      "y": 112.33221710110367
+    },
+    {
+      "id": 10,
+      "name": "Composite",
+      "type": "image.composite",
+      "x": 108.66878188125814,
+      "y": 330.92715201135,
+      "values": {
+        "factor": 1
+      }
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 9,
+      "outPort": "image",
+      "inNode": 8,
+      "inPort": "in"
+    },
+    {
+      "outNode": 9,
+      "outPort": "image",
+      "inNode": 10,
+      "inPort": "image 1"
+    },
+    {
+      "outNode": 8,
+      "outPort": "out",
+      "inNode": 10,
+      "inPort": "image 2"
+    }
+  ],
+  "types": []
+}
