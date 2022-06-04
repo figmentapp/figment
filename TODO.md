@@ -2,11 +2,9 @@
 
 - Speed up image / webcam pose detection
 - Crop input image
-- Composite two images
 - Blob detection
-- Pose detection (mediapipe)
-- Face detection (mediapipe)
-- Hand detection (mediapipe)
+- Composite node: choose input/output size
+- Image to Image node: detect input format based on model (256 or 512).
 
 ## DONE
 
@@ -28,3 +26,7 @@
 - Resize images
 - Write unit tests that test the new functionality of the network.
 - Use better security for Node.js: https://nodejs.org/api/url.html#url_url_pathtofileurl_path
+- Pose detection (mediapipe)
+- Face detection (mediapipe)
+- Hand detection (mediapipe)
+- Composite two images
