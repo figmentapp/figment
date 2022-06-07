@@ -7,6 +7,8 @@ export const core = {};
 export const image = {};
 export const ml = {};
 
+const ASSETS_PATH = import.meta.env.DEV ? 'assets' : '.';
+
 ////////////////////////////////////////////////////////////////////////////////
 //// CORE OPERATIONS ///////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1950,11 +1952,11 @@ node.onStart = async () => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/drawing_utils.js',
-    '/assets/mediapipe/face_mesh.js'
+    \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
+    \`${ASSETS_PATH}/mediapipe/face_mesh.js\`,
   ]);
   _faceMesh = new FaceMesh({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file\}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file\}\`;
   }});
   _faceMesh.setOptions({
     maxNumFaces: 1,
@@ -2169,11 +2171,11 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/drawing_utils.js',
-    '/assets/mediapipe/pose.js'
+    \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
+    \`${ASSETS_PATH}/mediapipe/pose.js\`
   ]);
   const pose = new Pose({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
   pose.setOptions({
     modelComplexity: 1, 
@@ -2261,10 +2263,10 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/pose.js'
+    \`${ASSETS_PATH}/mediapipe/pose.js\`
   ]);
   const pose = new Pose({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
   pose.setOptions({
     modelComplexity: 1, 
@@ -2446,11 +2448,11 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/drawing_utils.js',
-    '/assets/mediapipe/hands.js'
+    \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
+    \`${ASSETS_PATH}/mediapipe/hands.js\`
   ]);
   const hands = new Hands({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file}\`;
     // return \`https://cdn.jsdelivr.net/npm/@mediapipe/hands/\${file}\`;
   }});
   hands.setOptions({
