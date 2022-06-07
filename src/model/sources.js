@@ -122,7 +122,7 @@ node.onRender = () => {
 };
 `;
 
-image.canny = `// canny edge detection on input image.
+image.canny = `// Canny edge detection on input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -338,7 +338,7 @@ node.onRender = () => {
 };
 `;
 
-image.crop = `// Crop input image.
+image.crop = `// Crop an input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -412,7 +412,7 @@ node.onRender = () => {
 };
 `;
 
-image.maskCircle = `// Draw a circular mask of an image or constant.
+image.maskCircle = `// Draw a circular mask of an image or color.
 
 const fragmentShader = \`
 precision mediump float;
@@ -587,7 +587,7 @@ node.onRender = () => {
 };
 `;
 
-image.invert = `// Invert colors of input image.
+image.invert = `// Invert the colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1205,7 +1205,7 @@ node.onRender = () => {
 };
 `;
 
-image.reduceColor = `// reduce the amount of colors of input image.
+image.reduceColor = `// Reduce the amount of colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1327,7 +1327,7 @@ node.onRender = () => {
 };
 `;
 
-image.sharpen = `// Sharpen an input image
+image.sharpen = `// Sharpen an input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1439,7 +1439,7 @@ node.onRender = () => {
 };
 `;
 
-image.squares = `// return input image as squares.
+image.squares = `// Return input image as squares.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1630,7 +1630,7 @@ function clear() {
 clearButtonIn.onTrigger = clear;
 `;
 
-image.transform = `// Transform the image.
+image.transform = `// Translate/rotate/scale the image.
 
 const vertexShader = \`
 uniform mat4 u_transform;
