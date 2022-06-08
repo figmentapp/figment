@@ -7,6 +7,8 @@ export const core = {};
 export const image = {};
 export const ml = {};
 
+const ASSETS_PATH = import.meta.env.DEV ? 'assets' : '.';
+
 ////////////////////////////////////////////////////////////////////////////////
 //// CORE OPERATIONS ///////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +124,7 @@ node.onRender = () => {
 };
 `;
 
-image.canny = `// canny edge detection on input image.
+image.canny = `// Canny edge detection on input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -338,7 +340,7 @@ node.onRender = () => {
 };
 `;
 
-image.crop = `// Crop input image.
+image.crop = `// Crop an input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -413,7 +415,7 @@ node.onRender = () => {
 };
 `;
 
-image.maskCircle = `// Draw a circular mask of an image or constant.
+image.maskCircle = `// Draw a circular mask of an image or color.
 
 const fragmentShader = \`
 precision mediump float;
@@ -588,7 +590,7 @@ node.onRender = () => {
 };
 `;
 
-image.invert = `// Invert colors of input image.
+image.invert = `// Invert the colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1206,7 +1208,7 @@ node.onRender = () => {
 };
 `;
 
-image.reduceColor = `// reduce the amount of colors of input image.
+image.reduceColor = `// Reduce the amount of colors of input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1328,7 +1330,7 @@ node.onRender = () => {
 };
 `;
 
-image.sharpen = `// Sharpen an input image
+image.sharpen = `// Sharpen an input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1440,7 +1442,7 @@ node.onRender = () => {
 };
 `;
 
-image.squares = `// return input image as squares.
+image.squares = `// Return input image as squares.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1631,7 +1633,7 @@ function clear() {
 clearButtonIn.onTrigger = clear;
 `;
 
-image.transform = `// Transform the image.
+image.transform = `// Translate/rotate/scale the image.
 
 const vertexShader = \`
 uniform mat4 u_transform;
@@ -1951,11 +1953,11 @@ node.onStart = async () => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/drawing_utils.js',
-    '/assets/mediapipe/face_mesh.js'
+    \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
+    \`${ASSETS_PATH}/mediapipe/face_mesh.js\`,
   ]);
   _faceMesh = new FaceMesh({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file\}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file\}\`;
   }});
   _faceMesh.setOptions({
     maxNumFaces: 1,
@@ -2170,11 +2172,11 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/drawing_utils.js',
-    '/assets/mediapipe/pose.js'
+    \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
+    \`${ASSETS_PATH}/mediapipe/pose.js\`
   ]);
   const pose = new Pose({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
   pose.setOptions({
     modelComplexity: 1, 
@@ -2262,10 +2264,10 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/pose.js'
+    \`${ASSETS_PATH}/mediapipe/pose.js\`
   ]);
   const pose = new Pose({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
   pose.setOptions({
     modelComplexity: 1, 
@@ -2447,11 +2449,11 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts([
-    '/assets/mediapipe/drawing_utils.js',
-    '/assets/mediapipe/hands.js'
+    \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
+    \`${ASSETS_PATH}/mediapipe/hands.js\`
   ]);
   const hands = new Hands({locateFile: (file) => {
-    return \`/assets/mediapipe/\${file}\`;
+    return \`${ASSETS_PATH}/mediapipe/\${file}\`;
     // return \`https://cdn.jsdelivr.net/npm/@mediapipe/hands/\${file}\`;
   }});
   hands.setOptions({
