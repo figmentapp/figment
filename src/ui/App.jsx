@@ -36,7 +36,7 @@ export default class App extends Component {
       showExportSequenceDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
-      editorSplitterWidth: 320,
+      editorSplitterWidth: 350,
       fullscreen: false,
       version: 1,
       isPlaying: true,
@@ -502,7 +502,7 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
           />
-          <Splitter direction="vertical" size={editorSplitterWidth} onChange={(width) => this.setState({ editorSplitterWidth: width })} />
+          <Splitter direction="vertical" size={editorSplitterWidth} onChange={(width) => this.setState({ editorSplitterWidth: width })} minSize={350} />
 
           <ParamsEditor
             network={network}

@@ -167,6 +167,7 @@ img {
 
 .params {
   flex: 1;
+  min-width: 350px;
   background-color: var(--gray900);
 }
 
