@@ -398,7 +398,7 @@ export default class NetworkEditor extends Component {
     // e.preventDefault();
     const [mouseX, mouseY] = this._networkPosition(e);
     const wheel = -e.deltaY;
-    const zoom = Math.exp(wheel * 0.003);
+    const zoom = Math.exp(wheel * 0.0005);
     let newScale = this.state.scale * zoom;
     if (newScale < this.MIN_VIEW_SCALE) {
       newScale = this.MIN_VIEW_SCALE;
