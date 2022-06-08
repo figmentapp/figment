@@ -1107,7 +1107,7 @@ node.onRender = () => {
 }
 `;
 
-image.modcolor = `// Modulate colors of input image.
+image.modulateColor = `// Change the colors of the input image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -1120,17 +1120,17 @@ varying vec2 v_uv;
 void main() {
   vec2 uv = v_uv;
   vec4 col = texture2D(u_input_texture, uv.st);
-  col.r += mod(col.r, u_red);
-  col.g += mod(col.g, u_green);
-  col.b += mod(col.b, u_blue);
+  col.r = clamp(col.r + u_red, 0.0, 1.0);
+  col.g = clamp(col.g + u_green, 0.0, 1.0);
+  col.b = clamp(col.b + u_blue, 0.0, 1.0);
   gl_FragColor = col;
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const redIn = node.numberIn('red', 0, { min: 0, max: 1, step: 0.01 });
-const greenIn = node.numberIn('green', 0.1, { min: 0, max: 1, step: 0.01 });
-const blueIn = node.numberIn('blue', 1, { min: 0, max: 1, step: 0.01 });
+const redIn = node.numberIn('red', 0, { min: -1, max: 1, step: 0.001 });
+const greenIn = node.numberIn('green', 0, { min: -1, max: 1, step: 0.001 });
+const blueIn = node.numberIn('blue', 0, { min: -1, max: 1, step: 0.001 });
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
