@@ -36,7 +36,7 @@ export default class App extends Component {
       showExportSequenceDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
-      editorSplitterWidth: 320,
+      editorSplitterWidth: 350,
       fullscreen: false,
       version: 1,
       isPlaying: true,
@@ -58,6 +58,7 @@ export default class App extends Component {
     this._onDeleteSelection = this._onDeleteSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
+    this._onRevertPortValue = this._onRevertPortValue.bind(this);
     this._onTriggerButton = this._onTriggerButton.bind(this);
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
     this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
@@ -311,6 +312,14 @@ export default class App extends Component {
     this.forceUpdate();
   }
 
+  _onRevertPortValue(node, portName) {
+    const port = node.inPorts.find(p => p.name === portName);
+    console.assert(port);
+    const defaultValue = JSON.parse(JSON.stringify(port.defaultValue));
+    this.state.network.setPortValue(node, portName, defaultValue);
+    this.forceUpdate();
+  }
+
   _onTriggerButton(node, port) {
     this.state.network.triggerButton(node, port);
     this.forceUpdate();
@@ -502,13 +511,14 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
           />
-          <Splitter direction="vertical" size={editorSplitterWidth} onChange={(width) => this.setState({ editorSplitterWidth: width })} />
+          <Splitter direction="vertical" size={editorSplitterWidth} onChange={(width) => this.setState({ editorSplitterWidth: width })} minSize={350} />
 
           <ParamsEditor
             network={network}
             selection={selection}
             onShowNodeRenameDialog={this._onShowNodeRenameDialog}
             onChangePortValue={this._onChangePortValue}
+            onRevertPortValue={this._onRevertPortValue}
             onTriggerButton={this._onTriggerButton}
             editorSplitterWidth={editorSplitterWidth}
           />

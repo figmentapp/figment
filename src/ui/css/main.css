@@ -167,6 +167,7 @@ img {
 
 .params {
   flex: 1;
+  min-width: 350px;
   background-color: var(--gray900);
 }
 
@@ -236,6 +237,16 @@ input.params__field:focus {
   margin-right: 1rem;
   cursor: ew-resize;
   color: var(--gray600);
+}
+
+.params__revert {
+  margin-right: 0.75rem;
+  opacity: 0.05;
+  transition: opacity 0.2s;
+}
+
+.params__revert:hover {
+  opacity: 0.8;
 }
 
 .dialog-wrapper {

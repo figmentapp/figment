@@ -2,6 +2,7 @@ import React, { Component, useRef } from 'react';
 import chroma from 'chroma-js';
 import { ChromePicker } from 'react-color';
 import { Point } from '../g';
+import Icon from './Icon';
 import * as figment from '../figment';
 // import { remote } from 'electron';
 import { throttle } from 'lodash';
@@ -28,6 +29,10 @@ const NUMBER_DRAG_INPUT = 'input';
 function roundToMaxPlaces(v, places = 4) {
   return (Math.round(v * Math.pow(10, places)) / Math.pow(10, places)).toString();
   // return +(Math.round(v + 'e+' + places) + 'e-' + places);
+}
+
+function Spacer() {
+  return <div className="flex-1"/>
 }
 
 class NumberDrag extends Component {
@@ -177,6 +182,8 @@ class FloatParam extends Component {
       <div className="flex items-center mb-2">
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <NumberDrag label={label} value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} />
+        <Spacer/>
+        <Icon className="params__revert" name="arrow-rotate-left" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value"/>
       </div>
     );
   }
@@ -237,6 +244,8 @@ class SelectParam extends Component {
             )
           )}
         </select>
+        <Spacer />
+        <Icon className="params__revert" name="arrow-rotate-left" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value"/>
       </div>
     );
   }
@@ -295,6 +304,8 @@ class ColorParam extends Component {
           style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
           onClick={this._onToggleColorPicker}
         />
+        <Spacer />
+        <Icon className="params__revert" name="arrow-rotate-left" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value"/>
         {pickerVisible && (
           <div style={popover}>
             <div style={cover} onClick={this._onToggleColorPicker} />
@@ -495,6 +506,7 @@ export default class ParamsEditor extends Component {
           step={port.step}
           disabled={network.isConnected(port)}
           onChange={(value) => this._onChangePortValue(port.name, value)}
+          onRevert={() => this.props.onRevertPortValue(node, port.name)}
         />
       );
     } else if (port.type === PORT_TYPE_STRING) {
@@ -516,6 +528,7 @@ export default class ParamsEditor extends Component {
           options={port.options}
           disabled={network.isConnected(port)}
           onChange={(value) => this._onChangePortValue(port.name, value)}
+          onRevert={() => this.props.onRevertPortValue(node, port.name)}
         />
       );
     } else if (port.type === PORT_TYPE_POINT) {
@@ -537,6 +550,7 @@ export default class ParamsEditor extends Component {
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={(value) => this._onChangePortValue(port.name, value)}
+          onRevert={() => this.props.onRevertPortValue(node, port.name)}
           editorSplitterWidth={this.props.editorSplitterWidth}
         />
       );
