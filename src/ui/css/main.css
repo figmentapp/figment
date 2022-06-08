@@ -239,6 +239,16 @@ input.params__field:focus {
   color: var(--gray600);
 }
 
+.params__revert {
+  margin-right: 0.75rem;
+  opacity: 0.05;
+  transition: opacity 0.2s;
+}
+
+.params__revert:hover {
+  opacity: 0.8;
+}
+
 .dialog-wrapper {
   position: fixed;
   top: 0;
