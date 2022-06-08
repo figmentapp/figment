@@ -102,12 +102,12 @@ export function createShaderProgram(shader1 = null, shader2 = null) {
 }
 
 export function createTextureFromUrl(url, callback) {
-  return twgl.createTexture(window.gl, { src: url }, callback);
+  return twgl.createTexture(window.gl, { src: url, crossOrigin: 'anonymous' }, callback);
 }
 
 export function createTextureFromUrlAsync(url) {
   return new Promise((resolve, reject) => {
-    return twgl.createTexture(window.gl, { src: url }, (err, texture, image) => {
+    return twgl.createTexture(window.gl, { src: url, crossOrigin: 'anonymous' }, (err, texture, image) => {
       if (err) {
         reject(err);
         return;

@@ -55,6 +55,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Lens Distortion', type: 'image.lensDistortion', source: image.lensDistortion });
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
+    this.nodeTypes.push({ name: 'Fetch Image', type: 'image.fetchImage', source: image.fetchImage });
     this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
     this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
     this.nodeTypes.push({ name: 'Lookup', type: 'image.lookup', source: image.lookup });
