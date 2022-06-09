@@ -24,8 +24,8 @@
     },
     {
       "id": 9,
-      "name": "Detect Faces 2",
-      "type": "ml.detectFaces2",
+      "name": "Detect Faces",
+      "type": "ml.detectFaces",
       "x": 341,
       "y": 247
     },
