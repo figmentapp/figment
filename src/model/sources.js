@@ -556,7 +556,7 @@ node.onRender = () => {
 
 image.fetchImage = `// Fetch an image from a URL.
 node.timeDependent = true;
-const urlIn = node.stringIn('urlIn', 'https://figmentapp.com/img/figment-logo-white.svg');
+const urlIn = node.stringIn('url', 'https://figmentapp.com/img/figment.png');
 const refreshToggleIn = node.toggleIn('refresh', false);
 const refreshTimeIn = node.numberIn('refresh time', 60.0, { min: 0, max: 9999, step: 0.1});
 const imageOut = node.imageOut('out');
