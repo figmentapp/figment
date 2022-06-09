@@ -1,5 +1,12 @@
 # CHANGES
 
+## Version 0.3.10 (2022-06-09)
+
+- Fix splitter behavior
+- Change modcolor to modulateColor
+- Make zooming in/out of the network a bit more granular
+- Add Fetch Image node that can download an image from the internet
+
 ## Version 0.3.9 (2022-06-07)
 
 - Hand detection node
