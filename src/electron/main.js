@@ -148,6 +148,7 @@ ipcMain.handle('showNodeContextMenu', showNodeContextMenu);
 
 function setFullScreen(_, fullscreen) {
   gMainWindow.setFullScreen(fullscreen);
+  gMainWindow.setMenuBarVisibility(!fullscreen);
 }
 ipcMain.handle('setFullScreen', setFullScreen);
 
