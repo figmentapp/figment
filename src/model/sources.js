@@ -1851,8 +1851,8 @@ node.onStart = async () => {
     });
   
     _video = document.createElement('video');
-    _video.width = 640;
-    _video.height = 480;
+    _video.width = 1280;
+    _video.height = 960;
     _video.srcObject = stream;
     _video.play();
     _stream = stream;
