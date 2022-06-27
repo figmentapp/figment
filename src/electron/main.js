@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
+const { oscSendMessage } = require('./osc');
 
 const FILTER_MAP = {
   project: { name: 'Figment Project', extensions: ['fgmt'] },
@@ -168,6 +169,8 @@ ipcMain.on('window-created', () => {
     emit('open', argv.file)();
   }
 });
+
+ipcMain.handle('oscSendMessage', oscSendMessage);
 
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;

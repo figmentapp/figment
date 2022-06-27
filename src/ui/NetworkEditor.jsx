@@ -310,9 +310,7 @@ export default class NetworkEditor extends Component {
         this._dragX = x;
         this._dragY = y;
       } else if (port && port.direction === PORT_IN) {
-        const conn = this.props.network.connections.find(
-          (conn) => conn.inNode === port.node.id && conn.inPort === port.name
-        );
+        const conn = this.props.network.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
         if (conn) {
           this.props.onDisconnect(port);
           this._dragMode = DRAG_MODE_DRAG_PORT;
@@ -596,10 +594,7 @@ export default class NetworkEditor extends Component {
         y2 = this.state.y + this._dragY * this.state.scale;
       } else {
         x2 = this.state.x + port.node.x * this.state.scale + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-        y2 =
-          this.state.y + port.direction === PORT_IN
-            ? port.node.y * this.state.scale
-            : (port.node.y + NODE_HEIGHT) * this.state.scale;
+        y2 = this.state.y + port.direction === PORT_IN ? port.node.y * this.state.scale : (port.node.y + NODE_HEIGHT) * this.state.scale;
         x1 = this._dragX;
         y1 = this._dragY;
       }
@@ -617,12 +612,7 @@ export default class NetworkEditor extends Component {
       let x2 = this._networkX - this._dragX;
       let y2 = this._networkY - this._dragY;
       ctx.beginPath();
-      ctx.rect(
-        this.state.scale * x1 + this.state.x,
-        this.state.scale * y1 + this.state.y,
-        this.state.scale * x2,
-        this.state.scale * y2
-      );
+      ctx.rect(this.state.scale * x1 + this.state.x, this.state.scale * y1 + this.state.y, this.state.scale * x2, this.state.scale * y2);
       ctx.stroke();
     }
 
@@ -686,13 +676,13 @@ export default class NetworkEditor extends Component {
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
       if (outPort.type !== 'image') {
-        this.ctx.fillStyle = 'red';
-        this.ctx.fillRect(
-          node.x + NODE_BORDER,
-          node.y + NODE_BORDER,
-          NODE_WIDTH - NODE_BORDER * 2,
-          NODE_HEIGHT - NODE_BORDER * 2
-        );
+        this.ctx.fillStyle = 'black';
+        let x = this.state.x + node.x * this.state.scale;
+        let y = this.state.y + node.y * this.state.scale;
+        let width = NODE_WIDTH * this.state.scale;
+        let height = NODE_HEIGHT * this.state.scale;
+        this.ctx.fillRect(x + NODE_BORDER, y + NODE_BORDER, width - NODE_BORDER * 2, height - NODE_BORDER * 2);
+        continue;
       }
 
       let nodeColor = [1, 0, 1, 1];

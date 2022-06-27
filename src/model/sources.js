@@ -4,6 +4,7 @@ window.m4 = m4;
 window.twgl = twgl;
 
 export const core = {};
+export const comms = {};
 export const image = {};
 export const ml = {};
 
@@ -20,6 +21,32 @@ const imageOut = node.imageOut('out');
 node.onRender = () => {
   imageOut.set(imageIn.value);
 }
+`;
+
+////////////////////////////////////////////////////////////////////////////////
+//// COMMUNICATION OPERATIONS //////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+comms.sendOsc = `// Send an OSC message.
+const triggerIn = node.triggerIn('trigger');
+const ipIn = node.stringIn('ip', '127.0.0.1');
+const portIn = node.numberIn('port', 8000, { min: 0, max: 65535 });
+const addressIn = node.stringIn('address', '/test');
+const arg1In = node.numberIn('argument1', 42);
+const triggerOut = node.triggerOut('trigger');
+
+node.onRender = () => {
+  // Do nothing, only when trigger is sent.
+};
+
+triggerIn.onTrigger = () => {
+  const ip = ipIn.value;
+  const port = portIn.value;
+  const address = addressIn.value;
+  const args = [arg1In.value];
+  oscSendMessage(ip, port, address, args);
+  triggerOut.trigger();
+};
 `;
 
 ////////////////////////////////////////////////////////////////////////////////
