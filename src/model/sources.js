@@ -32,8 +32,14 @@ const triggerIn = node.triggerIn('trigger');
 const ipIn = node.stringIn('ip', '127.0.0.1');
 const portIn = node.numberIn('port', 8000, { min: 0, max: 65535 });
 const addressIn = node.stringIn('address', '/test');
-const arg1In = node.numberIn('argument1', 42);
+const arg1In = node.numberIn('argument1', 0);
+const arg2In = node.numberIn('argument2', 0);
+const arg3In = node.numberIn('argument3', 0);
 const triggerOut = node.triggerOut('trigger');
+arg1In.display = 0x03;
+arg2In.display = 0x03;
+arg3In.display = 0x03;
+triggerOut.display = 0x02;
 
 node.onRender = () => {
   // Do nothing, only when trigger is sent.
