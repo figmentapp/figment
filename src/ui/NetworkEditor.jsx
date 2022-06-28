@@ -565,9 +565,9 @@ export default class NetworkEditor extends Component {
 
     for (const conn of network.connections) {
       const outNode = network.nodes.find((node) => node.id === conn.outNode);
-      const outPortIndex = outNode.outPorts.findIndex((port) => port.name === conn.outPort);
+      const outPortIndex = this._visibleOutPorts(outNode).findIndex((port) => port.name === conn.outPort);
       const inNode = network.nodes.find((node) => node.id === conn.inNode);
-      const inPortIndex = inNode.inPorts.findIndex((port) => port.name === conn.inPort);
+      const inPortIndex = this._visibleInPorts(inNode).findIndex((port) => port.name === conn.inPort);
       const outPort = outNode.outPorts.find((port) => port.name === conn.outPort);
       const outX = this.state.x + outNode.x * this.state.scale + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
       const outY = this.state.y + (outNode.y + NODE_HEIGHT) * this.state.scale;
