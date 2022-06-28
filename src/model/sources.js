@@ -45,14 +45,18 @@ node.onRender = () => {
   // Do nothing, only when trigger is sent.
 };
 
-triggerIn.onTrigger = () => {
+const _sendMessage = () => {
   const ip = ipIn.value;
   const port = portIn.value;
   const address = addressIn.value;
-  const args = [arg1In.value];
-  oscSendMessage(ip, port, address, args);
+  const args = [arg1In.value, arg2In.value, arg3In.value];
+  window.desktop.oscSendMessage(ip, port, address, args);
   triggerOut.trigger();
 };
+
+arg1In.onChange = _sendMessage;
+arg2In.onChange = _sendMessage;
+arg3In.onChange = _sendMessage;
 `;
 
 ////////////////////////////////////////////////////////////////////////////////

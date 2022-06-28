@@ -170,7 +170,9 @@ ipcMain.on('window-created', () => {
   }
 });
 
-ipcMain.handle('oscSendMessage', oscSendMessage);
+ipcMain.handle('oscSendMessage', (_, { ip, port, address, args }) => {
+  oscSendMessage(ip, port, address, args);
+});
 
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;

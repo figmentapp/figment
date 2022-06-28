@@ -84,7 +84,7 @@ function registerListener(name, fn) {
 }
 
 function oscSendMessage(ip, port, address, ...args) {
-  ipcRenderer.send('osc-send-message', { ip, port, address, args });
+  ipcRenderer.invoke('oscSendMessage', { ip, port, address, args });
 }
 
 contextBridge.exposeInMainWorld('desktop', {
