@@ -119,7 +119,7 @@ export default class ExportSequenceDialog extends Component {
                 className="bg-gray-800 text-gray-300 p-2 w-24"
                 type="number"
                 value={this.state.frameRate}
-                onChange={(e) => this.setState({ frameRate: parseInt(e.target.value) })}
+                onChange={(e) => this.setState({ frameRate: parseFloat(e.target.value) })}
               />
             </div>
 
