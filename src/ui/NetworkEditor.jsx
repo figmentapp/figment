@@ -249,7 +249,7 @@ export default class NetworkEditor extends Component {
   }
 
   _visibleOutPorts(node) {
-    return node.outPorts.filter((port) => port.display & PORT_DISPLAY_PLUG);
+    return node.outPorts;
   }
 
   _findPort(node, x, y) {
