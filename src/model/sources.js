@@ -42,7 +42,7 @@ arg3In.display = 0x03;
 triggerOut.display = 0x02;
 
 node.onRender = () => {
-  // Do nothing, only when trigger is sent.
+  _sendMessage();
 };
 
 const _sendMessage = () => {
