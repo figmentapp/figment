@@ -4,6 +4,7 @@ window.m4 = m4;
 window.twgl = twgl;
 
 export const core = {};
+export const comms = {};
 export const image = {};
 export const ml = {};
 
@@ -20,6 +21,42 @@ const imageOut = node.imageOut('out');
 node.onRender = () => {
   imageOut.set(imageIn.value);
 }
+`;
+
+////////////////////////////////////////////////////////////////////////////////
+//// COMMUNICATION OPERATIONS //////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+comms.sendOsc = `// Send an OSC message.
+const triggerIn = node.triggerIn('trigger');
+const ipIn = node.stringIn('ip', '127.0.0.1');
+const portIn = node.numberIn('port', 8000, { min: 0, max: 65535 });
+const addressIn = node.stringIn('address', '/test');
+const arg1In = node.numberIn('argument1', 0);
+const arg2In = node.numberIn('argument2', 0);
+const arg3In = node.numberIn('argument3', 0);
+const triggerOut = node.triggerOut('trigger');
+arg1In.display = 0x03;
+arg2In.display = 0x03;
+arg3In.display = 0x03;
+triggerOut.display = 0x02;
+
+node.onRender = () => {
+  _sendMessage();
+};
+
+const _sendMessage = () => {
+  const ip = ipIn.value;
+  const port = portIn.value;
+  const address = addressIn.value;
+  const args = [arg1In.value, arg2In.value, arg3In.value];
+  window.desktop.oscSendMessage(ip, port, address, args);
+  triggerOut.trigger();
+};
+
+arg1In.onChange = _sendMessage;
+arg2In.onChange = _sendMessage;
+arg3In.onChange = _sendMessage;
 `;
 
 ////////////////////////////////////////////////////////////////////////////////

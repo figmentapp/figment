@@ -83,6 +83,10 @@ function registerListener(name, fn) {
   listeners[name] = fn;
 }
 
+function oscSendMessage(ip, port, address, ...args) {
+  ipcRenderer.invoke('oscSendMessage', { ip, port, address, args });
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getPackagedFile,
   showOpenProjectDialog,
@@ -99,4 +103,5 @@ contextBridge.exposeInMainWorld('desktop', {
   saveBufferToFile,
   pathToFileURL,
   registerListener,
+  oscSendMessage,
 });

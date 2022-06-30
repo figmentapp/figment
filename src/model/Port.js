@@ -17,6 +17,10 @@ export const PORT_TYPE_OBJECT = 'object';
 export const PORT_IN = 'in';
 export const PORT_OUT = 'out';
 
+export const PORT_DISPLAY_HIDDEN = 0x00;
+export const PORT_DISPLAY_PARAMETER = 0x01;
+export const PORT_DISPLAY_PLUG = 0x02;
+
 let gPortId = 0;
 
 export default class Port {
@@ -29,6 +33,7 @@ export default class Port {
     this.direction = direction;
     this.value = value;
     this.defaultValue = value;
+    this.display = type === PORT_TYPE_IMAGE ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
     options = options || {};
     this.min = options.min !== undefined ? options.min : undefined;
     this.max = options.max !== undefined ? options.max : undefined;

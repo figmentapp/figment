@@ -1,10 +1,13 @@
-import { core, image, ml } from './sources';
+import { core, comms, image, ml } from './sources';
 
 export default class Library {
   constructor() {
     this.nodeTypes = [];
     // Core
     this.nodeTypes.push({ name: 'Out', type: 'core.out', source: core.out });
+
+    // Communication
+    this.nodeTypes.push({ name: 'Send OSC', type: 'comms.sendOsc', source: comms.sendOsc });
 
     // this.nodeTypes.push({ name: 'Sequence', type: 'core.sequence', source: core.sequence });
     // this.nodeTypes.push({ name: 'Time', type: 'core.time', source: core.time });

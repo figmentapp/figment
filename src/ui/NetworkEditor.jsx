@@ -15,6 +15,7 @@ import {
   PORT_TYPE_OBJECT,
   PORT_IN,
   PORT_OUT,
+  PORT_DISPLAY_PLUG,
 } from '../model/Port';
 
 const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace`;
@@ -243,20 +244,25 @@ export default class NetworkEditor extends Component {
     }
   }
 
+  _visibleInPorts(node) {
+    return node.inPorts.filter((port) => port.display & PORT_DISPLAY_PLUG);
+  }
+
+  _visibleOutPorts(node) {
+    return node.outPorts;
+  }
+
   _findPort(node, x, y) {
     const dx = (x - node.x) * this.state.scale;
     const dy = (y - node.y) * this.state.scale;
     const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
     if (this._dragMode === DRAG_MODE_DRAG_PORT) {
-      const inPort = node.inPorts[portIndex];
-      if (inPort && inPort.type === PORT_TYPE_IMAGE) return inPort;
+      return this._visibleInPorts(node)[portIndex];
     } else {
       if (dy <= 10) {
-        const inPort = node.inPorts[portIndex];
-        if (inPort && inPort.type === PORT_TYPE_IMAGE) return inPort;
+        return this._visibleInPorts(node)[portIndex];
       } else if (dy >= NODE_HEIGHT * this.state.scale - 10) {
-        const outPort = node.outPorts[portIndex];
-        if (outPort && outPort.type === PORT_TYPE_IMAGE) return outPort;
+        return this._visibleOutPorts(node)[portIndex];
       }
     }
   }
@@ -310,9 +316,7 @@ export default class NetworkEditor extends Component {
         this._dragX = x;
         this._dragY = y;
       } else if (port && port.direction === PORT_IN) {
-        const conn = this.props.network.connections.find(
-          (conn) => conn.inNode === port.node.id && conn.inPort === port.name
-        );
+        const conn = this.props.network.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
         if (conn) {
           this.props.onDisconnect(port);
           this._dragMode = DRAG_MODE_DRAG_PORT;
@@ -499,21 +503,21 @@ export default class NetworkEditor extends Component {
       ctx.fillRect(nodeX, nodeY, NODE_BORDER, nodeHeight);
       ctx.fillRect(nodeX + nodeWidth - NODE_BORDER, nodeY, NODE_BORDER, nodeHeight);
 
+      // Draw port plugs
+      let portX = 0;
       for (let i = 0; i < node.inPorts.length; i++) {
         const port = node.inPorts[i];
-        if (port.type !== PORT_TYPE_IMAGE) continue;
+        if ((port.display & PORT_DISPLAY_PLUG) === 0) continue;
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(nodeX + i * NODE_PORT_WIDTH, nodeY - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
+        ctx.fillRect(nodeX + portX, nodeY - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
+        portX += NODE_PORT_WIDTH;
       }
+      portX = 0;
       for (let i = 0; i < node.outPorts.length; i++) {
         const port = node.outPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(
-          nodeX + i * NODE_PORT_WIDTH,
-          nodeY + NODE_HEIGHT * this.state.scale - NODE_BORDER,
-          NODE_PORT_WIDTH - 2,
-          NODE_BORDER * 2
-        );
+        ctx.fillRect(nodeX + portX, nodeY + NODE_HEIGHT * this.state.scale - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
+        portX += NODE_PORT_WIDTH;
       }
     }
 
@@ -561,9 +565,9 @@ export default class NetworkEditor extends Component {
 
     for (const conn of network.connections) {
       const outNode = network.nodes.find((node) => node.id === conn.outNode);
-      const outPortIndex = outNode.outPorts.findIndex((port) => port.name === conn.outPort);
+      const outPortIndex = this._visibleOutPorts(outNode).findIndex((port) => port.name === conn.outPort);
       const inNode = network.nodes.find((node) => node.id === conn.inNode);
-      const inPortIndex = inNode.inPorts.findIndex((port) => port.name === conn.inPort);
+      const inPortIndex = this._visibleInPorts(inNode).findIndex((port) => port.name === conn.inPort);
       const outPort = outNode.outPorts.find((port) => port.name === conn.outPort);
       const outX = this.state.x + outNode.x * this.state.scale + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
       const outY = this.state.y + (outNode.y + NODE_HEIGHT) * this.state.scale;
@@ -596,10 +600,7 @@ export default class NetworkEditor extends Component {
         y2 = this.state.y + this._dragY * this.state.scale;
       } else {
         x2 = this.state.x + port.node.x * this.state.scale + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-        y2 =
-          this.state.y + port.direction === PORT_IN
-            ? port.node.y * this.state.scale
-            : (port.node.y + NODE_HEIGHT) * this.state.scale;
+        y2 = this.state.y + port.direction === PORT_IN ? port.node.y * this.state.scale : (port.node.y + NODE_HEIGHT) * this.state.scale;
         x1 = this._dragX;
         y1 = this._dragY;
       }
@@ -617,12 +618,7 @@ export default class NetworkEditor extends Component {
       let x2 = this._networkX - this._dragX;
       let y2 = this._networkY - this._dragY;
       ctx.beginPath();
-      ctx.rect(
-        this.state.scale * x1 + this.state.x,
-        this.state.scale * y1 + this.state.y,
-        this.state.scale * x2,
-        this.state.scale * y2
-      );
+      ctx.rect(this.state.scale * x1 + this.state.x, this.state.scale * y1 + this.state.y, this.state.scale * x2, this.state.scale * y2);
       ctx.stroke();
     }
 
@@ -636,11 +632,11 @@ export default class NetworkEditor extends Component {
     let toolTipX = this.state.x + overNode.x * this.state.scale;
     let toolTipY = this.state.y + overNode.y * this.state.scale;
     if (overPort.direction === PORT_IN) {
-      const index = overNode.inPorts.indexOf(overPort);
+      const index = this._visibleInPorts(overNode).indexOf(overPort);
       toolTipX += index * NODE_PORT_WIDTH;
       toolTipY += 25;
     } else {
-      const index = overNode.outPorts.indexOf(overPort);
+      const index = this._visibleOutPorts(overNode).indexOf(overPort);
       toolTipX += index * NODE_PORT_WIDTH;
       toolTipY += NODE_HEIGHT * this.state.scale + 20;
     }
@@ -686,13 +682,13 @@ export default class NetworkEditor extends Component {
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
       if (outPort.type !== 'image') {
-        this.ctx.fillStyle = 'red';
-        this.ctx.fillRect(
-          node.x + NODE_BORDER,
-          node.y + NODE_BORDER,
-          NODE_WIDTH - NODE_BORDER * 2,
-          NODE_HEIGHT - NODE_BORDER * 2
-        );
+        this.ctx.fillStyle = 'black';
+        let x = this.state.x + node.x * this.state.scale;
+        let y = this.state.y + node.y * this.state.scale;
+        let width = NODE_WIDTH * this.state.scale;
+        let height = NODE_HEIGHT * this.state.scale;
+        // this.ctx.fillRect(x + NODE_BORDER, y + NODE_BORDER, width - NODE_BORDER * 2, height - NODE_BORDER * 2);
+        continue;
       }
 
       let nodeColor = [1, 0, 1, 1];
