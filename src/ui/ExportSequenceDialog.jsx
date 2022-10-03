@@ -38,6 +38,7 @@ export default class ExportSequenceDialog extends Component {
       return;
     }
     this.setState({ isExporting: true, currentFrame: 1, exportedNode });
+    window.desktop.setRuntimeMode('export');
     this.props.network.reset();
     this._startTime = Date.now();
     window.requestAnimationFrame(this._exportFrame);
@@ -56,6 +57,7 @@ export default class ExportSequenceDialog extends Component {
       window.setTimeout(this._exportFrame, 1000 / this.state.frameRate);
     } else {
       window.setTimeout(() => {
+        window.desktop.setRuntimeMode('live');
         this.setState({ isExporting: false });
       }, 1000);
     }

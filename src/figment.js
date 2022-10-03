@@ -14,6 +14,11 @@ export function projectDirectory() {
   return nodePath.dirname(window.app.state.filePath);
 }
 
+export function ensureDirectory(dir) {
+  if (!window.app) return;
+  window.desktop.ensureDirectory(dir);
+}
+
 export function filePathForAsset(filename) {
   if (typeof window.figmentPlayer !== 'undefined') return filename;
   if (nodePath.isAbsolute(filename)) return filename;

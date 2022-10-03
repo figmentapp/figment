@@ -14,6 +14,20 @@ const appPath = windowParams.get('appPath');
 
 contextBridge.exposeInMainWorld('nodePath', path);
 
+const RUNTIME_MODE_LIVE = 'live';
+const RUNTIME_MODE_EXPORT = 'export';
+let runtimeMode = RUNTIME_MODE_LIVE;
+
+function getRuntimeMode() {
+  return runtimeMode;
+}
+
+function setRuntimeMode(mode) {
+  if (mode === RUNTIME_MODE_LIVE || mode === RUNTIME_MODE_EXPORT) {
+    runtimeMode = mode;
+  }
+}
+
 function getPackagedFile(filePath) {
   return path.resolve(appPath, filePath);
 }
@@ -64,6 +78,10 @@ async function writeProjectFile(filePath, data) {
   await fs.writeFile(filePath, data);
 }
 
+async function ensureDirectory(dir) {
+  await fs.mkdir(dir, { recursive: true });
+}
+
 async function globFiles(baseDir, pattern, cb) {
   const globPattern = path.join(baseDir, pattern);
   glob(globPattern, cb);
@@ -88,6 +106,8 @@ function oscSendMessage(ip, port, address, ...args) {
 }
 
 contextBridge.exposeInMainWorld('desktop', {
+  getRuntimeMode,
+  setRuntimeMode,
   getPackagedFile,
   showOpenProjectDialog,
   showSaveProjectDialog,
@@ -99,6 +119,7 @@ contextBridge.exposeInMainWorld('desktop', {
   setFullScreen,
   readProjectFile,
   writeProjectFile,
+  ensureDirectory,
   globFiles,
   saveBufferToFile,
   pathToFileURL,

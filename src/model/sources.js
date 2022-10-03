@@ -1407,6 +1407,55 @@ node.onRender = () => {
 };
 `;
 
+image.saveImage = `// Save the image to disk.
+
+const imageIn = node.imageIn('in');
+const enableIn = node.selectIn('Enable', ['On Export', 'Always', 'Never'], 'On Export');
+const folderIn = node.directoryIn('folder', '');
+const templateIn = node.stringIn('template', 'image-#####.png');
+const imageOut = node.imageOut('out');
+
+let counter = 0;
+
+node.onStart = () => {
+  counter = 0;
+}
+
+node.onRender = async () => {
+  if (!imageIn.value) return;
+  imageOut.set(imageIn.value);
+
+  if (enableIn.value === 'Never') return;
+  const runtimeMode = window.desktop.getRuntimeMode();
+  if (enableIn.value === 'On Export' && runtimeMode !== 'export') return;
+
+  const folder = folderIn.value;
+  if (!folder) return;
+  const template = templateIn.value;
+  const ext = template.split('.').pop();
+  const imageQuality = 1.0;
+  await figment.ensureDirectory(folder);
+  // Read out the pixels of the framebuffer.
+  const framebuffer = imageIn.value;
+  const imageData = new ImageData(framebuffer.width, framebuffer.height);
+  framebuffer.bind();
+  window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
+  framebuffer.unbind();
+  // Put the image data into an offscreen canvas.
+  const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
+  const ctx = canvas.getContext('2d');
+  ctx.putImageData(imageData, 0, 0);
+  // Convert the canvas to a PNG blob, then to a buffer.
+  const blob = await canvas.convertToBlob({ type: 'image/' + ext, quality: imageQuality });
+  const pngBuffer = await blob.arrayBuffer();
+  // Write the buffer to the given file path.
+  const digits = template.split('#').length - 1;
+  const filePath = folder + '/' + template.replace(/#{1,10}/, counter.toString().padStart(digits, '0'));
+  await window.desktop.saveBufferToFile(pngBuffer, filePath);
+  counter++;
+};
+`;
+
 image.sharpen = `// Sharpen an input image.
 
 const fragmentShader = \`
