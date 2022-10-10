@@ -1,10 +1,4 @@
 import React, { Component } from 'react';
-import { padWithZeroes } from '../util';
-
-const FILE_EXTENSION_MAP = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-};
 
 export default class RenderDialog extends Component {
   constructor(props) {
