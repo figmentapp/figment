@@ -10,7 +10,6 @@ import Splitter from './Splitter';
 import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
-import ExportSequenceDialog from './ExportSequenceDialog';
 import RenderDialog from './RenderDialog';
 
 function randInt(min, max) {
@@ -34,7 +33,6 @@ export default class App extends Component {
       selection: new Set(),
       showNodeDialog: false,
       showForkDialog: false,
-      showExportSequenceDialog: false,
       showRenderDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
@@ -66,8 +64,6 @@ export default class App extends Component {
     this._onHideNodeDialog = this._onHideNodeDialog.bind(this);
     this._onShowForkDialog = this._onShowForkDialog.bind(this);
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
-    this._onshowExportSequenceDialog = this._onshowExportSequenceDialog.bind(this);
-    this._onHideExportSequenceDialog = this._onHideExportSequenceDialog.bind(this);
     this._onshowRenderDialog = this._onshowRenderDialog.bind(this);
     this._onHideRenderDialog = this._onHideRenderDialog.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
@@ -138,9 +134,6 @@ export default class App extends Component {
         break;
       case 'view-node-source':
         this._onViewNodeSource();
-        break;
-      case 'export-dialog':
-        this._onshowExportSequenceDialog();
         break;
       case 'render-dialog':
         this._onshowRenderDialog();
@@ -367,14 +360,6 @@ export default class App extends Component {
     });
   }
 
-  _onshowExportSequenceDialog() {
-    this.setState({ showExportSequenceDialog: true });
-  }
-
-  _onHideExportSequenceDialog() {
-    this.setState({ showExportSequenceDialog: false });
-  }
-
   _onshowRenderDialog() {
     this.setState({ showRenderDialog: true });
   }
@@ -485,7 +470,6 @@ export default class App extends Component {
       mainSplitterWidth,
       editorSplitterWidth,
       showNodeRenameDialog,
-      showExportSequenceDialog,
       showRenderDialog,
       nodeToRename,
       fullscreen,
@@ -562,9 +546,6 @@ export default class App extends Component {
         )}
         {showNodeRenameDialog && (
           <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
-        )}
-        {showExportSequenceDialog && (
-          <ExportSequenceDialog network={network} exportImage={this._exportImage} onCancel={this._onHideExportSequenceDialog} />
         )}
         {showRenderDialog && <RenderDialog network={network} exportImage={this._exportImage} onCancel={this._onHideRenderDialog} />}
       </div>
