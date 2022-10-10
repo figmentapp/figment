@@ -40,9 +40,12 @@ export default class RenderDialog extends Component {
   }
 
   render() {
-    // Check if there are any "save image" nodes in the network
-    const hasSaveImageNodes = this.props.network.nodes.some((n) => n.type === 'image.saveImage');
-    const renderEnabled = hasSaveImageNodes;
+    // Check if there are any "save image" nodes in the network.
+    const saveImageNodes = this.props.network.nodes.filter((n) => n.type === 'image.saveImage');
+    // Check if they all have a save folder set.
+    const saveFolders = saveImageNodes.every((n) => !!n.inPorts.find((p) => p.name === 'folder').value);
+    // Only enable rendering if the above conditions are met.
+    const renderEnabled = saveImageNodes.length > 0 && saveFolders;
 
     return (
       <div className="dialog-wrapper">
@@ -89,7 +92,8 @@ export default class RenderDialog extends Component {
             {/* Bottom row */}
             <div className="flex-1"></div>
             <div className="self-end flex flex-row-reverse justify-between items-center px-6 pb-6">
-              {!renderEnabled && <span className="text-gray-400">No "Save Image" nodes found.</span>}
+              {saveImageNodes.length === 0 && <span className="text-gray-400">No "Save Image" nodes found.</span>}
+              {!saveFolders && <span className="text-gray-400">Not all "Save Image" nodes have a folder set.</span>}
               {!this.state.isRendering && renderEnabled && (
                 <button className={`w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none`} onClick={this._onRender}>
                   Render
