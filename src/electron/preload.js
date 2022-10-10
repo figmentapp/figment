@@ -91,9 +91,17 @@ async function ensureDirectory(dir) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-async function globFiles(baseDir, pattern, cb) {
+async function globFiles(baseDir, pattern) {
   const globPattern = path.join(baseDir, pattern);
-  glob(globPattern, cb);
+  return new Promise((resolve, reject) => {
+    glob(globPattern, (err, files) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(files);
+      }
+    });
+  });
 }
 
 async function saveBufferToFile(buffer, filePath) {

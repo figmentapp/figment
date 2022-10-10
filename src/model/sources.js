@@ -893,7 +893,7 @@ const animateIn = node.toggleIn('animate', false);
 const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
 const imageOut = node.imageOut('out');
 
-let _files = [], _fileIndex, _texture, _image, _framebuffer, _program, _lastTime;
+let _files, _fileIndex, _texture, _image, _framebuffer, _program, _lastTime;
 
 node.onStart = () => {
   _program = figment.createShaderProgram();
@@ -902,7 +902,11 @@ node.onStart = () => {
   _lastTime = Date.now();
 }
 
-node.onRender = () => {
+node.onRender = async () => {
+  if (_files === undefined) {
+    loadDirectory();
+  }
+
   const deltaTime = Date.now() - _lastTime;
   if (deltaTime > 1000 / frameRateIn.value) {
     _lastTime = Date.now();
@@ -921,28 +925,27 @@ node.onRender = () => {
   }
 }
 
-function loadDirectory() {
-  if (!folderIn.value || folderIn.value.trim().length === 0) return;
-  const baseDir = figment.filePathForAsset(folderIn.value);
-  window.desktop.globFiles(baseDir, filterIn.value, onLoadDirectory);
+function changeDirectory() {
+  _files = undefined;
 }
 
-function onLoadDirectory(err, files) {
-  _files = files;
-  if (err) {
-    console.error(err);
-    onLoadError();
+async function loadDirectory() {
+  if (!folderIn.value || folderIn.value.trim().length === 0) {
+    _files = [];
     return;
   }
-  if (files.length === 0) {
+  const baseDir = figment.filePathForAsset(folderIn.value);
+  try {
+    _files = await window.desktop.globFiles(baseDir, filterIn.value);
+  } catch (err) {
     onLoadError();
-    return;
   }
   _fileIndex = -1;
   nextImage();
 }
 
 function onLoadError() {
+  _files = [];
   _image = null;
   _texture = null;
   const texture = figment.createErrorTexture();
@@ -977,8 +980,8 @@ function nextImage() {
   figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
 }
 
-folderIn.onChange = loadDirectory;
-filterIn.onChange = loadDirectory;
+folderIn.onChange = changeDirectory;
+filterIn.onChange = changeDirectory;
 `;
 
 image.loadMovie = `// Load a movie file.
