@@ -907,11 +907,17 @@ node.onRender = async () => {
     loadDirectory();
   }
 
-  const deltaTime = Date.now() - _lastTime;
-  if (deltaTime > 1000 / frameRateIn.value) {
-    _lastTime = Date.now();
-    if (animateIn.value) {
-      nextImage();
+  const runtimeMode = window.desktop.getRuntimeMode();
+  if (runtimeMode === 'export') {
+    _fileIndex = (window.desktop.getCurrentFrame() - 1) % _files.length;
+    await loadImage();
+  } else {
+    const deltaTime = Date.now() - _lastTime;
+    if (deltaTime > 1000 / frameRateIn.value) {
+      _lastTime = Date.now();
+      if (animateIn.value) {
+        await nextImage();
+      }
     }
   }
 
@@ -964,12 +970,16 @@ function onLoadImage(err, texture, image) {
   _image = image;
 }
 
-function nextImage() {
+async function nextImage() {
   if (_files.length === 0) return;
   _fileIndex++;
   if (_fileIndex >= _files.length) {
     _fileIndex = 0;
   }
+  await loadImage();
+}
+
+async function loadImage() {
   if (_texture) {
     window.gl.deleteTexture(_texture);
     _texture = null;
@@ -977,7 +987,8 @@ function nextImage() {
 
   const file = _files[_fileIndex];
   const imageUrl = figment.urlForAsset(file);
-  figment.createTextureFromUrl(imageUrl.toString(), onLoadImage);
+  const {texture, image} = await figment.createTextureFromUrlAsync(imageUrl.toString());
+  onLoadImage(null, texture, image);
 }
 
 folderIn.onChange = changeDirectory;
