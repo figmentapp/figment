@@ -269,7 +269,8 @@ function createApplicationMenu() {
         click: emit('save-as'),
       },
       { type: 'separator' },
-      { label: 'Export…', accelerator: 'CmdOrCtrl+Shift+E', click: emit('export-dialog') },
+      { label: 'Export…', accelerator: 'CmdOrCtrl+Alt+E', click: emit('export-dialog') },
+      { label: 'Render…', accelerator: 'CmdOrCtrl+Shift+E', click: emit('render-dialog') },
     ],
   };
   if (!isMac) {

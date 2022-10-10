@@ -11,6 +11,7 @@ import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import ExportSequenceDialog from './ExportSequenceDialog';
+import RenderDialog from './RenderDialog';
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -34,6 +35,7 @@ export default class App extends Component {
       showNodeDialog: false,
       showForkDialog: false,
       showExportSequenceDialog: false,
+      showRenderDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
       editorSplitterWidth: 350,
@@ -66,6 +68,8 @@ export default class App extends Component {
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
     this._onshowExportSequenceDialog = this._onshowExportSequenceDialog.bind(this);
     this._onHideExportSequenceDialog = this._onHideExportSequenceDialog.bind(this);
+    this._onshowRenderDialog = this._onshowRenderDialog.bind(this);
+    this._onHideRenderDialog = this._onHideRenderDialog.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onShowNodeRenameDialog = this._onShowNodeRenameDialog.bind(this);
@@ -137,6 +141,9 @@ export default class App extends Component {
         break;
       case 'export-dialog':
         this._onshowExportSequenceDialog();
+        break;
+      case 'render-dialog':
+        this._onshowRenderDialog();
         break;
       case 'enter-full-screen':
         this._onToggleFullscreen();
@@ -313,7 +320,7 @@ export default class App extends Component {
   }
 
   _onRevertPortValue(node, portName) {
-    const port = node.inPorts.find(p => p.name === portName);
+    const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port);
     const defaultValue = JSON.parse(JSON.stringify(port.defaultValue));
     this.state.network.setPortValue(node, portName, defaultValue);
@@ -366,6 +373,14 @@ export default class App extends Component {
 
   _onHideExportSequenceDialog() {
     this.setState({ showExportSequenceDialog: false });
+  }
+
+  _onshowRenderDialog() {
+    this.setState({ showRenderDialog: true });
+  }
+
+  _onHideRenderDialog() {
+    this.setState({ showRenderDialog: false });
   }
 
   _onCreateNode(nodeType) {
@@ -471,6 +486,7 @@ export default class App extends Component {
       editorSplitterWidth,
       showNodeRenameDialog,
       showExportSequenceDialog,
+      showRenderDialog,
       nodeToRename,
       fullscreen,
     } = this.state;
@@ -511,7 +527,12 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
           />
-          <Splitter direction="vertical" size={editorSplitterWidth} onChange={(width) => this.setState({ editorSplitterWidth: width })} minSize={350} />
+          <Splitter
+            direction="vertical"
+            size={editorSplitterWidth}
+            onChange={(width) => this.setState({ editorSplitterWidth: width })}
+            minSize={350}
+          />
 
           <ParamsEditor
             network={network}
@@ -545,6 +566,7 @@ export default class App extends Component {
         {showExportSequenceDialog && (
           <ExportSequenceDialog network={network} exportImage={this._exportImage} onCancel={this._onHideExportSequenceDialog} />
         )}
+        {showRenderDialog && <RenderDialog network={network} exportImage={this._exportImage} onCancel={this._onHideRenderDialog} />}
       </div>
     );
   }
