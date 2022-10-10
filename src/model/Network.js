@@ -322,7 +322,6 @@ export default class Network {
         }
       }
     }
-    this.started = false;
   }
 
   async _startNode(node) {
