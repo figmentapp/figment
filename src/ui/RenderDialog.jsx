@@ -8,29 +8,33 @@ export default class RenderDialog extends Component {
       frameRate: 60,
       currentFrame: 0,
       isRendering: false,
+      cancelRequested: false,
     };
     this._onRender = this._onRender.bind(this);
-    this._renderFrame = this._renderFrame.bind(this);
+    //this._renderFrame = this._renderFrame.bind(this);
+    this._renderFrameCallback = this._renderFrameCallback.bind(this);
+    this._onRequestCancel = this._onRequestCancel.bind(this);
   }
 
-  _onRender() {
-    this.setState({ isRendering: true, currentFrame: 1 });
-    window.desktop.setRuntimeMode('export');
-    this.props.network.reset();
-    this._startTime = Date.now();
-    window.requestAnimationFrame(this._renderFrame);
-  }
-
-  _renderFrame() {
-    this.setState({ currentFrame: this.state.currentFrame + 1 });
-    if (this.state.currentFrame <= this.state.frameCount) {
-      window.setTimeout(this._renderFrame, 1000 / this.state.frameRate);
+  async _onRender() {
+    this.setState({ isRendering: true, cancelRequested: false });
+    await this.props.renderSequence(this.state.frameCount, this.state.frameRate, this._renderFrameCallback);
+    if (this.state.cancelRequested) {
+      this.setState({ isRendering: false });
     } else {
       window.setTimeout(() => {
-        window.desktop.setRuntimeMode('live');
         this.setState({ isRendering: false });
       }, 1000);
     }
+  }
+
+  _renderFrameCallback(currentFrame) {
+    this.setState({ currentFrame });
+    return !this.state.cancelRequested;
+  }
+
+  _onRequestCancel() {
+    this.setState({ cancelRequested: true });
   }
 
   render() {
@@ -94,9 +98,14 @@ export default class RenderDialog extends Component {
                 </button>
               )}
               {this.state.isRendering && this.state.currentFrame < this.state.frameCount && (
-                <span className="text-gray-300 p-2">
-                  Exporting [{this.state.currentFrame} / {this.state.frameCount}]…
-                </span>
+                <>
+                  <span className="text-gray-300 p-2">
+                    Exporting [{this.state.currentFrame} / {this.state.frameCount}]…
+                  </span>
+                  <button className={`w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none`} onClick={this._onRequestCancel}>
+                    Cancel
+                  </button>
+                </>
               )}
               {this.state.isRendering && this.state.currentFrame >= this.state.frameCount && (
                 <span className="text-gray-300 p-2">Render done.</span>

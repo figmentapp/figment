@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('nodePath', path);
 const RUNTIME_MODE_LIVE = 'live';
 const RUNTIME_MODE_EXPORT = 'export';
 let runtimeMode = RUNTIME_MODE_LIVE;
+let currentFrame = 1;
 
 function getRuntimeMode() {
   return runtimeMode;
@@ -26,6 +27,14 @@ function setRuntimeMode(mode) {
   if (mode === RUNTIME_MODE_LIVE || mode === RUNTIME_MODE_EXPORT) {
     runtimeMode = mode;
   }
+}
+
+function getCurrentFrame() {
+  return currentFrame;
+}
+
+function setCurrentFrame(frame) {
+  currentFrame = frame;
 }
 
 function getPackagedFile(filePath) {
@@ -108,6 +117,8 @@ function oscSendMessage(ip, port, address, ...args) {
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
+  getCurrentFrame,
+  setCurrentFrame,
   getPackagedFile,
   showOpenProjectDialog,
   showSaveProjectDialog,

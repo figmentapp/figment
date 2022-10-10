@@ -76,6 +76,7 @@ export default class App extends Component {
     this._onDisconnect = this._onDisconnect.bind(this);
     this._onExportImage = this._onExportImage.bind(this);
     this._exportImage = this._exportImage.bind(this);
+    this._renderSequence = this._renderSequence.bind(this);
     this._onViewNodeSource = this._onViewNodeSource.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onStart = this._onStart.bind(this);
@@ -433,6 +434,34 @@ export default class App extends Component {
     await this._exportImage(node, filePath);
   }
 
+  async _renderSequence(frameCount, frameRate, callback) {
+    this.state.network.reset();
+
+    window.desktop.setRuntimeMode('export');
+    window.desktop.setCurrentFrame(1);
+
+    for (let currentFrame = 1; currentFrame <= frameCount; currentFrame++) {
+      // Globally set the current frame.
+      window.desktop.setCurrentFrame(currentFrame);
+      // Note the start time when we started rendering.
+      const startTime = Date.now();
+      // Render the current frame.
+      await this.state.network.doFrame();
+
+      // Call the callback with the current frame number.
+      const continueRendering = callback(currentFrame);
+      if (!continueRendering) break;
+      // Wait until the frame is done.
+      const endTime = Date.now();
+      const frameTime = endTime - startTime;
+      const frameDuration = 1000 / frameRate;
+      const waitTime = Math.max(0, frameDuration - frameTime);
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+
+    window.desktop.setRuntimeMode('live');
+  }
+
   _onViewNodeSource() {
     // Get the selected node. Bail out if there is more than one.
     if (this.state.selection.size !== 1) return;
@@ -547,7 +576,7 @@ export default class App extends Component {
         {showNodeRenameDialog && (
           <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
         )}
-        {showRenderDialog && <RenderDialog network={network} exportImage={this._exportImage} onCancel={this._onHideRenderDialog} />}
+        {showRenderDialog && <RenderDialog network={network} renderSequence={this._renderSequence} onCancel={this._onHideRenderDialog} />}
       </div>
     );
   }

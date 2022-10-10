@@ -1415,12 +1415,6 @@ const folderIn = node.directoryIn('folder', '');
 const templateIn = node.stringIn('template', 'image-#####.png');
 const imageOut = node.imageOut('out');
 
-let counter = 0;
-
-node.onStart = () => {
-  counter = 0;
-}
-
 node.onRender = async () => {
   if (!imageIn.value) return;
   imageOut.set(imageIn.value);
@@ -1431,10 +1425,11 @@ node.onRender = async () => {
 
   const folder = folderIn.value;
   if (!folder) return;
+  const baseDir = figment.filePathForAsset(folder);
   const template = templateIn.value;
   const ext = template.split('.').pop();
   const imageQuality = 1.0;
-  await figment.ensureDirectory(folder);
+  await figment.ensureDirectory(baseDir);
   // Read out the pixels of the framebuffer.
   const framebuffer = imageIn.value;
   const imageData = new ImageData(framebuffer.width, framebuffer.height);
@@ -1449,10 +1444,10 @@ node.onRender = async () => {
   const blob = await canvas.convertToBlob({ type: 'image/' + ext, quality: imageQuality });
   const pngBuffer = await blob.arrayBuffer();
   // Write the buffer to the given file path.
+  const currentFrame = window.desktop.getCurrentFrame();
   const digits = template.split('#').length - 1;
-  const filePath = folder + '/' + template.replace(/#{1,10}/, counter.toString().padStart(digits, '0'));
+  const filePath = baseDir + '/' + template.replace(/#{1,10}/, currentFrame.toString().padStart(digits, '0'));
   await window.desktop.saveBufferToFile(pngBuffer, filePath);
-  counter++;
 };
 `;
 
