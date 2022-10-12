@@ -438,7 +438,6 @@ export default class App extends Component {
     this.state.network.reset();
 
     window.desktop.setRuntimeMode('export');
-    window.desktop.setCurrentFrame(1);
 
     for (let currentFrame = 1; currentFrame <= frameCount; currentFrame++) {
       // Globally set the current frame.
