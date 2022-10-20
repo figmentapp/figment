@@ -1,5 +1,3 @@
-## Figment
-
 <div align="center">
     <a href="https://www.figmentapp.com/"><img src=".github/figment-badge.png" alt="Badge" width="500"></a>
     <h3>Figment</h3>
