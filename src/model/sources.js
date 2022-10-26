@@ -1436,6 +1436,7 @@ const imageIn = node.imageIn('in');
 const enableIn = node.selectIn('Enable', ['On Export', 'Always', 'Never'], 'On Export');
 const folderIn = node.directoryIn('folder', '');
 const templateIn = node.stringIn('template', 'image-#####.png');
+const imageQualityIn = node.numberIn('quality', 0.9, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
 node.onRender = async () => {
@@ -1450,8 +1451,17 @@ node.onRender = async () => {
   if (!folder) return;
   const baseDir = figment.filePathForAsset(folder);
   const template = templateIn.value;
-  const ext = template.split('.').pop();
-  const imageQuality = 1.0;
+  const fileExt = template.split('.').pop().toLowerCase();
+  let imageType;
+  if (fileExt === 'png') {
+    imageType = 'image/png';
+  } else if (fileExt === 'jpg' || fileExt === 'jpeg') {
+    imageType = 'image/jpeg';
+  } else {
+    console.error('Unsupported file extension: ' + fileExt);
+    return;
+  }
+  const imageQuality = imageQualityIn.value;
   await figment.ensureDirectory(baseDir);
   // Read out the pixels of the framebuffer.
   const framebuffer = imageIn.value;
@@ -1464,7 +1474,7 @@ node.onRender = async () => {
   const ctx = canvas.getContext('2d');
   ctx.putImageData(imageData, 0, 0);
   // Convert the canvas to a PNG blob, then to a buffer.
-  const blob = await canvas.convertToBlob({ type: 'image/' + ext, quality: imageQuality });
+  const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });
   const pngBuffer = await blob.arrayBuffer();
   // Write the buffer to the given file path.
   const currentFrame = window.desktop.getCurrentFrame();
