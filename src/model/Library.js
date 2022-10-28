@@ -62,6 +62,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
     this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
     this.nodeTypes.push({ name: 'Lookup', type: 'image.lookup', source: image.lookup });
+    this.nodeTypes.push({ name: 'Mask Image', type: 'image.maskImage', source: image.maskImage });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modulate Color', type: 'image.modulateColor', source: image.modulateColor });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
