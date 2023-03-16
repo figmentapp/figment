@@ -51,7 +51,6 @@ export default class Library {
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
-    this.nodeTypes.push({ name: 'Mask Ellipse', type: 'image.maskCircle', source: image.maskCircle });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Graussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
@@ -63,6 +62,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
     this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
     this.nodeTypes.push({ name: 'Lookup', type: 'image.lookup', source: image.lookup });
+    this.nodeTypes.push({ name: 'Mask Ellipse', type: 'image.maskCircle', source: image.maskCircle });
     this.nodeTypes.push({ name: 'Mask Image', type: 'image.maskImage', source: image.maskImage });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modulate Color', type: 'image.modulateColor', source: image.modulateColor });
