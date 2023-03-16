@@ -51,6 +51,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
+    this.nodeTypes.push({ name: 'Distortion', type: 'image.distortion', source: image.distortion });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Graussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
