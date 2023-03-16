@@ -471,19 +471,12 @@ uniform float u_time;
 varying vec2 v_uv;
 
 void main() {
-  //vec2 uv = v_uv;
-  //uv = uv * 2.0 - 1.0;
-  //uv = barrelDistortion(uv);
-  //uv = 0.5 * (uv * 0.5 + 1.0);
-  //gl_FragColor = texture2D(u_input_texture, uv.st);
-
   vec2 uv = v_uv;
   float X = uv.x * 6. + u_time;
   float Y = uv.y * 6. + u_time;
   uv.x += cos(X + Y) * u_distortion * cos(Y);
   uv.y += sin(X + Y) * u_distortion * sin(Y);
   gl_FragColor = texture2D(u_input_texture, uv.st);
-
 }
 \`;
 
