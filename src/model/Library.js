@@ -58,6 +58,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Graussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
+    this.nodeTypes.push({ name: 'Instagram Filters', type: 'image.instagram', source: image.instagram });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
     this.nodeTypes.push({ name: 'Lens Distortion', type: 'image.lensDistortion', source: image.lensDistortion });
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
