@@ -2330,12 +2330,6 @@ varying vec2 v_uv;
 
 void main() {
     vec2 uv = v_uv;
-    //float dist = distance(uv, u_center);
-    //float vignette = smoothstep(u_radius, u_radius - 0.1, dist);
-    //vec4 color = texture2D(u_input_texture, uv);
-    //color.rgb *= vignette;
-    //gl_FragColor = color;
-
     vec4 color = texture2D(u_input_texture, uv);
 
     // Determine the closest color cluster
