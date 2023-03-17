@@ -77,6 +77,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Squares', type: 'image.squares', source: image.squares });
     this.nodeTypes.push({ name: 'Resize', type: 'image.resize', source: image.resize });
     this.nodeTypes.push({ name: 'Save Image', type: 'image.saveImage', source: image.saveImage });
+    this.nodeTypes.push({ name: 'Sepia', type: 'image.sepia', source: image.sepia });
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
