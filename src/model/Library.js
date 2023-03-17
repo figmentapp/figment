@@ -51,6 +51,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Brannan', type: 'image.brannan', source: image.brannan });
     this.nodeTypes.push({ name: 'Canny Edges', type: 'image.canny', source: image.canny });
     this.nodeTypes.push({ name: 'Cartoon', type: 'image.cartoon', source: image.cartoon });
+    this.nodeTypes.push({ name: 'Color Key', type: 'image.colorKey', source: image.colorKey });
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
