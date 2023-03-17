@@ -212,7 +212,7 @@ node.onRender = () => {
 };
 `;
 
-image.brennan = `// Brennan instagram filter on image.
+image.brannan = `// Brannan instagram filter on image.
 //https://www.shadertoy.com/view/4lSyDK
 
 const fragmentShader = \`

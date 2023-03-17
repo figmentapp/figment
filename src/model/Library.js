@@ -48,7 +48,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Barrel Distortion', type: 'image.barrelDistortion', source: image.barrelDistortion });
     this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
     this.nodeTypes.push({ name: 'Border', type: 'image.border', source: image.border });
-    this.nodeTypes.push({ name: 'Brennan', type: 'image.brennan', source: image.brennan });
+    this.nodeTypes.push({ name: 'Brannan', type: 'image.brannan', source: image.brannan });
     this.nodeTypes.push({ name: 'Canny Edges', type: 'image.canny', source: image.canny });
     this.nodeTypes.push({ name: 'Cartoon', type: 'image.cartoon', source: image.cartoon });
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
