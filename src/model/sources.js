@@ -499,7 +499,7 @@ node.onRender = () => {
   imageOut.set(framebuffer);
 };
 `;
-
+/*
 image.colorKey = `//  Color keying on input image.
 
 const fragmentShader = \`
@@ -550,7 +550,7 @@ node.onRender = () => {
   imageOut.set(framebuffer);
 };
 `;
-
+*/
 image.composite = `// Combine two images together.
 
 const image1In = node.imageIn('image 1');
