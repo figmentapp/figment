@@ -66,6 +66,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Fetch Image', type: 'image.fetchImage', source: image.fetchImage });
     this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
     this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
+    this.nodeTypes.push({ name: 'LoG Edges', type: 'image.logEdges', source: image.logEdges });
     this.nodeTypes.push({ name: 'Lookup', type: 'image.lookup', source: image.lookup });
     this.nodeTypes.push({ name: 'Mask Ellipse', type: 'image.maskCircle', source: image.maskCircle });
     this.nodeTypes.push({ name: 'Mask Image', type: 'image.maskImage', source: image.maskImage });
