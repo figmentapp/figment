@@ -499,7 +499,7 @@ node.onRender = () => {
   imageOut.set(framebuffer);
 };
 `;
-/*
+
 image.colorKey = `//  Color keying on input image.
 
 const fragmentShader = \`
@@ -526,7 +526,7 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
-const colorIn = node.colorIn('key color', [128, 128, 128, 1.0]);
+const colorIn = node.colorIn('key color', [128, 128, 128]);
 const thresholdIn = node.numberIn('threshold', 0.4, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
@@ -543,14 +543,14 @@ node.onRender = () => {
   framebuffer.bind();
   figment.clear();  
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
-    u_keyColor: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255, colorIn.value[3]],
+    u_keyColor: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
     u_threshold: thresholdIn.value,
    });
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };
 `;
-*/
+
 image.composite = `// Combine two images together.
 
 const image1In = node.imageIn('image 1');
