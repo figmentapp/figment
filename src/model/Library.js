@@ -55,6 +55,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
+    this.nodeTypes.push({ name: 'Denoise', type: 'image.denoise', source: image.denoise });
     this.nodeTypes.push({ name: 'Distortion', type: 'image.distortion', source: image.distortion });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Gaussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
@@ -77,7 +78,6 @@ export default class Library {
     this.nodeTypes.push({ name: 'Mask Image', type: 'image.maskImage', source: image.maskImage });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modulate Color', type: 'image.modulateColor', source: image.modulateColor });
-    this.nodeTypes.push({ name: 'Noise', type: 'image.noise', source: image.noise });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
     this.nodeTypes.push({ name: 'Pixelate', type: 'image.pixelate', source: image.pixelate });
     this.nodeTypes.push({ name: 'Radial Distortion', type: 'image.radialDistortion', source: image.radialDistortion });
