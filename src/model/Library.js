@@ -59,6 +59,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Gaussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
     this.nodeTypes.push({ name: 'Glitch', type: 'image.glitch', source: image.glitch });
+    this.nodeTypes.push({ name: 'Glow Edges', type: 'image.glowEdges', source: image.glowEdges });
     this.nodeTypes.push({ name: 'Gray color clustering', type: 'image.grayColorCLustering', source: image.grayColorCLustering });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
     this.nodeTypes.push({ name: 'Instagram Filters', type: 'image.instagram', source: image.instagram });
