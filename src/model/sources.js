@@ -500,7 +500,7 @@ node.onRender = () => {
 };
 `;
 
-image.centerAroundGrey = `// Ascii generator on image.
+image.centerAroundGrey = `// center around grey on image.
 
 const fragmentShader = \`
 precision mediump float;
