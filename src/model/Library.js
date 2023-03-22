@@ -45,6 +45,7 @@ export default class Library {
 
     // this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
     // this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
+    this.nodeTypes.push({ name: 'Ascii', type: 'image.ascii', source: image.ascii });
     this.nodeTypes.push({ name: 'Barrel Distortion', type: 'image.barrelDistortion', source: image.barrelDistortion });
     this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
     this.nodeTypes.push({ name: 'Border', type: 'image.border', source: image.border });
