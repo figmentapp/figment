@@ -88,6 +88,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Resize', type: 'image.resize', source: image.resize });
     this.nodeTypes.push({ name: 'Rgb color clustering', type: 'image.rgbColorCLustering', source: image.rgbColorCLustering });
     this.nodeTypes.push({ name: 'Save Image', type: 'image.saveImage', source: image.saveImage });
+    this.nodeTypes.push({ name: 'Screen Distortion', type: 'image.screendistortion', source: image.screendistortion });
     this.nodeTypes.push({ name: 'Sepia', type: 'image.sepia', source: image.sepia });
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
