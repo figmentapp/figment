@@ -761,7 +761,7 @@ image.composite = `// Combine two images together.
 const image1In = node.imageIn('image 1');
 const image2In = node.imageIn('image 2');
 const factorIn = node.numberIn('factor', 0.5, { min: 0, max: 1, step: 0.01 });
-const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', 'color burn', '---', 'lighten', 'screen', 'color dodge', '---', 'difference'], 'normal');
+const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', 'color burn', '---', 'lighten', 'screen', 'color dodge', '---', 'hardmix', 'difference', 'exclusion','subtract', 'divide'], 'normal');
 const imageOut = node.imageOut('out');
 
 function updateShader() {
@@ -780,9 +780,17 @@ function updateShader() {
     blendFunction = 'factor * vec3(blendScreen(c1.r, c2.r), blendScreen(c1.g, c2.g), blendScreen(c1.b, c2.b))';
   } else if (operationIn.value === 'color dodge') {
     blendFunction = 'factor * vec3(blendColorDodge(c1.r, c2.r), blendColorDodge(c1.g, c2.g), blendColorDodge(c1.b, c2.b))';
+  } else if (operationIn.value === 'hardmix') {
+    blendFunction = 'factor * floor(c1.rgb + c2.rgb)';
   } else if (operationIn.value === 'difference') {
     blendFunction = 'factor * abs(c1.rgb - c2.rgb) + (1.0 - factor) * c1.rgb';
-  } else {
+  } else if (operationIn.value === 'exclusion') {
+    blendFunction = 'factor * c1.rgb + c2.rgb - 2.0 * c1.rgb *c2.rgb';
+  } else if (operationIn.value === 'subtract') {
+    blendFunction = 'factor * c1.rgb - c2.rgb';
+  } else if (operationIn.value === 'divide') {
+    blendFunction = 'factor * c1.rgb / c2.rgb';
+  } else {  
     blendFunction = 'factor * c2.rgb + (1.0 - factor) * c1.rgb';
   }
   const fragmentShader = \`
