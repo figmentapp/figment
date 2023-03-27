@@ -761,7 +761,7 @@ image.composite = `// Combine two images together.
 const image1In = node.imageIn('image 1');
 const image2In = node.imageIn('image 2');
 const factorIn = node.numberIn('factor', 0.5, { min: 0, max: 1, step: 0.01 });
-const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', 'color burn', '---', 'lighten', 'screen', 'color dodge', '---', 'hardmix', 'difference', 'exclusion','subtract', 'divide'], 'normal');
+const operationIn = node.selectIn('operation', ['normal', 'darken', 'multiply', 'color burn', '---', 'lighten', 'screen', 'color dodge', '---', 'hardmix', 'difference', 'exclusion', 'subtract', 'divide'], 'normal');
 const imageOut = node.imageOut('out');
 
 function updateShader() {
