@@ -66,6 +66,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Glow Edges', type: 'image.glowEdges', source: image.glowEdges });
     this.nodeTypes.push({ name: 'Gray color clustering', type: 'image.grayColorCLustering', source: image.grayColorCLustering });
     this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
+    this.nodeTypes.push({ name: 'Heatmap', type: 'image.heatmap', source: image.heatmap });
     this.nodeTypes.push({ name: 'INMS', type: 'image.inms', source: image.inms });
     this.nodeTypes.push({ name: 'Instagram Filters', type: 'image.instagram', source: image.instagram });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
