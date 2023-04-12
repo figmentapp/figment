@@ -81,6 +81,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Mask Image', type: 'image.maskImage', source: image.maskImage });
     this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
     this.nodeTypes.push({ name: 'Modulate Color', type: 'image.modulateColor', source: image.modulateColor });
+    this.nodeTypes.push({ name: 'Noise', type: 'image.noise', source: image.noise });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
     this.nodeTypes.push({ name: 'Pixelate', type: 'image.pixelate', source: image.pixelate });
     this.nodeTypes.push({ name: 'Pixel Size', type: 'image.pixelSize', source: image.pixelSize });
