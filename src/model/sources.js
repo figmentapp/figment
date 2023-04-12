@@ -2125,6 +2125,7 @@ precision mediump float;
 uniform vec2 u_texel_size;
 uniform float u_increase;
 uniform sampler2D u_input_texture;
+uniform float u_threshold;
 varying vec2 v_uv;
 
 void main() {
@@ -2159,7 +2160,9 @@ void main() {
   }
   edge *= u_increase;
   // Output the edge as a grayscale value in the red, green, and blue channels
-  gl_FragColor = vec4(vec3(edge), 1.0);
+  //gl_FragColor = vec4(vec3(edge), 1.0);
+  //gl_FragColor = vec4(vec3(suppressedIntensity), 1.0);
+  gl_FragColor = vec4(vec3(step(u_threshold, edge),edge,edge), 1.0);
 
 }
 \`;
@@ -2167,6 +2170,7 @@ void main() {
 const imageIn = node.imageIn('in');
 const blurIn = node.numberIn('blur', 2.0, { min: 0.0, max: 10.0, step: 0.01 });
 const increaseIn = node.numberIn('increase fx', 2.0, { min: 0.0, max: 10.0, step: 0.01 });
+const thresholdIn = node.numberIn('threshold', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -2183,7 +2187,8 @@ node.onRender = () => {
   figment.clear();  
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
   u_texel_size: [blurIn.value/imageIn.value.width, blurIn.value/imageIn.value.height],
-u_increase: increaseIn.value, });
+u_increase: increaseIn.value, 
+u_threshold: thresholdIn.value,});
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };
@@ -2501,6 +2506,48 @@ node.onRender = () => {
   framebuffer.bind();
   figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture, _pixels: [pixelsX.value, pixelsY.value] });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+};
+`;
+
+image.pixelSize = `// Pixelate input image based on the size of the pixel.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_input_texture;
+uniform vec2 u_resolution;
+uniform float u_pixel_size;
+varying vec2 v_uv;
+
+void main() {
+  vec2 p = v_uv * u_resolution;
+  vec2 pixel_size = vec2(u_pixel_size, u_pixel_size);
+  vec2 pixel_pos = floor(p / pixel_size) * pixel_size;
+  vec2 sample_pos = pixel_pos / u_resolution;
+  vec3 col = texture2D(u_input_texture, sample_pos).rgb;
+  gl_FragColor = vec4(col, 1.0);
+}
+\`;
+
+const imageIn = node.imageIn('in');
+const pixelSize = node.numberIn('pixel size', 50, { min: 1.0, max: 100.0, step: 1.0 });
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+node.onStart = (props) => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+};
+
+node.onRender = () => {
+  if (!imageIn.value) return;
+  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
+  framebuffer.bind();
+  figment.clear();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture, u_pixel_size: pixelSize.value,
+    u_resolution:[imageIn.value.width, imageIn.value.height] });
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };

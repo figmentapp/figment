@@ -83,6 +83,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Modulate Color', type: 'image.modulateColor', source: image.modulateColor });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
     this.nodeTypes.push({ name: 'Pixelate', type: 'image.pixelate', source: image.pixelate });
+    this.nodeTypes.push({ name: 'Pixel Size', type: 'image.pixelSize', source: image.pixelSize });
     this.nodeTypes.push({ name: 'Radial Distortion', type: 'image.radialDistortion', source: image.radialDistortion });
     this.nodeTypes.push({ name: 'Reduce Color', type: 'image.reduceColor', source: image.reduceColor });
     this.nodeTypes.push({ name: 'Squares', type: 'image.squares', source: image.squares });
