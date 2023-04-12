@@ -1362,7 +1362,7 @@ node.onRender = () => {
 };
 `;
 
-image.grayColorCLustering = `// Rgb color clusetering  on image.
+image.grayColorCLustering = `// Rgb color clustering  on image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -2723,7 +2723,7 @@ node.onRender = () => {
 };
 `;
 
-image.rgbColorCLustering = `// Rgb color clusetering  on image.
+image.rgbColorCLustering = `// Rgb color clustering  on image.
 
 const fragmentShader = \`
 precision mediump float;
