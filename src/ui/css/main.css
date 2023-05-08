@@ -34,6 +34,11 @@ body {
   cursor: default;
 }
 
+.hide-cursor,
+.hide-cursor body {
+  cursor: none !important;
+}
+
 .is-selectable,
 pre,
 code {
