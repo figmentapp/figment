@@ -388,7 +388,6 @@ export default class App extends Component {
     const fullscreen = !this.state.fullscreen;
     this.setState({ fullscreen });
     window.desktop.setFullScreen(fullscreen);
-    console.log('fullscree', fullscreen);
     if (fullscreen) {
       document.documentElement.classList.add('hide-cursor');
     } else {
