@@ -18,7 +18,7 @@
     "@tensorflow/tfjs": "3.18.0",
     "chroma-js": "2.1.2",
     "codemirror": "5.63.1",
-    "glob": "^7.2.0",
+    "glob": "7.2.3",
     "lodash": "4.17.21",
     "minimist": "1.2.5",
     "node-osc": "8.0.3",
@@ -28,7 +28,7 @@
     "seedrandom": "3.0.5",
     "three": "0.133.0",
     "tween-functions": "1.2.0",
-    "twgl.js": "^4.19.2"
+    "twgl.js": "4.24.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "22.0.0",
@@ -37,10 +37,10 @@
     "autoprefixer": "10.4.0",
     "cross-env": "7.0.3",
     "dotenv": "10.0.0",
-    "electron": "16.0.4",
+    "electron": "24.2.0",
     "electron-builder": "23.0.3",
     "electron-notarize": "1.1.1",
-    "esbuild": "^0.14.42",
+    "esbuild": "0.14.54",
     "postcss": "8.4.5",
     "prettier": "2.4.1",
     "rimraf": "3.0.2",

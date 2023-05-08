@@ -197,6 +197,7 @@ function createMainWindow(file) {
       nativeWindowOpen: true,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: false,
+      nodeIntegration: true,
     },
   });
 
