@@ -15,7 +15,7 @@
     "format": "prettier --write src/**/*.{js,jsx}"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "3.18.0",
+    "@tensorflow/tfjs": "4.5.0",
     "chroma-js": "2.1.2",
     "codemirror": "5.63.1",
     "glob": "7.2.3",
