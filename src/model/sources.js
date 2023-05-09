@@ -839,6 +839,68 @@ node.onRender = () => {
 operationIn.onChange = updateShader;
 `;
 
+image.conditional = `// Render an image conditionally.
+
+const fragmentShader = \`
+precision mediump float;
+uniform sampler2D u_true_image;
+uniform sampler2D u_false_image;
+uniform float u_factor;
+varying vec2 v_uv;
+
+void main() {
+  vec4 c1 = texture2D(u_true_image, v_uv);
+  vec4 c2 = texture2D(u_false_image, v_uv);
+  float factor = u_factor * c2.a;
+  vec3 color = (1.0 - factor) * c1.rgb + factor * c2.rgb;
+  gl_FragColor = vec4(color, c1.a);
+}
+\`;
+
+const conditionIn = node.booleanIn('condition');
+const trueImageIn = node.imageIn('true image');
+const falseImageIn = node.imageIn('false image');
+const fadeTimeIn = node.numberIn('fade time', 0.5, { min: 0, max: 10, step: 0.1 });
+const biasIn = node.numberIn('fade bias', 0.5, { min: 0, max: 1, step: 0.01 });
+const imageOut = node.imageOut('out');
+
+let program, framebuffer;
+
+let prevTime;
+let factor = 0;
+let direction = 1;
+
+node.onStart = () => {
+  program = figment.createShaderProgram(fragmentShader);
+  framebuffer = new figment.Framebuffer();
+  prevTime = Date.now();
+}
+
+node.onRender = () => {
+  const dt = (Date.now() - prevTime) / 1000; // convert ms to s
+  prevTime = Date.now();
+
+  if (!trueImageIn.value || !falseImageIn.value) return;
+
+  direction = conditionIn.value ? -1 : 1;
+  let bias = biasIn.value;
+  const adjustedFadeTime = fadeTimeIn.value * ((direction === 1) ? bias : (1 - bias));
+  factor = factor + direction * dt / adjustedFadeTime;
+  factor = Math.min(Math.max(factor, 0), 1);
+
+  framebuffer.setSize(trueImageIn.value.width, trueImageIn.value.height);
+  framebuffer.bind();
+  figment.clear();
+  figment.drawQuad(program, {
+    u_true_image: trueImageIn.value.texture,
+    u_false_image: falseImageIn.value.texture,
+    u_factor: factor,
+  });
+  framebuffer.unbind();
+  imageOut.set(framebuffer);
+};
+`;
+
 image.constant = `// Render a constant color.
 
 const fragmentShader = \`
@@ -3763,6 +3825,7 @@ tesselationLineWidthIn.label = 'line width';
 bboxLineWidthIn.label = 'line width';
 
 const imageOut = node.imageOut('out');
+const detectedOut = node.booleanOut('detected');
 
 let _faceMesh, _canvas, _ctx, _framebuffer, _imageData, _results, _isProcessing;
 
@@ -3837,6 +3900,7 @@ function drawResults() {
   _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   _ctx.fillRect(0, 0, width, height);
   if (_results.multiFaceLandmarks) {
+    detectedOut.set(_results.multiFaceLandmarks.length > 0);
     for (const landmarks of _results.multiFaceLandmarks) {
       if (contoursToggleIn.value) {
         drawConnectors(_ctx, landmarks, FACEMESH_CONTOURS, { color: figment.toCanvasColor(contoursColorIn.value), lineWidth: contoursLineWidthIn.value });
@@ -3863,6 +3927,9 @@ function drawResults() {
       }
       //drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030'});
     }
+  } else {
+    console.log('no faces');
+    detectedOut.set(false);
   }
   window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
