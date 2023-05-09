@@ -851,9 +851,9 @@ varying vec2 v_uv;
 void main() {
   vec4 c1 = texture2D(u_true_image, v_uv);
   vec4 c2 = texture2D(u_false_image, v_uv);
-  float factor = u_factor * c2.a;
   vec3 color = (1.0 - factor) * c1.rgb + factor * c2.rgb;
-  gl_FragColor = vec4(color, c1.a);
+  float alpha = (1.0 - u_factor) * c1.a + u_factor * c2.a;
+  gl_FragColor = vec4(color, alpha);
 }
 \`;
 
