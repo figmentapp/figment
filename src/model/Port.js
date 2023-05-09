@@ -13,6 +13,7 @@ export const PORT_TYPE_FILE = 'file';
 export const PORT_TYPE_DIRECTORY = 'directory';
 export const PORT_TYPE_IMAGE = 'image';
 export const PORT_TYPE_OBJECT = 'object';
+export const PORT_TYPE_BOOLEAN = 'boolean';
 
 export const PORT_IN = 'in';
 export const PORT_OUT = 'out';
@@ -33,7 +34,7 @@ export default class Port {
     this.direction = direction;
     this.value = value;
     this.defaultValue = value;
-    this.display = type === PORT_TYPE_IMAGE ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
+    this.display = type === PORT_TYPE_IMAGE || type === PORT_TYPE_BOOLEAN ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
     options = options || {};
     this.min = options.min !== undefined ? options.min : undefined;
     this.max = options.max !== undefined ? options.max : undefined;
@@ -86,7 +87,12 @@ export default class Port {
   }
 
   setDefaultValue() {
-    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE || this.type === PORT_TYPE_OBJECT) {
+    if (
+      this.type === PORT_TYPE_TRIGGER ||
+      this.type === PORT_TYPE_IMAGE ||
+      this.type === PORT_TYPE_OBJECT ||
+      this.type === PORT_TYPE_BOOLEAN
+    ) {
       this.value = undefined;
       return;
     }

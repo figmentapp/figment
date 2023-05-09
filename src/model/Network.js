@@ -12,6 +12,7 @@ import Port, {
   PORT_TYPE_FILE,
   PORT_TYPE_DIRECTORY,
   PORT_TYPE_IMAGE,
+  PORT_TYPE_BOOLEAN,
   PORT_IN,
   PORT_OUT,
 } from './Port';
@@ -256,7 +257,7 @@ export default class Network {
     for (const node of this.nodes) {
       const values = {};
       for (const port of node.inPorts) {
-        if (port.type === PORT_TYPE_IMAGE) continue;
+        if (port.type === PORT_TYPE_IMAGE || port.type === PORT_TYPE_BOOLEAN) continue;
         if (this.isConnected(port)) continue;
         if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
           let value;

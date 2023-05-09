@@ -13,6 +13,7 @@ import Port, {
   PORT_TYPE_OBJECT,
   PORT_IN,
   PORT_OUT,
+  PORT_TYPE_BOOLEAN,
 } from './Port';
 
 let gNodeId = 0;
@@ -184,6 +185,17 @@ export default class Node {
     }
   }
 
+  booleanIn(name) {
+    const oldPort = this.inPorts.find((p) => p.name === name);
+    if (oldPort) {
+      return oldPort;
+    } else {
+      const inPort = new Port(this, name, PORT_TYPE_BOOLEAN, PORT_IN);
+      this.inPorts.push(inPort);
+      return inPort;
+    }
+  }
+
   selectIn(name, options, value) {
     if (!value) value = options[0];
     const oldPort = this.inPorts.find((p) => p.name === name);
@@ -210,11 +222,11 @@ export default class Node {
     return outPort;
   }
 
-  toggleOut(name, value) {
+  booleanOut(name, value) {
     if (!value) value = false;
     const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
-    const outPort = new Port(this, name, PORT_TYPE_TOGGLE, PORT_OUT, value);
+    const outPort = new Port(this, name, PORT_TYPE_BOOLEAN, PORT_OUT, value);
     this.outPorts.push(outPort);
     return outPort;
   }
