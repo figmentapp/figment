@@ -4044,7 +4044,10 @@ const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step
 const linesToggleIn = node.toggleIn('draw lines', true);
 const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
 const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
+
 const imageOut = node.imageOut('out');
+const detectedOut = node.booleanOut('detected');
+
 pointsColorIn.label = 'Color';
 pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
@@ -4119,6 +4122,7 @@ function drawResults() {
   _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   _ctx.fillRect(0, 0, width, height);
   if (_results.poseLandmarks) {
+    detectedOut.set(true);
     _ctx.fillStyle = 'white';
     _ctx.beginPath();
     if (linesToggleIn.value) {
@@ -4127,6 +4131,8 @@ function drawResults() {
     if (pointsToggleIn.value) {
       drawLandmarks(_ctx, _results.poseLandmarks, {color: figment.toCanvasColor(pointsColorIn.value), lineWidth: pointsRadiusIn.value});
     }
+  } else {
+    detectedOut.set(false);
   }
   window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
