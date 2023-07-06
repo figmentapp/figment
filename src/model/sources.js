@@ -809,7 +809,8 @@ function updateShader() {
     vec4 c2 = texture2D(u_image_2, v_uv);
     float factor = u_factor * c2.a;
     vec3 color = \${blendFunction};
-    gl_FragColor = vec4(color, c1.a);
+    float alpha = min(c1.a + c2.a, 1.0);
+    gl_FragColor = vec4(color, alpha);
   }
   \`;
   program = figment.createShaderProgram(fragmentShader);
