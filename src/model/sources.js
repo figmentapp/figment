@@ -707,7 +707,7 @@ node.onRender = () => {
 };
 `;
 
-image.colorKey = `//  Color keying on input image.
+image.chromaKey = `// Make pixels of a certain color transparent, like green screen effect.
 
 const fragmentShader = \`
 precision mediump float;
@@ -733,7 +733,7 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
-const colorIn = node.colorIn('key color', [128, 128, 128]);
+const colorIn = node.colorIn('key color', [0, 255, 0]);
 const thresholdIn = node.numberIn('threshold', 0.4, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 

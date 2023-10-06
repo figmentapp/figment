@@ -54,7 +54,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Cartoon', type: 'image.cartoon', source: image.cartoon });
     this.nodeTypes.push({ name: 'Center Around Gray', type: 'image.centerAroundGray', source: image.centerAroundGray });
     this.nodeTypes.push({ name: 'Chromatic', type: 'image.chromatic', source: image.chromatic });
-    this.nodeTypes.push({ name: 'Color Key', type: 'image.colorKey', source: image.colorKey });
+    this.nodeTypes.push({ name: 'Chroma Key', type: 'image.chromaKey', source: image.chromaKey });
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Conditional', type: 'image.conditional', source: image.conditional });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
