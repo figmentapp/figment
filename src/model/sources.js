@@ -77,7 +77,7 @@ varying vec2 v_uv;
 
 float ASCII_Details = u_detail; 
 float PixelSize = u_pixels;
-float greyScale(in vec3 col) 
+float grayScale(in vec3 col) 
 {
     return dot(col, vec3(0.2126, 0.7152, 0.0722)); //sRGB
 }
@@ -93,7 +93,7 @@ float character(float n, vec2 p)
 void main() {
   vec2 uv = v_uv* u_resolution.xy;
 	vec3 col = texture2D(u_input_texture, floor(uv / ASCII_Details) * ASCII_Details / u_resolution.xy).rgb;	
-	float gray = greyScale(col);
+	float gray = grayScale(col);
     float n = 65536.0 + 
               step(0.2, gray) * 64.0 + 
               step(0.3, gray) * 267172.0 +
@@ -306,7 +306,7 @@ image.brannan = `// Brannan instagram filter on image.
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
-uniform float u_grey;
+uniform float u_gray;
 uniform float u_saturation;
 varying vec2 v_uv;
 
@@ -327,7 +327,7 @@ vec3 overlay(in vec3 s, in vec3 d )
 }
 
 // Function to convert RGB color to grayscale
-float greyScale(in vec3 col) 
+float grayScale(in vec3 col) 
 {
     return dot(col, vec3(0.3, 0.59, 0.11));
 }
@@ -365,10 +365,10 @@ void main()
 {
 	vec2 uv = v_uv;
     vec3 col = texture2D(u_input_texture, uv).rgb; 
-    vec3 grey = vec3(greyScale(col)); 
+    vec3 gray = vec3(grayScale(col)); 
     col = saturationMatrix(u_saturation) * col; 
-    grey = overlay(grey, col);
-    col = mix(grey, col, u_grey); 
+    gray = overlay(gray, col);
+    col = mix(gray, col, u_gray); 
     levels(col, vec3(0., 0., 0.) / 255., vec3(228., 255., 239.) / 255., 
                 vec3(23., 3., 12.) / 255., vec3(255.) / 255.); 
     brightnessAdjust(col, -0.1); 
@@ -403,7 +403,7 @@ node.onRender = () => {
   figment.clear();  
   figment.drawQuad(program, { 
     u_input_texture: imageIn.value.texture,
-    u_grey: grayRatio.value, 
+    u_gray: grayRatio.value, 
     u_saturation: satRatio.value, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -588,7 +588,7 @@ node.onRender = () => {
 };
 `;
 
-image.centerAroundGrey = `// center around grey on image.
+image.centerAroundGray = `// center around gray on image.
 
 const fragmentShader = \`
 precision mediump float;
@@ -597,7 +597,7 @@ uniform float u_radius;
 uniform vec2 u_center;
 varying vec2 v_uv;
 
-float greyScale(in vec3 col) 
+float grayScale(in vec3 col) 
 {
     return dot(col, vec3(0.3, 0.59, 0.11));
 }
@@ -607,8 +607,8 @@ void main() {
   vec3 col = texture2D(u_input_texture, uv).rgb;
   float dist = distance(uv, u_center);
   float vignette = smoothstep(u_radius, u_radius - 0.1, dist);
-  vec3 grey = vec3(greyScale(col)); 
-  col = mix(grey, col, clamp(vignette, 0.0, 1.0));
+  vec3 gray = vec3(grayScale(col)); 
+  col = mix(gray, col, clamp(vignette, 0.0, 1.0));
   gl_FragColor = vec4(col, 1.0);
 
 }
@@ -3237,7 +3237,7 @@ node.onRender = () => {
 };
 `;
 
-image.solarise = `// Solarise filter on image.
+image.solarize = `// Solarize filter on image.
 
 const fragmentShader = \`
 precision mediump float;
