@@ -71,6 +71,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'INMS', type: 'image.inms', source: image.inms });
     this.nodeTypes.push({ name: 'Instagram Filters', type: 'image.instagram', source: image.instagram });
     this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
+    this.nodeTypes.push({ name: 'Kaleidoscope', type: 'image.kaleidoscope', source: image.kaleidoscope });
     this.nodeTypes.push({ name: 'Lens Distortion', type: 'image.lensDistortion', source: image.lensDistortion });
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
