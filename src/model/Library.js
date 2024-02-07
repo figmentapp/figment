@@ -64,6 +64,8 @@ export default class Library {
     this.nodeTypes.push({ name: 'Denoise', type: 'image.denoise', source: image.denoise });
     this.nodeTypes.push({ name: 'Distortion', type: 'image.distortion', source: image.distortion });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
+    this.nodeTypes.push({ name: 'Fetch Image', type: 'image.fetchImage', source: image.fetchImage });
+    this.nodeTypes.push({ name: 'Freichen', type: 'image.freiChen', source: image.freiChen });
     this.nodeTypes.push({ name: 'Gaussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
     this.nodeTypes.push({ name: 'Glitch', type: 'image.glitch', source: image.glitch });
     this.nodeTypes.push({ name: 'Glow Edges', type: 'image.glowEdges', source: image.glowEdges });
@@ -77,8 +79,6 @@ export default class Library {
     this.nodeTypes.push({ name: 'Lens Distortion', type: 'image.lensDistortion', source: image.lensDistortion });
     this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
     this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
-    this.nodeTypes.push({ name: 'Fetch Image', type: 'image.fetchImage', source: image.fetchImage });
-    this.nodeTypes.push({ name: 'Freichen', type: 'image.freiChen', source: image.freiChen });
     this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
     this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
     this.nodeTypes.push({ name: 'LoG Edges', type: 'image.logEdges', source: image.logEdges });
@@ -93,7 +93,6 @@ export default class Library {
     this.nodeTypes.push({ name: 'Pixel Size', type: 'image.pixelSize', source: image.pixelSize });
     this.nodeTypes.push({ name: 'Radial Distortion', type: 'image.radialDistortion', source: image.radialDistortion });
     this.nodeTypes.push({ name: 'Reduce Color', type: 'image.reduceColor', source: image.reduceColor });
-    this.nodeTypes.push({ name: 'Squares', type: 'image.squares', source: image.squares });
     this.nodeTypes.push({ name: 'Resize', type: 'image.resize', source: image.resize });
     this.nodeTypes.push({ name: 'Rgb color clustering', type: 'image.rgbColorCLustering', source: image.rgbColorCLustering });
     this.nodeTypes.push({ name: 'Save Image', type: 'image.saveImage', source: image.saveImage });
@@ -102,6 +101,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
     this.nodeTypes.push({ name: 'Solarise', type: 'image.solarise', source: image.solarise });
+    this.nodeTypes.push({ name: 'Squares', type: 'image.squares', source: image.squares });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
     this.nodeTypes.push({ name: 'Technicolor', type: 'image.technicolor', source: image.technicolor });
     this.nodeTypes.push({ name: 'Threshold', type: 'image.threshold', source: image.threshold });
