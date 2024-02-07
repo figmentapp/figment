@@ -102,6 +102,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
     this.nodeTypes.push({ name: 'Solarise', type: 'image.solarise', source: image.solarise });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
+    this.nodeTypes.push({ name: 'Technicolor', type: 'image.technicolor', source: image.technicolor });
     this.nodeTypes.push({ name: 'Threshold', type: 'image.threshold', source: image.threshold });
     this.nodeTypes.push({ name: 'Trail', type: 'image.trail', source: image.trail });
     this.nodeTypes.push({ name: 'Transform', type: 'image.transform', source: image.transform });
