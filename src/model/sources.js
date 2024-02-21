@@ -16,10 +16,20 @@ const ASSETS_PATH = import.meta.env.DEV ? 'assets' : '.';
 
 core.out = `// Signifies that this is the output of the network.
 const imageIn = node.imageIn('in');
+const statsIn = node.toggleIn('show stats', false);
 const imageOut = node.imageOut('out');
+console.log(statsIn);
 
 node.onRender = () => {
   imageOut.set(imageIn.value);
+}
+
+statsIn.onChange = () => {
+    if (statsIn.value) {
+        document.body.appendChild(window.stats.dom);
+    } else {
+        document.body.removeChild(window.stats.dom);
+    }
 }
 `;
 

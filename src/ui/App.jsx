@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import Stats from 'three/examples/jsm/libs/stats.module';
 import Network, { getDefaultNetwork } from '../model/Network';
 import { Point } from '../g';
 import { PORT_TYPE_IMAGE } from '../model/Port';
@@ -15,6 +16,10 @@ import RenderDialog from './RenderDialog';
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
 }
+
+window.stats = new Stats();
+window.stats.dom.style.top = '';
+window.stats.dom.style.bottom = '0';
 
 export default class App extends Component {
   constructor(props) {
@@ -476,7 +481,9 @@ export default class App extends Component {
   async _onFrame() {
     if (!this.state.isPlaying) return;
     if (this.state.network) {
+      window.stats.begin();
       await this.state.network.doFrame();
+      window.stats.end();
     }
     window.requestAnimationFrame(this._onFrame);
   }
