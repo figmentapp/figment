@@ -51,7 +51,7 @@
   "build": {
     "appId": "be.emrg.figment",
     "productName": "Figment",
-    "afterSign": "scripts/notarize.js",
+    "afterSign": "scripts/notarize.cjs",
     "files": [
       "build/**/*",
       "examples/**/*",
