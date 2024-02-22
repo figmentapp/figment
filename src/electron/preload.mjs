@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import url from 'url';
-import glob from 'glob';
+import { glob } from 'glob';
 
 const listeners = {
   menu: null,
