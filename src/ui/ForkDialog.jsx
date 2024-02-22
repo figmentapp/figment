@@ -87,10 +87,7 @@ export default class ForkDialog extends Component {
     const { ns, newName, newTypeName, currentNodes, selectedNodes } = this.state;
     return (
       <div className="dialog-wrapper">
-        <div
-          className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2"
-          style={{ height: '40vh' }}
-        >
+        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2" style={{ height: '40vh' }}>
           <div className="flex">
             <input
               id="fork-dialog-input"
@@ -135,11 +132,7 @@ export default class ForkDialog extends Component {
               {currentNodes &&
                 currentNodes.map((node) => (
                   <label className="block py-2 pr-2" key={node.id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedNodes.has(node)}
-                      onChange={() => this._toggleSelectedNode(node)}
-                    />
+                    <input type="checkbox" checked={selectedNodes.has(node)} onChange={() => this._toggleSelectedNode(node)} />
                     <span className="ml-2 text-small">{node.name}</span>
                   </label>
                 ))}

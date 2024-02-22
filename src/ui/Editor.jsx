@@ -33,18 +33,11 @@ export default class Editor extends Component {
     return (
       <div className="editor" style={style}>
         <div className="editor__tabs">
-          <div
-            className={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')}
-            onClick={() => onSelectTab(-1)}
-          >
+          <div className={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')} onClick={() => onSelectTab(-1)}>
             Network
           </div>
           {tabs.map((node, i) => (
-            <div
-              key={i}
-              className={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')}
-              onClick={() => onSelectTab(i)}
-            >
+            <div key={i} className={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')} onClick={() => onSelectTab(i)}>
               <span className="editor__tab-name">{node.name}</span>
               <a className="editor__tab-close" onClick={(e) => this._onCloseTab(e, i)}>
                 <svg viewBox="0 0 16 16" width="16" height="16">
@@ -71,11 +64,7 @@ export default class Editor extends Component {
           />
         )}
         {activeTabIndex >= 0 && (
-          <CodeEditor
-            nodeType={tabs[activeTabIndex]}
-            onChangeSource={onChangeSource}
-            onShowForkDialog={onShowForkDialog}
-          />
+          <CodeEditor nodeType={tabs[activeTabIndex]} onChangeSource={onChangeSource} onShowForkDialog={onShowForkDialog} />
         )}
       </div>
     );
