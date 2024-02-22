@@ -1,9 +1,12 @@
-const { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences } = require('electron');
-const path = require('path');
-const fs = require('fs').promises;
+import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences } from 'electron';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import fs from 'fs/promises';
+import { oscSendMessage } from './osc.js';
+import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
-const { oscSendMessage } = require('./osc');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const FILTER_MAP = {
   project: { name: 'Figment Project', extensions: ['fgmt'] },
@@ -176,12 +179,16 @@ ipcMain.handle('oscSendMessage', (_, { ip, port, address, args }) => {
 
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;
-  const { createServer, createLogger, build } = require('vite');
+  const { createServer, createLogger, build } = await import('vite');
+  debugger;
 
   const viteServer = await createServer({
-    port: 3000,
     root: path.resolve(__dirname, '../ui'),
     logLevel: 'info',
+    server: {
+      port: 3000,
+      strictPort: true,
+    },
   });
   await viteServer.listen();
   return viteServer;
@@ -195,7 +202,7 @@ function createMainWindow(file) {
     icon: path.join(__dirname, 'assets/icons/app-icon-512.png'),
     webPreferences: {
       nativeWindowOpen: true,
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.mjs'),
       webSecurity: false,
       nodeIntegration: true,
     },
@@ -298,7 +305,7 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-const argv = require('minimist')(process.argv.slice(2));
+const argv = minimist(process.argv.slice(2));
 
 let gDevServer;
 app.whenReady().then(async () => {

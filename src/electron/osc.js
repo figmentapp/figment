@@ -1,8 +1,8 @@
-const { Client } = require('node-osc');
+import { Client } from 'node-osc';
 
 const _oscClients = {};
 
-function oscSendMessage(ip, port, address, args) {
+export function oscSendMessage(ip, port, address, args) {
   // console.log('osc send message', ip, port, address, args);
   const clientKey = `${ip}:${port}`;
   let client = _oscClients[clientKey];
@@ -12,5 +12,3 @@ function oscSendMessage(ip, port, address, args) {
   }
   client.send(address, ...args);
 }
-
-module.exports = { oscSendMessage };

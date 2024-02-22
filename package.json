@@ -1,13 +1,14 @@
 {
   "name": "figment",
-  "version": "0.4.0",
+  "version": "0.4.1",
+  "type": "module",
   "description": "Visual coding environment for creative AI",
   "author": "EMRG",
   "main": "src/electron/main.js",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "start": "cross-env NODE_ENV=development electron .",
+    "start": "cross-env NODE_ENV=development electron --trace-warnings .",
     "build": "cross-env NODE_ENV=production vite build",
     "build-library": "cross-env NODE_ENV=production rollup -c",
     "dist": "rimraf build && rimraf dist && npm run build && electron-builder --mac --universal && electron-builder --win --x64",
@@ -22,13 +23,13 @@
     "lodash": "4.17.21",
     "minimist": "1.2.5",
     "node-osc": "8.0.3",
-    "react": "17.0.2",
+    "react": "18.2.0",
     "react-color": "2.19.3",
-    "react-dom": "17.0.2",
+    "react-dom": "18.2.0",
     "seedrandom": "3.0.5",
-    "three": "0.133.0",
+    "three": "0.161.0",
     "tween-functions": "1.2.0",
-    "twgl.js": "4.24.0"
+    "twgl.js": "5.5.3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "22.0.0",
@@ -37,15 +38,15 @@
     "autoprefixer": "10.4.0",
     "cross-env": "7.0.3",
     "dotenv": "10.0.0",
-    "electron": "24.2.0",
-    "electron-builder": "23.0.3",
-    "electron-notarize": "1.1.1",
+    "electron": "29.0.0",
+    "electron-builder": "24.12.0",
+    "electron-notarize": "1.2.2",
     "esbuild": "0.14.54",
     "postcss": "8.4.5",
     "prettier": "2.4.1",
     "rimraf": "3.0.2",
-    "tailwindcss": "3.0.1",
-    "vite": "2.6.2"
+    "tailwindcss": "3.4.1",
+    "vite": "5.1.4"
   },
   "build": {
     "appId": "be.emrg.figment",

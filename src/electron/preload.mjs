@@ -1,9 +1,8 @@
-const { contextBridge } = require('electron');
-const fs = require('fs').promises;
-const path = require('path');
-const url = require('url');
-const { ipcRenderer } = require('electron');
-const glob = require('glob');
+import { contextBridge, ipcRenderer } from 'electron';
+import { promises as fs } from 'fs';
+import path from 'path';
+import url from 'url';
+import glob from 'glob';
 
 const listeners = {
   menu: null,

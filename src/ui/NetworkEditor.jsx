@@ -19,7 +19,7 @@ import {
   PORT_DISPLAY_PLUG,
 } from '../model/Port';
 
-const FONT_FAMILY_MONO = `'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace`;
+const FONT_FAMILY_MONO = `ui-monospace, Menlo, Monaco, monospace`;
 
 const NODE_PORT_WIDTH = 15;
 const NODE_PORT_HEIGHT = 5;
