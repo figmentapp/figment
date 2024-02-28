@@ -18,7 +18,6 @@ core.out = `// Signifies that this is the output of the network.
 const imageIn = node.imageIn('in');
 const statsIn = node.toggleIn('show stats', false);
 const imageOut = node.imageOut('out');
-console.log(statsIn);
 
 node.onRender = () => {
   imageOut.set(imageIn.value);
