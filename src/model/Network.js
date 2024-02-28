@@ -17,6 +17,7 @@ import Port, {
   PORT_OUT,
 } from './Port';
 import DependencyGraph from './DependencyGraph';
+import { setExpressionContext } from '../expr';
 
 export const getDefaultNetwork = () => ({
   nodes: [
@@ -27,7 +28,7 @@ export const getDefaultNetwork = () => ({
       x: 150,
       y: 100,
       values: {
-        file: window.desktop.getPackagedFile('examples/assets/waves.mp4'),
+        file: { type: 'value', value: window.desktop.getPackagedFile('examples/assets/waves.mp4') },
       },
     },
     {
@@ -58,7 +59,7 @@ export const getDefaultNetwork = () => ({
       x: 250,
       y: 500,
       values: {
-        threshold: 0.75,
+        threshold: { type: 'value', value: 0.75 },
       },
     },
     {
@@ -90,6 +91,8 @@ export const getDefaultNetwork = () => ({
 export default class Network {
   constructor(library) {
     this.started = false;
+    this.startTime = 0;
+    this.frame = 0;
     this.library = library;
     this.nodes = [];
     this.connections = [];
@@ -188,6 +191,7 @@ export default class Network {
       // node.function.call(window, node);
       if (nodeObj.values) {
         for (const portName of Object.keys(nodeObj.values)) {
+          // The value is in the format {type: "value", value: 0.9}
           const value = nodeObj.values[portName];
           const port = node.inPorts.find((p) => p.name === portName);
           if (!port) {
@@ -195,21 +199,21 @@ export default class Network {
             continue;
           }
           if (port.type === PORT_TYPE_TOGGLE) {
-            port.value = value;
+            port._value = value;
           } else if (port.type === PORT_TYPE_NUMBER) {
-            port.value = value;
+            port._value = value;
           } else if (port.type === PORT_TYPE_STRING) {
-            port.value = value;
+            port._value = value;
           } else if (port.type === PORT_TYPE_SELECT) {
-            port.value = value;
+            port._value = value;
           } else if (port.type === PORT_TYPE_POINT) {
-            port.value = new g.Point(value[0], value[1]);
+            port._value = new g.Point(value[0], value[1]);
           } else if (port.type === PORT_TYPE_COLOR) {
-            port.value = value.slice();
+            port._value = structuredClone(value);
           } else if (port.type === PORT_TYPE_FILE) {
-            port.value = value;
+            port._value = value;
           } else if (port.type === PORT_TYPE_DIRECTORY) {
-            port.value = value;
+            port._value = value;
           } else {
             warnings.push(`Node ${node.name} (${node.id}) - port ${portName}: unsupported port type ${port.type} ${value}.`);
           }
@@ -305,12 +309,16 @@ export default class Network {
       await this._startNode(node);
     }
     this.started = true;
+    this.startTime = Date.now();
+    this.frame = 1;
   }
 
   async render() {
+    setExpressionContext({ $NOW: Date.now(), $TIME: (Date.now() - this.startTime) / 1000, $FRAME: this.frame });
     for (const node of this._dag.nodeOrder) {
       await this._renderNode(node);
     }
+    this.frame++;
   }
 
   reset() {
@@ -323,6 +331,8 @@ export default class Network {
         }
       }
     }
+    this.startTime = Date.now();
+    this.frame = 1;
   }
 
   async _startNode(node) {

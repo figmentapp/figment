@@ -30,10 +30,22 @@ export default class Node {
     this.inPorts = [];
     this.outPorts = [];
     this.isDirty = true;
+    this._timeDependent = false;
   }
 
   _markDirty() {
     this.network.markNodeDirty(this);
+  }
+
+  get timeDependent() {
+    if (this._timeDependent) {
+      return true;
+    }
+    return this.inPorts.some((p) => p._value.type === 'expression' && /(\$FRAME|\$TIME|\$NOW)/.test(p._value.expression));
+  }
+
+  set timeDependent(value) {
+    this._timeDependent = value;
   }
 
   triggerIn(name) {

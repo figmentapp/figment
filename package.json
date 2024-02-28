@@ -20,6 +20,7 @@
     "chroma-js": "2.4.2",
     "codemirror": "5.63.1",
     "glob": "10.3.10",
+    "jexl": "^2.3.0",
     "lodash": "4.17.21",
     "minimist": "1.2.8",
     "node-osc": "9.1.0",

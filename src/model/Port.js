@@ -1,5 +1,6 @@
 import { COLORS } from '../colors';
 import { startCase } from 'lodash';
+import { evalExpression } from '../expr';
 
 export const PORT_TYPE_TRIGGER = 'trigger';
 export const PORT_TYPE_TOGGLE = 'toggle';
@@ -22,6 +23,9 @@ export const PORT_DISPLAY_HIDDEN = 0x00;
 export const PORT_DISPLAY_PARAMETER = 0x01;
 export const PORT_DISPLAY_PLUG = 0x02;
 
+export const VALUE_TYPE_VALUE = 'value';
+export const VALUE_TYPE_EXPRESSION = 'expression';
+
 let gPortId = 0;
 
 export default class Port {
@@ -32,7 +36,7 @@ export default class Port {
     this.label = startCase(name);
     this.type = type;
     this.direction = direction;
-    this.value = value;
+    this._value = { type: VALUE_TYPE_VALUE, value };
     this.defaultValue = value;
     this.display = type === PORT_TYPE_IMAGE || type === PORT_TYPE_BOOLEAN ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
     options = options || {};
@@ -40,6 +44,18 @@ export default class Port {
     this.max = options.max !== undefined ? options.max : undefined;
     this.step = options.step || 1;
     this.fileType = options.fileType || 'generic';
+  }
+
+  get value() {
+    if (this._value.type === VALUE_TYPE_VALUE) {
+      return this._value.value;
+    } else if (this._value.type === VALUE_TYPE_EXPRESSION) {
+      return evalExpression(this._value.expression);
+    }
+  }
+
+  set value(value) {
+    this._value = { type: VALUE_TYPE_VALUE, value };
   }
 
   hasDefaultValue() {

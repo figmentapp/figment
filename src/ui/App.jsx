@@ -12,6 +12,7 @@ import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
+import { upgradeProject } from '../file-format';
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -184,12 +185,13 @@ export default class App extends Component {
   async _realOpenFile(filePath) {
     const contents = await window.desktop.readProjectFile(filePath);
     // const contents = await fs.readFile(filePath, 'utf-8');
-    const json = JSON.parse(contents);
+    let project = JSON.parse(contents);
+    project = upgradeProject(project);
     const network = new Network(this.state.library);
 
     // remote.app.addRecentDocument(filePath);
     this.setState({ filePath, network, selection: new Set() }, async () => {
-      network.parse(json);
+      network.parse(project);
       await network.start();
       network.doFrame();
       this._setFilePath(filePath);
