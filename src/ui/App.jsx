@@ -118,14 +118,14 @@ export default class App extends Component {
     }
   }
 
-  _onMenuEvent(name, filePath) {
+  _onMenuEvent(name, args) {
     switch (name) {
       case 'new':
         this._newProject();
         break;
       case 'open':
-        if (filePath) {
-          this._openFile(filePath);
+        if (args.filePath) {
+          this._openFile(args.filePath);
         } else {
           this._onOpenFile();
         }
@@ -147,6 +147,13 @@ export default class App extends Component {
         break;
       case 'enter-full-screen':
         this._onToggleFullscreen();
+        break;
+      case 'revert-to-default':
+        const { nodeId, portName } = args;
+        const node = this.state.network.nodes.find((n) => n.id === nodeId);
+        if (node) {
+          this._onRevertPortValue(node, portName);
+        }
         break;
       default:
         console.error('Unknown menu event:', name);

@@ -159,6 +159,7 @@ class FloatParam extends Component {
     this.setState({ newValue: props.value });
     this._onInput = this._onInput.bind(this);
     this._onChange = this._onChange.bind(this);
+    this._onShowMenu = this._onShowMenu.bind(this);
   }
 
   _onInput(e) {
@@ -176,6 +177,12 @@ class FloatParam extends Component {
     this.props.onChange(newValue);
   }
 
+  _onShowMenu(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    window.desktop.showPortContextMenu(this.props.port);
+  }
+
   render() {
     const { label, value, min, max, step, disabled, onChange } = this.props;
     return (
@@ -183,7 +190,7 @@ class FloatParam extends Component {
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <NumberDrag label={label} value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} />
         <Spacer />
-        <Icon className="params__revert" name="undo" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value" />
+        <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
       </div>
     );
   }
@@ -499,6 +506,7 @@ export default class ParamsEditor extends Component {
       field = (
         <FloatParam
           key={port.name}
+          port={port}
           label={port.label}
           value={port.value}
           min={port.min}
@@ -513,6 +521,7 @@ export default class ParamsEditor extends Component {
       field = (
         <StringParam
           key={port.name}
+          port={port}
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
@@ -523,6 +532,7 @@ export default class ParamsEditor extends Component {
       field = (
         <SelectParam
           key={port.name}
+          port={port}
           label={port.label}
           value={port.value}
           options={port.options}
@@ -535,6 +545,7 @@ export default class ParamsEditor extends Component {
       field = (
         <PointParam
           key={port.name}
+          port={port}
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
@@ -558,6 +569,7 @@ export default class ParamsEditor extends Component {
       field = (
         <FileParam
           key={port.name}
+          port={port}
           label={port.label}
           value={port.value}
           fileType={port.fileType}
@@ -569,6 +581,7 @@ export default class ParamsEditor extends Component {
       field = (
         <DirectoryParam
           key={port.name}
+          port={port}
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}

@@ -59,9 +59,9 @@ class Settings {
 let gMainWindow;
 let gSettings = new Settings();
 
-function emit(name, filePath) {
+function emit(name, args = {}) {
   return () => {
-    gMainWindow.webContents.send('menu', { name, filePath });
+    gMainWindow.webContents.send('menu', name, args);
   };
 }
 
@@ -150,6 +150,19 @@ function showNodeContextMenu(nodeId) {
 }
 ipcMain.handle('showNodeContextMenu', showNodeContextMenu);
 
+function showPortContextMenu(_, { nodeId, portName, valueType }) {
+  let menuItems = [];
+  menuItems.push({ label: 'Revert to Default', click: emit('revert-to-default', { nodeId, portName }) });
+  //   if (valueType === 'expression') {
+  //     menuItems.push({ label: 'Delete Expression', click: emit('delete-expression') });
+  //   } else {
+  //     menuItems.push({ label: 'Edit Expression', click: emit('edit-expression') });
+  //   }
+  const menu = Menu.buildFromTemplate(menuItems);
+  menu.popup(gMainWindow);
+}
+ipcMain.handle('showPortContextMenu', showPortContextMenu);
+
 function setFullScreen(_, fullscreen) {
   gMainWindow.setFullScreen(fullscreen);
   gMainWindow.setMenuBarVisibility(!fullscreen);
@@ -169,7 +182,7 @@ async function onClearRecentProjects() {
 ipcMain.handle('addToRecentFiles', (_, filePath) => onTouchProject(filePath));
 ipcMain.on('window-created', () => {
   if (argv.file) {
-    emit('open', argv.file)();
+    emit('open', { filePath: argv.file })();
   }
 });
 
@@ -223,7 +236,7 @@ function createMainWindow(file) {
   gMainWindow.once('ready-to-show', () => {
     gMainWindow.show();
     gMainWindow.maximize();
-    if (file) emit('open', file)();
+    if (file) emit('open', { filePath: file })();
   });
 }
 
@@ -251,7 +264,7 @@ function createApplicationMenu() {
     recentItems = recentProjects.map((filePath) => ({
       key: filePath,
       label: path.basename(filePath),
-      click: emit('open', filePath),
+      click: emit('open', { filePath }),
     }));
     recentItems.push({ type: 'separator' });
     recentItems.push({ label: 'Clear Recent Projects', click: onClearRecentProjects });

@@ -244,13 +244,13 @@ input.params__field:focus {
   color: var(--gray600);
 }
 
-.params__revert {
+.params__more {
   margin-right: 0.75rem;
-  opacity: 0.05;
+  opacity: 0.5;
   transition: opacity 0.2s;
 }
 
-.params__revert:hover {
+.params__more:hover {
   opacity: 0.8;
 }
 
