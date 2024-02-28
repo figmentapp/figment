@@ -1,29 +1,21 @@
 import React from 'react';
 
 // prettier-ignore
-const ICON_PATHS = {
-    'arrow-rotate-left': 'M480 256c0 123.4-100.5 223.9-223.9 223.9c-48.86 0-95.19-15.58-134.2-44.86c-14.14-10.59-17-30.66-6.391-44.81c10.61-14.09 30.69-16.97 44.8-6.375c27.84 20.91 61 31.94 95.89 31.94C344.3 415.8 416 344.1 416 256s-71.67-159.8-159.8-159.8C205.9 96.22 158.6 120.3 128.6 160H192c17.67 0 32 14.31 32 32S209.7 224 192 224H48c-17.67 0-32-14.31-32-32V48c0-17.69 14.33-32 32-32s32 14.31 32 32v70.23C122.1 64.58 186.1 32.11 256.1 32.11C379.5 32.11 480 132.6 480 256z',
-}
-
-// prettier-ignore
-const ICON_WIDTHS = {
-    'arrow-rotate-left': 512,
+const ICON_MAP = {
+    'dots-vertical-rounded': 'M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+    'square': 'M20 3H4a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z',
+    'undo': 'M9 10h6c1.654 0 3 1.346 3 3s-1.346 3-3 3h-3v2h3c2.757 0 5-2.243 5-5s-2.243-5-5-5H9V5L4 9l5 4v-3z',
 }
 
 export default function Icon({ name, size, fill = 'black', onClick, tooltip, className }) {
-  const path = ICON_PATHS[name];
-  const width = ICON_WIDTHS[name];
-  if (!path || !width) {
-    console.error(`Icon ${name} not found.`);
-    return (
-      <svg className={className} onClick={onClick}>
-        <rect x={0} y={0} width={size} height={size} fill="red" />
-      </svg>
-    );
+  let d = ICON_MAP[name];
+  if (!d) {
+    d = ICON_MAP['square'];
+    fill = '#f0f';
   }
   return (
-    <svg className={className} onClick={onClick} viewBox={`0 0 ${width} 512`} width={size} title={tooltip}>
-      <path d={path} fill={fill} />
+    <svg fill={fill} className={className} onClick={onClick} viewBox={`0 0 24 24`} width={size} title={tooltip}>
+      {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
     </svg>
   );
 }

@@ -183,14 +183,7 @@ class FloatParam extends Component {
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
         <NumberDrag label={label} value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} />
         <Spacer />
-        <Icon
-          className="params__revert"
-          name="arrow-rotate-left"
-          fill="white"
-          size="16"
-          onClick={this.props.onRevert}
-          tooltip="Back to default value"
-        />
+        <Icon className="params__revert" name="undo" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value" />
       </div>
     );
   }
@@ -252,14 +245,7 @@ class SelectParam extends Component {
           )}
         </select>
         <Spacer />
-        <Icon
-          className="params__revert"
-          name="arrow-rotate-left"
-          fill="white"
-          size="16"
-          onClick={this.props.onRevert}
-          tooltip="Back to default value"
-        />
+        <Icon className="params__revert" name="undo" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value" />
       </div>
     );
   }
@@ -319,14 +305,7 @@ class ColorParam extends Component {
           onClick={this._onToggleColorPicker}
         />
         <Spacer />
-        <Icon
-          className="params__revert"
-          name="arrow-rotate-left"
-          fill="white"
-          size="16"
-          onClick={this.props.onRevert}
-          tooltip="Back to default value"
-        />
+        <Icon className="params__revert" name="undo" fill="white" size="16" onClick={this.props.onRevert} tooltip="Back to default value" />
         {pickerVisible && (
           <div style={popover}>
             <div style={cover} onClick={this._onToggleColorPicker} />
