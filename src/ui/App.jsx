@@ -65,6 +65,7 @@ export default class App extends Component {
     this._onDeleteSelection = this._onDeleteSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
+    this._onChangePortExpression = this._onChangePortExpression.bind(this);
     this._onRevertPortValue = this._onRevertPortValue.bind(this);
     this._onTriggerButton = this._onTriggerButton.bind(this);
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
@@ -328,6 +329,11 @@ export default class App extends Component {
     this.forceUpdate();
   }
 
+  _onChangePortExpression(node, portName, expression) {
+    this.state.network.setPortExpression(node, portName, expression);
+    this.forceUpdate();
+  }
+
   _onRevertPortValue(node, portName) {
     const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port);
@@ -541,7 +547,6 @@ export default class App extends Component {
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
-            style={{ width: `${window.innerWidth - editorSplitterWidth}px` }}
             library={library}
             network={network}
             selection={selection}
@@ -567,6 +572,7 @@ export default class App extends Component {
             selection={selection}
             onShowNodeRenameDialog={this._onShowNodeRenameDialog}
             onChangePortValue={this._onChangePortValue}
+            _onChangePortExpression={this._onChangePortExpression}
             onRevertPortValue={this._onRevertPortValue}
             onTriggerButton={this._onTriggerButton}
             editorSplitterWidth={editorSplitterWidth}

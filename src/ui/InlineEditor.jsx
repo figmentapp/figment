@@ -1,0 +1,54 @@
+import React from 'react';
+import { useState, useRef, useEffect } from 'react';
+
+export default function InlineEditor({ value, onChange, color = 'gray' }) {
+  const [inputValue, setInputValue] = useState(value);
+  const [isEditing, setIsEditing] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleBlur = () => {
+    onChange(inputValue);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    } else if (e.key === 'Escape') {
+      setInputValue(value);
+      setIsEditing(false);
+    }
+  };
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className={`flex-1 bg-transparent bg-${color}-900 border border-${color}-700 outline-none mr-4 py-2 px-1 whitespace-nowrap text-gray-100`}
+      />
+    );
+  } else {
+    return (
+      <span
+        onClick={() => setIsEditing(true)}
+        className={`flex-1 whitespace-nowrap py-2 px-1 border border-transparent bg-${color}-800 text-gray-300 overflow-hidden`}
+      >
+        {value}
+      </span>
+    );
+  }
+}

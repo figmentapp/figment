@@ -121,7 +121,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_POINT, PORT_IN, value && value.clone());
+      const inPort = new Port(this, name, PORT_TYPE_POINT, PORT_IN, structuredClone(value));
       this.inPorts.push(inPort);
       return inPort;
     }

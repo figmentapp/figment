@@ -443,6 +443,16 @@ export default class Network {
     port.forceUpdate();
   }
 
+  setPortExpression(node, portName, expression) {
+    const port = node.inPorts.find((p) => p.name === portName);
+    console.assert(port, `Port ${portName} does not exist.`);
+    port._value = { type: 'expression', expression };
+    if (typeof port.onChange === 'function') {
+      port.onChange();
+    }
+    port.forceUpdate();
+  }
+
   triggerButton(node, port) {
     if (port.onTrigger) {
       port.onTrigger();
