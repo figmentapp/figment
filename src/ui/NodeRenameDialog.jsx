@@ -29,10 +29,7 @@ export default class ForkDialog extends Component {
   render() {
     return (
       <div className="dialog-wrapper">
-        <div
-          className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2"
-          style={{ height: '40vh' }}
-        >
+        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2" style={{ height: '40vh' }}>
           <div className="flex">
             <span className="bg-gray-500 p-6 flex-grow">
               <input

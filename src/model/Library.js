@@ -53,10 +53,10 @@ export default class Library {
     this.nodeTypes.push({ name: 'Brannan', type: 'image.brannan', source: image.brannan });
     this.nodeTypes.push({ name: 'Canny Edges', type: 'image.canny', source: image.canny });
     this.nodeTypes.push({ name: 'Cartoon', type: 'image.cartoon', source: image.cartoon });
-    this.nodeTypes.push({ name: 'Center Around Grey', type: 'image.centerAroundGrey', source: image.centerAroundGrey });
+    this.nodeTypes.push({ name: 'Center Around Gray', type: 'image.centerAroundGray', source: image.centerAroundGray });
     this.nodeTypes.push({ name: 'Chromatic', type: 'image.chromatic', source: image.chromatic });
     this.nodeTypes.push({ name: 'Colorify', type: 'image.colorify', source: image.colorify });
-    this.nodeTypes.push({ name: 'Color Key', type: 'image.colorKey', source: image.colorKey });
+    this.nodeTypes.push({ name: 'Chroma Key', type: 'image.chromaKey', source: image.chromaKey });
     this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
     this.nodeTypes.push({ name: 'Conditional', type: 'image.conditional', source: image.conditional });
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
@@ -100,7 +100,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Sepia', type: 'image.sepia', source: image.sepia });
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
-    this.nodeTypes.push({ name: 'Solarise', type: 'image.solarise', source: image.solarise });
+    this.nodeTypes.push({ name: 'Solarize', type: 'image.solarize', source: image.solarize });
     this.nodeTypes.push({ name: 'Squares', type: 'image.squares', source: image.squares });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
     this.nodeTypes.push({ name: 'Technicolor', type: 'image.technicolor', source: image.technicolor });

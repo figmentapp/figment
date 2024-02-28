@@ -18,7 +18,7 @@ body {
   --gray700: #4a5568;
   --gray800: #2d3748;
   --gray900: #1a202c;
-  --font-mono: 'SF Mono', Menlo, Consolas, Monaco, 'Liberation Mono', 'Lucida Console', monospace;
+  --font-mono: ui-monospace, Menlo, Monaco, monospace;
 }
 
 html,

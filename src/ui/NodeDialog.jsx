@@ -14,7 +14,7 @@ export default class NodeDialog extends Component {
   _onSearch(e) {
     const q = e.target.value;
     const results = this.nodeTypes.filter(
-      (node) => node.name.toLowerCase().includes(q.toLowerCase()) || node.description.toLowerCase().includes(q.toLowerCase())
+      (node) => node.name.toLowerCase().includes(q.toLowerCase()) || node.description.toLowerCase().includes(q.toLowerCase()),
     );
     this.setState({ q, results, selectedIndex: 0 });
   }

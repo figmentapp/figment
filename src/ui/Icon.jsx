@@ -10,12 +10,20 @@ const ICON_WIDTHS = {
     'arrow-rotate-left': 512,
 }
 
-export default function Icon({name, size, fill="black", onClick, tooltip, className}) {
-    const path = ICON_PATHS[name];
-    const width = ICON_WIDTHS[name];
-    if (!path || !width) {
-        console.error(`Icon ${name} not found.`);
-        return <svg className={className} onClick={onClick}><rect x={0} y={0} width={size} height={size} fill="red"/></svg>
-    }
-    return <svg className={className} onClick={onClick} viewBox={`0 0 ${width} 512`} width={size} title={tooltip}><path d={path} fill={fill}/></svg>
+export default function Icon({ name, size, fill = 'black', onClick, tooltip, className }) {
+  const path = ICON_PATHS[name];
+  const width = ICON_WIDTHS[name];
+  if (!path || !width) {
+    console.error(`Icon ${name} not found.`);
+    return (
+      <svg className={className} onClick={onClick}>
+        <rect x={0} y={0} width={size} height={size} fill="red" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={className} onClick={onClick} viewBox={`0 0 ${width} 512`} width={size} title={tooltip}>
+      <path d={path} fill={fill} />
+    </svg>
+  );
 }
