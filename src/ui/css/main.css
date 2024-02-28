@@ -8,7 +8,7 @@
   box-sizing: border-box;
 }
 
-body {
+:root {
   --gray100: #f7fafc;
   --gray200: #edf2f7;
   --gray300: #e2e8f0;
@@ -19,6 +19,7 @@ body {
   --gray800: #2d3748;
   --gray900: #1a202c;
   --font-mono: ui-monospace, Menlo, Monaco, monospace;
+  --splitter: 80%;
 }
 
 html,
@@ -52,6 +53,17 @@ button {
 
 img {
   -webkit-user-drag: none;
+}
+
+main {
+  display: grid;
+  grid-template-columns: var(--splitter) 4px minmax(20px, auto);
+  height: 100vh;
+}
+
+.splitter {
+  background-color: var(--gray800);
+  cursor: ew-resize;
 }
 
 .app {
@@ -202,6 +214,14 @@ img {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+}
+
+.params__grid {
+  display: grid;
+  grid-template-columns: 96px 1fr 16px;
+  align-items: center;
+  gap: 1rem;
+  margin-right: 0.5rem;
 }
 
 .params__port {

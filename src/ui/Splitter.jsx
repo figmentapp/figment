@@ -1,60 +1,27 @@
-import React, { Component } from 'react';
+import React from 'react';
 
-const VERTICAL = 'vertical';
-const HORIZONTAL = 'horizontal';
-
-function clamp(v, min, max) {
-  if (v < min) {
-    return min;
-  } else if (v > max) {
-    return max;
-  } else {
-    return v;
-  }
-}
-
-export default class Splitter extends Component {
-  constructor(props) {
-    super(props);
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
-  }
-
-  _onMouseDown(e) {
+export default function Splitter({ className, parentRef, direction }) {
+  function handleMouseDown(e) {
     e.preventDefault();
-    this._startSize = this.props.size;
-    this._startPos = this.props.direction === VERTICAL ? e.clientX : e.clientY;
-    window.addEventListener('mousemove', this._onMouseMove);
-    window.addEventListener('mouseup', this._onMouseUp);
+    const parent = parentRef.current;
+    parent.style.cursor = direction === 'horizontal' ? 'ew-resize' : 'ns-resize';
+    const mouseMoveHandler = (e) => {
+      let sizePct;
+      if (direction === 'horizontal') {
+        sizePct = (e.clientX / parent.clientWidth) * 100;
+      } else {
+        sizePct = ((e.clientY - 40) / parent.clientHeight) * 100;
+      }
+      document.documentElement.style.setProperty(`--${className}`, `${sizePct}%`);
+    };
+    const mouseUpHandler = () => {
+      document.body.removeEventListener('mousemove', mouseMoveHandler);
+      document.body.removeEventListener('mouseup', mouseUpHandler);
+      parent.style.cursor = '';
+    };
+    document.body.addEventListener('mousemove', mouseMoveHandler);
+    document.body.addEventListener('mouseup', mouseUpHandler);
   }
 
-  _onMouseMove(e) {
-    e.preventDefault();
-    if (this.props.direction === VERTICAL) {
-      let dx = e.clientX - this._startPos;
-      let newSize = this._startSize - dx;
-      newSize = clamp(newSize, this.props.minSize, Infinity);
-      this.props.onChange(newSize);
-    } else {
-      let dy = e.clientY - this._startPos;
-      let newSize = this._startSize - dy;
-      newSize = clamp(newSize, this.props.minSize, Infinity);
-      this.props.onChange(newSize);
-    }
-  }
-
-  _onMouseUp(e) {
-    e.preventDefault();
-    window.removeEventListener('mousemove', this._onMouseMove);
-    window.removeEventListener('mousemove', this._onMouseUp);
-  }
-
-  render() {
-    if (this.props.direction === VERTICAL) {
-      return <div className="h-full w-1 bg-gray-700 cursor-col-resize" onMouseDown={this._onMouseDown} />;
-    } else {
-      return <div className="v-full h-1 bg-gray-700 cursor-row-resize" onMouseDown={this._onMouseDown} />;
-    }
-  }
+  return <div className={`resizer ${className}`} onMouseDown={handleMouseDown}></div>;
 }

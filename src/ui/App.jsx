@@ -47,6 +47,7 @@ export default class App extends Component {
       version: 1,
       isPlaying: true,
     };
+    this.mainRef = React.createRef();
     const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);
@@ -535,8 +536,8 @@ export default class App extends Component {
       );
     }
     return (
-      <div className="app">
-        <div className="flex-1 flex flex-row h-screen">
+      <>
+        <main ref={this.mainRef}>
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
@@ -559,12 +560,7 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
           />
-          <Splitter
-            direction="vertical"
-            size={editorSplitterWidth}
-            onChange={(width) => this.setState({ editorSplitterWidth: width })}
-            minSize={350}
-          />
+          <Splitter className="splitter" parentRef={this.mainRef} direction="horizontal" />
 
           <ParamsEditor
             network={network}
@@ -575,7 +571,7 @@ export default class App extends Component {
             onTriggerButton={this._onTriggerButton}
             editorSplitterWidth={editorSplitterWidth}
           />
-        </div>
+        </main>
         {/* <Splitter
           direction="vertical"
           size={mainSplitterWidth}
@@ -596,7 +592,7 @@ export default class App extends Component {
           <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
         )}
         {showRenderDialog && <RenderDialog network={network} renderSequence={this._renderSequence} onCancel={this._onHideRenderDialog} />}
-      </div>
+      </>
     );
   }
 }
