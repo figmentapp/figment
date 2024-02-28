@@ -1,5 +1,10 @@
 # CHANGES
 
+## Version 0.4.1 (2024-02-21)
+
+- Add stats option to "out" node.
+- Upgrade to Electron 29.0.1 / Tensorflow.js 4.17.0.
+
 ## Version 0.4.0 (2023-10-06)
 
 - Add a bunch of new nodes: gaussion blur, barrel distortion, cartoon image, Brannan filter, vignette, wrap, sepia, Instagram filters, denoise, LoG edges, glitch, INMS, RGB color clustering, Gray color clustering, color keying, glowing edges, center around gray, ASCII, screen distortion, chromatic abberation, solarize, heatmap
