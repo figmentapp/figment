@@ -491,8 +491,7 @@ export default class App extends Component {
   }
 
   _onStart() {
-    this.setState({ isPlaying: true });
-    window.requestAnimationFrame(this._onFrame);
+    this.setState({ isPlaying: true }, () => window.requestAnimationFrame(this._onFrame));
   }
 
   _onStop() {
