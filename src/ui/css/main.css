@@ -18,7 +18,7 @@
   --gray700: #4a5568;
   --gray800: #2d3748;
   --gray900: #1a202c;
-  --font-mono: ui-monospace, Menlo, Monaco, monospace;
+  --font-mono: ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono", monospace;
   --splitter: 80%;
 }
 
@@ -184,7 +184,6 @@ main {
 
 .params {
   flex: 1;
-  min-width: 350px;
   background-color: var(--gray900);
 }
 

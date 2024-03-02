@@ -19,7 +19,7 @@ import {
   PORT_DISPLAY_PLUG,
 } from '../model/Port';
 
-const FONT_FAMILY_MONO = `ui-monospace, Menlo, Monaco, monospace`;
+const FONT_FAMILY_MONO = `ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono", monospace`;
 
 const NODE_PORT_WIDTH = 15;
 const NODE_PORT_HEIGHT = 5;
@@ -191,6 +191,12 @@ export default class NetworkEditor extends Component {
     };
     this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
 
+    // Add a resize observer, redrawing the canvas when the size changes
+    this._resizeObserver = new ResizeObserver(this._onResize);
+    if (this.canvasRef.current) {
+      this._resizeObserver.observe(this.canvasRef.current);
+    }
+
     this._draw();
     this.props.network.addChangeListener(this._onNetworkChange);
     this._animate();
@@ -202,6 +208,9 @@ export default class NetworkEditor extends Component {
     window.removeEventListener('resize', this._onResize);
     clearInterval(this._timer);
     this.props.network.removeChangeListener(this._onNetworkChange);
+    if (this.canvasRef.current) {
+        this._resizeObserver.unobserve(this.canvasRef.current);
+    }
   }
 
   render() {
