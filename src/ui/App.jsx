@@ -151,10 +151,30 @@ export default class App extends Component {
         this._onToggleFullscreen();
         break;
       case 'revert-to-default':
-        const { nodeId, portName } = args;
-        const node = this.state.network.nodes.find((n) => n.id === nodeId);
-        if (node) {
-          this._onRevertPortValue(node, portName);
+        {
+          const { nodeId, portName } = args;
+          const node = this.state.network.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            this._onRevertPortValue(node, portName);
+          }
+        }
+        break;
+      case 'edit-expression':
+        {
+          const { nodeId, portName } = args;
+          const node = this.state.network.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            this._onTogglePortExpression(node, portName);
+          }
+        }
+        break;
+      case 'delete-expression':
+        {
+          const { nodeId, portName } = args;
+          const node = this.state.network.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            this._onDeletePortExpression(node, portName);
+          }
         }
         break;
       default:
@@ -339,6 +359,20 @@ export default class App extends Component {
     console.assert(port);
     const defaultValue = JSON.parse(JSON.stringify(port.defaultValue));
     this.state.network.setPortValue(node, portName, defaultValue);
+    this.forceUpdate();
+  }
+
+  _onTogglePortExpression(node, portName) {
+    const port = node.inPorts.find((p) => p.name === portName);
+    console.assert(port);
+    console.assert(port._value.type === 'value');
+    const expression = JSON.stringify(port.value);
+    this.state.network.setPortExpression(node, portName, expression);
+    this.forceUpdate();
+  }
+
+  _onDeletePortExpression(node, portName) {
+    this.state.network.deletePortExpression(node, portName);
     this.forceUpdate();
   }
 

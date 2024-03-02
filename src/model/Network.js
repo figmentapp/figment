@@ -453,6 +453,16 @@ export default class Network {
     port.forceUpdate();
   }
 
+  deletePortExpression(node, portName) {
+    const port = node.inPorts.find((p) => p.name === portName);
+    console.assert(port, `Port ${portName} does not exist.`);
+    port._value = { type: 'value', value: port.defaultValue };
+    if (typeof port.onChange === 'function') {
+      port.onChange();
+    }
+    port.forceUpdate();
+  }
+
   triggerButton(node, port) {
     if (port.onTrigger) {
       port.onTrigger();

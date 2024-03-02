@@ -153,11 +153,11 @@ ipcMain.handle('showNodeContextMenu', showNodeContextMenu);
 function showPortContextMenu(_, { nodeId, portName, valueType }) {
   let menuItems = [];
   menuItems.push({ label: 'Revert to Default', click: emit('revert-to-default', { nodeId, portName }) });
-  //   if (valueType === 'expression') {
-  //     menuItems.push({ label: 'Delete Expression', click: emit('delete-expression') });
-  //   } else {
-  //     menuItems.push({ label: 'Edit Expression', click: emit('edit-expression') });
-  //   }
+  if (valueType === 'expression') {
+    menuItems.push({ label: 'Delete Expression', click: emit('delete-expression', { nodeId, portName }) });
+  } else {
+    menuItems.push({ label: 'Edit Expression', click: emit('edit-expression', { nodeId, portName }) });
+  }
   const menu = Menu.buildFromTemplate(menuItems);
   menu.popup(gMainWindow);
 }
