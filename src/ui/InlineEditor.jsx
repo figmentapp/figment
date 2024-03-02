@@ -1,6 +1,9 @@
 import React from 'react';
 import { useState, useRef, useEffect } from 'react';
 
+// Because we use dynamic colors, Tailwind can't pick these up. So we'll mention them here explicitly:
+// bg-gray-800 bg-gray-900 border-gray-700
+// bg-green-800 bg-green-900 border-green-700
 export default function InlineEditor({ value, onChange, color = 'gray' }) {
   const [inputValue, setInputValue] = useState(value);
   const [isEditing, setIsEditing] = useState(false);
