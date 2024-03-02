@@ -12,6 +12,7 @@ import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
+import { upgradeProject } from '../file-format';
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -46,6 +47,7 @@ export default class App extends Component {
       version: 1,
       isPlaying: true,
     };
+    this.mainRef = React.createRef();
     const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);
@@ -63,6 +65,7 @@ export default class App extends Component {
     this._onDeleteSelection = this._onDeleteSelection.bind(this);
     this._onChangeSource = this._onChangeSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
+    this._onChangePortExpression = this._onChangePortExpression.bind(this);
     this._onRevertPortValue = this._onRevertPortValue.bind(this);
     this._onTriggerButton = this._onTriggerButton.bind(this);
     this._onShowNodeDialog = this._onShowNodeDialog.bind(this);
@@ -117,14 +120,14 @@ export default class App extends Component {
     }
   }
 
-  _onMenuEvent(name, filePath) {
+  _onMenuEvent(name, args) {
     switch (name) {
       case 'new':
         this._newProject();
         break;
       case 'open':
-        if (filePath) {
-          this._openFile(filePath);
+        if (args.filePath) {
+          this._openFile(args.filePath);
         } else {
           this._onOpenFile();
         }
@@ -146,6 +149,33 @@ export default class App extends Component {
         break;
       case 'enter-full-screen':
         this._onToggleFullscreen();
+        break;
+      case 'revert-to-default':
+        {
+          const { nodeId, portName } = args;
+          const node = this.state.network.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            this._onRevertPortValue(node, portName);
+          }
+        }
+        break;
+      case 'edit-expression':
+        {
+          const { nodeId, portName } = args;
+          const node = this.state.network.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            this._onTogglePortExpression(node, portName);
+          }
+        }
+        break;
+      case 'delete-expression':
+        {
+          const { nodeId, portName } = args;
+          const node = this.state.network.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            this._onDeletePortExpression(node, portName);
+          }
+        }
         break;
       default:
         console.error('Unknown menu event:', name);
@@ -184,12 +214,13 @@ export default class App extends Component {
   async _realOpenFile(filePath) {
     const contents = await window.desktop.readProjectFile(filePath);
     // const contents = await fs.readFile(filePath, 'utf-8');
-    const json = JSON.parse(contents);
+    let project = JSON.parse(contents);
+    project = upgradeProject(project);
     const network = new Network(this.state.library);
 
     // remote.app.addRecentDocument(filePath);
     this.setState({ filePath, network, selection: new Set() }, async () => {
-      network.parse(json);
+      network.parse(project);
       await network.start();
       network.doFrame();
       this._setFilePath(filePath);
@@ -318,11 +349,30 @@ export default class App extends Component {
     this.forceUpdate();
   }
 
+  _onChangePortExpression(node, portName, expression) {
+    this.state.network.setPortExpression(node, portName, expression);
+    this.forceUpdate();
+  }
+
   _onRevertPortValue(node, portName) {
     const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port);
     const defaultValue = JSON.parse(JSON.stringify(port.defaultValue));
     this.state.network.setPortValue(node, portName, defaultValue);
+    this.forceUpdate();
+  }
+
+  _onTogglePortExpression(node, portName) {
+    const port = node.inPorts.find((p) => p.name === portName);
+    console.assert(port);
+    console.assert(port._value.type === 'value');
+    const expression = JSON.stringify(port.value);
+    this.state.network.setPortExpression(node, portName, expression);
+    this.forceUpdate();
+  }
+
+  _onDeletePortExpression(node, portName) {
+    this.state.network.deletePortExpression(node, portName);
     this.forceUpdate();
   }
 
@@ -489,8 +539,7 @@ export default class App extends Component {
   }
 
   _onStart() {
-    this.setState({ isPlaying: true });
-    window.requestAnimationFrame(this._onFrame);
+    this.setState({ isPlaying: true }, () => window.requestAnimationFrame(this._onFrame));
   }
 
   _onStop() {
@@ -527,12 +576,11 @@ export default class App extends Component {
       );
     }
     return (
-      <div className="app">
-        <div className="flex-1 flex flex-row h-screen">
+      <>
+        <main ref={this.mainRef}>
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
-            style={{ width: `${window.innerWidth - editorSplitterWidth}px` }}
             library={library}
             network={network}
             selection={selection}
@@ -551,23 +599,19 @@ export default class App extends Component {
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
           />
-          <Splitter
-            direction="vertical"
-            size={editorSplitterWidth}
-            onChange={(width) => this.setState({ editorSplitterWidth: width })}
-            minSize={350}
-          />
+          <Splitter className="splitter" parentRef={this.mainRef} direction="horizontal" />
 
           <ParamsEditor
             network={network}
             selection={selection}
             onShowNodeRenameDialog={this._onShowNodeRenameDialog}
             onChangePortValue={this._onChangePortValue}
+            _onChangePortExpression={this._onChangePortExpression}
             onRevertPortValue={this._onRevertPortValue}
             onTriggerButton={this._onTriggerButton}
             editorSplitterWidth={editorSplitterWidth}
           />
-        </div>
+        </main>
         {/* <Splitter
           direction="vertical"
           size={mainSplitterWidth}
@@ -588,7 +632,7 @@ export default class App extends Component {
           <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
         )}
         {showRenderDialog && <RenderDialog network={network} renderSequence={this._renderSequence} onCancel={this._onHideRenderDialog} />}
-      </div>
+      </>
     );
   }
 }

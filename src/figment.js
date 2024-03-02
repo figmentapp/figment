@@ -22,7 +22,7 @@ export function ensureDirectory(dir) {
 export function filePathForAsset(filename) {
   if (typeof window.figmentPlayer !== 'undefined') return filename;
   if (nodePath.isAbsolute(filename)) return filename;
-  const filePath = nodePath.join(projectDirectory(), filename);
+  const filePath = nodePath.resolve(projectDirectory(), filename);
   return filePath;
 }
 

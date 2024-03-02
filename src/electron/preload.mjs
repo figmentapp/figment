@@ -69,6 +69,10 @@ async function showNodeContextMenu() {
   await ipcRenderer.invoke('showNodeContextMenu');
 }
 
+async function showPortContextMenu(port) {
+  await ipcRenderer.invoke('showPortContextMenu', { nodeId: port.node.id, portName: port.name, valueType: port._value.type });
+}
+
 async function addToRecentFiles(filePath) {
   await ipcRenderer.invoke('addToRecentFiles', filePath);
 }
@@ -92,15 +96,7 @@ async function ensureDirectory(dir) {
 
 async function globFiles(baseDir, pattern) {
   const globPattern = path.join(baseDir, pattern);
-  return new Promise((resolve, reject) => {
-    glob(globPattern, (err, files) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(files);
-      }
-    });
-  });
+  return await glob(globPattern, { windowsPathsNoEscape: true });
 }
 
 async function saveBufferToFile(buffer, filePath) {
@@ -109,8 +105,8 @@ async function saveBufferToFile(buffer, filePath) {
 
 const pathToFileURL = (filename) => url.pathToFileURL(filename).toString();
 
-ipcRenderer.on('menu', (event, args) => {
-  listeners['menu'](args.name, args.filePath);
+ipcRenderer.on('menu', (_, name, args) => {
+  listeners['menu'](name, args);
 });
 
 function registerListener(name, fn) {
@@ -133,6 +129,7 @@ contextBridge.exposeInMainWorld('desktop', {
   showOpenDirectoryDialog,
   showSaveImageDialog,
   showNodeContextMenu,
+  showPortContextMenu,
   addToRecentFiles,
   setFullScreen,
   readProjectFile,

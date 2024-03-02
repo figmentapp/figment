@@ -18,7 +18,6 @@ core.out = `// Signifies that this is the output of the network.
 const imageIn = node.imageIn('in');
 const statsIn = node.toggleIn('show stats', false);
 const imageOut = node.imageOut('out');
-console.log(statsIn);
 
 node.onRender = () => {
   imageOut.set(imageIn.value);
@@ -2302,18 +2301,25 @@ const animateIn = node.toggleIn('animate', false);
 const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
 const imageOut = node.imageOut('out');
 
-let _files, _fileIndex, _texture, _image, _framebuffer, _program, _lastTime;
+const LOAD_STATE_NONE = 0;
+const LOAD_STATE_LOADING = 1;
+const LOAD_STATE_LOADED = 2;
+
+let _loadState, _files, _fileIndex, _texture, _image, _framebuffer, _program, _lastTime;
 
 node.onStart = () => {
   _program = figment.createShaderProgram();
   _framebuffer = new figment.Framebuffer();
   _fileIndex = 0;
   _lastTime = Date.now();
+  _loadState = LOAD_STATE_NONE;
 }
 
 node.onRender = async () => {
-  if (_files === undefined) {
+  if (_loadState === LOAD_STATE_NONE) {
     loadDirectory();
+  } else if (_loadState === LOAD_STATE_LOADING) {
+    return;
   }
 
   const runtimeMode = window.desktop.getRuntimeMode();
@@ -2341,12 +2347,14 @@ node.onRender = async () => {
 }
 
 function changeDirectory() {
-  _files = undefined;
+  _loadState = LOAD_STATE_NONE;
 }
 
 async function loadDirectory() {
+  _loadState = LOAD_STATE_LOADING;
   if (!folderIn.value || folderIn.value.trim().length === 0) {
     _files = [];
+    _loadState = LOAD_STATE_LOADED;
     return;
   }
   const baseDir = figment.filePathForAsset(folderIn.value);
@@ -2356,6 +2364,7 @@ async function loadDirectory() {
     onLoadError();
   }
   _fileIndex = -1;
+  _loadState = LOAD_STATE_LOADED;
   nextImage();
 }
 
@@ -2369,6 +2378,7 @@ function onLoadError() {
   figment.drawQuad(_program, { u_image: texture });
   _framebuffer.unbind();
   imageOut.set(_framebuffer);
+  _loadState = LOAD_STATE_LOADED;
 }
 
 function onLoadImage(err, texture, image) {

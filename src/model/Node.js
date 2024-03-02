@@ -30,10 +30,22 @@ export default class Node {
     this.inPorts = [];
     this.outPorts = [];
     this.isDirty = true;
+    this._timeDependent = false;
   }
 
   _markDirty() {
     this.network.markNodeDirty(this);
+  }
+
+  get timeDependent() {
+    if (this._timeDependent) {
+      return true;
+    }
+    return this.inPorts.some((p) => p._value.type === 'expression' && /(\$FRAME|\$TIME|\$NOW)/.test(p._value.expression));
+  }
+
+  set timeDependent(value) {
+    this._timeDependent = value;
   }
 
   triggerIn(name) {
@@ -109,7 +121,7 @@ export default class Node {
       }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_POINT, PORT_IN, value && value.clone());
+      const inPort = new Port(this, name, PORT_TYPE_POINT, PORT_IN, structuredClone(value));
       this.inPorts.push(inPort);
       return inPort;
     }

@@ -8,7 +8,7 @@
   box-sizing: border-box;
 }
 
-body {
+:root {
   --gray100: #f7fafc;
   --gray200: #edf2f7;
   --gray300: #e2e8f0;
@@ -18,7 +18,8 @@ body {
   --gray700: #4a5568;
   --gray800: #2d3748;
   --gray900: #1a202c;
-  --font-mono: ui-monospace, Menlo, Monaco, monospace;
+  --font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+  --splitter: 70%;
 }
 
 html,
@@ -52,6 +53,17 @@ button {
 
 img {
   -webkit-user-drag: none;
+}
+
+main {
+  display: grid;
+  grid-template-columns: var(--splitter) 4px minmax(20px, auto);
+  height: 100vh;
+}
+
+.splitter {
+  background-color: var(--gray800);
+  cursor: ew-resize;
 }
 
 .app {
@@ -172,7 +184,6 @@ img {
 
 .params {
   flex: 1;
-  min-width: 350px;
   background-color: var(--gray900);
 }
 
@@ -202,6 +213,14 @@ img {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+}
+
+.params__grid {
+  display: grid;
+  grid-template-columns: 96px 1fr 16px;
+  align-items: center;
+  gap: 1rem;
+  margin-right: 0.5rem;
 }
 
 .params__port {
@@ -244,13 +263,13 @@ input.params__field:focus {
   color: var(--gray600);
 }
 
-.params__revert {
+.params__more {
   margin-right: 0.75rem;
-  opacity: 0.05;
+  opacity: 0.5;
   transition: opacity 0.2s;
 }
 
-.params__revert:hover {
+.params__more:hover {
   opacity: 0.8;
 }
 
