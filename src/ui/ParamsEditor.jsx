@@ -451,9 +451,9 @@ class DirectoryParam extends Component {
   render() {
     const { label, value } = this.props;
     return (
-      <div className="params__row">
+      <>
         <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
-        <div className="flex items-center">
+        <div className="flex items-center overflow-hidden">
           <span className="w-32 text-gray-400 truncate" onClick={this._onSelectDirectory} title={value}>
             {value}
           </span>
@@ -461,7 +461,8 @@ class DirectoryParam extends Component {
             Open…
           </button>
         </div>
-      </div>
+        <span />
+      </>
     );
   }
 }
