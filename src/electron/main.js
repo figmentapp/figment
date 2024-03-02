@@ -209,8 +209,8 @@ async function startDevServer() {
 
 function createMainWindow(file) {
   gMainWindow = new BrowserWindow({
-    width: 1000,
-    height: 800,
+    width: 1200,
+    height: 1000,
     show: false,
     icon: path.join(__dirname, 'assets/icons/app-icon-512.png'),
     webPreferences: {
@@ -235,7 +235,6 @@ function createMainWindow(file) {
   // Open the window
   gMainWindow.once('ready-to-show', () => {
     gMainWindow.show();
-    gMainWindow.maximize();
     if (file) emit('open', { filePath: file })();
   });
 }
