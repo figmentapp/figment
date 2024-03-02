@@ -1,4 +1,3 @@
-import { COLORS } from '../colors';
 import { startCase } from 'lodash';
 import { evalExpression } from '../expr';
 
@@ -38,6 +37,7 @@ export default class Port {
     this.direction = direction;
     this._value = { type: VALUE_TYPE_VALUE, value };
     this.defaultValue = value;
+    this.error = null;
     this.display = type === PORT_TYPE_IMAGE || type === PORT_TYPE_BOOLEAN ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
     options = options || {};
     this.min = options.min !== undefined ? options.min : undefined;
@@ -50,7 +50,15 @@ export default class Port {
     if (this._value.type === VALUE_TYPE_VALUE) {
       return this._value.value;
     } else if (this._value.type === VALUE_TYPE_EXPRESSION) {
-      return evalExpression(this._value.expression);
+      try {
+        const result = evalExpression(this._value.expression);
+        this.error = null;
+        return result;
+      } catch (e) {
+        console.error(e);
+        this.error = e;
+        return this.defaultValue;
+      }
     }
   }
 

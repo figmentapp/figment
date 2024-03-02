@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 // Because we use dynamic colors, Tailwind can't pick these up. So we'll mention them here explicitly:
 // bg-gray-800 bg-gray-900 border-gray-700
 // bg-green-800 bg-green-900 border-green-700
-export default function InlineEditor({ value, onChange, color = 'gray' }) {
+// bg-red-800 bg-red-900 border-red-700
+export default function InlineEditor({ value, onChange, color = 'gray', tooltip = undefined }) {
   const [inputValue, setInputValue] = useState(value);
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef(null);
@@ -49,6 +50,7 @@ export default function InlineEditor({ value, onChange, color = 'gray' }) {
       <span
         onClick={() => setIsEditing(true)}
         className={`flex-1 whitespace-nowrap py-2 px-1 border border-transparent bg-${color}-800 text-gray-300 overflow-hidden`}
+        title={tooltip}
       >
         {value}
       </span>

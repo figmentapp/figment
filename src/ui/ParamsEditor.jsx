@@ -225,7 +225,7 @@ function ExpressionParam({ port, label, expression, onChange }) {
   return (
     <>
       <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
-      <InlineEditor value={expression} onChange={onChange} color="green" />
+      <InlineEditor value={expression} onChange={onChange} color={port.error ? 'red' : 'green'} tooltip={port.error} />
       <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
     </>
   );
