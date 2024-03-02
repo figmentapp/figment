@@ -96,15 +96,7 @@ async function ensureDirectory(dir) {
 
 async function globFiles(baseDir, pattern) {
   const globPattern = path.join(baseDir, pattern);
-  return new Promise((resolve, reject) => {
-    glob(globPattern, (err, files) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(files);
-      }
-    });
-  });
+  return await glob(globPattern, { windowsPathsNoEscape: true });
 }
 
 async function saveBufferToFile(buffer, filePath) {
