@@ -3,7 +3,6 @@ import { Server, Client } from 'node-osc';
 const _oscClients = {};
 
 const MAX_MESSAGE_FREQUENCY = 30;
-export const oscMessageMap = new Map();
 export const messageFrequencies = [];
 
 export function oscSendMessage(ip, port, address, args) {
@@ -25,11 +24,7 @@ export function oscStartServer(port, sender) {
     messageFrequencies[messageFrequencies.length - 1]++;
     const address = msg[0];
     const args = msg.slice(1);
-    if (args.length === 1) {
-      oscMessageMap.set(address, args[0]);
-    } else {
-      oscMessageMap.set(address, args);
-    }
+    sender.send('osc', 'message', address, ...args);
   });
   const timer = setInterval(() => {
     messageFrequencies.push(0);
