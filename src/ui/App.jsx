@@ -14,7 +14,7 @@ import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
 import ProjectSettingsDialog from './ProjectSettingsDialog';
 import { upgradeProject } from '../file-format';
-import { setExpressionContext } from '../expr';
+import { initExpressionContext } from '../expr';
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -54,7 +54,7 @@ export default class App extends Component {
     };
     this.mainRef = React.createRef();
     this.oscMessageMap = new Map();
-    setExpressionContext({ _oscMap: this.oscMessageMap });
+    initExpressionContext({ _osc: this.oscMessageMap });
     const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);

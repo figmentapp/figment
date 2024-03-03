@@ -15,11 +15,15 @@ function osc(address, defaultValue = 0) {
   return context._osc.get(address) || defaultValue;
 }
 
+export function initExpressionContext(newContext) {
+  context = { ...context, ...newContext };
+  jexl.addFunction('osc', osc);
+}
+
 export function setExpressionContext(newContext) {
   context = { ...context, ...newContext };
 }
 
 export function evalExpression(expr) {
-  jexl.addFunction('osc', osc);
   return jexl.evalSync(expr, context);
 }
