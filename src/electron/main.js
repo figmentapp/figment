@@ -289,6 +289,8 @@ function createApplicationMenu() {
         click: emit('save-as'),
       },
       { type: 'separator' },
+      { label: 'Project Settings…', accelerator: 'CmdOrCtrl+;', click: emit('project-settings-dialog') },
+      { type: 'separator' },
       { label: 'Render…', accelerator: 'CmdOrCtrl+Shift+E', click: emit('render-dialog') },
     ],
   };

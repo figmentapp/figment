@@ -12,6 +12,7 @@ import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
+import ProjectSettingsDialog from './ProjectSettingsDialog';
 import { upgradeProject } from '../file-format';
 
 function randInt(min, max) {
@@ -40,6 +41,7 @@ export default class App extends Component {
       showNodeDialog: false,
       showForkDialog: false,
       showRenderDialog: false,
+      showProjectSettingsDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
       editorSplitterWidth: 350,
@@ -74,6 +76,7 @@ export default class App extends Component {
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
     this._onshowRenderDialog = this._onshowRenderDialog.bind(this);
     this._onHideRenderDialog = this._onHideRenderDialog.bind(this);
+    this._onHideProjectSettingsDialog = this._onHideProjectSettingsDialog.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
     this._onShowNodeRenameDialog = this._onShowNodeRenameDialog.bind(this);
@@ -143,6 +146,9 @@ export default class App extends Component {
         break;
       case 'view-node-source':
         this._onViewNodeSource();
+        break;
+      case 'project-settings-dialog':
+        this.setState({ showProjectSettingsDialog: true });
         break;
       case 'render-dialog':
         this._onshowRenderDialog();
@@ -424,6 +430,10 @@ export default class App extends Component {
     this.setState({ showRenderDialog: false });
   }
 
+  _onHideProjectSettingsDialog() {
+    this.setState({ showProjectSettingsDialog: false });
+  }
+
   _onCreateNode(nodeType) {
     console.assert(typeof nodeType === 'object');
     const pt = this.state.lastNetworkPoint;
@@ -560,6 +570,7 @@ export default class App extends Component {
       editorSplitterWidth,
       showNodeRenameDialog,
       showRenderDialog,
+      showProjectSettingsDialog,
       nodeToRename,
       fullscreen,
     } = this.state;
@@ -632,6 +643,7 @@ export default class App extends Component {
           <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
         )}
         {showRenderDialog && <RenderDialog network={network} renderSequence={this._renderSequence} onCancel={this._onHideRenderDialog} />}
+        {showProjectSettingsDialog && <ProjectSettingsDialog network={network} onCancel={this._onHideProjectSettingsDialog} />}
       </>
     );
   }
