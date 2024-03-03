@@ -18,6 +18,7 @@
   "dependencies": {
     "@tensorflow/tfjs": "4.17.0",
     "chroma-js": "2.4.2",
+    "clsx": "^2.1.0",
     "codemirror": "5.63.1",
     "glob": "10.3.10",
     "jexl": "^2.3.0",

@@ -41,7 +41,7 @@ export default class App extends Component {
       showNodeDialog: false,
       showForkDialog: false,
       showRenderDialog: false,
-      showProjectSettingsDialog: false,
+      showProjectSettingsDialog: true,
       forkDialogNodeType: null,
       lastNetworkPoint,
       editorSplitterWidth: 350,
@@ -89,6 +89,7 @@ export default class App extends Component {
     this._exportImage = this._exportImage.bind(this);
     this._renderSequence = this._renderSequence.bind(this);
     this._onViewNodeSource = this._onViewNodeSource.bind(this);
+    this._onChangeProjectSetting = this._onChangeProjectSetting.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onStart = this._onStart.bind(this);
     this._onStop = this._onStop.bind(this);
@@ -538,6 +539,11 @@ export default class App extends Component {
     this._onNewCodeTab(node);
   }
 
+  _onChangeProjectSetting(setting, value) {
+    this.state.network.setSetting(setting, value);
+    this.forceUpdate();
+  }
+
   async _onFrame() {
     if (!this.state.isPlaying) return;
     if (this.state.network) {
@@ -643,7 +649,9 @@ export default class App extends Component {
           <NodeRenameDialog node={nodeToRename} onRenameNode={this._onRenameNode} onCancel={this._onHideNodeRenameDialog} />
         )}
         {showRenderDialog && <RenderDialog network={network} renderSequence={this._renderSequence} onCancel={this._onHideRenderDialog} />}
-        {showProjectSettingsDialog && <ProjectSettingsDialog network={network} onCancel={this._onHideProjectSettingsDialog} />}
+        {showProjectSettingsDialog && (
+          <ProjectSettingsDialog network={network} onChange={this._onChangeProjectSetting} onCancel={this._onHideProjectSettingsDialog} />
+        )}
       </>
     );
   }

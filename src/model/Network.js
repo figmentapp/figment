@@ -86,6 +86,10 @@ export const getDefaultNetwork = () => ({
     { outNode: 5, outPort: 'out', inNode: 6, inPort: 'image 2' },
     { outNode: 6, outPort: 'out', inNode: 7, inPort: 'in' },
   ],
+  settings: {
+    oscEnabled: false,
+    oscPort: 8080,
+  },
 });
 
 export default class Network {
@@ -96,6 +100,7 @@ export default class Network {
     this.library = library;
     this.nodes = [];
     this.connections = [];
+    this.settings = {};
     this.types = [];
     this._id = 0;
     this.listeners = [];
@@ -582,5 +587,9 @@ export default class Network {
       }
       this.markNodeDirty(inputNode, visited);
     }
+  }
+
+  setSetting(key, value) {
+    this.settings[key] = value;
   }
 }
