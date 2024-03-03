@@ -179,6 +179,11 @@ async function onClearRecentProjects() {
   createApplicationMenu();
 }
 
+function sendIpcMessage(channel, ...args) {
+  if (gMainWindow.isDestroyed()) return;
+  gMainWindow.webContents.send(channel, ...args);
+}
+
 ipcMain.handle('addToRecentFiles', (_, filePath) => onTouchProject(filePath));
 ipcMain.on('window-created', () => {
   if (argv.file) {
@@ -194,16 +199,16 @@ let _serverHandle = null;
 ipcMain.handle('oscStartServer', (_, { port }) => {
   if (_serverHandle) {
     oscStopServer(_serverHandle);
-    gMainWindow.webContents.send('osc', 'stop-server');
+    sendIpcMessage('osc', 'stop-server');
   }
-  _serverHandle = oscStartServer(port, gMainWindow.webContents);
-  gMainWindow.webContents.send('osc', 'start-server', { port });
+  _serverHandle = oscStartServer(port, sendIpcMessage);
+  sendIpcMessage('osc', 'start-server', { port });
 });
 
 ipcMain.handle('oscStopServer', (_) => {
   if (_serverHandle) {
     oscStopServer(_serverHandle);
-    gMainWindow.webContents.send('osc', 'stop-server');
+    sendIpcMessage('osc', 'stop-server');
     _serverHandle = null;
   }
 });

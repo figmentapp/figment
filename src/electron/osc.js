@@ -6,7 +6,6 @@ const MAX_MESSAGE_FREQUENCY = 30;
 export const messageFrequencies = [];
 
 export function oscSendMessage(ip, port, address, args) {
-  // console.log('osc send message', ip, port, address, args);
   const clientKey = `${ip}:${port}`;
   let client = _oscClients[clientKey];
   if (!client) {
@@ -16,7 +15,7 @@ export function oscSendMessage(ip, port, address, args) {
   client.send(address, ...args);
 }
 
-export function oscStartServer(port, sender) {
+export function oscStartServer(port, sendIpcMessage) {
   const server = new Server(port, '0.0.0.0');
   messageFrequencies.length = 0;
   messageFrequencies.push(0);
@@ -24,7 +23,7 @@ export function oscStartServer(port, sender) {
     messageFrequencies[messageFrequencies.length - 1]++;
     const address = msg[0];
     const args = msg.slice(1);
-    sender.send('osc', 'message', address, args);
+    sendIpcMessage('osc', 'message', { address, args });
   });
   const timer = setInterval(() => {
     messageFrequencies.push(0);
@@ -32,7 +31,7 @@ export function oscStartServer(port, sender) {
       // Remove the first element
       messageFrequencies.shift();
     }
-    sender.send('osc', 'message-frequencies', messageFrequencies);
+    sendIpcMessage('osc', 'message-frequencies', messageFrequencies);
   }, 2000);
   return { server, timer };
 }

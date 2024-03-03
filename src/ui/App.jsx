@@ -588,7 +588,7 @@ export default class App extends Component {
     } else if (name === 'stop-server') {
       this.setState({ oscServerPort: null });
     } else if (name === 'message') {
-      let [address, ...argList] = args;
+      let { address, args: argList } = args;
       if (argList.length === 1) {
         argList = argList[0];
       }
