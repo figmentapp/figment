@@ -14,6 +14,7 @@ import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
 import ProjectSettingsDialog from './ProjectSettingsDialog';
 import { upgradeProject } from '../file-format';
+import { setExpressionContext } from '../expr';
 
 function randInt(min, max) {
   return Math.floor(min + Math.random() * (max - min));
@@ -52,6 +53,8 @@ export default class App extends Component {
       oscMessageFrequencies: [],
     };
     this.mainRef = React.createRef();
+    this.oscMessageMap = new Map();
+    setExpressionContext({ _oscMap: this.oscMessageMap });
     const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);
@@ -584,6 +587,12 @@ export default class App extends Component {
       this.setState({ oscServerPort: port });
     } else if (name === 'stop-server') {
       this.setState({ oscServerPort: null });
+    } else if (name === 'message') {
+      let [address, ...argList] = args;
+      if (argList.length === 1) {
+        argList = argList[0];
+      }
+      this.oscMessageMap.set(address, argList);
     } else if (name === 'message-frequencies') {
       const frequencies = args;
       this.setState({ oscMessageFrequencies: frequencies });

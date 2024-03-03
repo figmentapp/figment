@@ -157,7 +157,7 @@ class NumberDrag extends Component {
 class FloatParam extends Component {
   constructor(props) {
     super(props);
-    this.setState({ newValue: props.value });
+    this.state = { newValue: props.value };
     this._onInput = this._onInput.bind(this);
     this._onChange = this._onChange.bind(this);
     this._onShowMenu = this._onShowMenu.bind(this);

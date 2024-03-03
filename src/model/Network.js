@@ -47,10 +47,13 @@ export const getDefaultNetwork = () => ({
     },
     {
       id: 4,
-      name: 'Invert',
-      type: 'image.invert',
+      name: 'Transform',
+      type: 'image.transform',
       x: 250,
       y: 400,
+      values: {
+        rotate: { type: 'expression', expression: 'osc("/alpha")' },
+      },
     },
     {
       id: 5,
@@ -87,8 +90,8 @@ export const getDefaultNetwork = () => ({
     { outNode: 6, outPort: 'out', inNode: 7, inPort: 'in' },
   ],
   settings: {
-    oscEnabled: false,
-    oscPort: 8080,
+    oscEnabled: true,
+    oscPort: 8888,
   },
 });
 

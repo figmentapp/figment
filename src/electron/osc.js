@@ -24,7 +24,7 @@ export function oscStartServer(port, sender) {
     messageFrequencies[messageFrequencies.length - 1]++;
     const address = msg[0];
     const args = msg.slice(1);
-    sender.send('osc', 'message', address, ...args);
+    sender.send('osc', 'message', address, args);
   });
   const timer = setInterval(() => {
     messageFrequencies.push(0);

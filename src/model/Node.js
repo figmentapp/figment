@@ -41,7 +41,7 @@ export default class Node {
     if (this._timeDependent) {
       return true;
     }
-    return this.inPorts.some((p) => p._value.type === 'expression' && /(\$FRAME|\$TIME|\$NOW)/.test(p._value.expression));
+    return this.inPorts.some((p) => p._value.type === 'expression' && /(\$FRAME|\$TIME|\$NOW|osc)/.test(p._value.expression));
   }
 
   set timeDependent(value) {

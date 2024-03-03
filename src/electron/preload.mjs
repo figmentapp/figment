@@ -107,11 +107,15 @@ async function saveBufferToFile(buffer, filePath) {
 const pathToFileURL = (filename) => url.pathToFileURL(filename).toString();
 
 ipcRenderer.on('menu', (_, name, args) => {
-  listeners['menu'](name, args);
+  if (typeof listeners['menu'] === 'function') {
+    listeners['menu'](name, args);
+  }
 });
 
 ipcRenderer.on('osc', (_, name, args) => {
-  listeners['osc'](name, args);
+  if (typeof listeners['osc'] === 'function') {
+    listeners['osc'](name, args);
+  }
 });
 
 function registerListener(name, fn) {
