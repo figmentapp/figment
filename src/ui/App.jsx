@@ -106,6 +106,7 @@ export default class App extends Component {
   async componentDidMount() {
     await this.state.network.start();
     await this.state.network.render();
+    this._onStart();
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('resize', this._forceRedraw);
@@ -273,6 +274,7 @@ export default class App extends Component {
       activeTabIndex: -1,
       selection: new Set(),
     });
+    window.desktop.stopOscServer();
     // FIXME: check for unsaved changes
   }
 

@@ -19,6 +19,7 @@ export function oscSendMessage(ip, port, address, args) {
 
 export function oscStartServer(port, sender) {
   const server = new Server(port, '0.0.0.0');
+  messageFrequencies.length = 0;
   messageFrequencies.push(0);
   server.on('message', (msg) => {
     messageFrequencies[messageFrequencies.length - 1]++;
