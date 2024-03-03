@@ -15,9 +15,17 @@ function osc(address, defaultValue = 0) {
   return context._osc.get(address) || defaultValue;
 }
 
+function map(v, inMin, inMax, outMin, outMax, clamp = false) {
+  if (clamp) {
+    v = Math.min(Math.max(v, inMin), inMax);
+  }
+  return ((v - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
+}
+
 export function initExpressionContext(newContext) {
   context = { ...context, ...newContext };
   jexl.addFunction('osc', osc);
+  jexl.addFunction('map', map);
 }
 
 export function setExpressionContext(newContext) {
