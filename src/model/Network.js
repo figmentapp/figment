@@ -248,6 +248,9 @@ export default class Network {
       }
       this.connections.push(connObj);
     }
+    for (const key in obj.settings) {
+      this.settings[key] = obj.settings[key];
+    }
 
     this._rebuildDependencyGraph();
 
