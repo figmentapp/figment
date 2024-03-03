@@ -579,7 +579,6 @@ export default class App extends Component {
   }
 
   _onOscEvent(name, args) {
-    console.log('osc', name, args);
     if (name === 'start-server') {
       const { port } = args;
       this.setState({ oscServerPort: port });
