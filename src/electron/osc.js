@@ -37,7 +37,7 @@ export function oscStartServer(port, sender) {
       messageFrequencies.shift();
     }
     sender.send('osc', 'message-frequencies', messageFrequencies);
-  }, 1000);
+  }, 2000);
   return { server, timer };
 }
 
