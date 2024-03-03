@@ -41,7 +41,7 @@ export default class App extends Component {
       showNodeDialog: false,
       showForkDialog: false,
       showRenderDialog: false,
-      showProjectSettingsDialog: true,
+      showProjectSettingsDialog: false,
       forkDialogNodeType: null,
       lastNetworkPoint,
       editorSplitterWidth: 350,
@@ -78,6 +78,7 @@ export default class App extends Component {
     this._onHideForkDialog = this._onHideForkDialog.bind(this);
     this._onshowRenderDialog = this._onshowRenderDialog.bind(this);
     this._onHideRenderDialog = this._onHideRenderDialog.bind(this);
+    this._onShowProjectSettingsDialog = this._onShowProjectSettingsDialog.bind(this);
     this._onHideProjectSettingsDialog = this._onHideProjectSettingsDialog.bind(this);
     this._onForkNodeType = this._onForkNodeType.bind(this);
     this._onCreateNode = this._onCreateNode.bind(this);
@@ -435,6 +436,10 @@ export default class App extends Component {
     this.setState({ showRenderDialog: false });
   }
 
+  _onShowProjectSettingsDialog() {
+    this.setState({ showProjectSettingsDialog: true });
+  }
+
   _onHideProjectSettingsDialog() {
     this.setState({ showProjectSettingsDialog: false });
   }
@@ -657,6 +662,7 @@ export default class App extends Component {
             offscreenCanvas={this._offscreenCanvas}
             oscServerPort={this.state.oscServerPort}
             oscMessageFrequencies={this.state.oscMessageFrequencies}
+            onClickOsc={this._onShowProjectSettingsDialog}
           />
           <Splitter className="splitter" parentRef={this.mainRef} direction="horizontal" />
 

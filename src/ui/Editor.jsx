@@ -32,6 +32,7 @@ export default class Editor extends Component {
       style,
       oscServerPort,
       oscMessageFrequencies,
+      onClickOsc,
     } = this.props;
     return (
       <div className="editor" style={style}>
@@ -50,7 +51,7 @@ export default class Editor extends Component {
             </div>
           ))}
           <span className="flex-1"></span>
-          <OscWidget port={oscServerPort} frequencies={oscMessageFrequencies} />
+          <OscWidget port={oscServerPort} frequencies={oscMessageFrequencies} onClick={onClickOsc} />
         </div>
         {activeTabIndex === -1 && (
           <NetworkEditor
