@@ -32,7 +32,7 @@ export function oscStartServer(port, sender) {
   });
   const timer = setInterval(() => {
     messageFrequencies.push(0);
-    if (messageFrequencies.length > MAX_MESSAGE_FREQUENCY) {
+    while (messageFrequencies.length > MAX_MESSAGE_FREQUENCY) {
       // Remove the first element
       messageFrequencies.shift();
     }
