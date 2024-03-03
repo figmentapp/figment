@@ -5,7 +5,6 @@ import { COLORS } from '../colors';
 import InlineEditor from './InlineEditor';
 
 export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
-  console.log(network.settings);
   return (
     <div className="dialog-wrapper">
       <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900">
@@ -21,7 +20,7 @@ export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
             <input
               type="checkbox"
               className="m-4"
-              value={network.settings.oscEnabled}
+              checked={!!network.settings.oscEnabled}
               onChange={(e) => onChange('oscEnabled', e.target.checked)}
             />
             <span>Enable OSC</span>
@@ -32,6 +31,7 @@ export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
               value={network.settings.oscPort || 8888}
               onChange={(v) => onChange('oscPort', parseInt(v) || 8888)}
               disabled={!network.settings.oscEnabled}
+              onValidate={(v) => !isNaN(parseInt(v))}
             />
           </div>
         </div>

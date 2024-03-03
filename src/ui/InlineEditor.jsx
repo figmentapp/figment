@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 // bg-gray-800 bg-gray-900 border-gray-700
 // bg-green-800 bg-green-900 border-green-700
 // bg-red-800 bg-red-900 border-red-700
-export default function InlineEditor({ value, onChange, color = 'gray', disabled = false, tooltip = undefined }) {
+export default function InlineEditor({ value, onChange, color = 'gray', disabled = false, onValidate = undefined, tooltip = undefined }) {
   const [inputValue, setInputValue] = useState(value);
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef(null);
@@ -21,7 +21,11 @@ export default function InlineEditor({ value, onChange, color = 'gray', disabled
   }, [isEditing]);
 
   const handleBlur = () => {
-    onChange(inputValue);
+    if (!onValidate || onValidate(inputValue)) {
+      onChange(inputValue);
+    } else {
+      setInputValue(value);
+    }
     setIsEditing(false);
   };
 

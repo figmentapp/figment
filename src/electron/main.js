@@ -2,7 +2,7 @@ import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences }
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
-import { oscSendMessage } from './osc.js';
+import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -188,6 +188,24 @@ ipcMain.on('window-created', () => {
 
 ipcMain.handle('oscSendMessage', (_, { ip, port, address, args }) => {
   oscSendMessage(ip, port, address, args);
+});
+
+let _serverHandle = null;
+ipcMain.handle('oscStartServer', (_, { port }) => {
+  if (_serverHandle) {
+    oscStopServer(_serverHandle);
+    gMainWindow.webContents.send('osc', 'stop-server');
+  }
+  _serverHandle = oscStartServer(port, gMainWindow.webContents);
+  gMainWindow.webContents.send('osc', 'start-server', { port });
+});
+
+ipcMain.handle('oscStopServer', (_) => {
+  if (_serverHandle) {
+    oscStopServer(_serverHandle);
+    gMainWindow.webContents.send('osc', 'stop-server');
+    _serverHandle = null;
+  }
 });
 
 async function startDevServer() {

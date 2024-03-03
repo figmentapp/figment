@@ -48,6 +48,8 @@ export default class App extends Component {
       fullscreen: false,
       version: 1,
       isPlaying: true,
+      oscServerPort: null,
+      oscMessageFrequencies: [],
     };
     this.mainRef = React.createRef();
     const firstNode = network.nodes[0];
@@ -90,6 +92,7 @@ export default class App extends Component {
     this._renderSequence = this._renderSequence.bind(this);
     this._onViewNodeSource = this._onViewNodeSource.bind(this);
     this._onChangeProjectSetting = this._onChangeProjectSetting.bind(this);
+    this._onOscEvent = this._onOscEvent.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onStart = this._onStart.bind(this);
     this._onStop = this._onStop.bind(this);
@@ -107,6 +110,7 @@ export default class App extends Component {
     window.addEventListener('resize', this._forceRedraw);
     window.app = this;
     window.desktop.registerListener('menu', this._onMenuEvent);
+    window.desktop.registerListener('osc', this._onOscEvent);
   }
 
   componentWillUnmount() {
@@ -541,7 +545,43 @@ export default class App extends Component {
 
   _onChangeProjectSetting(setting, value) {
     this.state.network.setSetting(setting, value);
+
+    if (setting === 'oscEnabled') {
+      if (value) {
+        const port = parseInt(this.state.network.settings.oscPort) || 8888;
+        if (typeof port !== 'number') {
+          console.error('Invalid port number', port);
+          return;
+        }
+        window.desktop.startOscServer(port);
+      } else {
+        window.desktop.stopOscServer();
+      }
+    } else if (setting === 'oscPort') {
+      const port = parseInt(value) || 8888;
+      if (typeof port !== 'number') {
+        console.error('Invalid port number', port);
+        return;
+      }
+      if (this.state.network.settings.oscEnabled) {
+        window.desktop.startOscServer(port);
+      }
+    }
+
     this.forceUpdate();
+  }
+
+  _onOscEvent(name, args) {
+    console.log('osc', name, args);
+    if (name === 'start-server') {
+      const { port } = args;
+      this.setState({ oscServerPort: port });
+    } else if (name === 'stop-server') {
+      this.setState({ oscServerPort: null });
+    } else if (name === 'message-frequencies') {
+      const frequencies = args;
+      this.setState({ oscMessageFrequencies: frequencies });
+    }
   }
 
   async _onFrame() {
@@ -615,6 +655,8 @@ export default class App extends Component {
             onConnect={this._onConnect}
             onDisconnect={this._onDisconnect}
             offscreenCanvas={this._offscreenCanvas}
+            oscServerPort={this.state.oscServerPort}
+            oscMessageFrequencies={this.state.oscMessageFrequencies}
           />
           <Splitter className="splitter" parentRef={this.mainRef} direction="horizontal" />
 

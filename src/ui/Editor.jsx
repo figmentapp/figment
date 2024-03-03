@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 
 import NetworkEditor from './NetworkEditor';
 import CodeEditor from './CodeEditor';
+import OscWidget from './OscWidget';
 
 export default class Editor extends Component {
   _onCloseTab(e, index) {
@@ -29,6 +30,8 @@ export default class Editor extends Component {
       onChangeSource,
       onShowForkDialog,
       style,
+      oscServerPort,
+      oscMessageFrequencies,
     } = this.props;
     return (
       <div className="editor" style={style}>
@@ -46,6 +49,8 @@ export default class Editor extends Component {
               </a>
             </div>
           ))}
+          <span className="flex-1"></span>
+          <OscWidget port={oscServerPort} frequencies={oscMessageFrequencies} />
         </div>
         {activeTabIndex === -1 && (
           <NetworkEditor

@@ -6,6 +6,7 @@ import { glob } from 'glob';
 
 const listeners = {
   menu: null,
+  osc: null,
 };
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
@@ -109,12 +110,24 @@ ipcRenderer.on('menu', (_, name, args) => {
   listeners['menu'](name, args);
 });
 
+ipcRenderer.on('osc', (_, name, args) => {
+  listeners['osc'](name, args);
+});
+
 function registerListener(name, fn) {
   listeners[name] = fn;
 }
 
 function oscSendMessage(ip, port, address, ...args) {
   ipcRenderer.invoke('oscSendMessage', { ip, port, address, args });
+}
+
+function startOscServer(port) {
+  ipcRenderer.invoke('oscStartServer', { port });
+}
+
+function stopOscServer() {
+  ipcRenderer.invoke('oscStopServer');
 }
 
 contextBridge.exposeInMainWorld('desktop', {
@@ -140,4 +153,6 @@ contextBridge.exposeInMainWorld('desktop', {
   pathToFileURL,
   registerListener,
   oscSendMessage,
+  startOscServer,
+  stopOscServer,
 });
