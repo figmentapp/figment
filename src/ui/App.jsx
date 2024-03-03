@@ -603,6 +603,10 @@ export default class App extends Component {
 
   _onStart() {
     this.setState({ isPlaying: true }, () => window.requestAnimationFrame(this._onFrame));
+    if (this.state.network.settings.oscEnabled) {
+      const port = parseInt(this.state.network.settings.oscPort) || 8888;
+      window.desktop.startOscServer(port);
+    }
   }
 
   _onStop() {
