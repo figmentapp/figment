@@ -1,3 +1,4 @@
+import { LATEST_FORMAT_VERSION } from '../file-format';
 import Node from './Node';
 import * as sources from './sources';
 import Port, {
@@ -265,16 +266,19 @@ export default class Network {
 
   serialize() {
     const json = {
-      version: 1,
+      version: LATEST_FORMAT_VERSION,
       nodes: [],
       connections: [],
+      settings: structuredClone(this.settings),
     };
     for (const node of this.nodes) {
       const values = {};
       for (const port of node.inPorts) {
         if (port.type === PORT_TYPE_IMAGE || port.type === PORT_TYPE_BOOLEAN) continue;
         if (this.isConnected(port)) continue;
-        if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
+        if (port._value.type === 'expression') {
+          values[port.name] = structuredClone(port._value);
+        } else if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
           let value;
           if (port.type === PORT_TYPE_TOGGLE) {
             value = port.value;
@@ -293,7 +297,7 @@ export default class Network {
           } else if (port.type === PORT_TYPE_DIRECTORY) {
             value = port.value;
           }
-          values[port.name] = value;
+          values[port.name] = { type: 'value', value };
         }
       }
       const nodeObj = { id: node.id, name: node.name, type: node.type, x: node.x, y: node.y };
