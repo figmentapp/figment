@@ -32,6 +32,16 @@ export function setExpressionContext(newContext) {
   context = { ...context, ...newContext };
 }
 
+// Jexl can't deal with unary "-" operators. This function replaces this with a binary operator.
+// It's ridiculous, but it works.
+// So an expression like this will fail: add(1, -1)
+// We replace it with: add(1, 0-1)
+// We don't do full tokenization, we just use regular expressions to fix common cases.
+function fixupExpression(expr) {
+  return expr.replace(/,\s*-/g, ', 0-');
+}
+
 export function evalExpression(expr) {
+  expr = fixupExpression(expr);
   return jexl.evalSync(expr, context);
 }
