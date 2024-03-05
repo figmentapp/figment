@@ -1,5 +1,13 @@
 # CHANGES
 
+## Version 0.5.0 (2024-03-05)
+
+- Add expression support. This introduces an internal change to the file format (version 2). Older files will be automatically converted to the new format.
+- Add a built-in OSC server.
+- Add better fonts on Windows.
+- Fix parameter splitter.
+- Don't maximize Figment on load.
+
 ## Version 0.4.1 (2024-02-21)
 
 - Add stats option to "out" node.
