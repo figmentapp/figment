@@ -22,10 +22,36 @@ function map(v, inMin, inMax, outMin, outMax, clamp = false) {
   return ((v - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
 }
 
+function pingPong(min, max, period = 1, time = undefined) {
+  if (time === undefined) {
+    time = context.$TIME;
+  }
+  const t = (time % period) / period; // Normalizes time to a 0-1 range based on the period
+  const value = Math.abs(t * 2 - 1);
+  return min + value * (max - min);
+}
+
 export function initExpressionContext(newContext) {
   context = { ...context, ...newContext };
-  jexl.addFunction('osc', osc);
+  // Basic math functions
+  jexl.addFunction('abs', Math.abs);
+  jexl.addFunction('pow', Math.pow);
+  jexl.addFunction('sqrt', Math.sqrt);
+  // Periodic functions
+  jexl.addFunction('sin', Math.sin);
+  jexl.addFunction('cos', Math.cos);
+  jexl.addFunction('tan', Math.tan);
+  // Easing functions
+  // FIXME: Add easing functions
+  jexl.addFunction('pingPong', pingPong);
+  // Random functions
+  jexl.addFunction('random', Math.random);
+  // Utility functions
+  jexl.addFunction('clamp', (v, min, max) => Math.min(Math.max(v, min), max));
+  jexl.addFunction('lerp', (a, b, t) => a + (b - a) * t);
   jexl.addFunction('map', map);
+  // Open Sound Control
+  jexl.addFunction('osc', osc);
 }
 
 export function setExpressionContext(newContext) {
