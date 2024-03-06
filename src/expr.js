@@ -22,14 +22,32 @@ function map(v, inMin, inMax, outMin, outMax, clamp = false) {
   return ((v - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
 }
 
-function pingPong(min, max, period = 1, time = undefined) {
+function pingPong(min, max, period = 1, type = 'smooth', time = undefined) {
   if (time === undefined) {
     time = context.$TIME;
   }
+  let value = 0;
   const t = (time % period) / period; // Normalizes time to a 0-1 range based on the period
-  const value = Math.abs(t * 2 - 1);
+  switch (type) {
+    case 'linear':
+      value = Math.abs(t * 2 - 1);
+      break;
+    case 'smooth':
+      // Sine wave for smooth, periodic oscillations
+      value = (Math.sin(t * 2 * Math.PI) + 1) / 2;
+      break;
+    case 'step':
+      // Square wave for abrupt changes
+      value = t < 0.5 ? 0 : 1;
+      break;
+    default:
+      console.warn("Unsupported type. Defaulting to 'linear'.");
+      value = Math.abs(t * 2 - 1);
+  }
   return min + value * (max - min);
 }
+
+function random(min, max, seed) {}
 
 export function initExpressionContext(newContext) {
   context = { ...context, ...newContext };
