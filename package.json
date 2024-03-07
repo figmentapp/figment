@@ -70,7 +70,17 @@
       },
       "notarize": {
         "teamId": "5X78EYG9RH"
-      }
+      },
+      "fileAssociations": [
+        {
+          "ext": "fgmt",
+          "name": "Figment Project",
+          "role": "Editor",
+          "rank": "Owner",
+          "isPackage": false,
+          "icon": "res/fgmt.icns"
+        }
+      ]
     },
     "dmg": {
       "sign": false

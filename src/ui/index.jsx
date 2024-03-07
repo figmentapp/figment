@@ -11,9 +11,12 @@ window.g = g;
 window.THREE = THREE;
 window.figment = figment;
 window.tf = tf;
+
+const params = new URLSearchParams(window.location.search);
+const filePath = params.get('filePath');
 const root = createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <App filePath={filePath} />
   </React.StrictMode>,
 );

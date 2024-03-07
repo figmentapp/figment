@@ -32,7 +32,7 @@ export default class App extends Component {
     network.parse(getDefaultNetwork());
     const lastNetworkPoint = new Point(0, 0);
     this.state = {
-      filePath: undefined,
+      filePath: this.props.filePath,
       dirty: false,
       library,
       network,
@@ -116,6 +116,9 @@ export default class App extends Component {
     window.app = this;
     window.desktop.registerListener('menu', this._onMenuEvent);
     window.desktop.registerListener('osc', this._onOscEvent);
+    if (this.state.filePath) {
+      this._openFile(this.state.filePath);
+    }
   }
 
   componentWillUnmount() {

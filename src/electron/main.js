@@ -1,3 +1,4 @@
+import querystring from 'node:querystring';
 import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -185,11 +186,6 @@ function sendIpcMessage(channel, ...args) {
 }
 
 ipcMain.handle('addToRecentFiles', (_, filePath) => onTouchProject(filePath));
-ipcMain.on('window-created', () => {
-  if (argv.file) {
-    emit('open', { filePath: argv.file })();
-  }
-});
 
 ipcMain.handle('oscSendMessage', (_, { ip, port, address, args }) => {
   oscSendMessage(ip, port, address, args);
@@ -230,7 +226,7 @@ async function startDevServer() {
   return viteServer;
 }
 
-function createMainWindow(file) {
+function createMainWindow(filePath) {
   gMainWindow = new BrowserWindow({
     width: 1200,
     height: 1000,
@@ -244,21 +240,21 @@ function createMainWindow(file) {
     },
   });
 
+  const encodedFilePath = filePath ? querystring.escape(filePath) : '';
   // Load the index.html of the app.
   if (process.env.NODE_ENV === 'development') {
-    gMainWindow.loadURL(`http://localhost:3000/?appPath=${app.getAppPath()}`);
+    gMainWindow.loadURL(`http://localhost:3000/?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
     gMainWindow.webContents.openDevTools();
   } else {
     const electronDir = __dirname;
     const asarDir = path.join(electronDir, '../../');
     const uiDir = path.join(asarDir, 'build');
-    gMainWindow.loadURL(`file:///${uiDir}/index.html?appPath=${app.getAppPath()}`);
+    gMainWindow.loadURL(`file:///${uiDir}/index.html?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
   }
 
   // Open the window
   gMainWindow.once('ready-to-show', () => {
     gMainWindow.show();
-    if (file) emit('open', { filePath: file })();
   });
 }
 
@@ -345,6 +341,18 @@ function createApplicationMenu() {
 const argv = minimist(process.argv.slice(2));
 
 let gDevServer;
+let filePathToOpen = null;
+
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  // Handle the file only if the app is ready, otherwise store the path for later processing
+  if (app.isReady()) {
+    createMainWindow(filePath);
+  } else {
+    filePathToOpen = filePath;
+  }
+});
+
 app.whenReady().then(async () => {
   await gSettings.load();
   gDevServer = await startDevServer();
@@ -353,5 +361,9 @@ app.whenReady().then(async () => {
   //   await systemPreferences.askForMediaAccess('camera');
   // }
   createApplicationMenu();
-  createMainWindow(argv.file);
+
+  // For macOS, use the filePathToOpen if it's been set by the 'open-file' event
+  // For Windows/Linux, process command-line arguments to find a .fgmt file to open
+  const fileArg = process.argv.find((arg) => arg.endsWith('.fgmt')) || filePathToOpen;
+  createMainWindow(filePathToOpen);
 });
