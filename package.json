@@ -1,6 +1,6 @@
 {
   "name": "figment",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "description": "Visual coding environment for creative AI",
   "author": "EMRG",
@@ -53,7 +53,11 @@
   "build": {
     "appId": "be.debleser.figment",
     "productName": "Figment",
-    "files": ["build/**/*", "examples/**/*", "src/electron/**/*"],
+    "files": [
+      "build/**/*",
+      "examples/**/*",
+      "src/electron/**/*"
+    ],
     "directories": {
       "buildResources": "res"
     },

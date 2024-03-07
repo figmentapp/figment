@@ -1,5 +1,9 @@
 # CHANGES
 
+## Version 0.5.1 (2024-03-06)
+
+- Add more expression functions: `abs`, `pow`, `sqrt`, `sin`, `cos`, `tan`, `pingPong`, `random`, `clamp`, `lerp`.
+
 ## Version 0.5.0 (2024-03-05)
 
 - Add expression support. This introduces an internal change to the file format (version 2). Older files will be automatically converted to the new format.
