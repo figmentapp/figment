@@ -200,7 +200,7 @@ function ToggleParam({ port, disabled, onChange }) {
   function handleShowMenu(e) {
     e.preventDefault();
     e.stopPropagation();
-    window.desktop.showPortContextMenu(this.props.port);
+    window.desktop.showPortContextMenu(port);
   }
 
   return (
