@@ -85,5 +85,19 @@
     "dmg": {
       "sign": false
     }
+  },
+  "win": {
+    "target": "nsis",
+    "icon": "res/icon.ico",
+    "fileAssociations": [
+      {
+        "ext": "fgmt",
+        "name": "Figment Project",
+        "role": "Editor",
+        "rank": "Owner",
+        "isPackage": false,
+        "icon": "res/fgmt.ico"
+      }
+    ]
   }
 }
