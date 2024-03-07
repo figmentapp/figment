@@ -365,5 +365,5 @@ app.whenReady().then(async () => {
   // For macOS, use the filePathToOpen if it's been set by the 'open-file' event
   // For Windows/Linux, process command-line arguments to find a .fgmt file to open
   const fileArg = process.argv.find((arg) => arg.endsWith('.fgmt')) || filePathToOpen;
-  createMainWindow(filePathToOpen);
+  createMainWindow(fileArg);
 });
