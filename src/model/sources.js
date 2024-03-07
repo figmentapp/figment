@@ -992,7 +992,8 @@ node.onRender = () => {
 
   direction = conditionIn.value ? -1 : 1;
   let bias = biasIn.value;
-  const adjustedFadeTime = fadeTimeIn.value * ((direction === 1) ? bias : (1 - bias));
+  let adjustedFadeTime = fadeTimeIn.value * ((direction === 1) ? bias : (1 - bias));
+  adjustedFadeTime = Math.max(adjustedFadeTime, 0.0001); // Avoid division by zero
   factor = factor + direction * dt / adjustedFadeTime;
   factor = Math.min(Math.max(factor, 0), 1);
 
