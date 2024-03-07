@@ -69,10 +69,11 @@ export default class NodeDialog extends Component {
   render() {
     const { results } = this.state;
     return (
-      <div className="dialog-wrapper">
+      <div className="dialog-wrapper" onClick={this.props.onCancel}>
         <div
-          className="bg-gray-800 dialog node-dialog shadow-xl w-1/2 overflow-hidden flex flex-col border-gray-900 border-2"
+          className="bg-gray-800 dialog node-dialog shadow-xl w-1/2 rounded-lg overflow-hidden flex flex-col border-gray-900 border-2"
           style={{ height: '80vh' }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex">
             <input

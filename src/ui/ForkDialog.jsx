@@ -85,8 +85,12 @@ export default class ForkDialog extends Component {
   render() {
     const { ns, newName, newTypeName, currentNodes, selectedNodes } = this.state;
     return (
-      <div className="dialog-wrapper">
-        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2" style={{ height: '40vh' }}>
+      <div className="dialog-wrapper" onClick={this.props.onCancel}>
+        <div
+          className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2 rounded-lg overflow-hidden"
+          style={{ height: '40vh' }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex">
             <input
               id="fork-dialog-input"

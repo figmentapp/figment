@@ -283,6 +283,19 @@ input.params__field:focus {
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  animation: fade-in-background 0.3s;
+}
+
+@keyframes fade-in-background {
+  from {
+    opacity: 0;
+    transform: translate(0, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
 }
 
 /* .dialog {

@@ -6,8 +6,11 @@ import InlineEditor from './InlineEditor';
 
 export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
   return (
-    <div className="dialog-wrapper">
-      <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900">
+    <div className="dialog-wrapper" onClick={onCancel}>
+      <div
+        className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900 rounded-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Top row */}
         <div className="flex flex-row justify-between items-center bg-gray-800">
           <span className="text-xl text-gray-400 py-4 px-6">Project Settings</span>

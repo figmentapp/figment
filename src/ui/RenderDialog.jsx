@@ -47,7 +47,7 @@ export default class RenderDialog extends Component {
 
     return (
       <div className="dialog-wrapper">
-        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900">
+        <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900 overflow-hidden rounded-lg">
           <div className="flex flex-col flex-1">
             {/* Top row */}
             <div className="flex flex-row justify-between items-center bg-gray-800">
