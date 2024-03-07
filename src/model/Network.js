@@ -425,6 +425,8 @@ export default class Network {
     // Find all nodes with this source type.
     const nodes = this.nodes.filter((n) => n.type === nodeType.type);
     nodeType.source = source;
+    const oldNodeTypeIndex = this.types.findIndex((t) => t.type === nodeType.type);
+    this.types[oldNodeTypeIndex] = nodeType;
     const description = source.match(/\/\/(.*)/);
     if (description) {
       nodeType.description = description[1].trim();

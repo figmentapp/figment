@@ -27,25 +27,30 @@ export default class Editor extends Component {
       onShowNodeDialog,
       onConnect,
       onDisconnect,
-      onChangeSource,
+      onSourceModified,
+      onBuildSource,
       onShowForkDialog,
       style,
       oscServerPort,
       oscMessageFrequencies,
       onClickOsc,
     } = this.props;
+    console.log('editor', tabs);
     return (
       <div className="editor" style={style}>
         <div className="editor__tabs">
           <div className={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')} onClick={() => onSelectTab(-1)}>
             Network
           </div>
-          {tabs.map((node, i) => (
+          {tabs.map(({ nodeType, modified }, i) => (
             <div key={i} className={'editor__tab' + (activeTabIndex === i ? ' editor__tab--active' : '')} onClick={() => onSelectTab(i)}>
-              <span className="editor__tab-name">{node.name}</span>
-              <a className="editor__tab-close" onClick={(e) => this._onCloseTab(e, i)}>
+              <span className="editor__tab-name">{nodeType.name}</span>
+              <a className={modified ? 'editor__tab-modified' : 'editor__tab-close'} onClick={(e) => this._onCloseTab(e, i)}>
                 <svg viewBox="0 0 16 16" width="16" height="16">
-                  <path d="M4 4L12 12M12 4L4 12" />
+                  {!modified && <path d="M4 4L12 12M12 4L4 12" />}
+                  {modified && (
+                    <path d="M10 5C10 7.76142 7.76142 10 5 10C2.23858 10 0 7.76142 0 5C0 2.23858 2.23858 0 5 0C7.76142 0 10 2.23858 10 5Z" />
+                  )}
                 </svg>
               </a>
             </div>
@@ -70,7 +75,13 @@ export default class Editor extends Component {
           />
         )}
         {activeTabIndex >= 0 && (
-          <CodeEditor nodeType={tabs[activeTabIndex]} onChangeSource={onChangeSource} onShowForkDialog={onShowForkDialog} />
+          <CodeEditor
+            nodeType={tabs[activeTabIndex].nodeType}
+            modified={tabs[activeTabIndex].modified}
+            onSourceModified={onSourceModified}
+            onBuildSource={onBuildSource}
+            onShowForkDialog={onShowForkDialog}
+          />
         )}
       </div>
     );

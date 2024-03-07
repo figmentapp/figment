@@ -92,7 +92,7 @@ main {
   font-size: 0.9rem;
   background: var(--gray900);
   color: var(--gray500);
-  padding: 0 1rem;
+  padding: 0 0.5rem 0 1rem;
   line-height: 30px;
   height: 30px;
   cursor: pointer;
@@ -108,13 +108,20 @@ main {
   border-right: 1px solid var(--gray900);
 }
 
-.editor__tab-close {
+.editor__tab-close,
+.editor__tab-modified {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-left: 0.75rem;
+  margin-left: 1rem;
+}
+
+.editor__tab-modified {
+  margin-top: 0.4rem;
+}
+
+.editor__tab-close {
   opacity: 0;
-  transition: opacity 0.2s;
 }
 
 .editor__tab:hover .editor__tab-close {
@@ -123,6 +130,10 @@ main {
 
 .editor__tab-close path {
   stroke: var(--gray200);
+}
+
+.editor__tab-modified path {
+  fill: var(--gray200);
 }
 
 /**** NETWORK ****/

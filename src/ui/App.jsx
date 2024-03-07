@@ -70,7 +70,8 @@ export default class App extends Component {
     this._onSelectNodes = this._onSelectNodes.bind(this);
     this._onClearSelection = this._onClearSelection.bind(this);
     this._onDeleteSelection = this._onDeleteSelection.bind(this);
-    this._onChangeSource = this._onChangeSource.bind(this);
+    this._onSourceModified = this._onSourceModified.bind(this);
+    this._onBuildSource = this._onBuildSource.bind(this);
     this._onChangePortValue = this._onChangePortValue.bind(this);
     this._onChangePortExpression = this._onChangePortExpression.bind(this);
     this._onRevertPortValue = this._onRevertPortValue.bind(this);
@@ -296,13 +297,14 @@ export default class App extends Component {
 
   _onNewCodeTab(node, callback) {
     const nodeType = this.state.network.findNodeType(node.type);
-    if (this.state.tabs.includes(nodeType)) {
-      this.setState({ activeTabIndex: this.state.tabs.indexOf(nodeType) });
+    const existingTabIndex = this.state.tabs.findIndex((t) => t.nodeType.type === nodeType.type);
+    if (existingTabIndex >= 0) {
+      this.setState({ activeTabIndex: existingTabIndex });
       return;
     }
-    const { tabs } = this.state;
-    tabs.push(nodeType);
-    this.setState({ tabs, activeTabIndex: tabs.length - 1 }, callback);
+    const newTabs = structuredClone(this.state.tabs);
+    newTabs.push({ nodeType, modified: false });
+    this.setState({ tabs: newTabs, activeTabIndex: newTabs.length - 1 }, callback);
   }
 
   _onSelectTab(index) {
@@ -310,9 +312,17 @@ export default class App extends Component {
   }
 
   _onCloseTab(index) {
-    const { tabs } = this.state;
-    tabs.splice(index, 1);
-    this.setState({ tabs, activeTabIndex: tabs.length - 1 });
+    const tab = this.state.tabs[index];
+    if (tab.modified) {
+      const closeTab = confirm('You have unsaved changes. Are you sure you want to close this tab?');
+      if (closeTab) {
+        const newTabs = this.state.tabs.filter((_, i) => i !== index);
+        this.setState({ tabs: newTabs, activeTabIndex: newTabs.length - 1 });
+      }
+    } else {
+      const newTabs = this.state.tabs.filter((_, i) => i !== index);
+      this.setState({ tabs: newTabs, activeTabIndex: newTabs.length - 1 });
+    }
   }
 
   _onSelectNode(node) {
@@ -358,9 +368,22 @@ export default class App extends Component {
     this.setState({ selection: new Set() });
   }
 
-  _onChangeSource(nodeType, source) {
+  _onSourceModified(nodeType, modified = true) {
+    const { tabs } = this.state;
+    const index = tabs.findIndex((t) => t.nodeType.type === nodeType.type);
+    console.log(nodeType, index);
+    if (index !== -1) {
+      const newTabs = structuredClone(tabs);
+      newTabs[index].modified = modified;
+      this.setState({ tabs: newTabs });
+    }
+  }
+
+  _onBuildSource(nodeType, source) {
+    console.log(source);
     console.assert(typeof nodeType === 'object');
     this.state.network.setNodeTypeSource(nodeType, source);
+    this._onSourceModified(nodeType, false);
     this.forceUpdate();
   }
 
@@ -427,11 +450,11 @@ export default class App extends Component {
       network.changeNodeType(node, newNodeType);
     }
     this._onNewCodeTab(newNodeType, (state) => {
-      const tabs = this.state.tabs.filter((t) => t.type !== nodeType.type);
+      const newTabs = this.state.tabs.filter((t) => t.nodeType.type !== nodeType.type);
       this.setState({
-        tabs,
+        tabs: newTabs,
         showForkDialog: false,
-        activeTabIndex: tabs.length - 1,
+        activeTabIndex: newTabs.length - 1,
       });
     });
   }
@@ -671,7 +694,8 @@ export default class App extends Component {
             onSelectNodes={this._onSelectNodes}
             onClearSelection={this._onClearSelection}
             onDeleteSelection={this._onDeleteSelection}
-            onChangeSource={this._onChangeSource}
+            onSourceModified={this._onSourceModified}
+            onBuildSource={this._onBuildSource}
             onShowNodeDialog={this._onShowNodeDialog}
             onShowForkDialog={this._onShowForkDialog}
             onConnect={this._onConnect}

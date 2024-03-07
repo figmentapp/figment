@@ -2,18 +2,28 @@ import React, { Component } from 'react';
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/javascript/javascript.js';
 import 'codemirror/theme/darcula.css';
+import clsx from 'clsx';
 
 export default class CodeEditor extends Component {
   constructor(props) {
     super(props);
     this.state = { source: props.nodeType.source };
     //this._onKeyDown = this._onKeyDown.bind(this);
+    this._onBuildSource = this._onBuildSource.bind(this);
   }
 
   isReadOnly() {
     const ns = this.props.nodeType.type.split('.')[0];
     const readOnly = ns !== 'project';
     return readOnly;
+  }
+
+  _onBuildSource() {
+    try {
+      this.props.onBuildSource(this.props.nodeType, this.editor.getValue());
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   componentDidMount() {
@@ -24,21 +34,21 @@ export default class CodeEditor extends Component {
       mode: 'javascript',
       theme: 'darcula',
     });
-    const mod = /Mac/.test(navigator.platform) ? 'Cmd' : 'Ctrl';
     this.editor.setOption('extraKeys', {
-      [`${mod}-Enter`]: () => {
-        try {
-          this.props.onChangeSource(this.props.nodeType, this.editor.getValue());
-        } catch (e) {
-          console.error(e);
-        }
+      [`Shift-Enter`]: () => {
+        this._onBuildSource();
         return false;
       },
+    });
+    this.editor.on('change', () => {
+      if (this.state.source !== this.editor.getValue()) {
+        this.props.onSourceModified(this.props.nodeType);
+      }
     });
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.nodeType !== this.props.nodeType) {
+    if (prevProps.nodeType.type !== this.props.nodeType.type) {
       this.setState({ source: this.props.nodeType.source });
       this.editor.setValue(this.props.nodeType.source);
       this.editor.setOption('readOnly', this.isReadOnly());
@@ -65,7 +75,18 @@ export default class CodeEditor extends Component {
               </button>
             </>
           )}
-          {!readOnly && <span className="text-gray-400">{this.props.nodeType.type}</span>}
+          {!readOnly && (
+            <>
+              <span className="text-gray-400">{this.props.nodeType.type}</span>
+              <button
+                onClick={this._onBuildSource}
+                className={clsx('bg-gray-700 px-4 py-1 rounded text-gray-200', { 'opacity-20': !this.props.modified })}
+                disabled={!this.props.modified}
+              >
+                Build
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
