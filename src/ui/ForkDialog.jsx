@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { camelCase, startCase } from 'lodash';
+import { camelCase } from 'lodash';
 
 export default class ForkDialog extends Component {
   constructor(props) {
@@ -65,14 +65,13 @@ export default class ForkDialog extends Component {
   }
 
   _onChangeName(s) {
-    let newName = startCase(s);
-    if (s.endsWith(' ')) newName += ' ';
+    let newName = s;
     if (this.state.typeNameChanged) {
       // If the user has changed the type name, don't automatically update it.
       this.setState({ newName });
     } else {
       // User has not changed the type name, so change it as well.
-      const newTypeName = camelCase(newName);
+      const newTypeName = camelCase(newName.trim());
       this.setState({ newName, newTypeName });
     }
   }
@@ -96,6 +95,7 @@ export default class ForkDialog extends Component {
               value={newName}
               onInput={(e) => this._onChangeName(e.target.value)}
               autoFocus
+              maxLength={24}
             ></input>
             <div className="flex">
               <span
@@ -126,7 +126,7 @@ export default class ForkDialog extends Component {
           </div>
           <div className="flex-grow bg-gray-700 text-gray-300 w-full h-full px-4 py-5">
             <p className="text-gray-500 mb-5">
-              These nodes are currently using the original code. Select them to link them to your forked code.
+              These nodes in the project are currently using the original code. Select them to link them to your forked code.
             </p>
             <div className="overflow-auto">
               {currentNodes &&
