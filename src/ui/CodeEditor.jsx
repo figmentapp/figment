@@ -59,7 +59,7 @@ export default class CodeEditor extends Component {
               <span className="text-gray-500">Code is read-only. Fork the code.</span>
               <button
                 onClick={() => this.props.onShowForkDialog(this.props.nodeType)}
-                className="bg-gray-700 px-4 py-1 rounded text-gray-500"
+                className="bg-gray-700 px-4 py-1 rounded text-gray-200"
               >
                 Fork
               </button>
