@@ -35,7 +35,6 @@ export default class Editor extends Component {
       oscMessageFrequencies,
       onClickOsc,
     } = this.props;
-    console.log('editor', tabs);
     return (
       <div className="editor" style={style}>
         <div className="editor__tabs">
