@@ -371,7 +371,6 @@ export default class App extends Component {
   _onSourceModified(nodeType, modified = true) {
     const { tabs } = this.state;
     const index = tabs.findIndex((t) => t.nodeType.type === nodeType.type);
-    console.log(nodeType, index);
     if (index !== -1) {
       const newTabs = structuredClone(tabs);
       newTabs[index].modified = modified;
@@ -380,7 +379,6 @@ export default class App extends Component {
   }
 
   _onBuildSource(nodeType, source) {
-    console.log(source);
     console.assert(typeof nodeType === 'object');
     this.state.network.setNodeTypeSource(nodeType, source);
     this._onSourceModified(nodeType, false);
