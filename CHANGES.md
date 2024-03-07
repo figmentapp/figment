@@ -1,5 +1,13 @@
 # CHANGES
 
+## Version 0.5.2 (2024-03-08)
+
+- You can now double-click `.fgmt` files to open them.
+- Forked nodes now clearly show they have changed and show a "build" button.
+- "Build" shortcut has been changed to Shift-Enter.
+- Fix for toggle parameter not showing context menu.
+- Visual tweaks to dialogs.
+
 ## Version 0.5.1 (2024-03-06)
 
 - Add more expression functions: `abs`, `pow`, `sqrt`, `sin`, `cos`, `tan`, `pingPong`, `random`, `clamp`, `lerp`.
