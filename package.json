@@ -1,5 +1,5 @@
 {
-  "name": "figment",
+  "name": "Figment",
   "version": "0.5.2",
   "type": "module",
   "description": "Visual coding environment for creative AI",
@@ -53,11 +53,7 @@
   "build": {
     "appId": "be.debleser.figment",
     "productName": "Figment",
-    "files": [
-      "build/**/*",
-      "examples/**/*",
-      "src/electron/**/*"
-    ],
+    "files": ["build/**/*", "examples/**/*", "src/electron/**/*"],
     "directories": {
       "buildResources": "res"
     },
