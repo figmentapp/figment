@@ -84,9 +84,9 @@ uniform vec2 u_resolution;
 uniform float u_color;
 varying vec2 v_uv;
 
-float ASCII_Details = u_detail; 
+float ASCII_Details = u_detail;
 float PixelSize = u_pixels;
-float grayScale(in vec3 col) 
+float grayScale(in vec3 col)
 {
     return dot(col, vec3(0.2126, 0.7152, 0.0722)); //sRGB
 }
@@ -101,17 +101,17 @@ float character(float n, vec2 p)
 
 void main() {
   vec2 uv = v_uv* u_resolution.xy;
-	vec3 col = texture2D(u_input_texture, floor(uv / ASCII_Details) * ASCII_Details / u_resolution.xy).rgb;	
+	vec3 col = texture2D(u_input_texture, floor(uv / ASCII_Details) * ASCII_Details / u_resolution.xy).rgb;
 	float gray = grayScale(col);
-    float n = 65536.0 + 
-              step(0.2, gray) * 64.0 + 
+    float n = 65536.0 +
+              step(0.2, gray) * 64.0 +
               step(0.3, gray) * 267172.0 +
-        	  step(0.4, gray) * 14922314.0 + 
-        	  step(0.5, gray) * 8130078.0 - 
-        	  step(0.6, gray) * 8133150.0 - 
+        	  step(0.4, gray) * 14922314.0 +
+        	  step(0.5, gray) * 8130078.0 -
+        	  step(0.6, gray) * 8133150.0 -
         	  step(0.7, gray) * 2052562.0 -
         	  step(0.8, gray) * 1686642.0;
-        
+
 	vec2 p = mod(uv / PixelSize, 2.0) - vec2(.1);
 
   if(u_color==0.0){
@@ -146,10 +146,10 @@ node.onRender = () => {
     u_color = 1.0;
   }
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_detail: detailIn.value, 
+    u_detail: detailIn.value,
     u_pixels: pixelsIn.value,
     u_color,
   u_resolution:[imageIn.value.width, imageIn.value.height] });
@@ -167,7 +167,7 @@ uniform float u_distortion;
 uniform float u_radius;
 varying vec2 v_uv;
 
-vec2 barrelDistortion(vec2 uv){   
+vec2 barrelDistortion(vec2 uv){
     float distortion = u_distortion;
     float r = uv.x*uv.x * u_radius + uv.y*uv.y * u_radius;
     uv *= 1.6 + distortion * r + distortion * r * r;
@@ -199,10 +199,10 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_distortion: dist.value, 
+    u_distortion: dist.value,
     u_radius: rad.value, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -255,7 +255,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
   u_opacity: opacityIn.value, });
   framebuffer.unbind();
@@ -278,7 +278,7 @@ uniform float u_step;
 
 void main() {
   vec2 uv = v_uv;
-  
+
   gl_FragColor =
     texture2D(u_input_texture, uv + vec2(-u_step, -u_step)) / 8.0 +
     texture2D(u_input_texture, uv + vec2(-u_step, 0.0)) / 8.0 +
@@ -352,7 +352,7 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
     u_border_size: borderSize.value,
@@ -390,7 +390,7 @@ vec3 overlay(in vec3 s, in vec3 d )
 }
 
 // Function to convert RGB color to grayscale
-float grayScale(in vec3 col) 
+float grayScale(in vec3 col)
 {
     return dot(col, vec3(0.3, 0.59, 0.11));
 }
@@ -405,7 +405,7 @@ mat3 saturationMatrix( float saturation ) {
     green.g += saturation;
     vec3 blue = vec3( luminance.z * oneMinusSat );
     blue.b += saturation;
-    
+
     return mat3(red, green, blue);
 }
 
@@ -420,28 +420,28 @@ void brightnessAdjust( inout vec3 color, in float b) {
 }
 
 void contrastAdjust( inout vec3 color, in float c) {
-    float t = 0.5 - c * 0.5; 
+    float t = 0.5 - c * 0.5;
     color = color * c + t;
 }
 
 void main()
 {
 	vec2 uv = v_uv;
-    vec3 col = texture2D(u_input_texture, uv).rgb; 
-    vec3 gray = vec3(grayScale(col)); 
-    col = saturationMatrix(u_saturation) * col; 
+    vec3 col = texture2D(u_input_texture, uv).rgb;
+    vec3 gray = vec3(grayScale(col));
+    col = saturationMatrix(u_saturation) * col;
     gray = overlay(gray, col);
-    col = mix(gray, col, u_gray); 
-    levels(col, vec3(0., 0., 0.) / 255., vec3(228., 255., 239.) / 255., 
-                vec3(23., 3., 12.) / 255., vec3(255.) / 255.); 
-    brightnessAdjust(col, -0.1); 
-    contrastAdjust(col, 1.05); 
+    col = mix(gray, col, u_gray);
+    levels(col, vec3(0., 0., 0.) / 255., vec3(228., 255., 239.) / 255.,
+                vec3(23., 3., 12.) / 255., vec3(255.) / 255.);
+    brightnessAdjust(col, -0.1);
+    contrastAdjust(col, 1.05);
     vec3 tint = vec3(255., 248., 242.) / 255.;
-    levels(col, vec3(0., 0., 0.) / 255., vec3(255., 224., 255.) / 255., 
-                 vec3(9., 20., 18.) / 255., vec3(255.) / 255.); 
-    col = pow(col, vec3(0.91, 0.91, 0.91*0.94)); 
-    brightnessAdjust(col, -0.04); 
-    contrastAdjust(col, 1.14);   
+    levels(col, vec3(0., 0., 0.) / 255., vec3(255., 224., 255.) / 255.,
+                 vec3(9., 20., 18.) / 255., vec3(255.) / 255.);
+    col = pow(col, vec3(0.91, 0.91, 0.91*0.94));
+    brightnessAdjust(col, -0.04);
+    contrastAdjust(col, 1.14);
     col = tint * col;
 	gl_FragColor = vec4(col, 1.0);
 }
@@ -463,10 +463,10 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_gray: grayRatio.value, 
+    u_gray: grayRatio.value,
     u_saturation: satRatio.value, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -495,15 +495,15 @@ vec4 sobel(vec2 fragCoord, vec2 dir){
     float np = getAve(uv2 + (vec2(-1,+1) + dir ) * texel * u_thickness);
     float zp = getAve(uv2 + (vec2( 0,+1) + dir ) * texel * u_thickness);
     float pp = getAve(uv2 + (vec2(+1,+1) + dir ) * texel * u_thickness);
-    
+
     float nz = getAve(uv2 + (vec2(-1, 0) + dir ) * texel * u_thickness);
     // zz = 0
     float pz = getAve(uv2 + (vec2(+1, 0) + dir ) * texel * u_thickness);
-    
+
     float nn = getAve(uv2 + (vec2(-1,-1) + dir ) * texel * u_thickness);
     float zn = getAve(uv2 + (vec2( 0,-1) + dir ) * texel * u_thickness);
     float pn = getAve(uv2 + (vec2(+1,-1) + dir ) * texel * u_thickness);
-    
+
     #if 0
     float gx = (np*-1. + nz*-2. + nn*-1. + pp*1. + pz*2. + pn*1.);
     float gy = (np*-1. + zp*-2. + pp*-1. + nn*1. + zn*2. + pn*1.);
@@ -512,11 +512,11 @@ vec4 sobel(vec2 fragCoord, vec2 dir){
     float gx = (np*-3. + nz*-10. + nn*-3. + pp*3. + pz*10. + pn*3.);
     float gy = (np*-3. + zp*-10. + pp*-3. + nn*3. + zn*10. + pn*3.);
     #endif
-    
+
     vec2 G = vec2(gx,gy);
     float grad = length(G);
     float angle = atan(G.y, G.x);
-    
+
     return vec4(G, grad, angle);
 }
 
@@ -526,12 +526,12 @@ vec2 hysteresisThr(vec2 fragCoord, float mn, float mx){
 
     vec2 dir = vec2(cos(edge.w), sin(edge.w));
     dir *= vec2(-1,1); // rotate 90 degrees.
-    
+
     vec4 edgep = sobel(fragCoord, dir);
     vec4 edgen = sobel(fragCoord, -dir);
 
     if(edge.z < edgep.z || edge.z < edgen.z ) edge.z = 0.;
-    
+
     return vec2(
         (edge.z > mn) ? edge.z : 0.,
         (edge.z > mx) ? edge.z : 0.
@@ -543,21 +543,21 @@ float cannyEdge(vec2 fragCoord, float mn, float mx){
     vec2 np = hysteresisThr(fragCoord + vec2(-1.,+1.), mn, mx);
     vec2 zp = hysteresisThr(fragCoord + vec2( 0.,+1.), mn, mx);
     vec2 pp = hysteresisThr(fragCoord + vec2(+1.,+1.), mn, mx);
-    
+
     vec2 nz = hysteresisThr(fragCoord + vec2(-1., 0.), mn, mx);
     vec2 zz = hysteresisThr(fragCoord + vec2( 0., 0.), mn, mx);
     vec2 pz = hysteresisThr(fragCoord + vec2(+1., 0.), mn, mx);
-    
+
     vec2 nn = hysteresisThr(fragCoord + vec2(-1.,-1.), mn, mx);
     vec2 zn = hysteresisThr(fragCoord + vec2( 0.,-1.), mn, mx);
     vec2 pn = hysteresisThr(fragCoord + vec2(+1.,-1.), mn, mx);
-    
+
     return min(1., step(1e-3, zz.x) * (zp.y + nz.y + pz.y + zn.y)*8.);
 }
 
 void main(){
     vec2 uv = v_uv;
-    float edge = cannyEdge(uv.xy, u_factor, u_factor);   
+    float edge = cannyEdge(uv.xy, u_factor, u_factor);
     gl_FragColor = vec4(vec3(1.-edge),1.0);
 }
 \`;
@@ -579,7 +579,7 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
     u_thickness: thicknessIn.value,
@@ -621,7 +621,7 @@ vec3 yuv2rgb(vec3 rgb) {
 
 void main() {
   vec2 uv = v_uv;
-  vec4 color = texture2D(u_input_texture, uv.st); 
+  vec4 color = texture2D(u_input_texture, uv.st);
   vec3 yuv = rgb2yuv(color.rgb);
   vec3 rgb = yuv2rgb(vec3(floor(yuv.x * u_num) / u_num, yuv.yz));
   color = vec4(rgb, 1.0);
@@ -644,7 +644,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_num: num.value, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -660,7 +660,7 @@ uniform float u_radius;
 uniform vec2 u_center;
 varying vec2 v_uv;
 
-float grayScale(in vec3 col) 
+float grayScale(in vec3 col)
 {
     return dot(col, vec3(0.3, 0.59, 0.11));
 }
@@ -670,7 +670,7 @@ void main() {
   vec3 col = texture2D(u_input_texture, uv).rgb;
   float dist = distance(uv, u_center);
   float vignette = smoothstep(u_radius, u_radius - 0.1, dist);
-  vec3 gray = vec3(grayScale(col)); 
+  vec3 gray = vec3(grayScale(col));
   col = mix(gray, col, clamp(vignette, 0.0, 1.0));
   gl_FragColor = vec4(col, 1.0);
 
@@ -694,8 +694,8 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_radius: radiusIn.value,
     u_center: [centerXIn.value,centerYIn.value], });
@@ -722,28 +722,28 @@ vec2 CRTCurveUV( vec2 uv, float str )
 }
 
 void main() {
-  vec2 uv = v_uv; 
+  vec2 uv = v_uv;
   uv = CRTCurveUV( uv, 0.5 );
-        
+
   // chromatic abberation
   float caStrength    = u_factor;
   vec2 caOffset       = uv - 0.5;
   vec2 caUVG          = uv + caOffset * caStrength;
   vec2 caUVB          = uv + caOffset * caStrength * 2.0;
-        
+
   vec3 color;
   color.x = texture2D(u_input_texture, uv).x;
   color.y = texture2D(u_input_texture, caUVG).y;
   color.z = texture2D(u_input_texture, caUVB).z;
-        
+
   uv = CRTCurveUV( uv, 1.0 );
   if ( uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 ){
     color = vec3( 0.0, 0.0, 0.0 );
-  }    
+  }
   float vignette = uv.x * uv.y * ( 1.0 - uv.x ) * ( 1.0 - uv.y );
   vignette = clamp( pow( 16.0 * vignette, 0.3 ), 0.0, 1.0 );
   color *= vignette * 1.1;
-  
+
   gl_FragColor = vec4( color, 1.0 );
 }
 \`;
@@ -763,7 +763,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -807,7 +807,7 @@ node.onRender = () => {
   const color = colorIn.value;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
   u_color: [color[0] / 255, color[1] / 255, color[2] / 255, color[3]], });
   framebuffer.unbind();
@@ -819,22 +819,22 @@ image.chromaKey = `// Make pixels of a certain color transparent, like green scr
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
-uniform vec3 u_keyColor; 
-uniform float u_threshold; 
+uniform vec3 u_keyColor;
+uniform float u_threshold;
 varying vec2 v_uv;
 void main() {
 
   vec2 uv = v_uv;
-  vec4 color = texture2D(u_input_texture, uv.st); 
-  
+  vec4 color = texture2D(u_input_texture, uv.st);
+
   // calculate the color difference between the current pixel and the key color
   float difference = length(color.rgb - u_keyColor);
-  
+
   // if the difference is less than the threshold, set the alpha to 0
   if (difference < u_threshold) {
     color.a = 0.0;
   }
-  
+
   gl_FragColor = color;
 }
 \`;
@@ -855,7 +855,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_keyColor: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
     u_threshold: thresholdIn.value,
@@ -899,7 +899,7 @@ function updateShader() {
     blendFunction = 'factor * c1.rgb - c2.rgb';
   } else if (operationIn.value === 'divide') {
     blendFunction = 'factor * c1.rgb / c2.rgb';
-  } else {  
+  } else {
     blendFunction = 'factor * c2.rgb + (1.0 - factor) * c1.rgb';
   }
   const fragmentShader = \`
@@ -1109,7 +1109,7 @@ node.onRender = () => {
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
     u_offset: [offsetXIn.value, offsetYIn.value],
@@ -1133,7 +1133,7 @@ void main() {
   vec4 center = texture2D(u_input_texture, uv);
   vec4 sum = vec4(0.0);
   float totalWeight = 0.0;
-  
+
   for (float x = -1.0; x <= 1.0; x += 1.0) {
     for (float y = -1.0; y <= 1.0; y += 1.0) {
       vec2 offset = vec2(x, y) * u_texel_size;
@@ -1143,7 +1143,7 @@ void main() {
       totalWeight += weight;
     }
   }
-  
+
   gl_FragColor = sum / totalWeight;
 }
 \`;
@@ -1163,7 +1163,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
   u_texel_size: [noiseIn.value/imageIn.value.width, noiseIn.value/imageIn.value.height] });
   framebuffer.unbind();
@@ -1206,10 +1206,10 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_distortion: dist.value, 
+    u_distortion: dist.value,
     u_time: wave.value, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1270,12 +1270,12 @@ void main() {
   kernel[0] = 2.0; kernel[1] = 0.0; kernel[2] = 0.0;
   kernel[3] = 0.0; kernel[4] = -1.; kernel[5] = 0.0;
   kernel[6] = 0.0; kernel[7] = 0.0; kernel[8] = -1.;
-  
+
   vec4 pixel_matrix[9];
-  
+
   build_color_matrix(uv, pixel_matrix);
   build_mean_matrix(pixel_matrix);
-  
+
   float convolved = convolve(kernel, pixel_matrix);
   gl_FragColor = vec4(vec3(convolved), 1.0);
 }
@@ -1297,10 +1297,10 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_emboss: [embossWidthIn.value, embossHeightIn.value]  
+    u_emboss: [embossWidthIn.value, embossHeightIn.value]
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1429,7 +1429,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_resolution: [resolutionIn.value, resolutionIn.value],});
   framebuffer.unbind();
@@ -1486,7 +1486,7 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_factor: factorIn.value,
     u_rtx: imageIn.value.width,
@@ -1512,17 +1512,17 @@ void main() {
   // Add random noise to the UV coordinates
   float noise = fract(sin(dot(uv + u_randomSeed, vec2(12.9898, 78.233)) * 43758.5453));
   uv += (noise - 0.5) * 0.2;
-  
+
   // Sample the texture at the modified UV coordinates
   vec4 color = texture2D(u_input_texture, uv);
-  
+
   // Apply a color shift effect based on the x and y coordinates
   float shiftX = sin(uv.x * 0.01 + u_randomSeed) * 0.1;
   float shiftY = sin(uv.y * 0.01 + u_randomSeed) * 0.1;
   color.r = texture2D(u_input_texture, vec2(uv.x + shiftX, uv.y + shiftY)).r;
   color.g = texture2D(u_input_texture, vec2(uv.x - shiftX, uv.y - shiftY)).g;
   color.b = texture2D(u_input_texture, vec2(uv.x + shiftY, uv.y - shiftX)).b;
-  
+
   // Output the color
   gl_FragColor = color;
 }
@@ -1586,11 +1586,11 @@ void main() {
   vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
   vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
   vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
-  
+
   float r = (sobel_edge_h.r*sobel_edge_h.r + sobel_edge_v.r*sobel_edge_v.r)*u_color.r;
   float g = (sobel_edge_h.g*sobel_edge_h.g + sobel_edge_v.g*sobel_edge_v.g)*u_color.g;
   float b = (sobel_edge_h.b*sobel_edge_h.b + sobel_edge_v.b*sobel_edge_v.b)*u_color.b;
-  
+
   vec4 col = texture2D(u_input_texture, uv);
   col += vec4(r, g, b,1.0);
   gl_FragColor = col;
@@ -1613,7 +1613,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
     u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255, colorIn.value[3]],
@@ -1641,14 +1641,14 @@ void main() {
     vec3 cluster4 = vec3(0.4, 0.4, 0.4); // Gray 40% white cluster
     vec3 cluster5 = vec3(0.2, 0.2, 0.2); // Gray 20% white cluster
     vec3 cluster6 = vec3(0.0, 0.0, 0.0); // Black cluster
-  
+
     float dist1 = distance(color.rgb, cluster1);
     float dist2 = distance(color.rgb, cluster2);
     float dist3 = distance(color.rgb, cluster3);
     float dist4 = distance(color.rgb, cluster4);
     float dist5 = distance(color.rgb, cluster5);
     float dist6 = distance(color.rgb, cluster6);
-  
+
     vec3 closestCluster;
     if (dist1 < dist2 && dist1 < dist3 && dist1 < dist4 && dist1 < dist5 && dist1 < dist6) {
       closestCluster = cluster1;
@@ -1663,7 +1663,7 @@ void main() {
     } else{
       closestCluster = cluster6;
     }
-  
+
     // Set the output color to the closest cluster color
     gl_FragColor = vec4(closestCluster, color.a);
 
@@ -1684,7 +1684,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,});
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1720,7 +1720,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -1728,7 +1728,7 @@ node.onRender = () => {
 `;
 
 image.heatmap = `// heatmap filter based on monocular depth estimation on image.
-//experimental// 
+//experimental//
 
 const fragmentShader = \`
 precision mediump float;
@@ -1781,8 +1781,8 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture, u_focal_length: focalIn.value,
     u_disparity_scale: disparityIn.value,u_min_depth: depthMinIn.value,u_max_depth: depthMaxIn.value});
   framebuffer.unbind();
@@ -1809,15 +1809,15 @@ void main() {
   float bottom = texture2D(u_input_texture, v_uv - vec2(0.0, u_texel_size.y)).r;
   float left = texture2D(u_input_texture, v_uv - vec2(u_texel_size.x, 0.0)).r;
   float right = texture2D(u_input_texture, v_uv + vec2(u_texel_size.x, 0.0)).r;
-    
+
   // Compute the gradient and its magnitude
   float gx = (right - left) / (2.0 * u_texel_size.x);
   float gy = (top - bottom) / (2.0 * u_texel_size.y);
   float gradientMagnitude = sqrt(gx * gx + gy * gy);
-    
+
   // Compute the local gradient direction
   float gradientDirection = atan(gy, gx);
-    
+
   // Round the direction to one of four cardinal directions
   float directionSign = sign(gradientDirection);
   float absDirection = abs(gradientDirection);
@@ -1827,10 +1827,10 @@ void main() {
   // Compute the magnitudes of the gradients in the two orthogonal directions
   float magnitude1 = abs(cos(roundedDirection)) * gradientMagnitude * u_increase;
   float magnitude2 = abs(sin(roundedDirection)) * gradientMagnitude * u_increase;
-    
+
   // Compute the non-maximum suppressed edge intensity
   float suppressedIntensity = center - 0.5 * (magnitude1 + magnitude2);
-    
+
   // Output the edge intensity as grayscale
   //gl_FragColor = vec4(vec3(suppressedIntensity), 1.0);
   gl_FragColor = vec4(vec3(step(u_threshold, suppressedIntensity)), 1.0);
@@ -1854,7 +1854,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
   u_texel_size: [blurIn.value/imageIn.value.width, blurIn.value/imageIn.value.height],
 u_increase: increaseIn.value,
@@ -2019,7 +2019,7 @@ node.onRender = () => {
   }
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_selector});
   framebuffer.unbind();
@@ -2100,7 +2100,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
 u_sides: sidesIn.value,
 u_angle: angleIn.value, });
@@ -2160,8 +2160,8 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
-    u_input_texture: imageIn.value.texture, 
+  figment.drawQuad(program, {
+    u_input_texture: imageIn.value.texture,
     u_k1: k1In.value,
     u_k2: k2In.value,
     u_offset: [offsetXIn.value, offsetYIn.value],
@@ -2192,7 +2192,7 @@ mat4 brightnessMatrix( float brightness )
 mat4 contrastMatrix( float contrast )
 {
   float t = ( 1.0 - contrast ) / 2.0;
-    
+
     return mat4( contrast, 0, 0, 0,
                  0, contrast, 0, 0,
                  0, 0, contrast, 0,
@@ -2204,16 +2204,16 @@ mat4 saturationMatrix( float saturation )
 {
     vec3 luminance = vec3( 0.3086, 0.6094, 0.0820 );
     float oneMinusSat = 1.0 - saturation;
-    
+
     vec3 red = vec3( luminance.x * oneMinusSat );
     red+= vec3( saturation, 0, 0 );
-    
+
     vec3 green = vec3( luminance.y * oneMinusSat );
     green += vec3( 0, saturation, 0 );
-    
+
     vec3 blue = vec3( luminance.z * oneMinusSat );
     blue += vec3( 0, 0, saturation );
-    
+
     return mat4( red,     0,
                  green,   0,
                  blue,    0,
@@ -2223,9 +2223,9 @@ mat4 saturationMatrix( float saturation )
 void main() {
   vec2 uv = v_uv;
   vec4 color = texture2D( u_input_texture, uv );
-    
+
   gl_FragColor = brightnessMatrix( u_brightness ) *
-          contrastMatrix( u_contrast ) * 
+          contrastMatrix( u_contrast ) *
           saturationMatrix( u_saturation ) *
           color;
 
@@ -2250,7 +2250,7 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_brightness: brightnessIn.value,
     u_contrast: contrastIn.value,
@@ -2570,10 +2570,10 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
   u_texel_size: [blurIn.value/imageIn.value.width, blurIn.value/imageIn.value.height],
-u_increase: increaseIn.value, 
+u_increase: increaseIn.value,
 u_threshold: thresholdIn.value,});
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -2629,7 +2629,7 @@ node.onRender = () => {
   framebuffer.setSize(sourceIn.value.width, sourceIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_source_texture: sourceIn.value.texture,
     u_lookup_texture: lookupIn.value.texture,
   });
@@ -2660,7 +2660,7 @@ void main() {
   float circle = draw_circle(uv - offset, u_radius);
   u_invert ? circle = 1.0 - circle : circle = circle;
   vec3 colort = vec3(circle);
-  gl_FragColor = vec4(colort, 1.0)*color; 
+  gl_FragColor = vec4(colort, 1.0)*color;
 }
 \`;
 
@@ -2680,7 +2680,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_radius: radiusIn.value,u_invert: invertIn.value});
   framebuffer.unbind();
@@ -2731,9 +2731,9 @@ node.onRender = () => {
   framebuffer.setSize(sourceIn.value.width, sourceIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
-    u_source_texture: sourceIn.value.texture, 
-    u_mask_texture: maskIn.value.texture, 
+  figment.drawQuad(program, {
+    u_source_texture: sourceIn.value.texture,
+    u_mask_texture: maskIn.value.texture,
     u_mask_method: maskMethodIn.value === 'white' ? 1 : 2,
     u_resolution: [sourceIn.value.width, sourceIn.value.height],
   });
@@ -2787,8 +2787,8 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
-    u_input_texture: imageIn.value.texture, 
+  figment.drawQuad(program, {
+    u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
     u_line: [x, y, z],
   });
@@ -2836,7 +2836,7 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_red: redIn.value,
     u_green: greenIn.value,
@@ -2889,8 +2889,8 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture, 
+  figment.clear();
+  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_noise_intensity: noiseIn.value, u_seed: seedIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -2918,7 +2918,7 @@ void main() {
   vec2 p = v_uv.st;
   p.x -= mod(p.x, 1.0 / (100.0-_pixels.x));
   p.y -= mod(p.y, 1.0 / (100.0-_pixels.y));
-    
+
   vec3 col = texture2D(u_input_texture, p).rgb;
   gl_FragColor = vec4(col, 1.0);
 }
@@ -3025,10 +3025,10 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_distortion: dist.value, 
+    u_distortion: dist.value,
     u_time: rotate.value, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -3046,8 +3046,8 @@ uniform float u_factor;
 void main() {
   vec2 uv = v_uv;
   vec4 color = texture2D(u_input_texture, uv.st);
-  vec3 col = color.rgb; 
-  col = floor(col * u_factor) / u_factor; 
+  vec3 col = color.rgb;
+  col = floor(col * u_factor) / u_factor;
   gl_FragColor = vec4(col,1.0);
 }
 \`;
@@ -3067,7 +3067,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -3147,7 +3147,7 @@ node.onRender = () => {
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_scale: scale,
     u_background_color: [color[0] / 255, color[1] / 255, color[2] / 255, color[3]],
@@ -3172,11 +3172,11 @@ void main() {
     vec3 cluster1 = vec3(1.0, 0.0, 0.0); // Red cluster
     vec3 cluster2 = vec3(0.0, 1.0, 0.0); // Green cluster
     vec3 cluster3 = vec3(0.0, 0.0, 1.0); // Blue cluster
-  
+
     float dist1 = distance(color.rgb, cluster1);
     float dist2 = distance(color.rgb, cluster2);
     float dist3 = distance(color.rgb, cluster3);
-  
+
     vec3 closestCluster;
     if (dist1 < dist2 && dist1 < dist3) {
       closestCluster = cluster1;
@@ -3185,7 +3185,7 @@ void main() {
     } else {
       closestCluster = cluster3;
     }
-  
+
     // Set the output color to the closest cluster color
     gl_FragColor = vec4(closestCluster, color.a);
 
@@ -3206,7 +3206,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,});
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -3330,10 +3330,10 @@ node.onRender = () => {
     u_lines = 0.0;
   }
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
-    u_distortion: dist.value, 
+    u_distortion: dist.value,
   u_resolution: [imageIn.value.width, imageIn.value.height],
 u_lines });
   framebuffer.unbind();
@@ -3374,8 +3374,8 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_factor: sepiaIn.value, });
   framebuffer.unbind();
@@ -3408,7 +3408,7 @@ void main() {
   -texture2D(u_input_texture, uv*vec2(BOT, TOP))/8.
   -texture2D(u_input_texture, uv*vec2(CEN, TOP))/8.
   -texture2D(u_input_texture, uv*vec2(TOP, TOP))/8.;
-  
+
 }
 \`;
 
@@ -3486,7 +3486,7 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
   });
@@ -3527,8 +3527,8 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_threshold: thresholdIn.value, });
   framebuffer.unbind();
@@ -3547,8 +3547,8 @@ uniform float u_factor;
 
 void main() {
   vec2 uv = v_uv;
-  vec2 uv2 = floor( uv * u_factor ) / u_factor;   
-  vec3 col = texture2D(u_input_texture, uv2).rgb;     
+  vec2 uv2 = floor( uv * u_factor ) / u_factor;
+  vec3 col = texture2D(u_input_texture, uv2).rgb;
   gl_FragColor = vec4(col,1.);
 }
 \`;
@@ -3568,7 +3568,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -3666,7 +3666,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture, });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -3706,8 +3706,8 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
-    u_input_texture: imageIn.value.texture, 
+  figment.drawQuad(program, {
+    u_input_texture: imageIn.value.texture,
     u_threshold: thresholdIn.value,
   });
   framebuffer.unbind();
@@ -3814,9 +3814,9 @@ node.onRender = () => {
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { 
+  figment.drawQuad(program, {
     u_transform: transform,
-    u_input_texture: imageIn.value.texture 
+    u_input_texture: imageIn.value.texture
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
@@ -3962,7 +3962,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
-  figment.clear();  
+  figment.clear();
   figment.drawQuad(program, { u_input_texture: imageIn.value.texture,
     u_radius: radiusIn.value,
     u_center: [centerXIn.value,centerYIn.value],});
@@ -3985,7 +3985,7 @@ node.onStart = async () => {
       video: true,
       audio: false
     });
-  
+
     _video = document.createElement('video');
     _video.width = 1280;
     _video.height = 960;
@@ -4076,7 +4076,7 @@ function detectFaces() {
         const start = predictions[i].topLeft;
         const end = predictions[i].bottomRight;
         const size = [end[0] - start[0], end[1] - start[1]];
-  
+
         // Render a rectangle over each detected face.
         _ctx.fillStyle = 'rgba(255,130,0,.3)';
         _ctx.fillRect(start[0], start[1], size[0], size[1]);
@@ -4363,7 +4363,7 @@ node.onStart = async (props) => {
     return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
   pose.setOptions({
-    modelComplexity: 1, 
+    modelComplexity: 1,
     smoothLandmarks: true,
   });
   await pose.initialize();
@@ -4457,7 +4457,7 @@ node.onStart = async (props) => {
     return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
   pose.setOptions({
-    modelComplexity: 1, 
+    modelComplexity: 1,
     smoothLandmarks: true,
     enableSegmentation: true,
   });
@@ -4759,7 +4759,7 @@ node.onRender = async () => {
     tensor = tensor.toFloat().div(tf.scalar(127.5)).sub(tf.scalar(1));
     return tensor;
   });
-  
+
   // Execute the model
   let outputTensor = await model.execute(inputTensor);
 
@@ -4767,7 +4767,7 @@ node.onRender = async () => {
     // Convert results back to 0-1 range
     return outputTensor.mul(tf.scalar(0.5)).add(tf.scalar(0.5)).squeeze();
   })
-  
+
   await tf.browser.toPixels(result, canvas);
   figment.canvasToFramebuffer(canvas, framebuffer);
 
