@@ -62,6 +62,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
     this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
     this.nodeTypes.push({ name: 'Denoise', type: 'image.denoise', source: image.denoise });
+    this.nodeTypes.push({ name: 'Difference', type: 'image.difference', source: image.difference });
     this.nodeTypes.push({ name: 'Distortion', type: 'image.distortion', source: image.distortion });
     this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
     this.nodeTypes.push({ name: 'Fetch Image', type: 'image.fetchImage', source: image.fetchImage });
