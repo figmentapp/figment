@@ -1176,13 +1176,14 @@ const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_current_texture;
 uniform sampler2D u_previous_texture;
+uniform float u_amplify;
 varying vec2 v_uv;
 void main() {
   vec3 currentColor = texture2D(u_current_texture, v_uv).rgb;
   vec3 previousColor = texture2D(u_previous_texture, v_uv).rgb;
   
   // Calculate absolute difference between current and previous color
-  vec3 diff = abs(previousColor - currentColor);
+  vec3 diff = abs(previousColor - currentColor) * u_amplify;
   
   gl_FragColor = vec4(diff, 1.0);
   //gl_FragColor = vec4(currentColor, 1.0);
@@ -1190,6 +1191,7 @@ void main() {
 \`;
 
 const imageIn = node.imageIn('in');
+const amplifyIn = node.numberIn('amplify', 1.0, { min: 0.0, max: 100.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 let program, copyProgram, inputBuffer, outputBuffer;
 
@@ -1210,7 +1212,8 @@ node.onRender = () => {
   figment.clear();  
   figment.drawQuad(program, { 
     u_current_texture: imageIn.value.texture,
-    u_previous_texture: inputBuffer.texture
+    u_previous_texture: inputBuffer.texture,
+    u_amplify: amplifyIn.value,
   });
   outputBuffer.unbind();
   
