@@ -209,7 +209,7 @@ export default class NetworkEditor extends Component {
     clearInterval(this._timer);
     this.props.network.removeChangeListener(this._onNetworkChange);
     if (this.canvasRef.current) {
-        this._resizeObserver.unobserve(this.canvasRef.current);
+      this._resizeObserver.unobserve(this.canvasRef.current);
     }
   }
 
