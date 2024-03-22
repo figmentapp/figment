@@ -343,9 +343,9 @@ export default class Network {
     if (node.onStart) {
       try {
         await node.onStart(node);
-      } catch (e) {
+      } catch (err) {
+        console.error(err && err.stack);
         debugger;
-        console.error(e && e.stack);
       }
     }
   }
