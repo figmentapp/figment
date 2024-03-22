@@ -1186,7 +1186,6 @@ void main() {
   vec3 diff = abs(previousColor - currentColor) * u_amplify;
   
   gl_FragColor = vec4(diff, 1.0);
-  //gl_FragColor = vec4(currentColor, 1.0);
 }
 \`;
 
