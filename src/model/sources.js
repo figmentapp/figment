@@ -4033,61 +4033,6 @@ node.onRender = () => {
 };
 `;
 
-image.unsplash = `// Fetch a random image from Unsplash.
-
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-\`;
-
-const queryIn = node.stringIn('query', 'kitten');
-const widthIn = node.numberIn('width', 300);
-const heightIn = node.numberIn('height', 300);
-const imageOut = node.imageOut('image');
-
-let _texture, framebuffer, program, shouldLoad;
-
-node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-  shouldLoad = true;
-}
-
-node.onRender = async () => {
-  if (!shouldLoad) return;
-  if (!queryIn.value || queryIn.value.trim().length === 0) return;
-  const url = \`https://source.unsplash.com/\${widthIn.value}x\${heightIn.value}?\${queryIn.value}\`;
-  try {
-    const { texture, image } = await figment.createTextureFromUrlAsync(url);
-    shouldLoad = false;
-    if (_texture) {
-      gl.deleteTexture(_texture);
-    }
-    _texture = texture;
-    framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-    framebuffer.bind();
-    figment.clear();
-    figment.drawQuad(program, { u_image: texture });
-    framebuffer.unbind();
-    imageOut.set(framebuffer);
-  } catch (err) {
-    console.error(\`Image load error: \${err\}\`);
-  }
-}
-
-function setShouldLoad() {
-  shouldLoad = true;
-}
-
-queryIn.onChange = figment.debounce(setShouldLoad, 500);
-widthIn.onChange = setShouldLoad;
-heightIn.onChange = setShouldLoad;
-`;
-
 image.vignette = `// Vignette  on image.
 
 const fragmentShader = \`
