@@ -1,149 +1,128 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { camelCase } from 'lodash';
 
-export default class ForkDialog extends Component {
-  constructor(props) {
-    super(props);
-    let [ns, baseName] = props.nodeType.type.split('.');
-    ns = 'project';
-    const currentNodes = props.network.nodes.filter((node) => node.type === props.nodeType.type);
+const ForkDialog = ({ nodeType, network, selection, onCancel, onForkNodeType }) => {
+  let [ns, baseName] = nodeType.type.split('.');
+  ns = 'project';
+  const currentNodes = network.nodes.filter((node) => node.type === nodeType.type);
 
-    const selectedNodes = new Set();
-    for (const node of currentNodes) {
-      if (props.selection.has(node)) {
-        selectedNodes.add(node);
+  const [newName, setNewName] = useState(nodeType.name);
+  const [newTypeName, setNewTypeName] = useState(baseName);
+  const [selectedNodes, setSelectedNodes] = useState(new Set());
+  const [typeNameChanged, setTypeNameChanged] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.keyCode === 27) {
+        e.preventDefault();
+        onCancel();
+      } else if (e.keyCode === 13) {
+        e.preventDefault();
+        onFork();
       }
-    }
-    this.state = {
-      ns,
-      newName: props.nodeType.name,
-      newTypeName: baseName,
-      currentNodes,
-      selectedNodes,
-      typeNameChanged: false,
     };
-    this._onKeyDown = this._onKeyDown.bind(this);
-    this._onChangeName = this._onChangeName.bind(this);
-    this._onFork = this._onFork.bind(this);
-  }
 
-  componentDidMount() {
-    window.addEventListener('keydown', this._onKeyDown);
-    document.getElementById('fork-dialog-input').select();
-  }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onCancel, onFork]);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this._onKeyDown);
-  }
+  const onFork = () => {
+    const trimmedNewTypeName = newTypeName.trim();
+    if (trimmedNewTypeName.length === 0) return onCancel();
+    const trimmedNewName = newName.trim();
+    if (trimmedNewName.length === 0) return onCancel();
+    const fullTypeName = ns + '.' + trimmedNewTypeName;
+    onForkNodeType(nodeType, trimmedNewName, fullTypeName, Array.from(selectedNodes));
+  };
 
-  _onKeyDown(e) {
-    if (e.keyCode === 27) {
-      e.preventDefault();
-      this.props.onCancel();
-    } else if (e.keyCode === 13) {
-      e.preventDefault();
-      this._onFork();
-    }
-  }
-
-  _onFork() {
-    const newTypeName = this.state.newTypeName.trim();
-    if (newTypeName.length === 0) return this.props.onCancel();
-    const newName = this.state.newName.trim();
-    if (newName.length === 0) return this.props.onCancel();
-    const fullTypeName = this.state.ns + '.' + newTypeName;
-    this.props.onForkNodeType(this.props.nodeType, newName, fullTypeName, Array.from(this.state.selectedNodes));
-  }
-
-  _toggleSelectedNode(node) {
-    if (this.state.selectedNodes.has(node)) {
-      this.state.selectedNodes.delete(node);
+  const toggleSelectedNode = (node) => {
+    const newSelectedNodes = new Set(selectedNodes);
+    if (newSelectedNodes.has(node)) {
+      newSelectedNodes.delete(node);
     } else {
-      this.state.selectedNodes.add(node);
+      newSelectedNodes.add(node);
     }
-    this.forceUpdate();
-  }
+    setSelectedNodes(newSelectedNodes);
+  };
 
-  _onChangeName(s) {
-    let newName = s;
-    if (this.state.typeNameChanged) {
-      // If the user has changed the type name, don't automatically update it.
-      this.setState({ newName });
-    } else {
-      // User has not changed the type name, so change it as well.
-      const newTypeName = camelCase(newName.trim());
-      this.setState({ newName, newTypeName });
+  const onChangeName = (s) => {
+    setNewName(s);
+    if (!typeNameChanged) {
+      const newTypeName = camelCase(s.trim());
+      setNewTypeName(newTypeName);
     }
-  }
+  };
 
-  _onChangeTypeName(s) {
+  const onChangeTypeName = (s) => {
     const newTypeName = camelCase(s);
-    const proposedTypeName = camelCase(this.state.newName);
-    this.setState({ typeNameChanged: newTypeName !== proposedTypeName, newTypeName });
-  }
+    const proposedTypeName = camelCase(newName);
+    setTypeNameChanged(newTypeName !== proposedTypeName);
+    setNewTypeName(newTypeName);
+  };
 
-  render() {
-    const { ns, newName, newTypeName, currentNodes, selectedNodes } = this.state;
-    return (
-      <div className="dialog-wrapper" onClick={this.props.onCancel}>
-        <div
-          className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2 rounded-lg overflow-hidden"
-          style={{ height: '40vh' }}
-          onClick={(e) => e.stopPropagation()}
-        >
+  return (
+    <div className="dialog-wrapper" onClick={onCancel}>
+      <div
+        className="dialog node-dialog shadow-xl w-1/2 flex flex-col border-gray-900 border-2 rounded-lg overflow-hidden"
+        style={{ height: '40vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex">
+          <input
+            id="fork-dialog-input"
+            type="text"
+            className="p-6 bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
+            value={newName}
+            onChange={(e) => onChangeName(e.target.value)}
+            autoFocus
+            maxLength={24}
+          ></input>
           <div className="flex">
-            <input
-              id="fork-dialog-input"
-              type="text"
-              className="p-6 bg-gray-500 flex-grow placeholder-gray-700 outline-none text-lg"
-              value={newName}
-              onInput={(e) => this._onChangeName(e.target.value)}
-              autoFocus
-              maxLength={24}
-            ></input>
-            <div className="flex">
-              <span
-                className="bg-gray-600 text-gray-100 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
-                onClick={this._onFork}
-              >
-                Fork
-              </span>
-              <span
-                className="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
-                onClick={this.props.onCancel}
-              >
-                &times;
-              </span>
-            </div>
-          </div>
-          <div className="flex">
-            <span className="bg-gray-600 p-6 flex-grow">
-              <span className="text-lg">{ns}.</span>
-
-              <input
-                type="text"
-                className="bg-gray-600 flex-grow placeholder-gray-700 outline-none text-lg"
-                value={newTypeName}
-                onInput={(e) => this._onChangeTypeName(e.target.value)}
-              />
+            <span
+              className="bg-gray-600 text-gray-100 px-8 py-6 text-xl flex items-center justify-center font-bold cursor-pointer uppercase"
+              onClick={onFork}
+            >
+              Fork
+            </span>
+            <span
+              className="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
+              onClick={onCancel}
+            >
+              &times;
             </span>
           </div>
-          <div className="flex-grow bg-gray-700 text-gray-300 w-full h-full px-4 py-5">
-            <p className="text-gray-500 mb-5">
-              These nodes in the project are currently using the original code. Select them to link them to your forked code.
-            </p>
-            <div className="overflow-auto">
-              {currentNodes &&
-                currentNodes.map((node) => (
-                  <label className="block py-2 pr-2" key={node.id}>
-                    <input type="checkbox" checked={selectedNodes.has(node)} onChange={() => this._toggleSelectedNode(node)} />
-                    <span className="ml-2 text-small">{node.name}</span>
-                  </label>
-                ))}
-            </div>
+        </div>
+        <div className="flex">
+          <span className="bg-gray-600 p-6 flex-grow">
+            <span className="text-lg">{ns}.</span>
+
+            <input
+              type="text"
+              className="bg-gray-600 flex-grow placeholder-gray-700 outline-none text-lg"
+              value={newTypeName}
+              onChange={(e) => onChangeTypeName(e.target.value)}
+            />
+          </span>
+        </div>
+        <div className="flex-grow bg-gray-700 text-gray-300 w-full h-full px-4 py-5">
+          <p className="text-gray-500 mb-5">
+            These nodes in the project are currently using the original code. Select them to link them to your forked code.
+          </p>
+          <div className="overflow-auto">
+            {currentNodes &&
+              currentNodes.map((node) => (
+                <label className="block py-2 pr-2" key={node.id}>
+                  <input type="checkbox" checked={selectedNodes.has(node)} onChange={() => toggleSelectedNode(node)} />
+                  <span className="ml-2 text-small">{node.name}</span>
+                </label>
+              ))}
           </div>
         </div>
       </div>
-    );
-  }
-}
+    </div>
+  );
+};
+
+export default ForkDialog;

@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useRef, useEffect } from 'react';
 import * as twgl from 'twgl.js';
 
 const NODE_WIDTH = 100;
@@ -30,26 +30,20 @@ void main() {
 }
 `;
 
-export default class Viewer extends Component {
-  constructor(props) {
-    super(props);
-    this.previewCanvasRef = React.createRef();
-    this._onNetworkChange = this._onNetworkChange.bind(this);
-    this._animate = this._animate.bind(this);
-  }
+const Viewer = ({ offscreenCanvas, network }) => {
+  const previewCanvasRef = useRef(null);
 
-  componentDidMount() {
-    this._offscreenCanvas = this.props.offscreenCanvas;
-    this.gl = this._offscreenCanvas.getContext('webgl');
-    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+  useEffect(() => {
+    const gl = offscreenCanvas.getContext('webgl');
+    const programInfo = twgl.createProgramInfo(gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
 
     // Create a default checkerboard texture.
     const checkerTexture = {
-      mag: this.gl.NEAREST,
-      min: this.gl.LINEAR,
+      mag: gl.NEAREST,
+      min: gl.LINEAR,
       src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
     };
-    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
+    const defaultTexture = twgl.createTexture(gl, checkerTexture);
 
     // Create a buffer for a node rectangle.
     let x0 = 0;
@@ -61,109 +55,94 @@ export default class Viewer extends Component {
       a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
       indices: [0, 1, 2, 0, 2, 3],
     };
-    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
+    const nodeRectBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
 
-    // Listen for network changes.
-    this.props.network.addChangeListener(this._onNetworkChange);
-    this._animate();
-  }
+    const draw = () => {
+      const canvas = offscreenCanvas;
+      const previewCanvas = previewCanvasRef.current;
+      if (!previewCanvas) return;
+      const parent = previewCanvas.parentElement;
+      if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        previewCanvas.width = parent.clientWidth;
+        previewCanvas.height = parent.clientHeight;
+      }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.05, 0.06, 0.09, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.network !== this.props.network) {
-      prevProps.network.removeChangeListener(this._onNetworkChange);
-      this.props.network.addChangeListener(this._onNetworkChange);
-    }
-    this._draw();
-  }
+      const outNode = network.nodes.find((n) => n.type === 'core.out');
+      let outPort;
+      if (outNode) {
+        outPort = outNode.outPorts[0];
+      } else {
+        outPort = {};
+      }
 
-  render() {
-    return (
-      <div className="fixed inset-0 overflow-hidden">
-        <canvas ref={this.previewCanvasRef}></canvas>
-      </div>
-    );
-  }
+      let nodeColor = [1, 0, 1, 1];
+      let texture, textureWidth, textureHeight;
+      if (outPort.value && outPort.value._fbo) {
+        nodeColor = [1, 1, 1, 1];
+        texture = outPort.value._fbo.attachments[0];
+        textureWidth = outPort.value.width;
+        textureHeight = outPort.value.height;
+      } else {
+        texture = defaultTexture;
+        textureWidth = NODE_WIDTH;
+        textureHeight = NODE_HEIGHT;
+      }
 
-  _draw() {
-    const { gl } = this;
-    const { network } = this.props;
-    const canvas = this._offscreenCanvas;
-    const previewCanvas = this.previewCanvasRef.current;
-    if (!previewCanvas) return;
-    const parent = previewCanvas.parentElement;
-    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
-      previewCanvas.width = parent.clientWidth;
-      previewCanvas.height = parent.clientHeight;
-    }
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.05, 0.06, 0.09, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      const textureRatio = textureWidth / textureHeight;
+      const canvasRatio = canvas.width / canvas.height;
+      let u_scale;
+      if (textureRatio > canvasRatio) {
+        // The texture is wider than the canvas
+        const scaleFactor = canvasRatio / textureRatio;
+        u_scale = [1.0, scaleFactor];
+      } else {
+        // The texture is taller than the canvas
+        const scaleFactor = canvasRatio / textureRatio;
+        u_scale = [scaleFactor, 1.0];
+      }
 
-    const outNode = network.nodes.find((n) => n.type === 'core.out');
-    let outPort;
-    if (outNode) {
-      outPort = outNode.outPorts[0];
-    } else {
-      outPort = {};
-    }
+      twgl.bindFramebufferInfo(gl, null);
+      gl.useProgram(programInfo.program);
+      twgl.setBuffersAndAttributes(gl, programInfo, nodeRectBufferInfo);
+      twgl.setUniforms(programInfo, {
+        u_texture: texture,
+        u_color: nodeColor,
+        u_viewport: [canvas.width, canvas.height],
+        u_resolution: [textureWidth, textureHeight],
+        u_scale: u_scale,
+      });
+      twgl.drawBufferInfo(gl, nodeRectBufferInfo);
 
-    let nodeColor = [1, 0, 1, 1];
-    let texture, textureWidth, textureHeight;
-    if (outPort.value && outPort.value._fbo) {
-      nodeColor = [1, 1, 1, 1];
-      texture = outPort.value._fbo.attachments[0];
-      textureWidth = outPort.value.width;
-      textureHeight = outPort.value.height;
-    } else {
-      texture = this.defaultTexture;
-      textureWidth = NODE_WIDTH;
-      textureHeight = NODE_HEIGHT;
-    }
+      // Draw the offscreen canvas on the preview canvas.
+      const previewContext = previewCanvas.getContext('bitmaprenderer');
+      const bitmap = canvas.transferToImageBitmap();
+      previewContext.transferFromImageBitmap(bitmap);
+    };
 
-    const textureRatio = textureWidth / textureHeight;
-    const canvasRatio = canvas.width / canvas.height;
-    let u_scale;
-    if (textureRatio > canvasRatio) {
-      // The texture is wider than the canvas
-      const scaleFactor = canvasRatio / textureRatio;
-      u_scale = [1.0, scaleFactor];
-    } else {
-      // The texture is taller than the canvas
-      const scaleFactor = canvasRatio / textureRatio;
-      u_scale = [scaleFactor, 1.0];
-    }
+    const animate = () => {
+      draw();
+      window.requestAnimationFrame(animate);
+    };
 
-    twgl.bindFramebufferInfo(gl, null);
-    gl.useProgram(this.programInfo.program);
-    twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
-    twgl.setUniforms(this.programInfo, {
-      u_texture: texture,
-      u_color: nodeColor,
-      u_viewport: [canvas.width, canvas.height],
-      u_resolution: [textureWidth, textureHeight],
-      u_scale: u_scale,
-    });
-    twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
+    animate();
 
-    // Draw the offscreen canvas on the preview canvas.
-    const previewContext = previewCanvas.getContext('bitmaprenderer');
-    const bitmap = canvas.transferToImageBitmap();
-    previewContext.transferFromImageBitmap(bitmap);
-  }
+    return () => {
+      // Cleanup logic here
+    };
+  }, [offscreenCanvas, network]);
 
-  _onNetworkChange() {
-    this._shouldDraw = true;
-  }
+  return (
+    <div className="fixed inset-0 overflow-hidden">
+      <canvas ref={previewCanvasRef}></canvas>
+    </div>
+  );
+};
 
-  _animate() {
-    if (this._shouldDraw) {
-      this._draw();
-      this._shouldDraw = false;
-    }
-    window.requestAnimationFrame(this._animate);
-  }
-}
+export default Viewer;
