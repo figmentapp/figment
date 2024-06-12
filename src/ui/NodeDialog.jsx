@@ -1,10 +1,16 @@
 import React, { Component } from 'react';
 import Library from '../model/Library';
+import Fuse from 'fuse.js';
 
 export default class NodeDialog extends Component {
   constructor(props) {
     super(props);
     this.nodeTypes = props.network.allNodeTypes();
+    const options = {
+      includeScore: true,
+      keys: ['name', 'description']
+    };
+    this.fuse = new Fuse(this.nodeTypes, options);
     this.state = { q: '', results: this.nodeTypes, selectedIndex: 0 };
     this.currentNodeTypeRef = React.createRef();
     this._onSearch = this._onSearch.bind(this);
@@ -13,9 +19,7 @@ export default class NodeDialog extends Component {
 
   _onSearch(e) {
     const q = e.target.value;
-    const results = this.nodeTypes.filter(
-      (node) => node.name.toLowerCase().includes(q.toLowerCase()) || node.description.toLowerCase().includes(q.toLowerCase()),
-    );
+    const results = q ? this.fuse.search(q).map(result => result.item) : this.nodeTypes;
     this.setState({ q, results, selectedIndex: 0 });
   }
 
