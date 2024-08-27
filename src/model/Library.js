@@ -121,6 +121,7 @@ export default class Library {
     this.nodeTypes.push({ name: 'Segment Pose', type: 'ml.segmentPose', source: ml.segmentPose });
     this.nodeTypes.push({ name: 'Detect Hands', type: 'ml.detectHands', source: ml.detectHands });
     this.nodeTypes.push({ name: 'Image to Image Model', type: 'ml.imageToImageModel', source: ml.imageToImageModel });
+    this.nodeTypes.push({ name: 'ONNX Image Model', type: 'ml.onnxImageModel', source: ml.onnxImageModel });
 
     // this.nodeTypes.push({ name: 'Segment Pose 2', type: 'ml.segmentPose2', source: ml.segmentPose2 });
     // this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });

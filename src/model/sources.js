@@ -1,7 +1,9 @@
 import * as twgl from 'twgl.js';
 import { m4 } from 'twgl.js';
+import * as ort from 'onnxruntime-web/webgpu';
 window.m4 = m4;
 window.twgl = twgl;
+window.ort = ort;
 
 export const core = {};
 export const comms = {};
@@ -9,6 +11,7 @@ export const image = {};
 export const ml = {};
 
 const ASSETS_PATH = import.meta.env.DEV ? 'assets' : '.';
+ort.env.wasm.wasmPaths = `${ASSETS_PATH}/onnxruntime-web/`;
 
 ////////////////////////////////////////////////////////////////////////////////
 //// CORE OPERATIONS ///////////////////////////////////////////////////////////
@@ -4886,4 +4889,82 @@ node.onRender = async () => {
 };
 `;
 
-export default { image, ml };
+ml.onnxImageModel = `// Run a generative image to image model using ONNX Runtime Web
+const imageIn = node.imageIn('in');
+const modelFileIn = node.fileIn('model');
+const imageOut = node.imageOut('out');
+let oldModelFile, session, canvas, framebuffer, isRunning = false;
+let inputBuffer = new Float32Array(3 * 512 * 512);
+let outputBuffer = new Uint8Array(4 * 512 * 512);
+
+node.onStart = async () => {
+  canvas = new OffscreenCanvas(512, 512);
+  framebuffer = new figment.Framebuffer(512, 512);
+};
+
+async function loadModel() {
+  if (!modelFileIn.value) return;
+  const modelUrl = figment.urlForAsset(modelFileIn.value);
+  try {
+    session = await ort.InferenceSession.create(modelUrl, {  executionProviders: ['webgpu'] });
+    oldModelFile = modelFileIn.value;
+  } catch (e) {
+    console.error("Failed to load ONNX model:", e);
+  }
+}
+
+function clamp(v) {
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
+node.onRender = async () => {
+  if (isRunning) return;
+  isRunning = true;  
+  if (oldModelFile !== modelFileIn.value) {
+    await loadModel();
+  }
+  if (!session) return;
+  if (!imageIn.value) return;
+  if (imageIn.value.width !== 512 || imageIn.value.height !== 512) {
+    throw new Error('Image must be 512x512');
+  }
+
+  // Convert framebuffer to input tensor
+  const imageData = figment.framebufferToImageData(imageIn.value);
+  const pixelCount = 512 * 512;
+  // ONNX expects images in NCHW format, so we need to have all channels after each other.
+  // In other words, first all red pixels, then all green pixels, and finally all blue pixels.
+  let redOffset = 0;
+  let greenOffset = pixelCount;
+  let blueOffset = pixelCount * 2;
+  for (let i = 0; i < pixelCount; i++) {
+    const inOffset = i * 4;
+    inputBuffer[redOffset++] = imageData.data[inOffset] / 127.5 - 1;
+    inputBuffer[greenOffset++] = imageData.data[inOffset + 1] / 127.5 - 1;
+    inputBuffer[blueOffset++] = imageData.data[inOffset + 2] / 127.5 - 1;
+  }
+  const inputTensor = new ort.Tensor('float32', inputBuffer, [1, 3, 512, 512]);
+
+  // Run inference
+  const outputMap = await session.run({ 'input': inputTensor });
+  const outputData = outputMap['output'].data;
+
+  // Convert output tensor to framebuffer
+  redOffset = 0;
+  greenOffset = pixelCount;
+  blueOffset = pixelCount * 2;
+  for (let i = 0; i < pixelCount; i++) {
+    const outOffset = i * 4;
+    outputBuffer[outOffset] = clamp(outputData[redOffset++] * 127.5 + 127.5);
+    outputBuffer[outOffset + 1] = clamp(outputData[greenOffset++] * 127.5 + 127.5);
+    outputBuffer[outOffset + 2] = clamp(outputData[blueOffset++] * 127.5 + 127.5);
+    outputBuffer[outOffset + 3] = 255;
+  }
+  // Upload the RGBA data directly to the framebuffer's texture
+  gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.UNSIGNED_BYTE, outputBuffer);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  imageOut.set(framebuffer);
+  isRunning = false;
+};
+`;
