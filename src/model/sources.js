@@ -4895,6 +4895,7 @@ const modelFileIn = node.fileIn('model');
 const imageOut = node.imageOut('out');
 let oldModelFile, session, device, canvas, framebuffer, isRunning = false;
 const BUFFER_SIZE = 3 * 512 * 512 * 4;
+const imageData = new Uint8Array(4 * 512 * 512);
 const inputArray = new Float32Array(3 * 512 * 512);
 const outputArray = new Float32Array(3 * 512 * 512);
 const textureBuffer = new Uint8Array(4 * 512 * 512);
@@ -4909,6 +4910,7 @@ async function loadModel() {
   if (!modelFileIn.value) return;
   const modelUrl = figment.urlForAsset(modelFileIn.value);
   try {
+    ort.env.webgpu.powerPreference = "high-performance";
     session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['webgpu'], enableGraphCapture: true });
     device = ort.env.webgpu.device;
     inputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, size: BUFFER_SIZE });
@@ -4938,8 +4940,10 @@ node.onRender = async () => {
     throw new Error('Image must be 512x512');
   }
 
-  // Convert framebuffer to input tensor
-  const imageData = figment.framebufferToImageData(imageIn.value);
+  // Convert framebuffer to input tensor  
+  imageIn.value.bind();
+  window.gl.readPixels(0, 0, 512, 512, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
+  imageIn.value.unbind();
   const pixelCount = 512 * 512;
   // ONNX expects images in NCHW format, so we need to have all channels after each other.
   // In other words, first all red pixels, then all green pixels, and finally all blue pixels.
@@ -4948,9 +4952,9 @@ node.onRender = async () => {
   let blueOffset = pixelCount * 2;
   for (let i = 0; i < pixelCount; i++) {
     const inOffset = i * 4;
-    inputArray[redOffset++] = imageData.data[inOffset] / 127.5 - 1;
-    inputArray[greenOffset++] = imageData.data[inOffset + 1] / 127.5 - 1;
-    inputArray[blueOffset++] = imageData.data[inOffset + 2] / 127.5 - 1;
+    inputArray[redOffset++] = imageData[inOffset] / 127.5 - 1;
+    inputArray[greenOffset++] = imageData[inOffset + 1] / 127.5 - 1;
+    inputArray[blueOffset++] = imageData[inOffset + 2] / 127.5 - 1;
   }
   device.queue.writeBuffer(inputBuffer, 0, inputArray);
 
