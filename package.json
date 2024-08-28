@@ -16,7 +16,7 @@
     "format": "prettier --write src/**/*.{js,jsx}"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "4.17.0",
+    "@tensorflow/tfjs": "^4.20.0",
     "chroma-js": "2.4.2",
     "clsx": "^2.1.0",
     "codemirror": "5.63.1",
@@ -43,8 +43,8 @@
     "autoprefixer": "10.4.17",
     "cross-env": "7.0.3",
     "dotenv": "16.4.5",
-    "electron": "29.0.1",
-    "electron-builder": "24.13.3",
+    "electron": "^32.0.1",
+    "electron-builder": "^24.13.3",
     "esbuild": "0.20.1",
     "postcss": "8.4.35",
     "prettier": "3.2.5",
