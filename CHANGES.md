@@ -1,5 +1,11 @@
 # CHANGES
 
+## Version 0.5.3 (2024-08-29)
+
+- Webcam node: you can choose which node to view.
+- Add support for ONNX image to image models.
+- Update to Electron 32.0.1, TensorFlow.js 4.20.0.
+
 ## Version 0.5.2 (2024-03-08)
 
 - You can now double-click `.fgmt` files to open them.
