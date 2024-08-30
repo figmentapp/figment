@@ -13,8 +13,8 @@ void main() {
   v_uv = a_uv;
   vec2 pos = a_position;
   // Convert position from 0.0-1.0 to -1.0-1.0
-  pos.x = pos.x * 2.0 - 1.0;
-  pos.y = (1.0 - pos.y) * 2.0 - 1.0;
+  pos = pos * 2.0 - 1.0;
+  pos.y = -pos.y;  
   pos *= u_scale;
   gl_Position = vec4(pos, 0.0, 1.0);
 }
@@ -78,7 +78,7 @@ export default class Viewer extends Component {
 
   render() {
     return (
-      <div className="fixed inset-0 overflow-hidden">
+      <div className="fixed inset-0 overflow-hidden bg-black">
         <canvas ref={this.previewCanvasRef}></canvas>
       </div>
     );
@@ -98,7 +98,7 @@ export default class Viewer extends Component {
       previewCanvas.height = parent.clientHeight;
     }
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.05, 0.06, 0.09, 1.0);
+    gl.clearColor(0, 0, 0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -127,13 +127,14 @@ export default class Viewer extends Component {
     const textureRatio = textureWidth / textureHeight;
     const canvasRatio = canvas.width / canvas.height;
     let u_scale;
+
     if (textureRatio > canvasRatio) {
       // The texture is wider than the canvas
       const scaleFactor = canvasRatio / textureRatio;
       u_scale = [1.0, scaleFactor];
     } else {
       // The texture is taller than the canvas
-      const scaleFactor = canvasRatio / textureRatio;
+      const scaleFactor = textureRatio / canvasRatio;
       u_scale = [scaleFactor, 1.0];
     }
 
