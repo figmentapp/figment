@@ -540,23 +540,21 @@ export default class NetworkEditor extends Component {
       ctx.fillText(node.name, textX + 10, textY);
     }
 
-    // Draw node debug messages
-    ctx.fillStyle = COLORS.gray600;
-    ctx.font = `12px ${FONT_FAMILY_MONO}`;
-    for (const node of network.nodes) {
-      if (node.debugMessage) {
-        const nodeWidth = NODE_WIDTH;
-        ctx.fillText(node.debugMessage, node.x + nodeWidth + 10, node.y + NODE_HEIGHT + 10);
-      }
-    }
+    // Draw node output sizes
+    if (this.state.scale > 0.5) {
+      ctx.fillStyle = COLORS.gray700;
+      ctx.font = `10px ${FONT_FAMILY_MONO}`;
+      for (const node of network.nodes) {
+        const [textX, textY] = this._coordsToView(node.x + NODE_WIDTH, node.y + NODE_HEIGHT / 2);
 
-    // Draw node debug previews
-    for (const node of network.nodes) {
-      if (typeof node.debugDraw === 'function') {
-        ctx.save();
-        ctx.translate(node.x + 18, node.y + NODE_HEIGHT + 10);
-        node.debugDraw(ctx);
-        ctx.restore();
+        if (node.debugMessage) {
+          ctx.fillText(node.debugMessage, textX + 10, textY + 16);
+        } else if (node.outPorts && node.outPorts.length > 0) {
+          const outValue = node.outPorts[0].value;
+          if (outValue && outValue.width && outValue.height) {
+            ctx.fillText(`${outValue.width}x${outValue.height}`, textX + 10, textY + 16);
+          }
+        }
       }
     }
 
