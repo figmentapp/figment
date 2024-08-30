@@ -1,5 +1,13 @@
 # CHANGES
 
+## Version 0.5.4 (2024-08-30)
+
+- Network: show the output size of each node (width ⨉ height).
+- Viewer: don't stretch the output of the `Out` node.
+- Crop node: add better implementation.
+- Simplify different pixelate nodes (`Pixelate`, `Pixel Size`, `Squares`) into a single node.
+- ONNX image node: fix race condition.
+
 ## Version 0.5.3 (2024-08-29)
 
 - Webcam node: you can choose which node to view.
