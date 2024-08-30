@@ -91,7 +91,6 @@ export default class Library {
     this.nodeTypes.push({ name: 'Noise', type: 'image.noise', source: image.noise });
     this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
     this.nodeTypes.push({ name: 'Pixelate', type: 'image.pixelate', source: image.pixelate });
-    this.nodeTypes.push({ name: 'Pixel Size', type: 'image.pixelSize', source: image.pixelSize });
     this.nodeTypes.push({ name: 'Radial Distortion', type: 'image.radialDistortion', source: image.radialDistortion });
     this.nodeTypes.push({ name: 'Reaction Diffusion', type: 'image.reactionDiffusion', source: image.reactionDiffusion });
     this.nodeTypes.push({ name: 'Reduce Color', type: 'image.reduceColor', source: image.reduceColor });
@@ -103,7 +102,6 @@ export default class Library {
     this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
     this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
     this.nodeTypes.push({ name: 'Solarize', type: 'image.solarize', source: image.solarize });
-    this.nodeTypes.push({ name: 'Squares', type: 'image.squares', source: image.squares });
     this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
     this.nodeTypes.push({ name: 'Technicolor', type: 'image.technicolor', source: image.technicolor });
     this.nodeTypes.push({ name: 'Threshold', type: 'image.threshold', source: image.threshold });

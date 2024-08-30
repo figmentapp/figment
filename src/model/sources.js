@@ -2957,68 +2957,24 @@ node.onRender = () => {
 };
 `;
 
-image.pixelate = `// Pixelate input image.
-
+image.pixelate = `// Pixelate input image (Mosaic effect).
 const fragmentShader = \`
 precision mediump float;
 uniform sampler2D u_input_texture;
-uniform vec2 _pixels;
-varying vec2 v_uv;
-
-void main() {
-  vec2 p = v_uv.st;
-  p.x -= mod(p.x, 1.0 / (100.0-_pixels.x));
-  p.y -= mod(p.y, 1.0 / (100.0-_pixels.y));
-
-  vec3 col = texture2D(u_input_texture, p).rgb;
-  gl_FragColor = vec4(col, 1.0);
-}
-\`;
-
-const imageIn = node.imageIn('in');
-const pixelsX = node.numberIn('amountX', 20, { min: 0.0, max: 100.0, step: 1.0 });
-const pixelsY = node.numberIn('amountY', 10, { min: 0.0, max: 100.0, step: 1.0 });
-const imageOut = node.imageOut('out');
-
-let program, framebuffer;
-
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-};
-
-node.onRender = () => {
-  if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture, _pixels: [pixelsX.value, pixelsY.value] });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-};
-`;
-
-image.pixelSize = `// Pixelate input image based on the size of the pixel.
-
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_input_texture;
+uniform float u_cell_size;
 uniform vec2 u_resolution;
-uniform float u_pixel_size;
 varying vec2 v_uv;
 
 void main() {
-  vec2 p = v_uv * u_resolution;
-  vec2 pixel_size = vec2(u_pixel_size, u_pixel_size);
-  vec2 pixel_pos = floor(p / pixel_size) * pixel_size;
-  vec2 sample_pos = pixel_pos / u_resolution;
-  vec3 col = texture2D(u_input_texture, sample_pos).rgb;
-  gl_FragColor = vec4(col, 1.0);
+  vec2 cells = u_resolution / u_cell_size;
+  vec2 cell_uv = floor(v_uv * cells) / cells;
+  vec3 color = texture2D(u_input_texture, cell_uv).rgb;
+  gl_FragColor = vec4(color, 1.0);
 }
 \`;
 
 const imageIn = node.imageIn('in');
-const pixelSize = node.numberIn('pixel size', 50, { min: 1.0, max: 100.0, step: 1.0 });
+const cellSize = node.numberIn('cell size', 32, { min: 1, max: 200, step: 1 });
 const imageOut = node.imageOut('out');
 
 let program, framebuffer;
@@ -3030,11 +2986,17 @@ node.onStart = (props) => {
 
 node.onRender = () => {
   if (!imageIn.value) return;
+  
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture, u_pixel_size: pixelSize.value,
-    u_resolution:[imageIn.value.width, imageIn.value.height] });
+  
+  figment.drawQuad(program, {
+    u_input_texture: imageIn.value.texture,
+    u_cell_size: cellSize.value,
+    u_resolution: [imageIn.value.width, imageIn.value.height]
+  });
+  
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };
@@ -3690,45 +3652,6 @@ node.onRender = () => {
   figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_threshold: thresholdIn.value, });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-};
-`;
-
-image.squares = `// Return input image as squares.
-
-const fragmentShader = \`
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec2 u_resolution;
-varying vec2 v_uv;
-uniform float u_factor;
-
-void main() {
-  vec2 uv = v_uv;
-  vec2 uv2 = floor( uv * u_factor ) / u_factor;
-  vec3 col = texture2D(u_input_texture, uv2).rgb;
-  gl_FragColor = vec4(col,1.);
-}
-\`;
-
-const imageIn = node.imageIn('in');
-const factorIn = node.numberIn('amount', 10.0, { min: 2.0, max: 200.0, step: 1.0});
-const imageOut = node.imageOut('out');
-
-let program, framebuffer;
-
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-};
-
-node.onRender = () => {
-  if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture,u_factor: factorIn.value });
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };
