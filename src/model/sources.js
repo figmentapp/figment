@@ -4963,15 +4963,18 @@ function clamp(v) {
 
 node.onRender = async () => {
   if (isRunning) return;
-  isRunning = true;  
   if (oldModelFile !== modelFileIn.value) {
+    isRunning = true; 
     await loadModel();
+    isRunning = false;
   }
   if (!session) return;
   if (!imageIn.value) return;
   if (imageIn.value.width !== 512 || imageIn.value.height !== 512) {
     throw new Error('Image must be 512x512');
   }
+
+  isRunning = true;
 
   // Convert framebuffer to input tensor  
   imageIn.value.bind();
