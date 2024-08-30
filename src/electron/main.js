@@ -367,3 +367,12 @@ app.whenReady().then(async () => {
   const fileArg = process.argv.find((arg) => arg.endsWith('.fgmt')) || filePathToOpen;
   createMainWindow(fileArg);
 });
+
+app.on('will-quit', async (event) => {
+  if (gDevServer) {
+    event.preventDefault();
+    await gDevServer.close();
+    gDevServer = null;
+    app.quit();
+  }
+});
