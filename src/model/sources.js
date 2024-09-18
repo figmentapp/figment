@@ -4209,12 +4209,18 @@ function _detect(image) {
   if (_isProcessing) return;
   return new Promise((resolve) => {
     _isProcessing = true;
-    _faceMesh.onResults((results) => {
-      _faceMesh.onResults(null);
+    try {
+      _faceMesh.onResults((results) => {
+        _faceMesh.onResults(null);
+        _isProcessing = false;
+        resolve(results);
+      });
+      _faceMesh.send({ image });
+    } catch (err) {
+      console.error('Error in face detection:', err);
       _isProcessing = false;
-      resolve(results);
-    });
-    _faceMesh.send({ image });
+      resolve(null);
+    }
   });
 }
 
@@ -4434,12 +4440,18 @@ function _detect(image) {
   if (_isProcessing) return;
   return new Promise((resolve) => {
     _isProcessing = true;
-    _pose.onResults((results) => {
-      _pose.onResults(null);
+    try {
+      _pose.onResults((results) => {
+        _pose.onResults(null);
+        _isProcessing = false;
+        resolve(results);
+      });
+      _pose.send({ image });
+    } catch (err) {
+      console.error('Error in pose detection:', err);
       _isProcessing = false;
-      resolve(results);
-    });
-    _pose.send({ image });
+      resolve(null);
+    }
   });
 }
 
@@ -4529,12 +4541,18 @@ function _detect(image) {
   if (_isProcessing) return;
   return new Promise((resolve) => {
     _isProcessing = true;
-    _pose.onResults((results) => {
-      _pose.onResults(null);
-      _isProcessing = false;
-      resolve(results);
-    });
-    _pose.send({ image });
+    try {
+      _pose.onResults((results) => {
+        _pose.onResults(null);
+        _isProcessing = false;
+        resolve(results);
+      });
+      _pose.send({ image });
+      } catch (err) {
+        console.error('Error in pose detection:', err);
+        _isProcessing = false;
+        resolve(null);
+      }
   });
 }
 
@@ -4718,12 +4736,18 @@ function _detect(image) {
   if (_isProcessing) return;
   return new Promise((resolve) => {
     _isProcessing = true;
-    _hands.onResults((results) => {
-      _hands.onResults(null);
+    try {
+      _hands.onResults((results) => {
+        _hands.onResults(null);
+        _isProcessing = false;
+        resolve(results);
+      });
+      _hands.send({ image });
+    } catch (err) {
+      console.error('Error in hands detection:', err);
       _isProcessing = false;
-      resolve(results);
-    });
-    _hands.send({ image });
+      resolve(null);
+    }
   });
 }
 
