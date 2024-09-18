@@ -1060,9 +1060,9 @@ varying vec2 v_uv;
 void main() {
   vec2 crop_ratio = u_crop_size / u_resolution;
   vec2 anchor_offset = u_anchor * (vec2(1.0) - crop_ratio);
-  
+
   vec2 uv = v_uv * crop_ratio + anchor_offset;
-  
+
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
   } else {
@@ -1092,26 +1092,26 @@ node.onStart = (props) => {
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  
+
   framebuffer.setSize(widthIn.value, heightIn.value);
   framebuffer.bind();
   figment.clear();
-  
+
   const anchorMap = {
     'top-left': [0, 0], 'top-center': [0.5, 0], 'top-right': [1, 0],
     'center-left': [0, 0.5], 'center': [0.5, 0.5], 'center-right': [1, 0.5],
     'bottom-left': [0, 1], 'bottom-center': [0.5, 1], 'bottom-right': [1, 1]
   };
-  
+
   const anchor = anchorMap[anchorIn.value];
-  
+
   figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_resolution: [imageIn.value.width, imageIn.value.height],
     u_crop_size: [widthIn.value, heightIn.value],
     u_anchor: anchor
   });
-  
+
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };
@@ -1178,10 +1178,10 @@ varying vec2 v_uv;
 void main() {
   vec3 currentColor = texture2D(u_current_texture, v_uv).rgb;
   vec3 previousColor = texture2D(u_previous_texture, v_uv).rgb;
-  
+
   // Calculate absolute difference between current and previous color
   vec3 diff = abs(previousColor - currentColor) * u_amplify;
-  
+
   gl_FragColor = vec4(diff, 1.0);
 }
 \`;
@@ -1203,21 +1203,21 @@ node.onRender = () => {
 
   inputBuffer.setSize(imageIn.value.width, imageIn.value.height);
   outputBuffer.setSize(imageIn.value.width, imageIn.value.height);
-  
+
   outputBuffer.bind();
-  figment.clear();  
-  figment.drawQuad(program, { 
+  figment.clear();
+  figment.drawQuad(program, {
     u_current_texture: imageIn.value.texture,
     u_previous_texture: inputBuffer.texture,
     u_amplify: amplifyIn.value,
   });
   outputBuffer.unbind();
-  
+
   inputBuffer.bind();
   figment.clear();
   figment.drawQuad(copyProgram, { u_image: imageIn.value.texture });
   inputBuffer.unbind();
-  
+
   imageOut.set(outputBuffer);
 };
 `;
@@ -2986,17 +2986,17 @@ node.onStart = (props) => {
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  
+
   framebuffer.setSize(imageIn.value.width, imageIn.value.height);
   framebuffer.bind();
   figment.clear();
-  
+
   figment.drawQuad(program, {
     u_input_texture: imageIn.value.texture,
     u_cell_size: cellSize.value,
     u_resolution: [imageIn.value.width, imageIn.value.height]
   });
-  
+
   framebuffer.unbind();
   imageOut.set(framebuffer);
 };
@@ -4072,7 +4072,7 @@ function setShouldLoad() {
 }
 
 async function updateSource() {
-  const selectedLabel = operationIn.value; 
+  const selectedLabel = operationIn.value;
   const selectedDeviceId = deviceMap[selectedLabel];
   if (selectedDeviceId) {
     console.log("Switching video source to:", selectedLabel, selectedDeviceId);
@@ -4235,7 +4235,6 @@ node.onRender = async () => {
 
   // Video nodes pass along this extra object with the framebuffer.
   // This allows mediapose to avoid reading the texture first from the framebuffer.
-  let result;
   if (imageIn.value._directImageHack) {
     _results = await _detect(imageIn.value._directImageHack);
   } else {
@@ -4881,7 +4880,7 @@ function clamp(v) {
 node.onRender = async () => {
   if (isRunning) return;
   if (oldModelFile !== modelFileIn.value) {
-    isRunning = true; 
+    isRunning = true;
     await loadModel();
     isRunning = false;
   }
@@ -4893,7 +4892,7 @@ node.onRender = async () => {
 
   isRunning = true;
 
-  // Convert framebuffer to input tensor  
+  // Convert framebuffer to input tensor
   imageIn.value.bind();
   window.gl.readPixels(0, 0, 512, 512, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
   imageIn.value.unbind();
