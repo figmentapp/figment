@@ -38,7 +38,8 @@ export default class Port {
     this._value = { type: VALUE_TYPE_VALUE, value };
     this.defaultValue = value;
     this.error = null;
-    this.display = type === PORT_TYPE_IMAGE || type === PORT_TYPE_BOOLEAN ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
+    this.display =
+      type === PORT_TYPE_IMAGE || type === PORT_TYPE_BOOLEAN || type === PORT_TYPE_OBJECT ? PORT_DISPLAY_PLUG : PORT_DISPLAY_PARAMETER;
     options = options || {};
     this.min = options.min !== undefined ? options.min : undefined;
     this.max = options.max !== undefined ? options.max : undefined;
