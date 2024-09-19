@@ -690,7 +690,7 @@ export default class NetworkEditor extends Component {
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
-      if (outPort.type !== 'image') {
+      if (!outPort || outPort.type !== 'image') {
         this.ctx.fillStyle = 'black';
         let x = this.state.x + node.x * this.state.scale;
         let y = this.state.y + node.y * this.state.scale;
