@@ -40,18 +40,28 @@ statsIn.onChange = () => {
 ////////////////////////////////////////////////////////////////////////////////
 
 comms.sendOsc = `// Send an OSC message.
-const triggerIn = node.triggerIn('trigger');
+
+const POSE_LANDMARKS = [
+  'nose',
+  'left_eye_inner', 'left_eye', 'left_eye_outer', 'right_eye_inner', 'right_eye', 'right_eye_outer',
+  'left_ear', 'right_ear', 'mouth_left', 'mouth_right',
+  'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
+  'left_wrist', 'right_wrist', 'left_pinky', 'right_pinky', 'left_index', 'right_index', 'left_thumb', 'right_thumb',
+  'left_hip', 'right_hip', 'left_knee', 'right_knee',
+  'left_ankle', 'right_ankle', 'left_heel', 'right_heel', 'left_foot_index', 'right_foot_index'
+];
+
+const valueIn = node.objectIn('value');
 const ipIn = node.stringIn('ip', '127.0.0.1');
 const portIn = node.numberIn('port', 8000, { min: 0, max: 65535 });
 const addressIn = node.stringIn('address', '/test');
-const arg1In = node.numberIn('argument1', 0);
-const arg2In = node.numberIn('argument2', 0);
-const arg3In = node.numberIn('argument3', 0);
-const triggerOut = node.triggerOut('trigger');
-arg1In.display = 0x03;
-arg2In.display = 0x03;
-arg3In.display = 0x03;
-triggerOut.display = 0x02;
+const filterIn = node.stringIn('filter', '*');
+
+let _filterSet = new Set();
+
+node.onStart = () => {
+  _updateFilter();
+}
 
 node.onRender = () => {
   _sendMessage();
@@ -61,14 +71,35 @@ const _sendMessage = () => {
   const ip = ipIn.value;
   const port = portIn.value;
   const address = addressIn.value;
-  const args = [arg1In.value, arg2In.value, arg3In.value];
-  window.desktop.oscSendMessage(ip, port, address, args);
-  triggerOut.trigger();
+  const value = valueIn.value;
+  if (value === undefined || value === null) return;
+  if (typeof value === 'number' || typeof value === 'string') {
+    window.desktop.oscSendMessage(ip, port, address, [value]);
+  } else if (value.type === 'pose') {
+    const points = value.landmarks;
+    for (let i = 0; i < POSE_LANDMARKS.length; i++) {
+      const name = POSE_LANDMARKS[i];
+      if (!_filterSet.has(name)) continue;
+      const point = points[i];
+      const args = [point.x, point.y, point.z, point.visibility];
+      window.desktop.oscSendMessage(ip, port, \`\${address}/\${name}\`, args);
+    }
+  }
 };
 
-arg1In.onChange = _sendMessage;
-arg2In.onChange = _sendMessage;
-arg3In.onChange = _sendMessage;
+const _updateFilter = () => {
+  const filter = filterIn.value.trim();
+  if (filter === '' || filter === '*') {
+    _filterSet = new Set(POSE_LANDMARKS);
+  } else {
+    let parts = filter.split(/[\\s,]/);
+    parts = parts.map(p => p.trim()).filter(p => p.length > 0);
+    _filterSet = new Set(parts);
+  }
+};
+
+valueIn.onChange = _sendMessage;
+filterIn.onChange = _updateFilter;
 `;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4182,6 +4213,7 @@ bboxLineWidthIn.label = 'line width';
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
+const landmarksOut = node.objectOut('landmarks');
 
 let _faceMesh, _canvas, _ctx, _framebuffer, _imageData, _results, _isProcessing;
 
@@ -4250,6 +4282,7 @@ node.onRender = async () => {
     _results = await _detect(_imageData);
   }
   drawResults();
+  landmarksOut.set(_results ? { type: "face", landmarks: _results.multiFaceLandmarks } : null);
 };
 
 function drawResults() {
@@ -4408,6 +4441,7 @@ const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
+const landmarksOut = node.objectOut('landmarks');
 
 pointsColorIn.label = 'Color';
 pointsRadiusIn.label = 'Radius';
@@ -4479,6 +4513,7 @@ node.onRender = async () => {
     _results = await _detect(_imageData);
   }
   drawResults();
+  landmarksOut.set(_results ? { type: "pose", landmarks: _results.poseLandmarks } : null);
 };
 
 function drawResults() {
@@ -4491,7 +4526,6 @@ function drawResults() {
   if (_results.poseLandmarks) {
     detectedOut.set(true);
     _ctx.fillStyle = 'white';
-    _ctx.beginPath();
     if (linesToggleIn.value) {
       drawConnectors(_ctx, _results.poseLandmarks, POSE_CONNECTIONS, {color: figment.toCanvasColor(linesColorIn.value), lineWidth: linesWidthIn.value, visibilityMin: 0});
     }
@@ -4707,6 +4741,7 @@ const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
+const landmarksOut = node.objectOut('landmarks');
 
 let _framebuffer, _canvas, _ctx, _hands, _results, _isProcessing;
 
@@ -4775,6 +4810,7 @@ node.onRender = async () => {
     _results = await _detect(_imageData);
   }
   drawResults();
+  landmarksOut.set(_results ? { type: "hands", landmarks: _results.multiHandLandmarks } : null);
 };
 
 function drawResults() {
