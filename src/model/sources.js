@@ -56,6 +56,7 @@ const ipIn = node.stringIn('ip', '127.0.0.1');
 const portIn = node.numberIn('port', 8000, { min: 0, max: 65535 });
 const addressIn = node.stringIn('address', '/test');
 const filterIn = node.stringIn('filter', '*');
+filterIn.label = 'Pose Filter';
 
 let _filterSet = new Set();
 
@@ -75,7 +76,7 @@ const _sendMessage = () => {
   if (value === undefined || value === null) return;
   if (typeof value === 'number' || typeof value === 'string') {
     window.desktop.oscSendMessage(ip, port, address, [value]);
-  } else if (value.type === 'pose') {
+  } else if (value.type === 'pose' && Array.isArray(value.landmarks)) {
     const points = value.landmarks;
     for (let i = 0; i < POSE_LANDMARKS.length; i++) {
       const name = POSE_LANDMARKS[i];
