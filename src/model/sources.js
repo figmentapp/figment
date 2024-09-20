@@ -85,6 +85,9 @@ const _sendMessage = () => {
       const args = [point.x, point.y, point.z, point.visibility];
       window.desktop.oscSendMessage(ip, port, \`\${address}/\${name}\`, args);
     }
+  } else {
+    const json = JSON.stringify(value);
+    window.desktop.oscSendMessage(ip, port, address, [json]);
   }
 };
 
