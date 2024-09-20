@@ -1,5 +1,12 @@
 # CHANGES
 
+## Version 0.5.5 (2024-09-20)
+
+- Errors in Mediapipe (Detect Pose, Detect Hands, Detect Face) nodes no longer crash the app.
+- Mediapipe detection nodes now output all landmarks as well.
+- Object ports are displayed in the network editor.
+- Send OSC node can send pose data.
+
 ## Version 0.5.4 (2024-08-30)
 
 - Network: show the output size of each node (width ⨉ height).
