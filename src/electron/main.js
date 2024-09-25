@@ -237,6 +237,7 @@ function createMainWindow(filePath) {
       preload: path.join(__dirname, 'preload.mjs'),
       webSecurity: false,
       nodeIntegration: true,
+      backgroundThrottling: false,
     },
   });
 
