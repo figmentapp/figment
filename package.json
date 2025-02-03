@@ -70,9 +70,6 @@
       "extendInfo": {
         "NSCameraUsageDescription": "This app can use the webcam to classify realtime images or detect poses. Images are never uploaded or stored online."
       },
-      "notarize": {
-        "teamId": "5X78EYG9RH"
-      },
       "fileAssociations": [
         {
           "ext": "fgmt",
