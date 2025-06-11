@@ -417,7 +417,11 @@ export default class Network {
         this.markNodeDirty(node);
       }
     }
-    await this.render();
+    try {
+      await this.render();
+    } catch (error) {
+      console.error('Error while rendering', error);
+    }
   }
 
   setNodeTypeSource(nodeType, source) {

@@ -40,29 +40,18 @@ statsIn.onChange = () => {
 ////////////////////////////////////////////////////////////////////////////////
 
 comms.sendOsc = `// Send an OSC message.
-
-const POSE_LANDMARKS = [
-  'nose',
-  'left_eye_inner', 'left_eye', 'left_eye_outer', 'right_eye_inner', 'right_eye', 'right_eye_outer',
-  'left_ear', 'right_ear', 'mouth_left', 'mouth_right',
-  'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
-  'left_wrist', 'right_wrist', 'left_pinky', 'right_pinky', 'left_index', 'right_index', 'left_thumb', 'right_thumb',
-  'left_hip', 'right_hip', 'left_knee', 'right_knee',
-  'left_ankle', 'right_ankle', 'left_heel', 'right_heel', 'left_foot_index', 'right_foot_index'
-];
-
-const valueIn = node.objectIn('value');
+const triggerIn = node.triggerIn('trigger');
 const ipIn = node.stringIn('ip', '127.0.0.1');
 const portIn = node.numberIn('port', 8000, { min: 0, max: 65535 });
 const addressIn = node.stringIn('address', '/test');
-const filterIn = node.stringIn('filter', '*');
-filterIn.label = 'Pose Filter';
-
-let _filterSet = new Set();
-
-node.onStart = () => {
-  _updateFilter();
-}
+const arg1In = node.numberIn('argument1', 0);
+const arg2In = node.numberIn('argument2', 0);
+const arg3In = node.numberIn('argument3', 0);
+const triggerOut = node.triggerOut('trigger');
+arg1In.display = 0x03;
+arg2In.display = 0x03;
+arg3In.display = 0x03;
+triggerOut.display = 0x02;
 
 node.onRender = () => {
   _sendMessage();
@@ -72,38 +61,14 @@ const _sendMessage = () => {
   const ip = ipIn.value;
   const port = portIn.value;
   const address = addressIn.value;
-  const value = valueIn.value;
-  if (value === undefined || value === null) return;
-  if (typeof value === 'number' || typeof value === 'string') {
-    window.desktop.oscSendMessage(ip, port, address, [value]);
-  } else if (value.type === 'pose' && Array.isArray(value.landmarks)) {
-    const points = value.landmarks;
-    for (let i = 0; i < POSE_LANDMARKS.length; i++) {
-      const name = POSE_LANDMARKS[i];
-      if (!_filterSet.has(name)) continue;
-      const point = points[i];
-      const args = [point.x, point.y, point.z, point.visibility];
-      window.desktop.oscSendMessage(ip, port, \`\${address}/\${name}\`, args);
-    }
-  } else {
-    const json = JSON.stringify(value);
-    window.desktop.oscSendMessage(ip, port, address, [json]);
-  }
+  const args = [arg1In.value, arg2In.value, arg3In.value];
+  window.desktop.oscSendMessage(ip, port, address, args);
+  triggerOut.trigger();
 };
 
-const _updateFilter = () => {
-  const filter = filterIn.value.trim();
-  if (filter === '' || filter === '*') {
-    _filterSet = new Set(POSE_LANDMARKS);
-  } else {
-    let parts = filter.split(/[\\s,]/);
-    parts = parts.map(p => p.trim()).filter(p => p.length > 0);
-    _filterSet = new Set(parts);
-  }
-};
-
-valueIn.onChange = _sendMessage;
-filterIn.onChange = _updateFilter;
+arg1In.onChange = _sendMessage;
+arg2In.onChange = _sendMessage;
+arg3In.onChange = _sendMessage;
 `;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4217,7 +4182,6 @@ bboxLineWidthIn.label = 'line width';
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
-const landmarksOut = node.objectOut('landmarks');
 
 let _faceMesh, _canvas, _ctx, _framebuffer, _imageData, _results, _isProcessing;
 
@@ -4286,7 +4250,6 @@ node.onRender = async () => {
     _results = await _detect(_imageData);
   }
   drawResults();
-  landmarksOut.set(_results ? { type: "face", landmarks: _results.multiFaceLandmarks } : null);
 };
 
 function drawResults() {
@@ -4445,7 +4408,6 @@ const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
-const landmarksOut = node.objectOut('landmarks');
 
 pointsColorIn.label = 'Color';
 pointsRadiusIn.label = 'Radius';
@@ -4453,6 +4415,7 @@ linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
 let _framebuffer, _pose, _canvas, _ctx, _imageData, _results, _isProcessing;
+let _resolveCallback, _timeoutId;
 
 node.onStart = async (props) => {
   _framebuffer = new figment.Framebuffer();
@@ -4462,6 +4425,12 @@ node.onStart = async (props) => {
     \`${ASSETS_PATH}/mediapipe/drawing_utils.js\`,
     \`${ASSETS_PATH}/mediapipe/pose.js\`
   ]);
+  await _initPose();
+};
+
+async function _initPose() {
+  if (_pose) {
+  }
   const pose = new Pose({locateFile: (file) => {
     return \`${ASSETS_PATH}/mediapipe/\${file}\`;
   }});
@@ -4469,28 +4438,62 @@ node.onStart = async (props) => {
     modelComplexity: 1,
     smoothLandmarks: true,
   });
+  pose.onResults(_onResults);
   await pose.initialize();
   _pose = pose;
-};
+}
 
-function _detect(image) {
-  // Check if only one image is processed at the same time.
-  if (_isProcessing) return;
+ function _detect(image) {
+   console.log('detect', _isProcessing);
+  // Ensure only one image is processed at a time.
+  if (_isProcessing) return null;
+
+  _isProcessing = true;
   return new Promise((resolve) => {
-    _isProcessing = true;
+    _resolveCallback = (results) => {
+      if (_timeoutId) {
+        clearTimeout(_timeoutId);
+        _timeoutId = null;
+      }
+      resolve(results);
+      _resolveCallback = null;
+    };
+
+    // Send the image to Mediapipe
     try {
-      _pose.onResults((results) => {
-        _pose.onResults(null);
-        _isProcessing = false;
-        resolve(results);
-      });
+      console.log('send', image);
       _pose.send({ image });
-    } catch (err) {
-      console.error('Error in pose detection:', err);
+    } catch (error) {
+      console.error('Error sending image to pose:', err);
       _isProcessing = false;
+      if (_timeoutId) {
+        clearTimeout(_timeoutId);
+        _timeoutId = null;
+      }
       resolve(null);
+      return;
     }
+
+    // Meanwhile, start a timeout to catch any hanging detections
+    _timeoutId = setTimeout(() => {
+      console.log('Pose detection timed out');
+      _isProcessing = false;
+      // _initPose();
+      if (_resolveCallback) {
+        _resolveCallback(null);
+        _resolveCallback = null;
+      }
+      _timeoutId = null;
+    }, 1000);
   });
+}
+
+function _onResults(results) {
+  console.log('results', results);
+  _isProcessing = false;
+  if (_resolveCallback) {
+    _resolveCallback(results);
+  }
 }
 
 node.onRender = async () => {
@@ -4517,7 +4520,6 @@ node.onRender = async () => {
     _results = await _detect(_imageData);
   }
   drawResults();
-  landmarksOut.set(_results ? { type: "pose", landmarks: _results.poseLandmarks } : null);
 };
 
 function drawResults() {
@@ -4530,6 +4532,7 @@ function drawResults() {
   if (_results.poseLandmarks) {
     detectedOut.set(true);
     _ctx.fillStyle = 'white';
+    _ctx.beginPath();
     if (linesToggleIn.value) {
       drawConnectors(_ctx, _results.poseLandmarks, POSE_CONNECTIONS, {color: figment.toCanvasColor(linesColorIn.value), lineWidth: linesWidthIn.value, visibilityMin: 0});
     }
@@ -4745,7 +4748,6 @@ const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
-const landmarksOut = node.objectOut('landmarks');
 
 let _framebuffer, _canvas, _ctx, _hands, _results, _isProcessing;
 
@@ -4814,7 +4816,6 @@ node.onRender = async () => {
     _results = await _detect(_imageData);
   }
   drawResults();
-  landmarksOut.set(_results ? { type: "hands", landmarks: _results.multiHandLandmarks } : null);
 };
 
 function drawResults() {
