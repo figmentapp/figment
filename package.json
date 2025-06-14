@@ -31,9 +31,9 @@
     "react-color": "2.19.3",
     "react-dom": "19.0.0",
     "seedrandom": "3.0.5",
-    "three": "0.173.0",
+    "three": "^0.177.0",
     "tween-functions": "1.2.0",
-    "twgl.js": "5.5.4"
+    "twgl.js": "^6.1.1"
   },
   "devDependencies": {
     "@electron/notarize": "^3.0.1",
