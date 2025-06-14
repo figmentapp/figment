@@ -1,5 +1,11 @@
 # CHANGES
 
+## Version 0.5.6 (2025-06-14)
+
+- Disable background throttling in Electron.
+- Add support for OSC bundle messages.
+- Upgrade to Electron 36.4.0, React 19.1.0, Three.js 0.177.0, Tailwind 4.0.3, Vite 6.3.5.
+
 ## Version 0.5.5 (2024-09-20)
 
 - Errors in Mediapipe (Detect Pose, Detect Hands, Detect Face) nodes no longer crash the app.
