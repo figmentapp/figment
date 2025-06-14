@@ -8,7 +8,7 @@ export default class NodeDialog extends Component {
     this.nodeTypes = props.network.allNodeTypes();
     const options = {
       includeScore: true,
-      keys: ['name', 'description']
+      keys: ['name', 'description'],
     };
     this.fuse = new Fuse(this.nodeTypes, options);
     this.state = { q: '', results: this.nodeTypes, selectedIndex: 0 };
@@ -19,7 +19,7 @@ export default class NodeDialog extends Component {
 
   _onSearch(e) {
     const q = e.target.value;
-    const results = q ? this.fuse.search(q).map(result => result.item) : this.nodeTypes;
+    const results = q ? this.fuse.search(q).map((result) => result.item) : this.nodeTypes;
     this.setState({ q, results, selectedIndex: 0 });
   }
 
