@@ -1,6 +1,5 @@
 import { LATEST_FORMAT_VERSION } from '../file-format';
 import Node from './Node';
-import * as sources from './sources';
 import Port, {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,

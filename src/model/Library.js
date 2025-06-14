@@ -1,144 +1,33 @@
-import { core, comms, image, ml } from './sources';
-
 export default class Library {
   constructor() {
-    this.nodeTypes = [];
-    // Core
-    this.nodeTypes.push({ name: 'Out', type: 'core.out', source: core.out });
+    // Extract raw sources of every node in src/nodes
+    const modules = import.meta.glob('../nodes/**/*.js', { query: '?raw', eager: true });
 
-    // Communication
-    this.nodeTypes.push({ name: 'Send OSC', type: 'comms.sendOsc', source: comms.sendOsc });
+    this.nodeTypes = Object.entries(modules).map(([filePath, source]) => {
+      // filePath looks like "../nodes/image/blur.js"
+      const [, categoryGuess, slug] = filePath.match(/^\.\.\/nodes\/([^/]+)\/([^/]+)\.js$/) || [null, null, null];
 
-    // this.nodeTypes.push({ name: 'Sequence', type: 'core.sequence', source: core.sequence });
-    // this.nodeTypes.push({ name: 'Time', type: 'core.time', source: core.time });
-    // this.nodeTypes.push({ name: 'Random Number', type: 'core.randomNumber', source: core.randomNumber });
-    // this.nodeTypes.push({ name: 'Animate', type: 'core.animate', source: core.animate });
-    // this.nodeTypes.push({ name: 'Smooth', type: 'core.smooth', source: core.smooth });
-    // this.nodeTypes.push({ name: 'Mouse', type: 'core.mouse', source: core.mouse });
-    // this.nodeTypes.push({
-    //   name: 'Conditional Trigger',
-    //   type: 'core.conditionalTrigger',
-    //   source: core.conditionalTrigger,
-    // });
-    // this.nodeTypes.push({ name: 'Custom', type: 'core.custom', source: core.custom });
-
-    // Math
-    // this.nodeTypes.push({ name: 'Convert', type: 'math.convert', source: math.convert });
-
-    // Graphics
-    // this.nodeTypes.push({ name: 'Canvas', type: 'graphics.canvas', source: graphics.canvas });
-    // this.nodeTypes.push({
-    //   name: 'Draw Background',
-    //   type: 'graphics.backgroundColor',
-    //   source: graphics.backgroundColor,
-    // });
-    // this.nodeTypes.push({ name: 'Rectangle', type: 'graphics.rect', source: graphics.rect });
-    // this.nodeTypes.push({ name: 'Line', type: 'graphics.line', source: graphics.line });
-    // this.nodeTypes.push({ name: 'Transform', type: 'graphics.transform', source: graphics.transform });
-    // this.nodeTypes.push({ name: 'Clone', type: 'graphics.clone', source: graphics.clone });
-    // this.nodeTypes.push({ name: 'Draw Text', type: 'graphics.text', source: graphics.text });
-
-    // Color
-    // this.nodeTypes.push({ name: 'HSL Color', type: 'color.hsl', source: color.hsl });
-
-    // Image
-
-    // this.nodeTypes.push({ name: 'Draw Image', type: 'image.drawImage', source: image.drawImage });
-    // this.nodeTypes.push({ name: 'Pixels', type: 'image.pixels', source: image.pixels });
-    this.nodeTypes.push({ name: 'Ascii', type: 'image.ascii', source: image.ascii });
-    this.nodeTypes.push({ name: 'Barrel Distortion', type: 'image.barrelDistortion', source: image.barrelDistortion });
-    this.nodeTypes.push({ name: 'Bleach Bypass', type: 'image.bleachBypass', source: image.bleachBypass });
-    this.nodeTypes.push({ name: 'Blur', type: 'image.blur', source: image.blur });
-    this.nodeTypes.push({ name: 'Border', type: 'image.border', source: image.border });
-    this.nodeTypes.push({ name: 'Brannan', type: 'image.brannan', source: image.brannan });
-    this.nodeTypes.push({ name: 'Canny Edges', type: 'image.canny', source: image.canny });
-    this.nodeTypes.push({ name: 'Cartoon', type: 'image.cartoon', source: image.cartoon });
-    this.nodeTypes.push({ name: 'Center Around Gray', type: 'image.centerAroundGray', source: image.centerAroundGray });
-    this.nodeTypes.push({ name: 'Chromatic', type: 'image.chromatic', source: image.chromatic });
-    this.nodeTypes.push({ name: 'Colorify', type: 'image.colorify', source: image.colorify });
-    this.nodeTypes.push({ name: 'Chroma Key', type: 'image.chromaKey', source: image.chromaKey });
-    this.nodeTypes.push({ name: 'Composite', type: 'image.composite', source: image.composite });
-    this.nodeTypes.push({ name: 'Conditional', type: 'image.conditional', source: image.conditional });
-    this.nodeTypes.push({ name: 'Constant', type: 'image.constant', source: image.constant });
-    this.nodeTypes.push({ name: 'Crop', type: 'image.crop', source: image.crop });
-    this.nodeTypes.push({ name: 'Denoise', type: 'image.denoise', source: image.denoise });
-    this.nodeTypes.push({ name: 'Difference', type: 'image.difference', source: image.difference });
-    this.nodeTypes.push({ name: 'Distortion', type: 'image.distortion', source: image.distortion });
-    this.nodeTypes.push({ name: 'Emboss', type: 'image.emboss', source: image.emboss });
-    this.nodeTypes.push({ name: 'Fetch Image', type: 'image.fetchImage', source: image.fetchImage });
-    this.nodeTypes.push({ name: 'Freichen', type: 'image.freiChen', source: image.freiChen });
-    this.nodeTypes.push({ name: 'Gaussian Blur', type: 'image.gaussianBlur', source: image.gaussianBlur });
-    this.nodeTypes.push({ name: 'Glitch', type: 'image.glitch', source: image.glitch });
-    this.nodeTypes.push({ name: 'Glow Edges', type: 'image.glowEdges', source: image.glowEdges });
-    this.nodeTypes.push({ name: 'Gray color clustering', type: 'image.grayColorCLustering', source: image.grayColorCLustering });
-    this.nodeTypes.push({ name: 'Grayscale', type: 'image.grayscale', source: image.grayscale });
-    this.nodeTypes.push({ name: 'Heatmap', type: 'image.heatmap', source: image.heatmap });
-    this.nodeTypes.push({ name: 'INMS', type: 'image.inms', source: image.inms });
-    this.nodeTypes.push({ name: 'Instagram Filters', type: 'image.instagram', source: image.instagram });
-    this.nodeTypes.push({ name: 'Invert', type: 'image.invert', source: image.invert });
-    this.nodeTypes.push({ name: 'Kaleidoscope', type: 'image.kaleidoscope', source: image.kaleidoscope });
-    this.nodeTypes.push({ name: 'Lens Distortion', type: 'image.lensDistortion', source: image.lensDistortion });
-    this.nodeTypes.push({ name: 'Levels', type: 'image.levels', source: image.levels });
-    this.nodeTypes.push({ name: 'Load Image', type: 'image.loadImage', source: image.loadImage });
-    this.nodeTypes.push({ name: 'Load Image Folder', type: 'image.loadImageFolder', source: image.loadImageFolder });
-    this.nodeTypes.push({ name: 'Load Movie', type: 'image.loadMovie', source: image.loadMovie });
-    this.nodeTypes.push({ name: 'LoG Edges', type: 'image.logEdges', source: image.logEdges });
-    this.nodeTypes.push({ name: 'Lookup', type: 'image.lookup', source: image.lookup });
-    this.nodeTypes.push({ name: 'Mask Ellipse', type: 'image.maskCircle', source: image.maskCircle });
-    this.nodeTypes.push({ name: 'Mask Image', type: 'image.maskImage', source: image.maskImage });
-    this.nodeTypes.push({ name: 'Mirror', type: 'image.mirror', source: image.mirror });
-    this.nodeTypes.push({ name: 'Modulate Color', type: 'image.modulateColor', source: image.modulateColor });
-    this.nodeTypes.push({ name: 'Noise', type: 'image.noise', source: image.noise });
-    this.nodeTypes.push({ name: 'Null', type: 'image.null', source: image.null });
-    this.nodeTypes.push({ name: 'Pixelate', type: 'image.pixelate', source: image.pixelate });
-    this.nodeTypes.push({ name: 'Radial Distortion', type: 'image.radialDistortion', source: image.radialDistortion });
-    this.nodeTypes.push({ name: 'Reaction Diffusion', type: 'image.reactionDiffusion', source: image.reactionDiffusion });
-    this.nodeTypes.push({ name: 'Reduce Color', type: 'image.reduceColor', source: image.reduceColor });
-    this.nodeTypes.push({ name: 'Resize', type: 'image.resize', source: image.resize });
-    this.nodeTypes.push({ name: 'Rgb color clustering', type: 'image.rgbColorCLustering', source: image.rgbColorCLustering });
-    this.nodeTypes.push({ name: 'Save Image', type: 'image.saveImage', source: image.saveImage });
-    this.nodeTypes.push({ name: 'Screen Distortion', type: 'image.screendistortion', source: image.screendistortion });
-    this.nodeTypes.push({ name: 'Sepia', type: 'image.sepia', source: image.sepia });
-    this.nodeTypes.push({ name: 'Sharpen', type: 'image.sharpen', source: image.sharpen });
-    this.nodeTypes.push({ name: 'Sobel', type: 'image.sobel', source: image.sobel });
-    this.nodeTypes.push({ name: 'Solarize', type: 'image.solarize', source: image.solarize });
-    this.nodeTypes.push({ name: 'Stack', type: 'image.stack', source: image.stack });
-    this.nodeTypes.push({ name: 'Technicolor', type: 'image.technicolor', source: image.technicolor });
-    this.nodeTypes.push({ name: 'Threshold', type: 'image.threshold', source: image.threshold });
-    this.nodeTypes.push({ name: 'Trail', type: 'image.trail', source: image.trail });
-    this.nodeTypes.push({ name: 'Transform', type: 'image.transform', source: image.transform });
-    this.nodeTypes.push({ name: 'Vignette', type: 'image.vignette', source: image.vignette });
-    this.nodeTypes.push({ name: 'Wrap', type: 'image.wrap', source: image.wrap });
-    this.nodeTypes.push({ name: 'Webcam Image', type: 'image.webcamImage', source: image.webcamImage });
-
-    // ML
-    this.nodeTypes.push({ name: 'Detect Objects', type: 'ml.detectObjects', source: ml.detectObjects });
-    // this.nodeTypes.push({ name: 'Detect Faces', type: 'ml.detectFacesBlazeFace', source: ml.detectFacesBlazeFace });
-    this.nodeTypes.push({ name: 'Detect Faces', type: 'ml.detectFaces', source: ml.detectFaces });
-    this.nodeTypes.push({ name: 'Detect Pose', type: 'ml.detectPose', source: ml.detectPose });
-    this.nodeTypes.push({ name: 'Segment Pose', type: 'ml.segmentPose', source: ml.segmentPose });
-    this.nodeTypes.push({ name: 'Detect Hands', type: 'ml.detectHands', source: ml.detectHands });
-    this.nodeTypes.push({ name: 'Image to Image Model', type: 'ml.imageToImageModel', source: ml.imageToImageModel });
-    this.nodeTypes.push({ name: 'ONNX Image Model', type: 'ml.onnxImageModel', source: ml.onnxImageModel });
-
-    // this.nodeTypes.push({ name: 'Segment Pose 2', type: 'ml.segmentPose2', source: ml.segmentPose2 });
-    // this.nodeTypes.push({ name: 'Classify Image', type: 'ml.classifyImage', source: ml.classifyImage });
-    // this.nodeTypes.push({ name: 'Pose Net', type: 'ml.poseNet', source: ml.poseNet });
-    // this.nodeTypes.push({ name: 'Pose Body Part', type: 'ml.poseBodyPart', source: ml.poseBodyPart });
-    // this.nodeTypes.push({ name: 'Draw Skeleton', type: 'ml.drawSkeleton', source: ml.drawSkeleton });
-    // this.nodeTypes.push({ name: 'Teachable Machine', type: 'ml.teachableMachine', source: ml.teachableMachine });
-    // this.nodeTypes.push({ name: 'Face Api', type: 'ml.faceApi', source: ml.faceApi });
-
-    for (const nodeType of this.nodeTypes) {
-      if (!nodeType.source) {
-        throw new Error(`Node type ${nodeType.type} has no source`);
+      // Extract the metadata from the JSDoc
+      const meta = {};
+      const header = source.default.match(/\/\*\*([\s\S]*?)\*\//)?.[1] ?? '';
+      for (const line of header.split('\n')) {
+        const [, tag, value] = line.match(/@(\w+)\s+(.+)/) || [];
+        if (tag) meta[tag] = value.trim();
       }
-      const description = nodeType.source.match(/\/\/(.*)/);
-      if (description) {
-        nodeType.description = description[1].trim();
-      } else {
-        nodeType.description = '';
-      }
+      const name = meta.name ?? slug.replace(/-/g, ' ');
+      const category = meta.category ?? categoryGuess;
+      const description = meta.description ?? source.match(/\/\/\s*(.+)/)?.[1].trim() ?? '';
+
+      return {
+        name,
+        type: `${category}.${slug}`, // e.g. 'image.blur'
+        source: source.default,
+        description,
+      };
+    });
+
+    for (const n of this.nodeTypes) {
+      if (!n.source) throw new Error(`Node ${n.type} has no source`);
     }
   }
 
