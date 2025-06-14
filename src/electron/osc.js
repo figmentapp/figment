@@ -25,6 +25,17 @@ export function oscStartServer(port, sendIpcMessage) {
     const args = msg.slice(1);
     sendIpcMessage('osc', 'message', { address, args });
   });
+  server.on('bundle', (bundle) => {
+    messageFrequencies[messageFrequencies.length - 1]++;
+    bundle.elements.forEach((element, i) => {
+      const address = element[0];
+      const args = element.slice(1);
+      sendIpcMessage('osc', 'message', {
+        address,
+        args,
+      });
+    });
+  });
   const timer = setInterval(() => {
     messageFrequencies.push(0);
     while (messageFrequencies.length > MAX_MESSAGE_FREQUENCY) {
