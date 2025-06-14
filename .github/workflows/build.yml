@@ -38,6 +38,9 @@ jobs:
         run: npm run dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_ASC_PROVIDER: ${{ secrets.APPLE_ASC_PROVIDER }}
 
       - name: Upload artifacts
         if: startsWith(github.ref, 'refs/tags/')
@@ -72,4 +75,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
           draft: false
-          prerelease: false 
+          prerelease: false
