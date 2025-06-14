@@ -15,7 +15,7 @@
     "dist-mac": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal",
     "dist-win": "rimraf build && rimraf dist && npm run build && electron-builder build --win --x64",
     "fastdist": "rimraf build && rimraf dist && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
-    "format": "prettier --write src/**/*.{js,jsx}"
+    "format": "prettier --write 'src/**/*.{js,jsx}'"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
