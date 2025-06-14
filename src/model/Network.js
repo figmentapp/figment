@@ -127,7 +127,7 @@ export default class Network {
     if (nodeType) return nodeType;
     nodeType = this.library.findByType(typeId);
     if (nodeType) return nodeType;
-    console.warn(`Could not find nodeType ${nodeType}`);
+    console.warn(`Could not find nodeType ${typeId}`);
   }
 
   allNodeTypes() {
