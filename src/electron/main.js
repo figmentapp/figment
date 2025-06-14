@@ -215,7 +215,6 @@ async function startDevServer() {
   debugger;
 
   const viteServer = await createServer({
-    root: path.resolve(__dirname, '../ui'),
     logLevel: 'info',
     server: {
       port: 3000,

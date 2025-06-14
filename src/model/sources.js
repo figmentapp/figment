@@ -10,7 +10,7 @@ export const comms = {};
 export const image = {};
 export const ml = {};
 
-const ASSETS_PATH = import.meta.env.DEV ? 'assets' : '.';
+const ASSETS_PATH = '.';
 ort.env.wasm.wasmPaths = `${ASSETS_PATH}/onnxruntime-web/`;
 
 ////////////////////////////////////////////////////////////////////////////////
