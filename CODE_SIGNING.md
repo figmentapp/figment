@@ -36,6 +36,8 @@ In GitHub, make an environment (under your project settings > Secrets and Variab
 - `CSC_LINK`: paste the base64-encoded certificate here, without any newline characters. If you've used `pbcopy`, this should already be correct.
 - `CSC_KEY_PASSWORD`: the password you used to export the certificate.
 
+![GitHub Secrets](.github/github-secrets.png)
+
 ## Configure the GitHub Actions workflow
 
 Look [here](https://github.com/figmentapp/figment/blob/master/.github/workflows/build.yml) for the GitHub Actions workflow that builds the app and signs it. The relevant parts for code signing are:
