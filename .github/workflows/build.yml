@@ -23,7 +23,10 @@ jobs:
       - name: Install node dependencies
         run: npm ci
 
-      - name: Build & publish
+      - name: Build
+        run: npm run build
+
+      - name: Bundle & publish
         id: publish
         shell: bash # ensures `date` works on Windows runner
         env:
