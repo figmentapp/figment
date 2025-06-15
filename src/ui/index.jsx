@@ -16,7 +16,10 @@ window.tf = tf;
 window.twgl = twgl;
 window.m4 = twgl.m4;
 window.ort = ort;
-window.ort.env.wasm.wasmPaths = '/onnxruntime-web/';
+
+// We need to do this in order for Vite to skip injectQuery.
+const ortBase = new URL('./onnxruntime-web/', window.location.href).href;
+ort.env.wasm.wasmPaths = ortBase;
 
 const params = new URLSearchParams(window.location.search);
 const filePath = params.get('filePath');
