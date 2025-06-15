@@ -26,12 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create electron-builder.env file
-        run: |
-          echo "APPLE_ID=${{ secrets.APPLE_ID }}" >> electron-builder.env
-          echo "APPLE_APP_SPECIFIC_PASSWORD=${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" >> electron-builder.env
-          echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}" >> electron-builder.env
-
       - name: Build
         run: npm run build
 
