@@ -1,5 +1,5 @@
 import querystring from 'node:querystring';
-import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences } from 'electron';
+import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, screen } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
@@ -58,6 +58,7 @@ class Settings {
 }
 
 let gMainWindow;
+let gPreviewWindow = null;
 let gSettings = new Settings();
 
 function emit(name, args = {}) {
@@ -209,6 +210,25 @@ ipcMain.handle('oscStopServer', (_) => {
   }
 });
 
+ipcMain.handle('listDisplays', () => {
+  return screen.getAllDisplays().map((d, i) => ({
+    index: i,
+    size: `${d.size.width}×${d.size.height}`,
+    primary: d.id === screen.getPrimaryDisplay().id,
+  }));
+});
+
+ipcMain.handle('openPreviewWindow', (_, { index }) => {
+  createPreviewWindow(index);
+});
+
+ipcMain.handle('closePreviewWindow', () => {
+  if (gPreviewWindow && !gPreviewWindow.isDestroyed()) {
+    gPreviewWindow.close();
+    gPreviewWindow = null;
+  }
+});
+
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;
   const { createServer, createLogger, build } = await import('vite');
@@ -336,6 +356,42 @@ function createApplicationMenu() {
   const template = [...(isMac ? [macAppMenu] : []), fileMenu, { role: 'editMenu' }, viewMenu, { role: 'windowMenu' }];
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
+}
+
+function createPreviewWindow(displayIndex = 0) {
+  // Close an existing preview first
+  if (gPreviewWindow && !gPreviewWindow.isDestroyed()) {
+    gPreviewWindow.close();
+  }
+
+  const displays = screen.getAllDisplays();
+  if (displayIndex < 0 || displayIndex >= displays.length) {
+    throw new Error(`Display #${displayIndex} not found (found ${displays.length})`);
+  }
+  const { bounds } = displays[displayIndex]; // the rectangle to fill
+
+  gPreviewWindow = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    fullscreen: true,
+    frame: false,
+    alwaysOnTop: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      backgroundThrottling: false,
+    },
+  });
+
+  const viewerURL =
+    process.env.NODE_ENV === 'development'
+      ? `http://localhost:3000/?viewer=1`
+      : `file:///${path.join(__dirname, '../../build/index.html')}?viewer=1`;
+
+  gPreviewWindow.loadURL(viewerURL);
+  gPreviewWindow.once('ready-to-show', () => gPreviewWindow.show());
 }
 
 const argv = minimist(process.argv.slice(2));

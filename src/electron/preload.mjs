@@ -134,6 +134,18 @@ function stopOscServer() {
   ipcRenderer.invoke('oscStopServer');
 }
 
+function listDisplays() {
+  return ipcRenderer.invoke('listDisplays');
+}
+
+function openPreviewWindow(index = 0) {
+  return ipcRenderer.invoke('openPreviewWindow', index);
+}
+
+function closePreviewWindow() {
+  return ipcRenderer.invoke('closePreviewWindow');
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
@@ -159,4 +171,7 @@ contextBridge.exposeInMainWorld('desktop', {
   oscSendMessage,
   startOscServer,
   stopOscServer,
+  listDisplays,
+  openPreviewWindow,
+  closePreviewWindow,
 });
