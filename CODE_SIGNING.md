@@ -28,7 +28,7 @@ Convert the certificate to base64:
 base64 -i ~/Desktop/DeveloperID.p12 | pbcopy
 ```
 
-In GitHub, make an environment (under your project settings > Environment), I called mine "CI". Configure the environment secrets:
+In GitHub, make an environment (under your project settings > Secrets and Variables > Actions), you can set up the following under "Respository secrets":
 
 - `APPLE_ID`: your Apple ID email address.
 - `APPLE_APP_SPECIFIC_PASSWORD`: an app-specific password generated from your Apple ID account page. This is used for notarization.
