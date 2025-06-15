@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
       - name: Build Electron app
-        run: npm run dist
+        run: npm run dist-${{ matrix.os == 'macos-latest' && 'mac' || 'win' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}

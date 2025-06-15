@@ -1,6 +1,5 @@
 import { LATEST_FORMAT_VERSION } from '../file-format';
 import Node from './Node';
-import * as sources from './sources';
 import Port, {
   PORT_TYPE_TRIGGER,
   PORT_TYPE_TOGGLE,
@@ -128,7 +127,7 @@ export default class Network {
     if (nodeType) return nodeType;
     nodeType = this.library.findByType(typeId);
     if (nodeType) return nodeType;
-    console.warn(`Could not find nodeType ${nodeType}`);
+    console.warn(`Could not find nodeType ${typeId}`);
   }
 
   allNodeTypes() {

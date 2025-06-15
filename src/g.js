@@ -16,7 +16,7 @@ export class Point {
 export const rgbToHex = (r, g, b) =>
   '#' +
   [r, g, b]
-    .map(x => {
+    .map((x) => {
       const hex = x.toString(16);
       return hex.length === 1 ? '0' + hex : hex;
     })
@@ -24,5 +24,5 @@ export const rgbToHex = (r, g, b) =>
 
 export const rgba = (r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`;
 
-export const toRadians = v => v * RADIANS;
-export const toDegrees = v => v * DEGREES;
+export const toRadians = (v) => v * RADIANS;
+export const toDegrees = (v) => v * DEGREES;

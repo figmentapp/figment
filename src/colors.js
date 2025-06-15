@@ -90,5 +90,5 @@ export const COLORS = {
   pink600: '#d53f8c',
   pink700: '#b83280',
   pink800: '#97266d',
-  pink900: '#702459'
+  pink900: '#702459',
 };

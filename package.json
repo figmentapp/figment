@@ -12,8 +12,10 @@
     "build": "cross-env NODE_ENV=production vite build",
     "build-library": "cross-env NODE_ENV=production rollup -c",
     "dist": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal && electron-builder build --win --x64",
+    "dist-mac": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal",
+    "dist-win": "rimraf build && rimraf dist && npm run build && electron-builder build --win --x64",
     "fastdist": "rimraf build && rimraf dist && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
-    "format": "prettier --write src/**/*.{js,jsx}"
+    "format": "prettier --write 'src/**/*.{js,jsx}'"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
@@ -26,7 +28,7 @@
     "lodash": "4.17.21",
     "minimist": "1.2.8",
     "node-osc": "^9.1.5",
-    "onnxruntime-web": "^1.20.1",
+    "onnxruntime-web": "^1.22.0",
     "react": "^19.1.0",
     "react-color": "2.19.3",
     "react-dom": "^19.1.0",
