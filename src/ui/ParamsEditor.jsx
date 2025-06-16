@@ -265,6 +265,7 @@ class SelectParam extends Component {
   constructor(props) {
     super(props);
     this._onShowMenu = this._onShowMenu.bind(this);
+    this._handleChange = this._handleChange.bind(this);
   }
 
   _onShowMenu(e) {
@@ -273,8 +274,17 @@ class SelectParam extends Component {
     window.desktop.showPortContextMenu(this.props.port);
   }
 
+  _handleChange(e) {
+    const { options, onChange } = this.props;
+    const selectedStr = e.target.value;
+    const originalVal = options.find((opt) => String(opt) === selectedStr);
+    onChange(originalVal !== undefined ? originalVal : selectedStr);
+  }
+
   render() {
     const { label, value, options, disabled, onChange } = this.props;
+    const stringValue = String(value);
+
     return (
       <>
         <label className="w-32 text-right text-gray-500 whitespace-nowrap">{label}</label>
@@ -283,20 +293,24 @@ class SelectParam extends Component {
           spellCheck="false"
           disabled={disabled}
           className={'flex-1 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={stringValue}
+          onChange={this._handleChange}
         >
-          {options.map((option, index) =>
-            option === '---' ? (
-              <option disabled key={index}>
-                ───────────────
+          {options.map((option, index) => {
+            if (option === '---') {
+              return (
+                <option disabled key={index}>
+                  ───────────────
+                </option>
+              );
+            }
+            const optStr = String(option);
+            return (
+              <option key={index} value={optStr}>
+                {optStr}
               </option>
-            ) : (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ),
-          )}
+            );
+          })}
         </select>
         <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
       </>
