@@ -19,29 +19,26 @@ const landmarksOut = node.objectOut('landmarks');
 
 let _vision, _poseLandmarker;
 let _framebuffer, _canvas, _ctx, _imageData;
+let _drawingUtils;
 
 node.onStart = async () => {
-  //await figment.loadScripts(['/new-mediapipe/vision_bundle.js', '/new-mediapipe/pose_bundle.js']);
-//   _vision = await mediapipe.FilesetResolver.forVisionTasks("/new-mediapipe");
-  _vision = await mediapipe.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
-  _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(
-    _vision,
-    {
-      baseOptions: {
-        // modelAssetPath: "/new-mediapipe/pose_landmarker_full.task",
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-        // modelAssetPath: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
-        delegate: "webgpuGPU"
-      },
-      runningMode: 'IMAGE',
-      numPoses: 1,
-    }
-  );
+    _vision = await mediapipe.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+    _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(
+        _vision,
+        {
+            baseOptions: {
+                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+                delegate: "GPU"
+            },
+            runningMode: 'IMAGE',
+            numPoses: 1,
+        }
+    );
 
-  _framebuffer = new figment.Framebuffer();
-  _canvas = new OffscreenCanvas(1, 1);
-  _ctx = _canvas.getContext('2d');
-
+    _framebuffer = new figment.Framebuffer();
+    _canvas = new OffscreenCanvas(1, 1);
+    _ctx = _canvas.getContext('2d');
+    _drawingUtils = new mediapipe.DrawingUtils(_ctx);
 };
 
 node.onRender = () => {
@@ -49,30 +46,58 @@ node.onRender = () => {
     const width = imageIn.value.width;
     const height = imageIn.value.height;
 
-
     if (width !== _canvas.width || height !== _canvas.height) {
         _canvas.width = width;
         _canvas.height = height;
         _imageData = new ImageData(width, height);
         _framebuffer.setSize(width, height);
-      }
+    }
 
-      imageIn.value.bind();
-      window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
-      imageIn.value.unbind();
-      const pose = _poseLandmarker.detect(_imageData);
-      console.log(pose);
-      drawResults(pose);
+    imageIn.value.bind();
+    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
+    imageIn.value.unbind();
 
+    const pose = _poseLandmarker.detect(_imageData);
+    drawResults(pose);
 };
 
 function drawResults(pose) {
     if (!imageIn.value || !pose) return;
     const width = imageIn.value.width;
     const height = imageIn.value.height;
+
     _ctx.clearRect(0, 0, width, height);
     _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
     _ctx.fillRect(0, 0, width, height);
-  
-    
+
+    if (pose.landmarks && pose.landmarks.length > 0) {
+        detectedOut.value = true;
+        landmarksOut.value = pose.landmarks;
+
+        for (const landmark of pose.landmarks) {
+            if (pointsToggleIn.value) {
+                const options = {
+                    color: figment.toCanvasColor(pointsColorIn.value),
+                    radius: pointsRadiusIn.value,
+                }
+                _drawingUtils.drawLandmarks(landmark, options);
+            }
+
+            if (linesToggleIn.value) {
+                const options = {
+                    color: figment.toCanvasColor(linesColorIn.value),
+                    lineWidth: linesWidthIn.value,
+                }
+                _drawingUtils.drawConnectors(landmark, mediapipe.PoseLandmarker.POSE_CONNECTIONS, options);
+            }
+        }
+    } else {
+        detectedOut.value = false;
+        landmarksOut.value = null;
+    }
+
+    window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
+    window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
+    window.gl.bindTexture(gl.TEXTURE_2D, null);
+    imageOut.value = _framebuffer;
 }
