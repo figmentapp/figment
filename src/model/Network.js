@@ -441,9 +441,10 @@ export default class Network {
   setPortValue(node, portName, value) {
     const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port, `Port ${portName} does not exist.`);
+    const oldValue = port.value;
     port.value = value;
     if (typeof port.onChange === 'function') {
-      port.onChange();
+      port.onChange(oldValue, value);
     }
     port.forceUpdate();
   }
@@ -451,9 +452,10 @@ export default class Network {
   setPortExpression(node, portName, expression) {
     const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port, `Port ${portName} does not exist.`);
+    const oldValue = port.value;
     port._value = { type: 'expression', expression };
     if (typeof port.onChange === 'function') {
-      port.onChange();
+      port.onChange(oldValue, port.value);
     }
     port.forceUpdate();
   }
