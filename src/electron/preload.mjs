@@ -7,6 +7,7 @@ import { glob } from 'glob';
 const listeners = {
   menu: null,
   osc: null,
+  shortcut: null,
 };
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
@@ -118,6 +119,12 @@ ipcRenderer.on('osc', (_, name, args) => {
   }
 });
 
+ipcRenderer.on('shortcut', (_, payload) => {
+  if (typeof listeners['shortcut'] === 'function') {
+    listeners['shortcut'](payload);
+  }
+});
+
 function registerListener(name, fn) {
   listeners[name] = fn;
 }
@@ -132,6 +139,15 @@ function startOscServer(port) {
 
 function stopOscServer() {
   ipcRenderer.invoke('oscStopServer');
+}
+
+// Global shortcut helpers
+async function registerGlobalShortcut(id, accel) {
+  return await ipcRenderer.invoke('registerGlobalShortcut', { id, accel });
+}
+
+function unregisterGlobalShortcut(accel) {
+  ipcRenderer.invoke('unregisterGlobalShortcut', { accel });
 }
 
 contextBridge.exposeInMainWorld('desktop', {
@@ -159,4 +175,6 @@ contextBridge.exposeInMainWorld('desktop', {
   oscSendMessage,
   startOscServer,
   stopOscServer,
+  registerGlobalShortcut,
+  unregisterGlobalShortcut,
 });
