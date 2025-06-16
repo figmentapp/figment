@@ -13,6 +13,7 @@ const linesToggleIn = node.toggleIn('draw lines', true);
 const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
 const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
 const numPosesIn = node.numberIn('number of poses', 4, { min: 1, max: 4, step: 1 });
+const modelIn = node.selectIn('model', ['lite', 'full', 'heavy'], 'lite');
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -35,19 +36,14 @@ async function initLandmarker() {
     await _poseLandmarker.close();
   }
 
-  _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(
-    _vision,
-    {
-      baseOptions: {
-        // modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task",
-        // modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task",
-        delegate: "GPU"
-      },
-      runningMode: 'IMAGE',
-      numPoses: numPosesIn.value,
-    }
-  );
+  _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(_vision, {
+    baseOptions: {
+      modelAssetPath: `./new-mediapipe/pose_landmarker_${modelIn.value}.task`,
+      delegate: 'GPU',
+    },
+    runningMode: 'IMAGE',
+    numPoses: numPosesIn.value,
+  });
   _initialising = false;
 }
 
@@ -56,12 +52,7 @@ node.onStart = async () => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
-
-  _vision = await mediapipe.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
-  await initLandmarker();
-};
-
-numPosesIn.onChange = async () => {
+  _vision = await mediapipe.FilesetResolver.forVisionTasks('./new-mediapipe');
   await initLandmarker();
 };
 
@@ -103,7 +94,7 @@ function drawResults(pose) {
         const options = {
           color: figment.toCanvasColor(pointsColorIn.value),
           radius: pointsRadiusIn.value,
-        }
+        };
         _drawingUtils.drawLandmarks(landmark, options);
       }
 
@@ -111,7 +102,7 @@ function drawResults(pose) {
         const options = {
           color: figment.toCanvasColor(linesColorIn.value),
           lineWidth: linesWidthIn.value,
-        }
+        };
         _drawingUtils.drawConnectors(landmark, mediapipe.PoseLandmarker.POSE_CONNECTIONS, options);
       }
     }
@@ -125,3 +116,6 @@ function drawResults(pose) {
   window.gl.bindTexture(gl.TEXTURE_2D, null);
   imageOut.value = _framebuffer;
 }
+
+numPosesIn.onChange = initLandmarker;
+modelIn.onChange = initLandmarker;
