@@ -218,7 +218,7 @@ ipcMain.handle('listDisplays', () => {
   }));
 });
 
-ipcMain.handle('openPreviewWindow', (_, { index }) => {
+ipcMain.handle('openPreviewWindow', (_, index) => {
   createPreviewWindow(index);
 });
 
@@ -380,7 +380,10 @@ function createPreviewWindow(displayIndex = 0) {
     alwaysOnTop: false,
     show: false,
     webPreferences: {
+      nativeWindowOpen: true,
       preload: path.join(__dirname, 'preload.mjs'),
+      webSecurity: false,
+      nodeIntegration: true,
       backgroundThrottling: false,
     },
   });
@@ -392,6 +395,9 @@ function createPreviewWindow(displayIndex = 0) {
 
   gPreviewWindow.loadURL(viewerURL);
   gPreviewWindow.once('ready-to-show', () => gPreviewWindow.show());
+  if (process.env.NODE_ENV === 'development') {
+    gPreviewWindow.webContents.openDevTools();
+  }
 }
 
 const argv = minimist(process.argv.slice(2));

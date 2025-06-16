@@ -31,6 +31,15 @@ export default class App extends Component {
     const network = new Network(library);
     network.parse(getDefaultNetwork());
     const lastNetworkPoint = new Point(0, 0);
+    this.mainRef = React.createRef();
+    this.oscMessageMap = new Map();
+    initExpressionContext({ _osc: this.oscMessageMap });
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewerOnly = urlParams.has('viewer'); // full-screen second window
+    if (viewerOnly) {
+      this.state = { fullscreen: true };
+      return;
+    }
     this.state = {
       filePath: this.props.filePath,
       dirty: false,
@@ -46,15 +55,12 @@ export default class App extends Component {
       forkDialogNodeType: null,
       lastNetworkPoint,
       editorSplitterWidth: 350,
-      fullscreen: false,
+      fullscreen: viewerOnly,
       version: 1,
       isPlaying: true,
       oscServerPort: null,
       oscMessageFrequencies: [],
     };
-    this.mainRef = React.createRef();
-    this.oscMessageMap = new Map();
-    initExpressionContext({ _osc: this.oscMessageMap });
     const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);
