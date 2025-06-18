@@ -486,6 +486,7 @@ export default class ParamsEditor extends Component {
     super(props);
     this.state = {
       trackedPortValues: {},
+      error: null,
     };
     this._onChangePortValue = this._onChangePortValue.bind(this);
     this._onChangePortExpression = this._onChangePortExpression.bind(this);
@@ -521,8 +522,8 @@ export default class ParamsEditor extends Component {
   _updateTrackedPortValues() {
     const { selection } = this.props;
     if (selection.size !== 1) {
-      if (Object.keys(this.state.trackedPortValues).length > 0) {
-        this.setState({ trackedPortValues: {} });
+      if (Object.keys(this.state.trackedPortValues).length > 0 || this.state.error) {
+        this.setState({ trackedPortValues: {}, error: null });
       }
       return;
     }
@@ -533,8 +534,8 @@ export default class ParamsEditor extends Component {
       newTrackedValues[port.name] = port.value;
     }
     // Only update state if the values have actually changed to avoid an extra render cycle.
-    if (JSON.stringify(this.state.trackedPortValues) !== JSON.stringify(newTrackedValues)) {
-      this.setState({ trackedPortValues: newTrackedValues });
+    if (JSON.stringify(this.state.trackedPortValues) !== JSON.stringify(newTrackedValues) || this.state.error !== node.error) {
+      this.setState({ trackedPortValues: newTrackedValues, error: node.error });
     }
   }
 
@@ -544,8 +545,6 @@ export default class ParamsEditor extends Component {
 
     const node = Array.from(selection)[0];
     const trackablePorts = this._getTrackablePorts(node);
-
-    if (trackablePorts.length === 0) return;
 
     let needsUpdate = false;
     const newTrackedValues = { ...this.state.trackedPortValues };
@@ -557,8 +556,12 @@ export default class ParamsEditor extends Component {
       }
     }
 
+    if (node.error !== this.state.error) {
+      needsUpdate = true;
+    }
+
     if (needsUpdate) {
-      this.setState({ trackedPortValues: newTrackedValues });
+      this.setState({ trackedPortValues: newTrackedValues, error: node.error });
     }
   }
 
