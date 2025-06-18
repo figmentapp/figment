@@ -607,7 +607,11 @@ export default class ParamsEditor extends Component {
           </span>
           <span className="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
-        {node.error && <div className="params__error">{node.error}</div>}
+        {node.error && (
+          <div className="bg-red-400 text-white p-2 border-red-500 border-b-2 text-xs">
+            <pre>{node.error}</pre>
+          </div>
+        )}
         <div className="params__grid grid ">{node.inPorts.map((port) => this._renderPort(network, node, port))}</div>
       </div>
     );
