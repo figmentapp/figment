@@ -26,13 +26,24 @@ const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
 
+const FACE_STATE_INITIALIZING = 'INITIALIZING';
+const FACE_STATE_RUNNING = 'RUNNING';
+
 let _faceMesh, _canvas, _ctx, _framebuffer, _imageData, _results, _isProcessing;
+let _faceState = FACE_STATE_INITIALIZING;
 
 node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts(['./mediapipe/drawing_utils.js', './mediapipe/face_mesh.js']);
+
+  _initFaceMesh();
+};
+
+async function _initFaceMesh() {
+  _faceState = FACE_STATE_INITIALIZING;
+
   _faceMesh = new FaceMesh({
     locateFile: (file) => {
       return `./mediapipe/${file}`;
@@ -44,11 +55,15 @@ node.onStart = async () => {
     minDetectionConfidence: 0.5,
     minTrackingConfidence: 0.5,
   });
-};
+
+  await _faceMesh.initialize();
+  _faceState = FACE_STATE_RUNNING;
+  _isProcessing = false;
+}
 
 function _detect(image) {
   // Check if only one image is processed at the same time.
-  if (_isProcessing) return;
+  if (_isProcessing || !_faceMesh) return;
   return new Promise((resolve) => {
     _isProcessing = true;
     try {
@@ -57,7 +72,7 @@ function _detect(image) {
         _isProcessing = false;
         resolve(results);
       });
-      _faceMesh.send({ image });
+      _faceMesh.send({ image }).catch((err) => _handleDetectionError(err));
     } catch (err) {
       console.error('Error in face detection:', err);
       _isProcessing = false;
@@ -66,9 +81,29 @@ function _detect(image) {
   });
 }
 
+function _handleDetectionError(error) {
+  console.error('Error in face detection:', error);
+
+  try {
+    _faceMesh?.onResults(null);
+  } catch {}
+  try {
+    _faceMesh?.close();
+  } catch {}
+
+  _faceMesh = null;
+  _faceState = FACE_STATE_INITIALIZING;
+  _isProcessing = false;
+  _results = null;
+
+  drawResults();
+  landmarksOut.set(null);
+  _initFaceMesh(); // restart
+}
+
 node.onRender = async () => {
   if (!imageIn.value || imageIn.value.width === 0 || imageIn.value.height === 0) return;
-  if (!_faceMesh) return;
+  if (!_faceMesh || _faceState !== FACE_STATE_RUNNING) return;
 
   // Draw the image on an ImageData object.
   const width = imageIn.value.width;
