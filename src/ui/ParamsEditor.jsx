@@ -1,11 +1,10 @@
-import React, { Component, useRef, useEffect, useState, Fragment } from 'react';
+import React, { Component, Fragment } from 'react';
 import chroma from 'chroma-js';
 import InlineEditor from './InlineEditor';
 import { ChromePicker } from 'react-color';
 import { Point } from '../g';
 import Icon from './Icon';
 import * as figment from '../figment';
-// import { remote } from 'electron';
 import { throttle } from 'lodash';
 
 import {
