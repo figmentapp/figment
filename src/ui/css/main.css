@@ -223,6 +223,13 @@ main {
   align-items: baseline;
 }
 
+.params__error {
+  color: var(--red500);
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+
 .params__grid {
   display: grid;
   grid-template-columns: 96px 1fr 16px;
