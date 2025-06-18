@@ -217,13 +217,20 @@ main {
   color: var(--gray700);
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
-  margin-bottom: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
 }
 
+.params__error {
+  color: var(--red500);
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+
 .params__grid {
+  margin-top: 1rem;
   display: grid;
   grid-template-columns: 96px 1fr 16px;
   align-items: center;
@@ -355,7 +362,8 @@ input.params__field:focus {
 }
 
 .colorpicker__alpha::-webkit-slider-runnable-track {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect x='0' y='0' width='4' height='4' fill='rgba(255, 255, 255, 0.2)' /><rect x='4' y='4' width='4' height='4' fill='rgba(255, 255, 255, 0.2)' /></svg>"),
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8'><rect x='0' y='0' width='4' height='4' fill='rgba(255, 255, 255, 0.2)' /><rect x='4' y='4' width='4' height='4' fill='rgba(255, 255, 255, 0.2)' /></svg>"),
     linear-gradient(to right, rgba(0, 0, 0, 0.8), rgba(255, 255, 255, 0.9));
 
   border-radius: 8px;

@@ -356,8 +356,10 @@ export default class Network {
     if (node.onStart) {
       try {
         await node.onStart(node);
+        node.error = null;
       } catch (err) {
         console.error(err && err.stack);
+        node.error = err && err.stack ? err.stack : String(err);
         debugger;
       }
     }
@@ -368,8 +370,10 @@ export default class Network {
       // console.log(`render ${node.id} ${node.name}`);
       try {
         await node.onRender();
+        node.error = null;
       } catch (e) {
         console.error(e && e.stack);
+        node.error = e && e.stack ? e.stack : String(e);
       }
       // Set the value of the connected input ports to the output ports of this node.
       for (const conn of this.connections) {
