@@ -141,7 +141,7 @@ class NumberDrag extends Component {
       return (
         <input
           ref={this.inputRef}
-          className="flex-1 bg-transparent bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100"
+          className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100"
           type="text"
           autoFocus={true}
           value={this.state.tempValue}
@@ -206,8 +206,8 @@ function ToggleParam({ port, disabled, onChange }) {
   return (
     <>
       <span className="w-32 mr-4"></span>
-      <label className="w-64  p-2 flex items-center">
-        <input type="checkbox" disabled={disabled} checked={port.value} onChange={(e) => onChange(e.target.checked)} />
+      <label className={`w-64 p-2 flex items-center ${disabled ? 'opacity-50' : ''}`}>
+        <input type="checkbox" disabled={disabled} checked={!!port.value} onChange={(e) => onChange(e.target.checked)} />
         <span className="ml-2 text-gray-500">{port.label}</span>
       </label>
       <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
@@ -265,6 +265,7 @@ class SelectParam extends Component {
   constructor(props) {
     super(props);
     this._onShowMenu = this._onShowMenu.bind(this);
+    this._handleChange = this._handleChange.bind(this);
   }
 
   _onShowMenu(e) {
@@ -273,8 +274,17 @@ class SelectParam extends Component {
     window.desktop.showPortContextMenu(this.props.port);
   }
 
+  _handleChange(e) {
+    const { options, onChange } = this.props;
+    const selectedStr = e.target.value;
+    const originalVal = options.find((opt) => String(opt) === selectedStr);
+    onChange(originalVal !== undefined ? originalVal : selectedStr);
+  }
+
   render() {
     const { label, value, options, disabled, onChange } = this.props;
+    const stringValue = String(value);
+
     return (
       <>
         <label className="w-32 text-right text-gray-500 whitespace-nowrap">{label}</label>
@@ -283,20 +293,24 @@ class SelectParam extends Component {
           spellCheck="false"
           disabled={disabled}
           className={'flex-1 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={stringValue}
+          onChange={this._handleChange}
         >
-          {options.map((option, index) =>
-            option === '---' ? (
-              <option disabled key={index}>
-                ───────────────
+          {options.map((option, index) => {
+            if (option === '---') {
+              return (
+                <option disabled key={index}>
+                  ───────────────
+                </option>
+              );
+            }
+            const optStr = String(option);
+            return (
+              <option key={index} value={optStr}>
+                {optStr}
               </option>
-            ) : (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ),
-          )}
+            );
+          })}
         </select>
         <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
       </>
@@ -470,8 +484,82 @@ class DirectoryParam extends Component {
 export default class ParamsEditor extends Component {
   constructor(props) {
     super(props);
+    this.state = {
+      trackedPortValues: {},
+    };
     this._onChangePortValue = this._onChangePortValue.bind(this);
     this._onChangePortExpression = this._onChangePortExpression.bind(this);
+    this._onNetworkChange = this._onNetworkChange.bind(this);
+  }
+
+  componentDidMount() {
+    this.props.network.addChangeListener(this._onNetworkChange);
+    this._updateTrackedPortValues();
+  }
+
+  componentWillUnmount() {
+    this.props.network.removeChangeListener(this._onNetworkChange);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.network !== this.props.network) {
+      prevProps.network.removeChangeListener(this._onNetworkChange);
+      this.props.network.addChangeListener(this._onNetworkChange);
+    }
+    // If the selection has changed, we need to update which ports we're tracking.
+    if (prevProps.selection !== this.props.selection) {
+      this._updateTrackedPortValues();
+    }
+  }
+
+  _getTrackablePorts(node) {
+    if (!node) return [];
+    // Only track connected toggle ports, as their value can change externally and they are visible in the inspector.
+    return node.inPorts.filter((port) => port.type === PORT_TYPE_TOGGLE && this.props.network.isConnected(port));
+  }
+
+  _updateTrackedPortValues() {
+    const { selection } = this.props;
+    if (selection.size !== 1) {
+      if (Object.keys(this.state.trackedPortValues).length > 0) {
+        this.setState({ trackedPortValues: {} });
+      }
+      return;
+    }
+    const node = Array.from(selection)[0];
+    const trackablePorts = this._getTrackablePorts(node);
+    const newTrackedValues = {};
+    for (const port of trackablePorts) {
+      newTrackedValues[port.name] = port.value;
+    }
+    // Only update state if the values have actually changed to avoid an extra render cycle.
+    if (JSON.stringify(this.state.trackedPortValues) !== JSON.stringify(newTrackedValues)) {
+      this.setState({ trackedPortValues: newTrackedValues });
+    }
+  }
+
+  _onNetworkChange() {
+    const { selection } = this.props;
+    if (selection.size !== 1) return;
+
+    const node = Array.from(selection)[0];
+    const trackablePorts = this._getTrackablePorts(node);
+
+    if (trackablePorts.length === 0) return;
+
+    let needsUpdate = false;
+    const newTrackedValues = { ...this.state.trackedPortValues };
+
+    for (const port of trackablePorts) {
+      if (this.state.trackedPortValues[port.name] !== port.value) {
+        newTrackedValues[port.name] = port.value;
+        needsUpdate = true;
+      }
+    }
+
+    if (needsUpdate) {
+      this.setState({ trackedPortValues: newTrackedValues });
+    }
   }
 
   _onChangePortValue(portName, value) {
