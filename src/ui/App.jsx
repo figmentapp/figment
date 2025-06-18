@@ -286,12 +286,8 @@ export default class App extends Component {
   }
 
   _setFilePath(filePath, dirty = false) {
-    // const window = remote.BrowserWindow.getFocusedWindow();
-    // if (window) {
-    //   // FIXME: how to clear the represented filename?
-    //   filePath && window.setRepresentedFilename(filePath);
-    //   window.setDocumentEdited(!dirty);
-    // }
+    window.desktop.setRepresentedFilename(filePath);
+    window.desktop.setDocumentEdited(dirty);
     this.setState({ filePath, dirty });
   }
 

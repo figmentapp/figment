@@ -150,6 +150,14 @@ function unregisterGlobalShortcut(accel) {
   ipcRenderer.invoke('unregisterGlobalShortcut', { accel });
 }
 
+async function setRepresentedFilename(filePath) {
+  await ipcRenderer.invoke('setRepresentedFilename', filePath);
+}
+
+async function setDocumentEdited(edited) {
+  await ipcRenderer.invoke('setDocumentEdited', edited);
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
@@ -177,4 +185,6 @@ contextBridge.exposeInMainWorld('desktop', {
   stopOscServer,
   registerGlobalShortcut,
   unregisterGlobalShortcut,
+  setRepresentedFilename,
+  setDocumentEdited,
 });

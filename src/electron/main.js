@@ -231,6 +231,20 @@ ipcMain.handle('unregisterGlobalShortcut', async (_, { accel }) => {
   }
 });
 
+ipcMain.handle('setRepresentedFilename', (_, filePath) => {
+  if (filePath) {
+    gMainWindow.setRepresentedFilename(filePath);
+    gMainWindow.setTitle(`${path.basename(filePath)}`);
+  } else {
+    gMainWindow.setRepresentedFilename('');
+    gMainWindow.setTitle('Figment');
+  }
+});
+
+ipcMain.handle('setDocumentEdited', (_, edited) => {
+  gMainWindow.setDocumentEdited(edited);
+});
+
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;
   const { createServer, createLogger, build } = await import('vite');
