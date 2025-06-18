@@ -6,17 +6,21 @@
 
 node.timeDependent = true;
 const fileIn = node.fileIn('file', '', { fileType: 'movie' });
-const animateIn = node.toggleIn('animate', true);
+const playIn = node.toggleIn('play', true);
+const loopIn = node.toggleIn('loop', true);
+const pauseModeIn = node.selectIn('pauseMode', ['hold', 'restart', 'rewind'], 'hold');
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
 const restartIn = node.triggerButtonIn('restart');
 const imageOut = node.imageOut('out');
 
-let framebuffer, program, video, videoReady, shouldLoad;
+let framebuffer, program, video, videoReady, shouldLoad, lastPlayState, renderOnce;
 
 node.onStart = () => {
   framebuffer = new figment.Framebuffer();
   videoReady = false;
   shouldLoad = true;
+  lastPlayState = playIn.value;
+  renderOnce = true;
 };
 
 async function loadMovie() {
@@ -29,14 +33,29 @@ async function loadMovie() {
     videoReady = false;
     const fileUrl = figment.urlForAsset(fileIn.value);
     video.src = fileUrl;
-    video.loop = true;
-    video.autoplay = animateIn.value;
+    video.loop = loopIn.value;
+    video.autoplay = playIn.value;
     video.muted = true;
     video.playbackRate = speedIn.value;
     video.addEventListener('canplay', resolve, { once: true });
+    video.addEventListener('ended', () => {
+      if (!loopIn.value && pauseModeIn.value === 'rewind') {
+        restartVideo();
+      }
+    });
   });
   videoReady = true;
   framebuffer.setSize(video.videoWidth, video.videoHeight);
+}
+
+async function seekAndWait(time) {
+  return new Promise((resolve) => {
+    if (!video || video.currentTime === time) {
+      return resolve();
+    }
+    video.addEventListener('seeked', resolve, { once: true });
+    video.currentTime = time;
+  });
 }
 
 node.onRender = async () => {
@@ -45,15 +64,35 @@ node.onRender = async () => {
     shouldLoad = false;
   }
   if (!video || !framebuffer || !videoReady) return;
-  if (!animateIn.value) return;
+  const isPlaying = playIn.value;
+  const wasPlaying = lastPlayState;
+
+  if (isPlaying && !wasPlaying) {
+    if (pauseModeIn.value === 'restart') {
+      await seekAndWait(0);
+    }
+    video.play();
+  } else if (!isPlaying && wasPlaying) {
+    video.pause();
+    if (pauseModeIn.value === 'rewind') {
+      await seekAndWait(0);
+      renderOnce = true;
+    }
+  }
+  lastPlayState = isPlaying;
+
+  if (video.paused && !renderOnce) return;
+
   framebuffer.unbind();
   window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
   window.gl.bindTexture(window.gl.TEXTURE_2D, null);
-  // To avoid re-uploading the video frame, we pass it along into the framebuffer object.
-  // If the next node turns out to be a mediapose node, it will pick up the image object and work with it directly.
   framebuffer._directImageHack = video;
   imageOut.set(framebuffer);
+
+  if (video.paused) {
+    renderOnce = false;
+  }
 };
 
 node.onStop = () => {
@@ -70,25 +109,29 @@ function changeSpeed() {
   }
 }
 
-function toggleAnimate() {
+function changeLoop() {
   if (video) {
-    if (animateIn.value) {
+    // The `video.ended` boolean is not reliable, so we check ourselves.
+    const isAtEnd = video.duration > 0 && video.duration - video.currentTime < 0.1;
+    video.loop = loopIn.value;
+    if (loopIn.value && isAtEnd && playIn.value) {
       video.play();
-    } else {
-      video.pause();
     }
   }
 }
 
-function restartVideo() {
+async function restartVideo() {
   if (video) {
-    video.currentTime = 0;
+    await seekAndWait(0);
+    renderOnce = true;
+    node._markDirty();
   }
 }
 node.onReset = restartVideo;
+
 fileIn.onChange = () => {
   shouldLoad = true;
 };
 speedIn.onChange = changeSpeed;
-animateIn.onChange = toggleAnimate;
+loopIn.onChange = changeLoop;
 restartIn.onTrigger = restartVideo;
