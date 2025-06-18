@@ -359,7 +359,7 @@ export default class Network {
         node.error = null;
       } catch (err) {
         console.error(err && err.stack);
-        node.error = err && err.message ? err.message : String(err);
+        node.error = err && err.stack ? err.stack : String(err);
         debugger;
       }
     }
@@ -373,7 +373,7 @@ export default class Network {
         node.error = null;
       } catch (e) {
         console.error(e && e.stack);
-        node.error = e && e.message ? e.message : String(e);
+        node.error = e && e.stack ? e.stack : String(e);
       }
       // Set the value of the connected input ports to the output ports of this node.
       for (const conn of this.connections) {

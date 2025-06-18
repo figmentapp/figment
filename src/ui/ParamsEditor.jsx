@@ -599,6 +599,21 @@ export default class ParamsEditor extends Component {
       );
     }
     const node = Array.from(selection)[0];
+    const errorLines = node.error ? node.error.split('\n') : [];
+    const errorTitle = errorLines[0] || 'Error';
+    const stackLines = errorLines.slice(1);
+    const cleanedStackLines = stackLines.map((line) => {
+      const match = line.match(/\((.*)\)/);
+      if (match && match[1]) {
+        const path = match[1];
+        if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('file:///')) {
+          return line.replace(/\s\(.*\)$/, '');
+        }
+      }
+      return line;
+    });
+    const errorStack = cleanedStackLines.join('\n');
+
     return (
       <div className="params">
         <div className="params__header">
@@ -608,8 +623,11 @@ export default class ParamsEditor extends Component {
           <span className="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
         {node.error && (
-          <div className="bg-red-400 text-white p-2 border-red-500 border-b-2 text-xs">
-            <pre>{node.error}</pre>
+          <div className="bg-gray-900 text-white text-xs font-mono shadow border-l-2 border-red-500">
+            <div className="p-2">
+              <pre className="whitespace-pre-wrap flex-1 mb-2">{errorTitle}</pre>
+              <pre className="whitespace-pre-wrap">{errorStack}</pre>
+            </div>
           </div>
         )}
         <div className="params__grid grid ">{node.inPorts.map((port) => this._renderPort(network, node, port))}</div>
