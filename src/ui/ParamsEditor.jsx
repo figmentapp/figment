@@ -141,7 +141,7 @@ class NumberDrag extends Component {
       return (
         <input
           ref={this.inputRef}
-          className="flex-1 bg-transparent bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100"
+          className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100"
           type="text"
           autoFocus={true}
           value={this.state.tempValue}
