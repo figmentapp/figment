@@ -8,7 +8,11 @@ const imageIn = node.imageIn('in');
 const operationIn = node.selectIn('remove', ['background', 'foreground']);
 const imageOut = node.imageOut('out');
 
-let _framebuffer, _canvas, _results, _pose, _imageData, _isProcessing;
+const POSE_SEGMENT_STATE_INITIALIZING = 'INITIALIZING';
+const POSE_SEGMENT_STATE_RUNNING = 'RUNNING';
+
+let _framebuffer, _canvas, _ctx, _results, _pose, _imageData, _isProcessing;
+let _poseSegmentState = POSE_SEGMENT_STATE_INITIALIZING;
 
 node.onStart = async (props) => {
   console.log('ml.segmentPose start');
@@ -16,6 +20,13 @@ node.onStart = async (props) => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts(['./mediapipe/pose.js']);
+
+  _initPose();
+};
+
+async function _initPose() {
+  _poseSegmentState = POSE_SEGMENT_STATE_INITIALIZING;
+
   const pose = new Pose({
     locateFile: (file) => {
       return `./mediapipe/${file}`;
@@ -28,11 +39,13 @@ node.onStart = async (props) => {
   });
   await pose.initialize();
   _pose = pose;
-};
+  _poseSegmentState = POSE_SEGMENT_STATE_RUNNING;
+  _isProcessing = false;
+}
 
 function _detect(image) {
   // Check if only one image is processed at the same time.
-  if (_isProcessing) return;
+  if (_isProcessing || !_pose) return;
   return new Promise((resolve) => {
     _isProcessing = true;
     try {
@@ -41,7 +54,7 @@ function _detect(image) {
         _isProcessing = false;
         resolve(results);
       });
-      _pose.send({ image });
+      _pose.send({ image }).catch((err) => _handleDetectionError(err));
     } catch (err) {
       console.error('Error in pose detection:', err);
       _isProcessing = false;
@@ -50,9 +63,28 @@ function _detect(image) {
   });
 }
 
+function _handleDetectionError(error) {
+  console.error('Error in pose segmentation:', error);
+
+  try {
+    _pose?.onResults(null);
+  } catch {}
+  try {
+    _pose?.close();
+  } catch {}
+
+  _pose = null;
+  _poseSegmentState = POSE_SEGMENT_STATE_INITIALIZING;
+  _isProcessing = false;
+  _results = null;
+
+  drawResults();
+  _initPose(); // restart
+}
+
 node.onRender = async () => {
   if (!imageIn.value) return;
-  if (!_pose) return;
+  if (!_pose || _poseSegmentState !== POSE_SEGMENT_STATE_RUNNING) return;
   // Draw the image on an ImageData object.
   const width = imageIn.value.width;
   const height = imageIn.value.height;

@@ -1,5 +1,13 @@
 # CHANGES
 
+## Version 0.5.7 (2025-06-18)
+
+- Nodes with errors show red in the network view.
+- Add Shortcut Trigger node that can react to global keyboard shortcuts.
+- Load Movie node can react to input from the Shortcut Trigger node.
+- Face/Hands/Pose detection/segmentation: recover from MediaPipe crashes
+- Parameter editor: show range indicator for number parameters.
+
 ## Version 0.5.6 (2025-06-14)
 
 - Disable background throttling in Electron.

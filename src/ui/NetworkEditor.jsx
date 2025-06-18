@@ -41,7 +41,7 @@ const DRAG_MODE_SELECTING = 'selecting';
 
 const PORT_COLORS = {
   [PORT_TYPE_TRIGGER]: COLORS.yellow400,
-  [PORT_TYPE_TOGGLE]: COLORS.orange300,
+  [PORT_TYPE_TOGGLE]: COLORS.gray100,
   [PORT_TYPE_NUMBER]: COLORS.gray500,
   [PORT_TYPE_STRING]: COLORS.indigo600,
   [PORT_TYPE_COLOR]: COLORS.gray600,
@@ -502,12 +502,13 @@ export default class NetworkEditor extends Component {
       const [nodeX, nodeY] = this._coordsToView(node.x, node.y);
       const nodeWidth = NODE_WIDTH * this.state.scale;
       const nodeHeight = NODE_HEIGHT * this.state.scale;
-      if (selection.has(node)) {
-        ctx.fillStyle = COLORS.blue600;
-        // ctx.fillRect(node.x - 3, node.y - 3, nodeWidth + 6, NODE_HEIGHT + 6);
-      } else {
-        ctx.fillStyle = COLORS.gray700;
+      let borderColor = COLORS.gray700;
+      if (node.error) {
+        borderColor = COLORS.red500;
+      } else if (selection.has(node)) {
+        borderColor = COLORS.blue600;
       }
+      ctx.fillStyle = borderColor;
 
       ctx.fillRect(nodeX, nodeY, nodeWidth, NODE_BORDER);
       ctx.fillRect(nodeX, nodeY + nodeHeight - NODE_BORDER, nodeWidth, NODE_BORDER);

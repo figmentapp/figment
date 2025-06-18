@@ -1,11 +1,10 @@
-import React, { Component, useRef, useEffect, useState, Fragment } from 'react';
+import React, { Component, Fragment } from 'react';
 import chroma from 'chroma-js';
 import InlineEditor from './InlineEditor';
 import { ChromePicker } from 'react-color';
 import { Point } from '../g';
 import Icon from './Icon';
 import * as figment from '../figment';
-// import { remote } from 'electron';
 import { throttle } from 'lodash';
 
 import {
@@ -119,29 +118,48 @@ class NumberDrag extends Component {
   }
 
   render() {
-    const { label, direction, disabled, value } = this.props;
+    const { label, direction, disabled, value, min, max } = this.props;
     let cursor;
     if (disabled) {
       cursor = 'cursor-default';
     } else {
       cursor = direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
     }
+
+    // Calculate fill percent for min/max indicator
+    let percent = 0;
+    if (typeof value === 'number' && min !== undefined && max !== undefined && max > min) {
+      percent = (value - min) / (max - min);
+      percent = Math.max(0, Math.min(1, percent));
+    }
+    // Bar color
+    const barColor = disabled ? 'bg-gray-700' : 'bg-gray-400';
+
+    // Indicator bar element
+    const indicator = (
+      <div className="relative w-full h-0">
+        <div className={`absolute left-0 bottom-0 h-0.5 ${barColor}`} style={{ width: percent === 0 ? 0 : `${percent * 100}%` }} />
+      </div>
+    );
+
     if (this.state.inputState !== NUMBER_DRAG_INPUT) {
       return (
-        <span
-          className={`flex-1 py-2 px-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
+        <div
+          className={`flex-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
             disabled ? 'text-gray-700' : 'text-gray-400'
-          }`}
+          } relative`}
           onMouseDown={this._onMouseDown}
+          style={{ position: 'relative' }}
         >
-          {roundToMaxPlaces(value)}
-        </span>
+          <span className="py-2 px-1 block">{roundToMaxPlaces(value)}</span>
+          {indicator}
+        </div>
       );
     } else {
       return (
         <input
           ref={this.inputRef}
-          className="flex-1 bg-transparent bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100"
+          className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100 w-full"
           type="text"
           autoFocus={true}
           value={this.state.tempValue}
@@ -206,8 +224,8 @@ function ToggleParam({ port, disabled, onChange }) {
   return (
     <>
       <span className="w-32 mr-4"></span>
-      <label className="w-64  p-2 flex items-center">
-        <input type="checkbox" disabled={disabled} checked={port.value} onChange={(e) => onChange(e.target.checked)} />
+      <label className={`w-64 p-2 flex items-center ${disabled ? 'opacity-50' : ''}`}>
+        <input type="checkbox" disabled={disabled} checked={!!port.value} onChange={(e) => onChange(e.target.checked)} />
         <span className="ml-2 text-gray-500">{port.label}</span>
       </label>
       <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
@@ -265,6 +283,7 @@ class SelectParam extends Component {
   constructor(props) {
     super(props);
     this._onShowMenu = this._onShowMenu.bind(this);
+    this._handleChange = this._handleChange.bind(this);
   }
 
   _onShowMenu(e) {
@@ -273,8 +292,17 @@ class SelectParam extends Component {
     window.desktop.showPortContextMenu(this.props.port);
   }
 
+  _handleChange(e) {
+    const { options, onChange } = this.props;
+    const selectedStr = e.target.value;
+    const originalVal = options.find((opt) => String(opt) === selectedStr);
+    onChange(originalVal !== undefined ? originalVal : selectedStr);
+  }
+
   render() {
     const { label, value, options, disabled, onChange } = this.props;
+    const stringValue = String(value);
+
     return (
       <>
         <label className="w-32 text-right text-gray-500 whitespace-nowrap">{label}</label>
@@ -283,20 +311,24 @@ class SelectParam extends Component {
           spellCheck="false"
           disabled={disabled}
           className={'flex-1 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={stringValue}
+          onChange={this._handleChange}
         >
-          {options.map((option, index) =>
-            option === '---' ? (
-              <option disabled key={index}>
-                ───────────────
+          {options.map((option, index) => {
+            if (option === '---') {
+              return (
+                <option disabled key={index}>
+                  ───────────────
+                </option>
+              );
+            }
+            const optStr = String(option);
+            return (
+              <option key={index} value={optStr}>
+                {optStr}
               </option>
-            ) : (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ),
-          )}
+            );
+          })}
         </select>
         <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
       </>
@@ -470,8 +502,85 @@ class DirectoryParam extends Component {
 export default class ParamsEditor extends Component {
   constructor(props) {
     super(props);
+    this.state = {
+      trackedPortValues: {},
+      error: null,
+    };
     this._onChangePortValue = this._onChangePortValue.bind(this);
     this._onChangePortExpression = this._onChangePortExpression.bind(this);
+    this._onNetworkChange = this._onNetworkChange.bind(this);
+  }
+
+  componentDidMount() {
+    this.props.network.addChangeListener(this._onNetworkChange);
+    this._updateTrackedPortValues();
+  }
+
+  componentWillUnmount() {
+    this.props.network.removeChangeListener(this._onNetworkChange);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.network !== this.props.network) {
+      prevProps.network.removeChangeListener(this._onNetworkChange);
+      this.props.network.addChangeListener(this._onNetworkChange);
+    }
+    // If the selection has changed, we need to update which ports we're tracking.
+    if (prevProps.selection !== this.props.selection) {
+      this._updateTrackedPortValues();
+    }
+  }
+
+  _getTrackablePorts(node) {
+    if (!node) return [];
+    // Only track connected toggle ports, as their value can change externally and they are visible in the inspector.
+    return node.inPorts.filter((port) => port.type === PORT_TYPE_TOGGLE && this.props.network.isConnected(port));
+  }
+
+  _updateTrackedPortValues() {
+    const { selection } = this.props;
+    if (selection.size !== 1) {
+      if (Object.keys(this.state.trackedPortValues).length > 0 || this.state.error) {
+        this.setState({ trackedPortValues: {}, error: null });
+      }
+      return;
+    }
+    const node = Array.from(selection)[0];
+    const trackablePorts = this._getTrackablePorts(node);
+    const newTrackedValues = {};
+    for (const port of trackablePorts) {
+      newTrackedValues[port.name] = port.value;
+    }
+    // Only update state if the values have actually changed to avoid an extra render cycle.
+    if (JSON.stringify(this.state.trackedPortValues) !== JSON.stringify(newTrackedValues) || this.state.error !== node.error) {
+      this.setState({ trackedPortValues: newTrackedValues, error: node.error });
+    }
+  }
+
+  _onNetworkChange() {
+    const { selection } = this.props;
+    if (selection.size !== 1) return;
+
+    const node = Array.from(selection)[0];
+    const trackablePorts = this._getTrackablePorts(node);
+
+    let needsUpdate = false;
+    const newTrackedValues = { ...this.state.trackedPortValues };
+
+    for (const port of trackablePorts) {
+      if (this.state.trackedPortValues[port.name] !== port.value) {
+        newTrackedValues[port.name] = port.value;
+        needsUpdate = true;
+      }
+    }
+
+    if (node.error !== this.state.error) {
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      this.setState({ trackedPortValues: newTrackedValues, error: node.error });
+    }
   }
 
   _onChangePortValue(portName, value) {
@@ -511,6 +620,21 @@ export default class ParamsEditor extends Component {
       );
     }
     const node = Array.from(selection)[0];
+    const errorLines = node.error ? node.error.split('\n') : [];
+    const errorTitle = errorLines[0] || 'Error';
+    const stackLines = errorLines.slice(1);
+    const cleanedStackLines = stackLines.map((line) => {
+      const match = line.match(/\((.*)\)/);
+      if (match && match[1]) {
+        const path = match[1];
+        if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('file:///')) {
+          return line.replace(/\s\(.*\)$/, '');
+        }
+      }
+      return line;
+    });
+    const errorStack = cleanedStackLines.join('\n');
+
     return (
       <div className="params">
         <div className="params__header">
@@ -519,6 +643,14 @@ export default class ParamsEditor extends Component {
           </span>
           <span className="text-gray-500 text-xs ml-3">{node.type}</span>
         </div>
+        {node.error && (
+          <div className="bg-gray-900 text-white text-xs font-mono shadow border-l-2 border-red-500">
+            <div className="p-2">
+              <pre className="whitespace-pre-wrap flex-1 mb-2">{errorTitle}</pre>
+              <pre className="whitespace-pre-wrap">{errorStack}</pre>
+            </div>
+          </div>
+        )}
         <div className="params__grid grid ">{node.inPorts.map((port) => this._renderPort(network, node, port))}</div>
       </div>
     );

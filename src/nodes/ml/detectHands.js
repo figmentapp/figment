@@ -17,13 +17,24 @@ const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
 
+const HANDS_STATE_INITIALIZING = 'INITIALIZING';
+const HANDS_STATE_RUNNING = 'RUNNING';
+
 let _framebuffer, _canvas, _ctx, _hands, _results, _isProcessing;
+let _handsState = HANDS_STATE_INITIALIZING;
 
 node.onStart = async (props) => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   await figment.loadScripts(['./mediapipe/drawing_utils.js', './mediapipe/hands.js']);
+
+  _initHands();
+};
+
+async function _initHands() {
+  _handsState = HANDS_STATE_INITIALIZING;
+
   const hands = new Hands({
     locateFile: (file) => {
       return `./mediapipe/${file}`;
@@ -35,12 +46,16 @@ node.onStart = async (props) => {
     minDetectionConfidence: 0.5,
     minTrackingConfidence: 0.5,
   });
+
+  await hands.initialize();
   _hands = hands;
-};
+  _handsState = HANDS_STATE_RUNNING;
+  _isProcessing = false;
+}
 
 function _detect(image) {
   // Check if only one image is processed at the same time.
-  if (_isProcessing) return;
+  if (_isProcessing || !_hands) return;
   return new Promise((resolve) => {
     _isProcessing = true;
     try {
@@ -49,7 +64,7 @@ function _detect(image) {
         _isProcessing = false;
         resolve(results);
       });
-      _hands.send({ image });
+      _hands.send({ image }).catch((err) => _handleDetectionError(err));
     } catch (err) {
       console.error('Error in hands detection:', err);
       _isProcessing = false;
@@ -58,9 +73,29 @@ function _detect(image) {
   });
 }
 
+function _handleDetectionError(error) {
+  console.error('Error in hands detection:', error);
+
+  try {
+    _hands?.onResults(null);
+  } catch {}
+  try {
+    _hands?.close();
+  } catch {}
+
+  _hands = null;
+  _handsState = HANDS_STATE_INITIALIZING;
+  _isProcessing = false;
+  _results = null;
+
+  drawResults();
+  landmarksOut.set(null);
+  _initHands(); // restart
+}
+
 node.onRender = async () => {
   if (!imageIn.value) return;
-  if (!_hands) return;
+  if (!_hands || _handsState !== HANDS_STATE_RUNNING) return;
   // Draw the image on an ImageData object.
   const width = imageIn.value.width;
   const height = imageIn.value.height;

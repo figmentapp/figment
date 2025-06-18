@@ -1,5 +1,5 @@
 import querystring from 'node:querystring';
-import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences } from 'electron';
+import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
@@ -209,6 +209,42 @@ ipcMain.handle('oscStopServer', (_) => {
   }
 });
 
+// Register a system-wide shortcut. Returns true if successful.
+ipcMain.handle('registerGlobalShortcut', async (_, { id, accel }) => {
+  // Ensure the accelerator is not already registered by another Figment shortcut.
+  if (globalShortcut.isRegistered(accel)) {
+    globalShortcut.unregister(accel);
+  }
+
+  const ok = globalShortcut.register(accel, () => {
+    // Relay the event to the renderer so nodes can react.
+    sendIpcMessage('shortcut', { id, accel });
+  });
+
+  return ok;
+});
+
+// Unregister a previously registered shortcut.
+ipcMain.handle('unregisterGlobalShortcut', async (_, { accel }) => {
+  if (globalShortcut.isRegistered(accel)) {
+    globalShortcut.unregister(accel);
+  }
+});
+
+ipcMain.handle('setRepresentedFilename', (_, filePath) => {
+  if (filePath) {
+    gMainWindow.setRepresentedFilename(filePath);
+    gMainWindow.setTitle(`${path.basename(filePath)}`);
+  } else {
+    gMainWindow.setRepresentedFilename('');
+    gMainWindow.setTitle('Figment');
+  }
+});
+
+ipcMain.handle('setDocumentEdited', (_, edited) => {
+  gMainWindow.setDocumentEdited(edited);
+});
+
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;
   const { createServer, createLogger, build } = await import('vite');
@@ -375,4 +411,6 @@ app.on('will-quit', async (event) => {
     gDevServer = null;
     app.quit();
   }
+  // Clean up any global shortcuts we registered.
+  globalShortcut.unregisterAll();
 });

@@ -156,9 +156,23 @@ export default class Network {
       return;
     }
     const node = new Node(this, id, nodeType.name, nodeType.type, x, y);
-    const source = nodeType.source;
+    // Append an inline sourceURL comment so DevTools shows a meaningful filename
+    // when the dynamically-generated function is displayed in stack traces.
+    let source = nodeType.source;
+    if (!source.includes('//# sourceURL')) {
+      const safeFileName = `${nodeType.type.replace(/[^a-zA-Z0-9_\-\.]/g, '_')}_${id}.js`;
+      source += `\n//# sourceURL=${safeFileName}`;
+    }
+
     try {
       const fn = new Function('node', source);
+      // Give the function a display name to improve readability in call stacks.
+      try {
+        Object.defineProperty(fn, 'name', { value: nodeType.type, configurable: true });
+      } catch (_) {
+        // Ignore if the environment prevents redefining the name.
+      }
+
       fn.call(window, node);
     } catch (e) {
       console.error(`Error creating ${typeId}: ${e && e.stack}`);
@@ -342,8 +356,10 @@ export default class Network {
     if (node.onStart) {
       try {
         await node.onStart(node);
+        node.error = null;
       } catch (err) {
         console.error(err && err.stack);
+        node.error = err && err.stack ? err.stack : String(err);
         debugger;
       }
     }
@@ -354,8 +370,10 @@ export default class Network {
       // console.log(`render ${node.id} ${node.name}`);
       try {
         await node.onRender();
+        node.error = null;
       } catch (e) {
         console.error(e && e.stack);
+        node.error = e && e.stack ? e.stack : String(e);
       }
       // Set the value of the connected input ports to the output ports of this node.
       for (const conn of this.connections) {
@@ -441,9 +459,10 @@ export default class Network {
   setPortValue(node, portName, value) {
     const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port, `Port ${portName} does not exist.`);
+    const oldValue = port.value;
     port.value = value;
     if (typeof port.onChange === 'function') {
-      port.onChange();
+      port.onChange(oldValue, value);
     }
     port.forceUpdate();
   }
@@ -451,9 +470,10 @@ export default class Network {
   setPortExpression(node, portName, expression) {
     const port = node.inPorts.find((p) => p.name === portName);
     console.assert(port, `Port ${portName} does not exist.`);
+    const oldValue = port.value;
     port._value = { type: 'expression', expression };
     if (typeof port.onChange === 'function') {
-      port.onChange();
+      port.onChange(oldValue, port.value);
     }
     port.forceUpdate();
   }

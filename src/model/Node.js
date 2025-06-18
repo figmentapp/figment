@@ -31,9 +31,11 @@ export default class Node {
     this.outPorts = [];
     this.isDirty = true;
     this._timeDependent = false;
+    this.error = null;
   }
 
   _markDirty() {
+    this.error = null;
     this.network.markNodeDirty(this);
   }
 
