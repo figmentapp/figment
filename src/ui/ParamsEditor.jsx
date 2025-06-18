@@ -119,29 +119,48 @@ class NumberDrag extends Component {
   }
 
   render() {
-    const { label, direction, disabled, value } = this.props;
+    const { label, direction, disabled, value, min, max } = this.props;
     let cursor;
     if (disabled) {
       cursor = 'cursor-default';
     } else {
       cursor = direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
     }
+
+    // Calculate fill percent for min/max indicator
+    let percent = 0;
+    if (typeof value === 'number' && min !== undefined && max !== undefined && max > min) {
+      percent = (value - min) / (max - min);
+      percent = Math.max(0, Math.min(1, percent));
+    }
+    // Bar color
+    const barColor = disabled ? 'bg-gray-700' : 'bg-gray-400';
+
+    // Indicator bar element
+    const indicator = (
+      <div className="relative w-full h-0">
+        <div className={`absolute left-0 bottom-0 h-0.5 ${barColor}`} style={{ width: percent === 0 ? 0 : `${percent * 100}%` }} />
+      </div>
+    );
+
     if (this.state.inputState !== NUMBER_DRAG_INPUT) {
       return (
-        <span
-          className={`flex-1 py-2 px-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
+        <div
+          className={`flex-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
             disabled ? 'text-gray-700' : 'text-gray-400'
-          }`}
+          } relative`}
           onMouseDown={this._onMouseDown}
+          style={{ position: 'relative' }}
         >
-          {roundToMaxPlaces(value)}
-        </span>
+          <span className="py-2 px-1 block">{roundToMaxPlaces(value)}</span>
+          {indicator}
+        </div>
       );
     } else {
       return (
         <input
           ref={this.inputRef}
-          className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100"
+          className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100 w-full"
           type="text"
           autoFocus={true}
           value={this.state.tempValue}
