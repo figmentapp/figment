@@ -1,4 +1,4 @@
-export const LATEST_FORMAT_VERSION = 2;
+export const LATEST_FORMAT_VERSION = 3;
 
 export function upgradeProject(project) {
   if (typeof project.version !== 'number') {
@@ -24,6 +24,19 @@ export function upgradeProject(project) {
         for (const key in node.values) {
           node.values[key] = { type: 'value', value: node.values[key] };
         }
+      }
+    }
+    // Recursively do further upgrades, if necessary.
+    return upgradeProject(newProject);
+  } else if (project.version === 2) {
+    // Version 3 renames the Load Movie node parameter "animate" to "play".
+    const newProject = structuredClone(project);
+    newProject.version = 3;
+    for (const node of newProject.nodes) {
+      if (!node || !node.type) continue;
+      if (node.type === 'image.loadMovie' && node.values && 'animate' in node.values) {
+        node.values.play = node.values.animate;
+        delete node.values.animate;
       }
     }
     // Recursively do further upgrades, if necessary.
