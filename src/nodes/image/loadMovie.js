@@ -7,6 +7,8 @@
 node.timeDependent = true;
 const fileIn = node.fileIn('file', '', { fileType: 'movie' });
 const playIn = node.toggleIn('play', true);
+// The play input is both a plug and a parameter.
+playIn.display = 0x03;
 const loopIn = node.toggleIn('loop', true);
 const pauseModeIn = node.selectIn('pauseMode', ['hold', 'restart', 'rewind'], 'hold');
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
