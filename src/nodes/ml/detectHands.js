@@ -1,6 +1,6 @@
 /**
  * @name Detect Hands
- * @description Detect the hands in an image.
+ * @description Detect hands in an image using MediaPipe
  * @category ml
  */
 
@@ -12,91 +12,55 @@ const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step
 const linesToggleIn = node.toggleIn('draw lines', true);
 const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
 const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
+const numHandsIn = node.numberIn('number of hands', 2, { min: 1, max: 4, step: 1 });
+const confidenceIn = node.numberIn('confidence', 0.5, { min: 0, max: 1, step: 0.01 });
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
 
-const HANDS_STATE_INITIALIZING = 'INITIALIZING';
-const HANDS_STATE_RUNNING = 'RUNNING';
+pointsColorIn.label = 'Color';
+pointsRadiusIn.label = 'Radius';
+linesColorIn.label = 'Color';
+linesWidthIn.label = 'Line Width';
 
-let _framebuffer, _canvas, _ctx, _hands, _results, _isProcessing;
-let _handsState = HANDS_STATE_INITIALIZING;
+let _vision, _handLandmarker;
+let _framebuffer, _canvas, _ctx, _imageData;
+let _drawingUtils;
+let _initialising = false;
 
-node.onStart = async (props) => {
+async function initLandmarker() {
+  if (_initialising) return;
+  _initialising = true;
+  if (_handLandmarker) {
+    await _handLandmarker.close();
+  }
+
+  _handLandmarker = await mediapipe.HandLandmarker.createFromOptions(_vision, {
+    baseOptions: {
+      modelAssetPath: './new-mediapipe/hand_landmarker.task',
+      delegate: 'GPU',
+    },
+    runningMode: 'IMAGE',
+    numHands: numHandsIn.value,
+    minHandDetectionConfidence: confidenceIn.value,
+    minHandPresenceConfidence: confidenceIn.value,
+    minTrackingConfidence: confidenceIn.value,
+  });
+  _initialising = false;
+}
+
+node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
-  await figment.loadScripts(['./mediapipe/drawing_utils.js', './mediapipe/hands.js']);
-
-  _initHands();
+  _drawingUtils = new mediapipe.DrawingUtils(_ctx);
+  _vision = await mediapipe.FilesetResolver.forVisionTasks('./new-mediapipe');
+  await initLandmarker();
 };
 
-async function _initHands() {
-  _handsState = HANDS_STATE_INITIALIZING;
-
-  const hands = new Hands({
-    locateFile: (file) => {
-      return `./mediapipe/${file}`;
-    },
-  });
-  hands.setOptions({
-    maxNumHands: 2,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
-
-  await hands.initialize();
-  _hands = hands;
-  _handsState = HANDS_STATE_RUNNING;
-  _isProcessing = false;
-}
-
-function _detect(image) {
-  // Check if only one image is processed at the same time.
-  if (_isProcessing || !_hands) return;
-  return new Promise((resolve) => {
-    _isProcessing = true;
-    try {
-      _hands.onResults((results) => {
-        _hands.onResults(null);
-        _isProcessing = false;
-        resolve(results);
-      });
-      _hands.send({ image }).catch((err) => _handleDetectionError(err));
-    } catch (err) {
-      console.error('Error in hands detection:', err);
-      _isProcessing = false;
-      resolve(null);
-    }
-  });
-}
-
-function _handleDetectionError(error) {
-  console.error('Error in hands detection:', error);
-
-  try {
-    _hands?.onResults(null);
-  } catch {}
-  try {
-    _hands?.close();
-  } catch {}
-
-  _hands = null;
-  _handsState = HANDS_STATE_INITIALIZING;
-  _isProcessing = false;
-  _results = null;
-
-  drawResults();
-  landmarksOut.set(null);
-  _initHands(); // restart
-}
-
-node.onRender = async () => {
-  if (!imageIn.value) return;
-  if (!_hands || _handsState !== HANDS_STATE_RUNNING) return;
-  // Draw the image on an ImageData object.
+node.onRender = () => {
+  if (!imageIn.value || _initialising) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -106,48 +70,60 @@ node.onRender = async () => {
     _imageData = new ImageData(width, height);
     _framebuffer.setSize(width, height);
   }
-  // Video nodes pass along this extra object with the framebuffer.
-  // This allows mediapose to avoid reading the texture first from the framebuffer.
-  if (imageIn.value._directImageHack) {
-    _results = await _detect(imageIn.value._directImageHack);
-  } else {
-    imageIn.value.bind();
-    window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
-    imageIn.value.unbind();
-    _results = await _detect(_imageData);
-  }
-  drawResults();
-  landmarksOut.set(_results ? { type: 'hands', landmarks: _results.multiHandLandmarks } : null);
+
+  imageIn.value.bind();
+  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
+  imageIn.value.unbind();
+
+  const handResult = _handLandmarker.detect(_imageData);
+  drawResults(handResult);
 };
 
-function drawResults() {
-  if (!imageIn.value || !_results) return;
+function drawResults(handResult) {
+  if (!imageIn.value || !handResult) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
+
   _ctx.clearRect(0, 0, width, height);
   _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   _ctx.fillRect(0, 0, width, height);
-  if (_results.multiHandLandmarks) {
-    detectedOut.set(_results.multiHandLandmarks.length > 0);
-    for (const landmarks of _results.multiHandLandmarks) {
-      _ctx.fillStyle = 'white';
-      _ctx.beginPath();
+
+  if (handResult.landmarks && handResult.landmarks.length > 0) {
+    detectedOut.value = true;
+    landmarksOut.value = {
+      type: 'hands',
+      landmarks: handResult.landmarks,
+      handedness: handResult.handednesses,
+      worldLandmarks: handResult.worldLandmarks,
+    };
+
+    for (const landmarks of handResult.landmarks) {
       if (linesToggleIn.value) {
-        drawConnectors(_ctx, landmarks, HAND_CONNECTIONS, {
+        const options = {
           color: figment.toCanvasColor(linesColorIn.value),
           lineWidth: linesWidthIn.value,
-          visibilityMin: 0,
-        });
+        };
+        _drawingUtils.drawConnectors(landmarks, mediapipe.HandLandmarker.HAND_CONNECTIONS, options);
       }
+
       if (pointsToggleIn.value) {
-        drawLandmarks(_ctx, landmarks, { color: figment.toCanvasColor(pointsColorIn.value), lineWidth: pointsRadiusIn.value });
+        const options = {
+          color: figment.toCanvasColor(pointsColorIn.value),
+          radius: pointsRadiusIn.value,
+        };
+        _drawingUtils.drawLandmarks(landmarks, options);
       }
     }
   } else {
-    detectedOut.set(false);
+    detectedOut.value = false;
+    landmarksOut.value = null;
   }
+
   window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
   window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.set(_framebuffer);
+  imageOut.value = _framebuffer;
 }
+
+numHandsIn.onChange = initLandmarker;
+confidenceIn.onChange = initLandmarker;
