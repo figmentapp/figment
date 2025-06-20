@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
 import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
+import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -207,6 +208,18 @@ ipcMain.handle('oscStopServer', (_) => {
     sendIpcMessage('osc', 'stop-server');
     _serverHandle = null;
   }
+});
+
+ipcMain.handle('udpSendMessage', (_, { ip, port, data }) => {
+  udpSendMessage(ip, port, Buffer.from(data));
+});
+
+ipcMain.handle('udpStartServer', (_, { port }) => {
+  udpStartServer(port, sendIpcMessage);
+});
+
+ipcMain.handle('udpStopServer', (_, { port }) => {
+  udpStopServer(port);
 });
 
 // Register a system-wide shortcut. Returns true if successful.
