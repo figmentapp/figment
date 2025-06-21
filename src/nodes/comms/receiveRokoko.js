@@ -4,9 +4,6 @@
  * @category comms
  */
 
-const portIn = node.numberIn('port', 14043);
-
-// Add inputs and outputs for skeleton image drawing
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const pointsToggleIn = node.toggleIn('draw points', true);
 const pointsColorIn = node.colorIn('points color', [255, 255, 255, 1]);
@@ -15,20 +12,29 @@ const linesToggleIn = node.toggleIn('draw lines', true);
 const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
 const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
 
+const widthIn = node.numberIn('width', 1920);
+const heightIn = node.numberIn('height', 1080);
+
+const cameraXIn = node.numberIn('camera X', 0, { min: -10, max: 10, step: 0.1 });
+const cameraYIn = node.numberIn('camera Y', 1, { min: -10, max: 10, step: 0.1 });
+const cameraZIn = node.numberIn('camera Z', 3, { min: -10, max: 10, step: 0.1 });
+const fovIn = node.numberIn('field of view', 60, { min: 10, max: 120 });
+const treadmillIn = node.toggleIn('treadmill', false);
+
+const udpPortIn = node.numberIn('udp port', 14043);
+udpPortIn.label = 'UDP port';
+
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
-const bodyOut = node.objectOut('body');
 
 pointsColorIn.label = 'Color';
 pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-// --- drawing helpers ---
 let _framebuffer, _canvas, _ctx;
 let _currentBody = null;
-const DEFAULT_SIZE = 512;
 
 const ROKOKO_BODY_CONNECTIONS = [
   ['hip', 'spine'],
@@ -55,20 +61,37 @@ const ROKOKO_BODY_CONNECTIONS = [
 
 let _listener;
 
-node.onStart = async () => {
-  // initialise drawing resources
-  _framebuffer = new figment.Framebuffer();
-  _framebuffer.setSize(DEFAULT_SIZE, DEFAULT_SIZE);
-  _canvas = new OffscreenCanvas(DEFAULT_SIZE, DEFAULT_SIZE);
+function resizeOutput() {
+  const width = widthIn.value;
+  const height = heightIn.value;
+
+  if (_canvas && _canvas.width === width && _canvas.height === height) {
+    return;
+  }
+
+  _canvas = new OffscreenCanvas(width, height);
   _ctx = _canvas.getContext('2d');
+  if (_framebuffer) {
+    _framebuffer.setSize(width, height);
+    drawResults();
+  }
+}
+
+widthIn.onChange = resizeOutput;
+heightIn.onChange = resizeOutput;
+
+node.onStart = async () => {
   await figment.loadScripts(['./mediapipe/drawing_utils.js']);
+
+  _framebuffer = new figment.Framebuffer();
+  resizeOutput();
 
   drawResults(); // initial blank frame
 
-  // original listener setup
+  // UDP listener setup
   _listener = (name, args) => {
     if (name !== 'message') return;
-    if (args.port !== portIn.value) return;
+    if (args.port !== udpPortIn.value) return;
     const data = new Uint8Array(args.data);
     const decoded = lz4Decompress(data);
     if (!decoded) return;
@@ -78,7 +101,6 @@ node.onStart = async () => {
       const body = json?.scene?.actors?.[0]?.body;
       if (!body) return;
       _currentBody = body;
-      bodyOut.set(body);
       landmarksOut.set(body?.joints ? { type: 'rokoko', body } : null);
       drawResults();
     } catch (e) {
@@ -86,18 +108,139 @@ node.onStart = async () => {
     }
   };
   window.desktop.registerListener('udp', _listener);
-  window.desktop.startUdpServer(portIn.value);
+  window.desktop.startUdpServer(udpPortIn.value);
 };
 
 node.onStop = () => {
   window.desktop.registerListener('udp', null);
-  window.desktop.stopUdpServer(portIn.value);
+  window.desktop.stopUdpServer(udpPortIn.value);
 };
 
-portIn.onChange = (oldPort, newPort) => {
+udpPortIn.onChange = (oldPort, newPort) => {
   window.desktop.stopUdpServer(oldPort);
   window.desktop.startUdpServer(newPort);
 };
+
+//// DRAWING ////
+
+function drawResults() {
+  const width = widthIn.value;
+  const height = heightIn.value;
+
+  if (!_ctx) return;
+
+  // clear background
+  _ctx.clearRect(0, 0, width, height);
+  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
+  _ctx.fillRect(0, 0, width, height);
+
+  if (_currentBody) {
+    const { landmarks, connections } = _extractLandmarksAndConnections(_currentBody, width, height);
+    if (landmarks.length) {
+      detectedOut.set(true);
+      if (linesToggleIn.value && connections.length) {
+        drawConnectors(_ctx, landmarks, connections, {
+          color: figment.toCanvasColor(linesColorIn.value),
+          lineWidth: linesWidthIn.value,
+          visibilityMin: 0,
+        });
+      }
+      if (pointsToggleIn.value) {
+        drawLandmarks(_ctx, landmarks, {
+          color: figment.toCanvasColor(pointsColorIn.value),
+          radius: pointsRadiusIn.value,
+        });
+      }
+    } else {
+      detectedOut.set(false);
+    }
+  } else {
+    detectedOut.set(false);
+  }
+
+  // upload canvas to texture
+  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
+  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
+  window.gl.bindTexture(gl.TEXTURE_2D, null);
+  imageOut.set(_framebuffer);
+}
+
+function _extractLandmarksAndConnections(body, width, height) {
+  const joints = body || {};
+  const names = Object.keys(joints);
+  if (!names.length || !joints.hip?.position) return { landmarks: [], connections: [] };
+
+  // Center model at origin using hip position if treadmill is on
+  const center = treadmillIn.value ? joints.hip.position : { x: 0, y: 0, z: 0 };
+  const positions3D = names.map((name) => {
+    const pos = joints[name]?.position || { x: 0, y: 0, z: 0 };
+    return {
+      x: -((pos.x ?? 0) - (center.x ?? 0)),
+      y: (pos.y ?? 0) - (center.y ?? 0),
+      z: (pos.z ?? 0) - (center.z ?? 0),
+    };
+  });
+
+  // Get camera parameters
+  const cameraPos = { x: cameraXIn.value, y: cameraYIn.value, z: cameraZIn.value };
+  const fov = fovIn.value * (Math.PI / 180);
+
+  // Project 3D points to 2D landmarks
+  const landmarks = positions3D.map((pos) => {
+    const projected = perspectiveProjectPoint(pos, cameraPos, fov, width, height);
+    return {
+      x: projected.x,
+      y: projected.y,
+      visibility: projected.visible ? 1 : 0,
+    };
+  });
+
+  const nameToIdx = Object.fromEntries(names.map((name, i) => [name, i]));
+
+  const connections = ROKOKO_BODY_CONNECTIONS.map(([p, c]) => [nameToIdx[p], nameToIdx[c]]).filter(
+    (pair) => pair[0] !== undefined && pair[1] !== undefined,
+  );
+
+  return { landmarks, connections };
+}
+
+function perspectiveProjectPoint(point, cameraPos, fov, width, height) {
+  const aspect = width / height;
+  const near = 0.1;
+
+  // 1. Translate world by camera's inverse position.
+  const p_cam = {
+    x: point.x - cameraPos.x,
+    y: point.y - cameraPos.y,
+    z: point.z - cameraPos.z,
+  };
+
+  // 2. Perspective Projection (looking down -Z axis)
+  if (p_cam.z >= -near) {
+    return { x: 0.5, y: 0.5, visible: false }; // Clip if behind or too close
+  }
+  const z_dist = -p_cam.z;
+
+  const scaleY = 1 / Math.tan(fov / 2);
+  const scaleX = scaleY / aspect;
+
+  const x_ndc = (p_cam.x * scaleX) / z_dist;
+  const y_ndc = (p_cam.y * scaleY) / z_dist;
+
+  // 3. Viewport transform (NDC [-1, 1] to screen space [0, 1])
+  const x = 0.5 + x_ndc / 2;
+  const y = 0.5 - y_ndc / 2;
+
+  const visible = x >= 0 && x <= 1 && y >= 0 && y <= 1;
+
+  return {
+    x: Math.max(0, Math.min(1, x)),
+    y: Math.max(0, Math.min(1, y)),
+    visible,
+  };
+}
+
+//// LZ4 DECOMPRESSION ////
 
 function lz4Decompress(src, maxSize = 64 << 20) {
   src = new Uint8Array(src);
@@ -211,86 +354,4 @@ function lz4FrameDecompress(src, maxSize) {
   if (hasContentChecksum) ip += 4; // skip content checksum (ignored)
 
   return new Uint8Array(dst);
-}
-
-function drawResults() {
-  const width = DEFAULT_SIZE;
-  const height = DEFAULT_SIZE;
-
-  // clear background
-  _ctx.clearRect(0, 0, width, height);
-  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  _ctx.fillRect(0, 0, width, height);
-
-  if (_currentBody) {
-    const { landmarks, connections } = _extractLandmarksAndConnections(_currentBody, width, height);
-    if (landmarks.length) {
-      detectedOut.set(true);
-      if (linesToggleIn.value && connections.length) {
-        drawConnectors(_ctx, landmarks, connections, {
-          color: figment.toCanvasColor(linesColorIn.value),
-          lineWidth: linesWidthIn.value,
-          visibilityMin: 0,
-        });
-      }
-      if (pointsToggleIn.value) {
-        drawLandmarks(_ctx, landmarks, {
-          color: figment.toCanvasColor(pointsColorIn.value),
-          lineWidth: pointsRadiusIn.value,
-        });
-      }
-    } else {
-      detectedOut.set(false);
-    }
-  } else {
-    detectedOut.set(false);
-  }
-
-  // upload canvas to texture
-  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
-  window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.set(_framebuffer);
-}
-
-function _extractLandmarksAndConnections(body, width, height) {
-  const joints = body || {};
-  const names = Object.keys(joints);
-  if (!names.length) return { landmarks: [], connections: [] };
-
-  // gather raw positions
-  const raw = [];
-  names.forEach((name) => {
-    const j = joints[name];
-    // support various position field names
-    const pos = j.position || {};
-    raw.push({ x: pos.x ?? 0, y: pos.y ?? 0, z: pos.z ?? 0 });
-  });
-
-  // normalise to canvas space
-  const xs = raw.map((p) => p.x);
-  const ys = raw.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const rangeX = maxX - minX || 1;
-  const rangeY = maxY - minY || 1;
-  const scale = 0.8 * Math.min(width / rangeX, height / rangeY);
-  const offsetX = (width - rangeX * scale) / 2;
-  const offsetY = (height - rangeY * scale) / 2;
-
-  const landmarks = raw.map((p) => ({
-    x: (offsetX + (p.x - minX) * scale) / width,
-    y: 1 - (offsetY + (p.y - minY) * scale) / height, // flip to match canvas coords
-    visibility: 1,
-  }));
-
-  const nameToIdx = Object.fromEntries(names.map((name, i) => [name, i]));
-
-  const connections = ROKOKO_BODY_CONNECTIONS.map(([p, c]) => [nameToIdx[p], nameToIdx[c]]).filter(
-    (pair) => pair[0] !== undefined && pair[1] !== undefined,
-  );
-
-  return { landmarks, connections };
 }
