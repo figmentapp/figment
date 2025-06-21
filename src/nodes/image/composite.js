@@ -27,7 +27,7 @@ const operationIn = node.selectIn(
   ],
   'normal',
 );
-const fitIn = node.selectIn('fit', ['stretch', 'contain', 'cover', 'center'], 'stretch');
+const fitIn = node.selectIn('fit', ['contain', 'cover', 'stretch'], 'contain');
 const imageOut = node.imageOut('out');
 
 function updateShader() {
@@ -102,9 +102,7 @@ node.onRender = () => {
 
   let scale = [1, 1];
 
-  if (fitIn.value === 'center') {
-    scale = [w1 / w2, h1 / h2];
-  } else if (fitIn.value !== 'stretch') {
+  if (fitIn.value !== 'stretch') {
     const inRatio = w2 / h2;
     const outRatio = w1 / h1;
     let aspect, orientation;
