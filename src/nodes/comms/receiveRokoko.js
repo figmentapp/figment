@@ -103,6 +103,9 @@ node.onStart = async () => {
       _currentBody = body;
       landmarksOut.set(body?.joints ? { type: 'rokoko', body } : null);
       drawResults();
+      if (node.network) {
+        node.network.markNodeDirty(node);
+      }
     } catch (e) {
       console.error('Failed to parse Rokoko data:', e);
     }
@@ -115,6 +118,8 @@ node.onStop = () => {
   window.desktop.registerListener('udp', null);
   window.desktop.stopUdpServer(udpPortIn.value);
 };
+
+node.onRender = () => {};
 
 udpPortIn.onChange = (oldPort, newPort) => {
   window.desktop.stopUdpServer(oldPort);
