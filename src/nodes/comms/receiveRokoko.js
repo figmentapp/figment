@@ -14,7 +14,7 @@ node.onStart = () => {
     if (name !== 'message') return;
     if (args.port !== portIn.value) return;
     const data = new Uint8Array(args.data);
-    const decoded = lz4Decode(data);
+    const decoded = lz4Decompress(data);
     if (!decoded) return;
     const text = new TextDecoder().decode(decoded);
     try {
@@ -39,39 +39,46 @@ portIn.onChange = (oldV, newV) => {
   window.desktop.startUdpServer(newV);
 };
 
-function lz4Decode(input) {
-  const src = new Uint8Array(input);
-  let pos = 0;
-  const out = [];
-  while (pos < src.length) {
-    const token = src[pos++];
-    let litLength = token >> 4;
-    if (litLength === 15) {
-      let b;
-      do {
-        b = src[pos++];
-        litLength += b;
-      } while (b === 255);
-    }
-    for (let i = 0; i < litLength; i++) {
-      out.push(src[pos++]);
-    }
-    if (pos >= src.length) break;
-    const offset = src[pos] | (src[pos + 1] << 8);
-    pos += 2;
-    let matchLength = token & 0x0f;
-    if (matchLength === 15) {
-      let b;
-      do {
-        b = src[pos++];
-        matchLength += b;
-      } while (b === 255);
-    }
-    matchLength += 4;
-    const start = out.length - offset;
-    for (let i = 0; i < matchLength; i++) {
-      out.push(out[start + i]);
-    }
+function lz4Decompress(src, maxSize = 64 << 20) {
+  src = new Uint8Array(src);
+  const dst = [];
+  let ip = 0;
+
+  const spush = (b) => dst.push(b);
+
+  function copyMatch(offset, len) {
+    const base = dst.length - offset;
+    if (base < 0) throw new Error('LZ4: offset beyond output size');
+    for (let i = 0; i < len; ++i) spush(dst[base + i]);
   }
-  return new Uint8Array(out);
+
+  while (ip < src.length) {
+    const token = src[ip++];
+    if (token === undefined) break;
+
+    let litLen = token >>> 4;
+    if (litLen === 15) {
+      let s;
+      while ((s = src[ip++]) === 0xff) litLen += 0xff;
+      litLen += s;
+    }
+    for (let i = 0; i < litLen; ++i) spush(src[ip++]);
+    if (ip >= src.length) break;
+
+    const offset = src[ip] | (src[ip + 1] << 8);
+    ip += 2;
+
+    let matchLen = (token & 0x0f) + 4;
+    if ((token & 0x0f) === 15) {
+      let s;
+      while ((s = src[ip++]) === 0xff) matchLen += 0xff;
+      matchLen += s;
+    }
+
+    copyMatch(offset, matchLen);
+
+    if (dst.length > maxSize) throw new Error('LZ4: exceeded maximum size');
+  }
+
+  return new Uint8Array(dst);
 }
