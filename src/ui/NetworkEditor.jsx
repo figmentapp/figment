@@ -345,7 +345,9 @@ export default class NetworkEditor extends Component {
           this._dragMode = DRAG_MODE_IDLE;
         } else {
           this._dragMode = DRAG_MODE_DRAG_NODE;
-          this.props.onSelectNode(node);
+          if (!this.props.selection.has(node)) {
+            this.props.onSelectNode(node);
+          }
           this._draw();
         }
       }
