@@ -27,6 +27,7 @@ const operationIn = node.selectIn(
   ],
   'normal',
 );
+const fitIn = node.selectIn('fit', ['stretch', 'contain', 'cover', 'center'], 'stretch');
 const imageOut = node.imageOut('out');
 
 function updateShader() {
@@ -64,13 +65,18 @@ function updateShader() {
   uniform sampler2D u_image_1;
   uniform sampler2D u_image_2;
   uniform float u_factor;
+  uniform vec2 u_scale;
   varying vec2 v_uv;
   float blendColorBurn(float c1, float c2) { return (c2==0.0)?c2:max((1.0-((1.0-c1)/c2)),0.0); }
   float blendScreen(float c1, float c2) { return 1.0-((1.0-c1)*(1.0-c2)); }
   float blendColorDodge(float c1, float c2) { return (c2==1.0)?c2:min(c1/(1.0-c2),1.0); }
   void main() {
     vec4 c1 = texture2D(u_image_1, v_uv);
-    vec4 c2 = texture2D(u_image_2, v_uv);
+    vec2 uv2 = u_scale * (v_uv - 0.5) + 0.5;
+    vec4 c2 = vec4(0.0);
+    if (uv2.x >= 0.0 && uv2.x <= 1.0 && uv2.y >= 0.0 && uv2.y <= 1.0) {
+      c2 = texture2D(u_image_2, uv2);
+    }
     float factor = u_factor * c2.a;
     vec3 color = ${blendFunction};
     float alpha = min(c1.a + c2.a, 1.0);
@@ -89,6 +95,34 @@ node.onStart = (props) => {
 
 node.onRender = () => {
   if (!image1In.value || !image2In.value) return;
+  const w1 = image1In.value.width;
+  const h1 = image1In.value.height;
+  const w2 = image2In.value.width;
+  const h2 = image2In.value.height;
+
+  let scale = [1, 1];
+
+  if (fitIn.value === 'center') {
+    scale = [w1 / w2, h1 / h2];
+  } else if (fitIn.value !== 'stretch') {
+    const inRatio = w2 / h2;
+    const outRatio = w1 / h1;
+    let aspect, orientation;
+    if (inRatio > outRatio) {
+      orientation = 1; // LANDSCAPE
+      aspect = inRatio / outRatio;
+    } else {
+      orientation = 2; // PORTRAIT
+      aspect = outRatio / inRatio;
+    }
+
+    if (fitIn.value === 'contain') {
+      scale = orientation === 1 ? [1, aspect] : [aspect, 1];
+    } else if (fitIn.value === 'cover') {
+      scale = orientation === 1 ? [1 / aspect, 1] : [1, 1 / aspect];
+    }
+  }
+
   framebuffer.setSize(image1In.value.width, image1In.value.height);
   framebuffer.bind();
   figment.clear();
@@ -96,6 +130,7 @@ node.onRender = () => {
     u_image_1: image1In.value.texture,
     u_image_2: image2In.value.texture,
     u_factor: factorIn.value,
+    u_scale: scale,
   });
   framebuffer.unbind();
   imageOut.set(framebuffer);
