@@ -11,6 +11,7 @@ import Port, {
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
   PORT_TYPE_DIRECTORY,
+  PORT_TYPE_SECTION,
   PORT_TYPE_IMAGE,
   PORT_TYPE_BOOLEAN,
   PORT_IN,
@@ -225,6 +226,8 @@ export default class Network {
             port._value = value;
           } else if (port.type === PORT_TYPE_DIRECTORY) {
             port._value = value;
+          } else if (port.type === PORT_TYPE_SECTION) {
+            // sections have no value
           } else {
             warnings.push(`Node ${node.name} (${node.id}) - port ${portName}: unsupported port type ${port.type} ${value}.`);
           }
@@ -276,7 +279,7 @@ export default class Network {
     for (const node of this.nodes) {
       const values = {};
       for (const port of node.inPorts) {
-        if (port.type === PORT_TYPE_IMAGE || port.type === PORT_TYPE_BOOLEAN) continue;
+        if (port.type === PORT_TYPE_IMAGE || port.type === PORT_TYPE_BOOLEAN || port.type === PORT_TYPE_SECTION) continue;
         if (this.isConnected(port)) continue;
         if (port._value.type === 'expression') {
           values[port.name] = structuredClone(port._value);
@@ -298,6 +301,8 @@ export default class Network {
             value = port.value;
           } else if (port.type === PORT_TYPE_DIRECTORY) {
             value = port.value;
+          } else if (port.type === PORT_TYPE_SECTION) {
+            continue;
           }
           values[port.name] = { type: 'value', value };
         }
