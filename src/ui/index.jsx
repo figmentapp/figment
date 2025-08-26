@@ -21,11 +21,21 @@ window.ort = ort;
 const ortBase = new URL('./onnxruntime-web/', window.location.href).href;
 ort.env.wasm.wasmPaths = ortBase;
 
-const params = new URLSearchParams(window.location.search);
-const filePath = params.get('filePath');
-const root = createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App filePath={filePath} />
-  </React.StrictMode>,
-);
+async function main() {
+  try {
+    await figment.initWebGPUDevice();
+  } catch (e) {
+    console.error('WebGPU init failed:', e);
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const filePath = params.get('filePath');
+  const root = createRoot(document.getElementById('root'));
+  root.render(
+    <React.StrictMode>
+      <App filePath={filePath} />
+    </React.StrictMode>,
+  );
+}
+
+main();
