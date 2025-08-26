@@ -2,13 +2,9 @@
 
 This checklist tracks converting all Figment nodes to WebGPU. Checked items are already converted.
 
-Legend:
-- [x] Converted to WebGPU
-- [ ] Pending conversion
-
 ## core
 - [x] core/out.js
-- [ ] core/shortcutTrigger.js
+- [x] core/shortcutTrigger.js
 
 ## comms
 - [ ] comms/receiveRokoko.js
@@ -90,4 +86,3 @@ Legend:
 - [ ] ml/imageToImageModel.js
 - [ ] ml/onnxImageModel.js
 - [ ] ml/segmentPose.js
-
