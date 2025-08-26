@@ -79,8 +79,8 @@ Guidelines:
 - Place under `src/nodes/<category>/<slug>.js`; keep `slug` lowercase.
 - Put shader strings (WGSL) at the top of the file for readability.
 - Each node owns its own `RenderTarget`; call `setSize(w,h)` whenever dimensions change.
-- For fragment-only nodes, write a full `@fragment fn fs_main(...)` in WGSL and pass it to `makeFragmentWGSL` (no custom vertex needed).
-- For custom geometry/transform, provide full WGSL with `vs_main` and `fs_main` (skip `makeFragmentWGSL`).
+- For fragment-only nodes, write a full `@fragment fn fs_main(...)` in WGSL and pass it to `makeFragmentShader` (no custom vertex needed).
+- For custom geometry/transform, provide full WGSL with `vs_main` and `fs_main` (skip `makeFragmentShader`).
 - Uniforms: Do not prefix field names with `u_` — access as `u.field` in WGSL. Define fields in `uniformsSpec` with WGSL types (e.g., `f32`, `vec2f`, `vec4f`, `mat4x4f`).
 - Texture bindings: list names in `textures` (e.g., `['u_input_texture']`); they map to `@binding(2..) var <name>: texture_2d<f32>` and are sampled with `defaultSampler`.
 - Avoid non-uniform control flow around `textureSample`; sample unconditionally and use masks (e.g., `step` + `clamp`) for bounds.
