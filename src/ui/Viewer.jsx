@@ -71,16 +71,11 @@ export default class Viewer extends Component {
     if (!canvas) return;
     this._resizeCanvas();
 
-    // Find first node with an image out port
+    // Always display the first Out node's output; draw black if none
     let outPort = null;
-    const outNodes = network.nodes;
-    for (const n of outNodes) {
-      if (!n.outPorts || n.outPorts.length === 0) continue;
-      const p0 = n.outPorts[0];
-      if (p0 && p0.type === 'image' && p0.value && p0.value.view) {
-        outPort = p0;
-        break;
-      }
+    const outNode = network.nodes.find((n) => n.type === 'core.out');
+    if (outNode && outNode.outPorts && outNode.outPorts.length > 0) {
+      outPort = outNode.outPorts[0];
     }
 
     const device = window._gpu.device;
