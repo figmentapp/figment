@@ -1,6 +1,6 @@
 /**
  * @name Resize
- * @description Resize the input image (WebGPU)
+ * @description Resize the input image.
  * @category image
  */
 
@@ -82,4 +82,3 @@ node.onRender = () => {
   target.unbind();
   imageOut.set(target);
 };
-
