@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
-import * as twgl from 'twgl.js';
+import * as figment from '../figment';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -52,68 +52,7 @@ const PORT_COLORS = {
   [PORT_TYPE_BOOLEAN]: COLORS.gray100,
 };
 
-const VERTEX_SHADER = `
-uniform vec2 u_viewport;
-uniform vec2 u_position;
-uniform vec3 u_camera;
-attribute vec2 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_uv;
-  vec2 pos = a_position / u_viewport;
-  pos.x += u_position.x / u_viewport.x;
-  pos.y += u_position.y / u_viewport.y;
-  pos.x *= u_camera.z;
-  pos.y *= u_camera.z;
-  pos.x += u_camera.x / u_viewport.x;
-  pos.y += u_camera.y / u_viewport.y;
-  // Convert position from 0.0-1.0 to -1.0-1.0
-  pos.x = pos.x * 2.0 - 1.0;
-  pos.y = (1.0 - pos.y) * 2.0 - 1.0;
-  gl_Position = vec4(pos, 0.0, 1.0);
-}
-`;
-
-const FRAGMENT_SHADER = `
-precision mediump float;
-uniform sampler2D u_texture;
-uniform vec2 u_resolution;
-uniform vec4 u_color;
-varying vec2 v_uv;
-void main() {
-  // The ratio of the image (width / height)
-  float image_ratio = u_resolution.x / u_resolution.y;
-  // The ratio of the preview node box (width / height)
-  float box_width = ${PREVIEW_GEO_WIDTH}.0;
-  float box_height = ${PREVIEW_GEO_HEIGHT}.0;
-  float box_ratio = ${PREVIEW_GEO_RATIO};
-  float delta_ratio = box_ratio / image_ratio;
-  if (image_ratio >  box_ratio) {
-    // The image is wider than the box
-    float scale_factor = box_width / u_resolution.x;
-    float height_diff = (box_height - u_resolution.y * scale_factor) / box_height;
-    float half_height_diff = height_diff / 2.0;
-    if (v_uv.y < half_height_diff || v_uv.y > 1.0 - half_height_diff) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec2 uv = vec2(v_uv.x, (v_uv.y - half_height_diff) / delta_ratio);
-      gl_FragColor = u_color * texture2D(u_texture, uv);
-    }
-  } else {
-    // The image is taller than the box
-    float scale_factor = box_height / u_resolution.y;
-    float width_diff = (box_width - u_resolution.x * scale_factor) / box_width;
-    float half_width_diff = width_diff / 2.0;
-    if (v_uv.x < half_width_diff || v_uv.x > 1.0 - half_width_diff) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec2 uv = vec2((v_uv.x - half_width_diff) * delta_ratio, v_uv.y);
-      gl_FragColor = u_color * texture2D(u_texture, uv);
-    }
-  }
-}
-`;
+// WebGPU-only migration: previews are drawn using 2D canvas from the source video/canvas when provided.
 
 function clamp(v, min, max) {
   return Math.min(Math.max(v, min), max);
@@ -154,6 +93,7 @@ export default class NetworkEditor extends Component {
     this._shouldDraw = true;
     this.canvasRef = React.createRef();
     this.previewCanvasRef = React.createRef();
+    this._setupGPU = this._setupGPU.bind(this);
   }
 
   componentDidMount() {
@@ -166,30 +106,8 @@ export default class NetworkEditor extends Component {
       const parent = this.previewCanvasRef.current.parentElement;
       this.previewCanvasRef.current.width = parent.clientWidth;
       this.previewCanvasRef.current.height = parent.clientHeight;
+      this._setupGPU();
     }
-    this._offscreenCanvas = this.props.offscreenCanvas;
-    this.gl = this._offscreenCanvas.getContext('webgl');
-    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
-
-    // Create a default checkerboard texture.
-    const checkerTexture = {
-      mag: this.gl.NEAREST,
-      min: this.gl.LINEAR,
-      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
-    };
-    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
-
-    // Create a buffer for a node rectangle.
-    let x0 = 0;
-    let x1 = NODE_WIDTH;
-    let y0 = 0;
-    let y1 = NODE_HEIGHT;
-    const arrays = {
-      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
-      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-      indices: [0, 1, 2, 0, 2, 3],
-    };
-    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
 
     // Add a resize observer, redrawing the canvas when the size changes
     this._resizeObserver = new ResizeObserver(this._onResize);
@@ -673,80 +591,119 @@ export default class NetworkEditor extends Component {
   }
 
   _drawNodePreviews() {
-    const { gl } = this;
     const { network } = this.props;
-    const canvas = this._offscreenCanvas;
-    const previewCanvas = this.previewCanvasRef.current;
-    if (!previewCanvas) return;
-    const parent = previewCanvas.parentElement;
+    const canvas = this.previewCanvasRef.current;
+    if (!canvas || !this._gpuCtx || !this._pipeline) return;
+    const parent = canvas.parentElement;
     if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
       canvas.width = parent.clientWidth;
       canvas.height = parent.clientHeight;
-      previewCanvas.width = parent.clientWidth;
-      previewCanvas.height = parent.clientHeight;
+      // WebGPU context auto-adapts to canvas size; no reconfigure needed.
     }
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.05, 0.06, 0.09, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    const device = window._gpu.device;
+    if (!device) return;
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: this._gpuCtx.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0.05, g: 0.06, b: 0.09, a: 1.0 },
+        },
+      ],
+    });
+
+    pass.setPipeline(this._pipeline);
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
-      if (!outPort || outPort.type !== 'image') {
-        this.ctx.fillStyle = 'black';
-        let x = this.state.x + node.x * this.state.scale;
-        let y = this.state.y + node.y * this.state.scale;
-        let width = NODE_WIDTH * this.state.scale;
-        let height = NODE_HEIGHT * this.state.scale;
-        // this.ctx.fillRect(x + NODE_BORDER, y + NODE_BORDER, width - NODE_BORDER * 2, height - NODE_BORDER * 2);
-        continue;
-      }
+      if (!outPort || outPort.type !== 'image' || !outPort.value || !outPort.value.view) continue;
+      const view = outPort.value.view;
+      const texW = outPort.value.width || 1;
+      const texH = outPort.value.height || 1;
 
-      let nodeColor = [1, 0, 1, 1];
-      let texture, textureWidth, textureHeight;
-      if (outPort.value && outPort.value._fbo) {
-        nodeColor = [1, 1, 1, 1];
-        texture = outPort.value._fbo.attachments[0];
-        textureWidth = outPort.value.width;
-        textureHeight = outPort.value.height;
-      } else {
-        texture = this.defaultTexture;
-        textureWidth = NODE_WIDTH;
-        textureHeight = NODE_HEIGHT;
-      }
-      //   let ratio = outPort.value.width / outPort.value.height;
-      //   let dRatio = PREVIEW_GEO_RATIO / ratio;
-      //   if (ratio < PREVIEW_GEO_RATIO) {
-      //     mesh.scale.set(1 / dRatio, 1, 1);
-      //   } else {
-      //     mesh.scale.set(1, dRatio, 1);
-      //   }
-      //   mesh.material.color.set(0xffffff);
-      //   mesh.material.map = outPort.value.texture;
-      //   mesh.material.needsUpdate = true;
-      // } else {
-      //   mesh.material.color.set(0xff00ff);
-      //   mesh.material.map = null;
-      // }
+      const dx = this.state.x + node.x * this.state.scale;
+      const dy = this.state.y + node.y * this.state.scale;
+      const dw = NODE_WIDTH * this.state.scale;
+      const dh = NODE_HEIGHT * this.state.scale;
 
-      twgl.bindFramebufferInfo(gl, null);
-      gl.useProgram(this.programInfo.program);
-      twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
-      twgl.setUniforms(this.programInfo, {
-        u_texture: texture,
-        u_color: nodeColor,
-        u_viewport: [canvas.width, canvas.height],
-        u_position: [node.x, node.y],
-        u_resolution: [textureWidth, textureHeight],
-        u_camera: [this.state.x, this.state.y, this.state.scale],
+      // Scissor to the visible intersection of the node box and the canvas.
+      const sx = Math.max(0, Math.floor(dx));
+      const sy = Math.max(0, Math.floor(dy));
+      const ex = Math.min(canvas.width, Math.ceil(dx + dw));
+      const ey = Math.min(canvas.height, Math.ceil(dy + dh));
+      const sw = Math.max(0, ex - sx);
+      const sh = Math.max(0, ey - sy);
+      if (sw === 0 || sh === 0) {
+        continue; // nothing visible, skip draw for this node
+      }
+      pass.setScissorRect(sx, sy, sw, sh);
+
+      // Pack uniforms (vec4f + vec2f) aligned -> 8 floats (32 bytes)
+      const u = new Float32Array(8);
+      u[0] = dx; // u_boxRect.x
+      u[1] = dy; // u_boxRect.y
+      u[2] = dw; // u_boxRect.w
+      u[3] = dh; // u_boxRect.h
+      u[4] = texW; // u_texSize.x
+      u[5] = texH; // u_texSize.y
+      // u[6], u[7] remain as padding
+      const ubuf = device.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+      device.queue.writeBuffer(ubuf, 0, u.buffer, u.byteOffset, u.byteLength);
+
+      const bindGroup = device.createBindGroup({
+        layout: this._pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: ubuf } },
+          { binding: 1, resource: this._sampler },
+          { binding: 2, resource: view },
+        ],
       });
-      twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
+
+      pass.setBindGroup(0, bindGroup);
+      pass.draw(3, 1, 0, 0);
     }
 
-    const previewContext = previewCanvas.getContext('bitmaprenderer');
-    const bitmap = canvas.transferToImageBitmap();
-    previewContext.transferFromImageBitmap(bitmap);
+    pass.end();
+    device.queue.submit([encoder.finish()]);
+  }
+
+  _setupGPU() {
+    const canvas = this.previewCanvasRef.current;
+    if (!canvas) return;
+    this._gpuCtx = figment.initWebGPUCanvas(canvas);
+    this._sampler = window._gpu.device.createSampler({ minFilter: 'linear', magFilter: 'linear' });
+    const wgsl = figment.makeFragmentWGSL(
+      `
+      // Compute pixel position from builtin fragment coordinates (pixels)
+      let pos = in.position.xy;
+      let box = u.u_boxRect; // x,y,w,h (pixels)
+      let local = (pos - box.xy) / box.zw; // 0..1 inside the box
+      // Letterbox sample preserving aspect ratio (no non-uniform branching on sampling)
+      let texRatio = u.u_texSize.x / u.u_texSize.y;
+      let boxRatio = box.z / box.w;
+      var uvRemap: vec2f;
+      if (texRatio > boxRatio) {
+        // fit width, scale height
+        let scale = boxRatio / texRatio;
+        uvRemap = vec2f(local.x, (local.y - (1.0 - scale) * 0.5) / scale);
+      } else {
+        // fit height, scale width
+        let scale = texRatio / boxRatio;
+        uvRemap = vec2f((local.x - (1.0 - scale) * 0.5) / scale, local.y);
+      }
+      // Coverage mask inside [0,1]
+      let in0 = step(0.0, uvRemap.x) * step(0.0, uvRemap.y);
+      let in1 = step(uvRemap.x, 1.0) * step(uvRemap.y, 1.0);
+      let mask = in0 * in1;
+      let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
+      return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
+      `,
+      { uniformsSpec: { u_boxRect: 'vec4f', u_texSize: 'vec2f' }, textures: ['u_input_texture'] }
+    );
+    this._pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, label: 'network.preview' });
   }
 
   _animate() {
