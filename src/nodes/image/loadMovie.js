@@ -5,6 +5,7 @@
  */
 
 node.timeDependent = true;
+
 const fileIn = node.fileIn('file', '', { fileType: 'movie' });
 const playIn = node.toggleIn('play', true);
 // The play input is both a plug and a parameter.
@@ -15,10 +16,12 @@ const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
 const restartIn = node.triggerButtonIn('restart');
 const imageOut = node.imageOut('out');
 
-let framebuffer, program, video, videoReady, shouldLoad, lastPlayState, renderOnce;
+let target; // figment.RenderTarget
+let video; // HTMLVideoElement
+let videoReady, shouldLoad, lastPlayState, renderOnce;
 
 node.onStart = () => {
-  framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget();
   videoReady = false;
   shouldLoad = true;
   lastPlayState = playIn.value;
@@ -28,16 +31,22 @@ node.onStart = () => {
 async function loadMovie() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   if (video) {
+    try {
+      video.pause();
+    } catch (e) {}
     video.remove();
   }
   await new Promise((resolve) => {
     video = document.createElement('video');
+    video.preload = 'auto';
+    video.crossOrigin = 'anonymous';
+    video.playsInline = true;
+    video.muted = true; // avoid autoplay restrictions
     videoReady = false;
     const fileUrl = figment.urlForAsset(fileIn.value);
     video.src = fileUrl;
     video.loop = loopIn.value;
     video.autoplay = playIn.value;
-    video.muted = true;
     video.playbackRate = speedIn.value;
     video.addEventListener('canplay', resolve, { once: true });
     video.addEventListener('ended', () => {
@@ -47,14 +56,12 @@ async function loadMovie() {
     });
   });
   videoReady = true;
-  framebuffer.setSize(video.videoWidth, video.videoHeight);
+  target.setSize(video.videoWidth, video.videoHeight);
 }
 
 async function seekAndWait(time) {
   return new Promise((resolve) => {
-    if (!video || video.currentTime === time) {
-      return resolve();
-    }
+    if (!video || video.currentTime === time) return resolve();
     video.addEventListener('seeked', resolve, { once: true });
     video.currentTime = time;
   });
@@ -65,7 +72,8 @@ node.onRender = async () => {
     await loadMovie();
     shouldLoad = false;
   }
-  if (!video || !framebuffer || !videoReady) return;
+  if (!video || !target || !videoReady) return;
+
   const isPlaying = playIn.value;
   const wasPlaying = lastPlayState;
 
@@ -73,7 +81,9 @@ node.onRender = async () => {
     if (pauseModeIn.value === 'restart') {
       await seekAndWait(0);
     }
-    video.play();
+    try {
+      await video.play();
+    } catch (e) {}
   } else if (!isPlaying && wasPlaying) {
     video.pause();
     if (pauseModeIn.value === 'rewind') {
@@ -85,12 +95,10 @@ node.onRender = async () => {
 
   if (video.paused && !renderOnce) return;
 
-  framebuffer.unbind();
-  window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
-  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
-  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
-  framebuffer._directImageHack = video;
-  imageOut.set(framebuffer);
+  // Upload current video frame into the GPU texture
+  target.uploadExternal(video);
+  target._directImageHack = video; // compatibility for preview/ML nodes
+  imageOut.set(target);
 
   if (video.paused) {
     renderOnce = false;
@@ -99,26 +107,26 @@ node.onRender = async () => {
 
 node.onStop = () => {
   if (video) {
-    video.pause();
+    try {
+      video.pause();
+    } catch (e) {}
     video.remove();
     video = null;
   }
 };
 
 function changeSpeed() {
-  if (video) {
-    video.playbackRate = speedIn.value;
-  }
+  if (video) video.playbackRate = speedIn.value;
 }
 
 function changeLoop() {
-  if (video) {
-    // The `video.ended` boolean is not reliable, so we check ourselves.
-    const isAtEnd = video.duration > 0 && video.duration - video.currentTime < 0.1;
-    video.loop = loopIn.value;
-    if (loopIn.value && isAtEnd && playIn.value) {
+  if (!video) return;
+  const isAtEnd = video.duration > 0 && video.duration - video.currentTime < 0.1;
+  video.loop = loopIn.value;
+  if (loopIn.value && isAtEnd && playIn.value) {
+    try {
       video.play();
-    }
+    } catch (e) {}
   }
 }
 
