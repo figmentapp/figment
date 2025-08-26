@@ -4,61 +4,56 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec2 u_resolution;
-varying vec2 v_uv;
-
-void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
-{
-  float w = 1.0 / u_resolution.x;
-  float h = 1.0 / u_resolution.y;
-
-  n[0] = texture2D(tex, coord + vec2( -w, -h));
-  n[1] = texture2D(tex, coord + vec2(0.0, -h));
-  n[2] = texture2D(tex, coord + vec2(  w, -h));
-  n[3] = texture2D(tex, coord + vec2( -w, 0.0));
-  n[4] = texture2D(tex, coord);
-  n[5] = texture2D(tex, coord + vec2(  w, 0.0));
-  n[6] = texture2D(tex, coord + vec2( -w, h));
-  n[7] = texture2D(tex, coord + vec2(0.0, h));
-  n[8] = texture2D(tex, coord + vec2(  w, h));
-}
-
-void main() {
-  vec2 uv = v_uv;
-  vec4 n[9];
-  make_kernel(n, u_input_texture, uv.st);
-
-  vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
-  vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
-  vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
-
-  gl_FragColor = vec4(1.0 - sobel.rgb, 1.0);
-}
-
-`;
-
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  target = new figment.RenderTarget();
+  const wgsl = figment.makeFragmentWGSL(
+    `
+    let uv = in.uv;
+    let w = 1.0 / u.texSize.x;
+    let h = 1.0 / u.texSize.y;
+
+    let c00 = textureSample(u_input_texture, defaultSampler, uv + vec2f(-w, -h));
+    let c01 = textureSample(u_input_texture, defaultSampler, uv + vec2f( 0.0, -h));
+    let c02 = textureSample(u_input_texture, defaultSampler, uv + vec2f( w, -h));
+    let c10 = textureSample(u_input_texture, defaultSampler, uv + vec2f(-w,  0.0));
+    let c11 = textureSample(u_input_texture, defaultSampler, uv);
+    let c12 = textureSample(u_input_texture, defaultSampler, uv + vec2f( w,  0.0));
+    let c20 = textureSample(u_input_texture, defaultSampler, uv + vec2f(-w,  h));
+    let c21 = textureSample(u_input_texture, defaultSampler, uv + vec2f( 0.0,  h));
+    let c22 = textureSample(u_input_texture, defaultSampler, uv + vec2f( w,  h));
+
+    let sobel_h = c02 + (2.0 * c12) + c22 - (c00 + (2.0 * c10) + c20);
+    let sobel_v = c00 + (2.0 * c01) + c02 - (c20 + (2.0 * c21) + c22);
+    let sobel = sqrt(sobel_h * sobel_h + sobel_v * sobel_v);
+    return vec4f(1.0 - sobel.rgb, 1.0);
+    `,
+    { uniformsSpec: { texSize: 'vec2f' }, textures: ['u_input_texture'] },
+  );
+  pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, label: 'image.sobel.wgpu', format: target.format });
 };
 
 node.onRender = () => {
-  if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_resolution: [imageIn.value.width, imageIn.value.height],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  if (!imageIn.value || !imageIn.value.view) return;
+  const w = imageIn.value.width | 0;
+  const h = imageIn.value.height | 0;
+  if (w <= 0 || h <= 0) return;
+
+  target.setSize(w, h);
+  target.bind([0, 0, 0, 0]);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      uniforms: { texSize: [w, h] },
+      uniformsSpec: { texSize: 'vec2f' },
+      textures: { u_input_texture: imageIn.value.view },
+    },
+    target,
+  );
+  target.unbind();
+  imageOut.set(target);
 };

@@ -38,6 +38,13 @@ export const getDefaultNetwork = () => ({
       x: 100,
       y: 150,
     },
+    {
+      id: 3,
+      name: 'Sobel',
+      type: 'image.sobel',
+      x: 250,
+      y: 250,
+    },
     // {
     //   id: 3,
     //   name: 'Sobel',
@@ -72,6 +79,7 @@ export const getDefaultNetwork = () => ({
   ],
   connections: [
     { outNode: 1, outPort: 'out', inNode: 2, inPort: 'in' },
+    { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
     // { outNode: 2, outPort: 'out', inNode: 3, inPort: 'in' },
     // { outNode: 3, outPort: 'out', inNode: 4, inPort: 'in' },
     // { outNode: 2, outPort: 'out', inNode: 5, inPort: 'image 1' },
