@@ -11,7 +11,7 @@ This checklist tracks converting all Figment nodes to WebGPU. Checked items are 
 - [ ] comms/sendOsc.js
 
 ## image
-- [ ] image/ascii.js
+- [x] image/ascii.js
 - [ ] image/barrelDistortion.js
 - [ ] image/bleachBypass.js
 - [ ] image/blur.js
