@@ -352,6 +352,48 @@ export function drawFullscreen(pipeline, { uniforms = {}, uniformsSpec = {}, tex
   pass.draw(3, 1, 0, 0);
 }
 
+// Read back a RenderTarget's RGBA8 texture into an ImageData.
+// Note: requires the target texture to have COPY_SRC usage (RenderTarget does).
+// Allocates a fresh staging buffer per call to avoid concurrent mapAsync conflicts.
+export async function renderTargetToImageData(target, { flipY = false } = {}) {
+  if (!target || !target.texture) throw new Error('renderTargetToImageData: invalid target');
+  const device = _gpu.device;
+  const queue = _gpu.queue;
+  const { width, height } = target;
+  const pixelBytes = 4; // rgba8unorm
+  const unpaddedBPR = width * pixelBytes;
+  const paddedBPR = Math.ceil(unpaddedBPR / 256) * 256;
+  const size = paddedBPR * height;
+
+  // Create a per-call staging buffer to avoid overlapping mappings.
+  const readBuffer = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+  try {
+    const encoder = device.createCommandEncoder();
+    encoder.copyTextureToBuffer(
+      { texture: target.texture },
+      { buffer: readBuffer, bytesPerRow: paddedBPR, rowsPerImage: height },
+      { width, height, depthOrArrayLayers: 1 }
+    );
+    queue.submit([encoder.finish()]);
+
+    await readBuffer.mapAsync(GPUMapMode.READ);
+    const mapped = readBuffer.getMappedRange();
+    const src = new Uint8Array(mapped);
+    // Create a tightly packed RGBA buffer for ImageData
+    const dst = new Uint8ClampedArray(unpaddedBPR * height);
+    for (let y = 0; y < height; y++) {
+      const srcOffset = y * paddedBPR;
+      const row = src.subarray(srcOffset, srcOffset + unpaddedBPR);
+      const dy = flipY ? height - 1 - y : y;
+      dst.set(row, dy * unpaddedBPR);
+    }
+    readBuffer.unmap();
+    return new ImageData(dst, width, height);
+  } finally {
+    try { readBuffer.destroy?.(); } catch (e) {}
+  }
+}
+
 export function projectFile() {
   if (!window.app) return '';
   if (!window.app.state.filePath) return '';
