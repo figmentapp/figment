@@ -4,6 +4,16 @@
  * @category image
  */
 
+const fragmentShaderSource = `
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let col = textureSample(u_input_texture, defaultSampler, in.uv).rgb;
+  let brightness = (col.r + col.g + col.b) / 3.0;
+  let b = step(u.threshold, brightness);
+  return vec4f(vec3f(b), 1.0);
+}
+`;
+
 const imageIn = node.imageIn('in');
 const thresholdIn = node.numberIn('threshold', 0.5, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
@@ -12,16 +22,8 @@ let pipeline, target;
 
 node.onStart = () => {
   target = new figment.RenderTarget();
-  const wgsl = figment.makeFragmentWGSL(
-    `
-    let col = textureSample(u_input_texture, defaultSampler, in.uv).rgb;
-    let brightness = (col.r + col.g + col.b) / 3.0;
-    let b = step(u.threshold, brightness);
-    return vec4f(vec3f(b), 1.0);
-    `,
-    { uniformsSpec: { threshold: 'f32' }, textures: ['u_input_texture'] },
-  );
-  pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, label: 'image.threshold.wgpu', format: target.format });
+  const fragmentShader = figment.makeFragmentShader(fragmentShaderSource, { uniformsSpec: { threshold: 'f32' }, textures: ['u_input_texture'] });
+  pipeline = figment.createRenderPipeline({ fragmentShader, label: 'image.threshold.wgpu', format: target.format });
 };
 
 node.onRender = () => {

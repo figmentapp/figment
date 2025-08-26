@@ -23,13 +23,31 @@
 - **File format**: `.fgmt` JSON with versioning; upgrades in `src/file-format.js`.
 
 ## Node Authoring (WebGPU)
-Example: fragment-only node with default vertex (no boilerplate vertex shader):
+Example: fragment-only node with default vertex (no boilerplate vertex shader). Put WGSL at the top and include a full `@fragment fn fs_main`:
 ```js
 /**
  * @name Blur
  * @description Blur an input image.
  * @category image
  */
+const fragmentShaderSource = `
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let s = u.amount;         // uniforms are accessed as u.field
+  let uv = in.uv;
+  var c = vec4f(0.0);
+  c += textureSample(input_texture, defaultSampler, uv + vec2f(-s, -s)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f(-s,  0.0)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f(-s,  s)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f( 0.0, -s)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f( 0.0,  0.0)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f( 0.0,  s)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f( s, -s)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f( s,  0.0)) / 8.0;
+  c += textureSample(input_texture, defaultSampler, uv + vec2f( s,  s)) / 8.0;
+  return c;
+}
+`;
 const imageIn = node.imageIn('in');
 const amountIn = node.numberIn('amount', 0.005, { min: 0, max: 0.02, step: 0.001 });
 const imageOut = node.imageOut('out');
@@ -38,26 +56,9 @@ let pipeline, target;
 
 node.onStart = () => {
   target = new figment.RenderTarget();
-  const wgsl = figment.makeFragmentWGSL(
-    `
-    let s = u.amount;         // uniforms are accessed as u.field
-    let uv = in.uv;
-    var c = vec4f(0.0);
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f(-s, -s)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f(-s,  0.0)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f(-s,  s)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f( 0.0, -s)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f( 0.0,  0.0)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f( 0.0,  s)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f( s, -s)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f( s,  0.0)) / 8.0;
-    c += textureSample(u_input_texture, defaultSampler, uv + vec2f( s,  s)) / 8.0;
-    return c;
-    `,
-    { uniformsSpec: { amount: 'f32' }, textures: ['u_input_texture'] },
-  );
-  // Compile pipeline for this target's format
-  pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, format: target.format, label: 'image.blur.wgpu' });
+  // makeFragmentShader prepends default vertex + uniform/sampler/texture declarations
+  const fragmentShader = figment.makeFragmentShader(fragmentShaderSource, { uniformsSpec: { amount: 'f32' }, textures: ['input_texture'] });
+  pipeline = figment.createRenderPipeline({ fragmentShader, format: target.format, label: 'image.blur' });
 };
 
 node.onRender = () => {
@@ -66,7 +67,7 @@ node.onRender = () => {
   target.bind([0, 0, 0, 0]);
   figment.drawFullscreen(
     pipeline,
-    { uniforms: { amount: amountIn.value }, uniformsSpec: { amount: 'f32' }, textures: { u_input_texture: imageIn.value.view } },
+    { uniforms: { amount: amountIn.value }, uniformsSpec: { amount: 'f32' }, textures: { input_texture: imageIn.value.view } },
     target,
   );
   target.unbind();
@@ -76,8 +77,9 @@ node.onRender = () => {
 
 Guidelines:
 - Place under `src/nodes/<category>/<slug>.js`; keep `slug` lowercase.
+- Put shader strings (WGSL) at the top of the file for readability.
 - Each node owns its own `RenderTarget`; call `setSize(w,h)` whenever dimensions change.
-- For fragment-only nodes, use `makeFragmentWGSL` and avoid writing a vertex shader.
+- For fragment-only nodes, write a full `@fragment fn fs_main(...)` in WGSL and pass it to `makeFragmentWGSL` (no custom vertex needed).
 - For custom geometry/transform, provide full WGSL with `vs_main` and `fs_main` (skip `makeFragmentWGSL`).
 - Uniforms: Do not prefix field names with `u_` — access as `u.field` in WGSL. Define fields in `uniformsSpec` with WGSL types (e.g., `f32`, `vec2f`, `vec4f`, `mat4x4f`).
 - Texture bindings: list names in `textures` (e.g., `['u_input_texture']`); they map to `@binding(2..) var <name>: texture_2d<f32>` and are sampled with `defaultSampler`.

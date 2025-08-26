@@ -4,6 +4,20 @@
  * @category image
  */
 
+const fragmentShaderSource = `
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  // Remap UVs based on scale for fill/contain/cover semantics
+  let uv = u.scale * (in.uv - vec2f(0.5)) + vec2f(0.5);
+  // Branch-free bounds mask and sampling
+  let in0 = step(0.0, uv.x) * step(0.0, uv.y);
+  let in1 = step(uv.x, 1.0) * step(uv.y, 1.0);
+  let mask = in0 * in1;
+  let color = textureSample(u_input_texture, defaultSampler, clamp(uv, vec2f(0.0), vec2f(1.0)));
+  return mix(u.background_color, color, mask);
+}
+`;
+
 const imageIn = node.imageIn('in');
 const widthIn = node.numberIn('width', 512, { min: 0 });
 const heightIn = node.numberIn('height', 512, { min: 0 });
@@ -17,20 +31,11 @@ node.onStart = () => {
   // Create target first so the pipeline can use the same color format
   target = new figment.RenderTarget();
 
-  const wgsl = figment.makeFragmentWGSL(
-    `
-    // Remap UVs based on scale for fill/contain/cover semantics
-    let uv = u.scale * (in.uv - vec2f(0.5)) + vec2f(0.5);
-    // Branch-free bounds mask and sampling
-    let in0 = step(0.0, uv.x) * step(0.0, uv.y);
-    let in1 = step(uv.x, 1.0) * step(uv.y, 1.0);
-    let mask = in0 * in1;
-    let color = textureSample(u_input_texture, defaultSampler, clamp(uv, vec2f(0.0), vec2f(1.0)));
-    return mix(u.background_color, color, mask);
-    `,
-    { uniformsSpec: { scale: 'vec2f', background_color: 'vec4f' }, textures: ['u_input_texture'] },
-  );
-  pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, label: 'image.resize.wgpu', format: target.format });
+  const fragmentShader = figment.makeFragmentShader(fragmentShaderSource, {
+    uniformsSpec: { scale: 'vec2f', background_color: 'vec4f' },
+    textures: ['u_input_texture'],
+  });
+  pipeline = figment.createRenderPipeline({ fragmentShader, label: 'image.resize.wgpu', format: target.format });
 };
 
 const LANDSCAPE = 1;

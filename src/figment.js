@@ -83,7 +83,7 @@ fn vs_main(@builtin(vertex_index) vid: u32) -> VertexOutput {
 //
 // Example body:
 //   `return textureSample(u_input_texture, defaultSampler, in.uv);`
-export function makeFragmentWGSL(fragmentBody, { uniformsSpec = {}, textures = [] } = {}) {
+export function makeFragmentShader(code, { uniformsSpec = {}, textures = [] } = {}) {
   const uniformEntries = Object.entries(uniformsSpec);
   const hasUniforms = uniformEntries.length > 0;
   const uniformsStruct = hasUniforms
@@ -91,15 +91,8 @@ export function makeFragmentWGSL(fragmentBody, { uniformsSpec = {}, textures = [
     : '';
   const samplerDecl = '@group(0) @binding(1) var defaultSampler: sampler;\n';
   const textureDecls = textures.map((name, i) => `@group(0) @binding(${i + 2}) var ${name}: texture_2d<f32>;`).join('\n');
-  const frag = `
-${uniformsStruct}${samplerDecl}${textureDecls}
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-  ${fragmentBody}
-}
-`;
-  const full = `${DEFAULT_VERTEX_WGSL}\n${frag}`;
+  const decls = `${uniformsStruct}${samplerDecl}${textureDecls}`;
+  const full = `${DEFAULT_VERTEX_WGSL}\n${decls}\n${code}`;
   return full;
 }
 
@@ -180,12 +173,12 @@ function _packUniforms(uniformsSpec, values) {
 }
 
 // Create a basic render pipeline for full-screen passes.
-// - fragmentWGSL: string returned by makeFragmentWGSL or a full WGSL program
+// - fragmentShader: string returned by makeFragmentWGSL or a full WGSL program
 // - format: render target format (defaults to GPU canvas format)
-export function createRenderPipeline({ fragmentWGSL, format = null, label = 'figment-pipeline' }) {
+export function createRenderPipeline({ fragmentShader, format = null, label = 'figment-pipeline' }) {
   if (!_gpu.device) throw new Error('initWebGPUDevice() must be called before creating pipelines.');
   const device = _gpu.device;
-  const module = device.createShaderModule({ code: fragmentWGSL });
+  const module = device.createShaderModule({ code: fragmentShader });
   const pipeline = device.createRenderPipeline({
     label,
     layout: 'auto',
@@ -237,11 +230,7 @@ export class RenderTarget {
     this.texture = _gpu.device.createTexture({
       size: { width, height },
       format: this.format,
-      usage:
-        GPUTextureUsage.RENDER_ATTACHMENT |
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.COPY_SRC |
-        GPUTextureUsage.COPY_DST,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
     });
     this.view = this.texture.createView();
   }

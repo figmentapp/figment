@@ -675,35 +675,36 @@ export default class NetworkEditor extends Component {
     if (!canvas) return;
     this._gpuCtx = figment.initWebGPUCanvas(canvas);
     this._sampler = window._gpu.device.createSampler({ minFilter: 'linear', magFilter: 'linear' });
-    const wgsl = figment.makeFragmentWGSL(
-      `
-      // Compute pixel position from builtin fragment coordinates (pixels)
-      let pos = in.position.xy;
-      let box = u.boxRect; // x,y,w,h (pixels)
-      let local = (pos - box.xy) / box.zw; // 0..1 inside the box
-      // Letterbox sample preserving aspect ratio (no non-uniform branching on sampling)
-      let texRatio = u.texSize.x / u.texSize.y;
-      let boxRatio = box.z / box.w;
-      var uvRemap: vec2f;
-      if (texRatio > boxRatio) {
-        // fit width, scale height
-        let scale = boxRatio / texRatio;
-        uvRemap = vec2f(local.x, (local.y - (1.0 - scale) * 0.5) / scale);
-      } else {
-        // fit height, scale width
-        let scale = texRatio / boxRatio;
-        uvRemap = vec2f((local.x - (1.0 - scale) * 0.5) / scale, local.y);
-      }
-      // Coverage mask inside [0,1]
-      let in0 = step(0.0, uvRemap.x) * step(0.0, uvRemap.y);
-      let in1 = step(uvRemap.x, 1.0) * step(uvRemap.y, 1.0);
-      let mask = in0 * in1;
-      let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
-      return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
-      `,
-      { uniformsSpec: { boxRect: 'vec4f', texSize: 'vec2f' }, textures: ['u_input_texture'] }
-    );
-    this._pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, label: 'network.preview' });
+    const fragmentShaderSource = `
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  // Compute pixel position from builtin fragment coordinates (pixels)
+  let pos = in.position.xy;
+  let box = u.boxRect; // x,y,w,h (pixels)
+  let local = (pos - box.xy) / box.zw; // 0..1 inside the box
+  // Letterbox sample preserving aspect ratio (no non-uniform branching on sampling)
+  let texRatio = u.texSize.x / u.texSize.y;
+  let boxRatio = box.z / box.w;
+  var uvRemap: vec2f;
+  if (texRatio > boxRatio) {
+    // fit width, scale height
+    let scale = boxRatio / texRatio;
+    uvRemap = vec2f(local.x, (local.y - (1.0 - scale) * 0.5) / scale);
+  } else {
+    // fit height, scale width
+    let scale = texRatio / boxRatio;
+    uvRemap = vec2f((local.x - (1.0 - scale) * 0.5) / scale, local.y);
+  }
+  // Coverage mask inside [0,1]
+  let in0 = step(0.0, uvRemap.x) * step(0.0, uvRemap.y);
+  let in1 = step(uvRemap.x, 1.0) * step(uvRemap.y, 1.0);
+  let mask = in0 * in1;
+  let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
+  return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
+}
+`;
+    const fragmentShader = figment.makeFragmentShader(fragmentShaderSource, { uniformsSpec: { boxRect: 'vec4f', texSize: 'vec2f' }, textures: ['u_input_texture'] });
+    this._pipeline = figment.createRenderPipeline({ fragmentShader, label: 'network.preview' });
   }
 
   _animate() {

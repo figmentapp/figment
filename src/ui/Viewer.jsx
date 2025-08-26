@@ -15,33 +15,37 @@ export default class Viewer extends Component {
     this._resizeCanvas();
     this.ctx = figment.initWebGPUCanvas(canvas);
     // Simple present pipeline with letterboxing
-    const presentWGSL = figment.makeFragmentWGSL(
-      `
-      let texRatio = u.texSize.x / u.texSize.y;
-      let canvasRatio = u.canvasSize.x / u.canvasSize.y;
-      // Canvas UV from fragment position (pixels)
-      let uvCanvas = in.position.xy / u.canvasSize;
-      var uvRemap: vec2f;
-      if (texRatio > canvasRatio) {
-        // Fit width; scale height
-        let scale = canvasRatio / texRatio;
-        uvRemap = vec2f(uvCanvas.x, (uvCanvas.y - (1.0 - scale) * 0.5) / scale);
-      } else {
-        // Fit height; scale width
-        let scale = texRatio / canvasRatio;
-        uvRemap = vec2f((uvCanvas.x - (1.0 - scale) * 0.5) / scale, uvCanvas.y);
-      }
-      // Mask outside [0,1] without branching
-      let in0 = step(0.0, uvRemap.x) * step(0.0, uvRemap.y);
-      let in1 = step(uvRemap.x, 1.0) * step(uvRemap.y, 1.0);
-      let mask = in0 * in1;
-      // Sample always, clamp coords to avoid sampling outside
-      let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
-      return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
-      `,
-      { uniformsSpec: { texSize: 'vec2f', canvasSize: 'vec2f' }, textures: ['u_input_texture'] }
-    );
-    this.pipeline = figment.createRenderPipeline({ fragmentWGSL: presentWGSL, label: 'viewer.present' });
+    const fragmentShaderSource = `
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let texRatio = u.texSize.x / u.texSize.y;
+  let canvasRatio = u.canvasSize.x / u.canvasSize.y;
+  // Canvas UV from fragment position (pixels)
+  let uvCanvas = in.position.xy / u.canvasSize;
+  var uvRemap: vec2f;
+  if (texRatio > canvasRatio) {
+    // Fit width; scale height
+    let scale = canvasRatio / texRatio;
+    uvRemap = vec2f(uvCanvas.x, (uvCanvas.y - (1.0 - scale) * 0.5) / scale);
+  } else {
+    // Fit height; scale width
+    let scale = texRatio / canvasRatio;
+    uvRemap = vec2f((uvCanvas.x - (1.0 - scale) * 0.5) / scale, uvCanvas.y);
+  }
+  // Mask outside [0,1] without branching
+  let in0 = step(0.0, uvRemap.x) * step(0.0, uvRemap.y);
+  let in1 = step(uvRemap.x, 1.0) * step(uvRemap.y, 1.0);
+  let mask = in0 * in1;
+  // Sample always, clamp coords to avoid sampling outside
+  let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
+  return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
+}
+`;
+    const fragmentShader = figment.makeFragmentShader(fragmentShaderSource, {
+      uniformsSpec: { texSize: 'vec2f', canvasSize: 'vec2f' },
+      textures: ['u_input_texture'],
+    });
+    this.pipeline = figment.createRenderPipeline({ fragmentShader, label: 'viewer.present' });
     this.sampler = window._gpu.device.createSampler({ minFilter: 'linear', magFilter: 'linear' });
 
     // Listen for network changes.
