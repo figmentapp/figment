@@ -17,10 +17,10 @@ export default class Viewer extends Component {
     // Simple present pipeline with letterboxing
     const presentWGSL = figment.makeFragmentWGSL(
       `
-      let texRatio = u.u_texSize.x / u.u_texSize.y;
-      let canvasRatio = u.u_canvasSize.x / u.u_canvasSize.y;
+      let texRatio = u.texSize.x / u.texSize.y;
+      let canvasRatio = u.canvasSize.x / u.canvasSize.y;
       // Canvas UV from fragment position (pixels)
-      let uvCanvas = in.position.xy / u.u_canvasSize;
+      let uvCanvas = in.position.xy / u.canvasSize;
       var uvRemap: vec2f;
       if (texRatio > canvasRatio) {
         // Fit width; scale height
@@ -39,7 +39,7 @@ export default class Viewer extends Component {
       let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
       return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
       `,
-      { uniformsSpec: { u_texSize: 'vec2f', u_canvasSize: 'vec2f' }, textures: ['u_input_texture'] }
+      { uniformsSpec: { texSize: 'vec2f', canvasSize: 'vec2f' }, textures: ['u_input_texture'] }
     );
     this.pipeline = figment.createRenderPipeline({ fragmentWGSL: presentWGSL, label: 'viewer.present' });
     this.sampler = window._gpu.device.createSampler({ minFilter: 'linear', magFilter: 'linear' });

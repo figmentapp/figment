@@ -679,10 +679,10 @@ export default class NetworkEditor extends Component {
       `
       // Compute pixel position from builtin fragment coordinates (pixels)
       let pos = in.position.xy;
-      let box = u.u_boxRect; // x,y,w,h (pixels)
+      let box = u.boxRect; // x,y,w,h (pixels)
       let local = (pos - box.xy) / box.zw; // 0..1 inside the box
       // Letterbox sample preserving aspect ratio (no non-uniform branching on sampling)
-      let texRatio = u.u_texSize.x / u.u_texSize.y;
+      let texRatio = u.texSize.x / u.texSize.y;
       let boxRatio = box.z / box.w;
       var uvRemap: vec2f;
       if (texRatio > boxRatio) {
@@ -701,7 +701,7 @@ export default class NetworkEditor extends Component {
       let color = textureSample(u_input_texture, defaultSampler, clamp(uvRemap, vec2f(0.0), vec2f(1.0)));
       return mix(vec4f(0.0, 0.0, 0.0, 1.0), color, mask);
       `,
-      { uniformsSpec: { u_boxRect: 'vec4f', u_texSize: 'vec2f' }, textures: ['u_input_texture'] }
+      { uniformsSpec: { boxRect: 'vec4f', texSize: 'vec2f' }, textures: ['u_input_texture'] }
     );
     this._pipeline = figment.createRenderPipeline({ fragmentWGSL: wgsl, label: 'network.preview' });
   }
