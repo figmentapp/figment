@@ -42,6 +42,7 @@ This checklist tracks converting all Figment nodes to WebGPU. Checked items are 
 - [ ] image/inms.js
 - [ ] image/instagram.js
 - [ ] image/invert.js
+- [x] image/invert.js
 - [ ] image/kaleidoscope.js
 - [ ] image/lensDistortion.js
 - [ ] image/levels.js
