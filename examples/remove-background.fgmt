@@ -1,22 +1,19 @@
 {
-  "version": 1,
+  "version": 3,
   "nodes": [
     {
       "id": 7,
       "name": "Webcam Image",
       "type": "image.webcamImage",
-      "x": 207.39390043506793,
-      "y": 151.78780087013587,
-      "values": {
-        "frameRate": 30
-      }
+      "x": 200.56651672474047,
+      "y": 72.41946523757906
     },
     {
       "id": 8,
       "name": "Segment Pose",
       "type": "ml.segmentPose",
-      "x": 207.47688596209528,
-      "y": 219.76786393170264
+      "x": 206.62346299830435,
+      "y": 230.0089394971938
     },
     {
       "id": 9,
@@ -25,7 +22,10 @@
       "x": 364.4019281258807,
       "y": 418.31689936318173,
       "values": {
-        "factor": 1
+        "factor": {
+          "type": "value",
+          "value": 1
+        }
       }
     },
     {
@@ -35,25 +35,40 @@
       "x": 417.7581488792153,
       "y": 216.1178287107181,
       "values": {
-        "file": "assets/waves.mp4"
+        "file": {
+          "type": "value",
+          "value": "assets/waves.mp4"
+        }
       }
     },
     {
       "id": 11,
       "name": "Resize",
       "type": "image.resize",
-      "x": 207.34851643648605,
-      "y": 292.69416889323577,
+      "x": 202.22797865374045,
+      "y": 306.3489363138907,
       "values": {
-        "width": 1920,
-        "height": 1080,
-        "fit": "contain",
-        "background": [
-          0,
-          0,
-          0,
-          0
-        ]
+        "width": {
+          "type": "value",
+          "value": 1920
+        },
+        "height": {
+          "type": "value",
+          "value": 1080
+        },
+        "fit": {
+          "type": "value",
+          "value": "contain"
+        },
+        "background": {
+          "type": "value",
+          "value": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
       }
     },
     {
@@ -62,15 +77,16 @@
       "type": "core.out",
       "x": 364,
       "y": 494
+    },
+    {
+      "id": 13,
+      "name": "Resize",
+      "type": "image.resize",
+      "x": 198.9315407241814,
+      "y": 154.3645495484885
     }
   ],
   "connections": [
-    {
-      "outNode": 7,
-      "outPort": "image",
-      "inNode": 8,
-      "inPort": "in"
-    },
     {
       "outNode": 10,
       "outPort": "out",
@@ -94,7 +110,20 @@
       "outPort": "out",
       "inNode": 12,
       "inPort": "in"
+    },
+    {
+      "outNode": 7,
+      "outPort": "image",
+      "inNode": 13,
+      "inPort": "in"
+    },
+    {
+      "outNode": 13,
+      "outPort": "out",
+      "inNode": 8,
+      "inPort": "in"
     }
   ],
+  "settings": {},
   "types": []
 }

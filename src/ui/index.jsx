@@ -16,6 +16,9 @@ window.tf = tf;
 window.twgl = twgl;
 window.m4 = twgl.m4;
 window.ort = ort;
+window.DEBUG_ONNX_NODE = true;
+// window.DEBUG_BYPASS_ORT = true;
+window.DEBUG_ONNX_NODE_FILL = true;
 
 // We need to do this in order for Vite to skip injectQuery.
 const ortBase = new URL('./onnxruntime-web/', window.location.href).href;
@@ -24,6 +27,9 @@ ort.env.wasm.wasmPaths = ortBase;
 async function main() {
   try {
     await figment.initWebGPUDevice();
+    // Ensure ORT uses the exact same adapter + device as Figment
+    ort.env.webgpu.adapter = window._gpu.adapter;
+    ort.env.webgpu.device = window._gpu.device;
   } catch (e) {
     console.error('WebGPU init failed:', e);
   }
