@@ -238,7 +238,11 @@ export default class App extends Component {
     const contents = await window.desktop.readProjectFile(filePath);
     // const contents = await fs.readFile(filePath, 'utf-8');
     let project = JSON.parse(contents);
-    project = upgradeProject(project);
+    try {
+      project = upgradeProject(project);
+    } catch (error) {
+      alert(`This file is created with a newer version of Figment. Please download the latest version at figmentapp.com.`);
+    }
     const network = new Network(this.state.library);
 
     // remote.app.addRecentDocument(filePath);
