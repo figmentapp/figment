@@ -238,7 +238,9 @@ export default class App extends Component {
     try {
       project = upgradeProject(project);
     } catch (error) {
-      alert(`This file is created with a newer version of Figment. Please download the latest version at figmentapp.com.`);
+      alert(
+        `This file is created with a newer version of Figment. Please download the latest version at figmentapp.com. (${error.message})`,
+      );
     }
     const network = new Network(this.state.library);
 
