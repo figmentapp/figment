@@ -1,4 +1,4 @@
-export const LATEST_FORMAT_VERSION = 3;
+export const LATEST_FORMAT_VERSION = 4;
 
 export function upgradeProject(project) {
   if (typeof project.version !== 'number') {

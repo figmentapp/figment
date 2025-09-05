@@ -9,6 +9,7 @@ const listeners = {
   osc: null,
   udp: null,
   shortcut: null,
+  midi: null,
 };
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
@@ -129,6 +130,12 @@ ipcRenderer.on('udp', (_, name, args) => {
 ipcRenderer.on('shortcut', (_, payload) => {
   if (typeof listeners['shortcut'] === 'function') {
     listeners['shortcut'](payload);
+  }
+});
+
+ipcRenderer.on('midi-update', (_, data) => {
+  if (typeof listeners['midi'] === 'function') {
+    listeners['midi'](data);
   }
 });
 

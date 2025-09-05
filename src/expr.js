@@ -5,6 +5,7 @@ let context = {
   $TIME: 0,
   $NOW: 0,
   _osc: new Map(),
+  _midi: new Map(),
   osc: (address, defaultValue = 0) => {
     const osc = context._osc.get(address);
     return osc ? osc : defaultValue;
@@ -13,6 +14,10 @@ let context = {
 
 function osc(address, defaultValue = 0) {
   return context._osc.get(address) || defaultValue;
+}
+
+function midi(channel, controller, defaultValue = 0) {
+  return context._midi.get(`${channel}-${controller}`) || defaultValue;
 }
 
 function map(v, inMin, inMax, outMin, outMax, clamp = false) {
@@ -70,6 +75,8 @@ export function initExpressionContext(newContext) {
   jexl.addFunction('map', map);
   // Open Sound Control
   jexl.addFunction('osc', osc);
+  // MIDI
+  jexl.addFunction('midi', midi);
 }
 
 export function setExpressionContext(newContext) {
