@@ -1,4 +1,4 @@
-export const LATEST_FORMAT_VERSION = 3;
+export const LATEST_FORMAT_VERSION = 4;
 
 export function upgradeProject(project) {
   if (typeof project.version !== 'number') {
@@ -40,6 +40,11 @@ export function upgradeProject(project) {
       }
     }
     // Recursively do further upgrades, if necessary.
+    return upgradeProject(newProject);
+  } else if (project.version === 3) {
+    // Version 4 adds `midi` messages, so it can't be loaded in older versions.
+    // Older versions of the project just work though.
+    const newProject = structuredClone(project);
     return upgradeProject(newProject);
   }
 }
