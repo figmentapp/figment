@@ -6,6 +6,7 @@ let context = {
   $NOW: 0,
   _osc: new Map(),
   _midi: new Map(),
+  _bands: new Map(),
   osc: (address, defaultValue = 0) => {
     const osc = context._osc.get(address);
     return osc ? osc : defaultValue;
@@ -18,6 +19,14 @@ function osc(address, defaultValue = 0) {
 
 function midi(channel, controller, defaultValue = 0) {
   return context._midi.get(`${channel}-${controller}`) || defaultValue;
+}
+
+function band(index, defaultValue = 0) {
+  return context._bands.get(index) ?? defaultValue;
+}
+
+function bands() {
+  return Array.from(context._bands.values());
 }
 
 function map(v, inMin, inMax, outMin, outMax, clamp = false) {
@@ -77,6 +86,9 @@ export function initExpressionContext(newContext) {
   jexl.addFunction('osc', osc);
   // MIDI
   jexl.addFunction('midi', midi);
+  // FFT BANDS
+  jexl.addFunction('band', band);
+  jexl.addFunction('bands', bands);
 }
 
 export function setExpressionContext(newContext) {
@@ -96,3 +108,7 @@ export function evalExpression(expr) {
   expr = fixupExpression(expr);
   return jexl.evalSync(expr, context);
 }
+
+window.setExpressionContext = setExpressionContext;
+window.evalExpression = evalExpression;
+window.initExpressionContext = initExpressionContext;
