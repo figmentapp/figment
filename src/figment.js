@@ -2,6 +2,16 @@
 // Look in preload.js for functions that are exposed in this module (e.g. nodePath).
 import * as twgl from 'twgl.js';
 
+
+try {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  //if (!Ctx) throw new Error('AudioContext not supported');
+  window.audioCtx = new Ctx();
+  console.log('AudioContext created', window.audioCtx);
+} catch (err) {
+  console.error('Failed to create AudioContext:', err);
+}
+
 export function projectFile() {
   if (!window.app) return '';
   if (!window.app.state.filePath) return '';
