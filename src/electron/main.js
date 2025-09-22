@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
 import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
+import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
+import { midiStartServer, midiStopServer } from './midi.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -209,6 +211,18 @@ ipcMain.handle('oscStopServer', (_) => {
   }
 });
 
+ipcMain.handle('udpSendMessage', (_, { ip, port, data }) => {
+  udpSendMessage(ip, port, Buffer.from(data));
+});
+
+ipcMain.handle('udpStartServer', (_, { port }) => {
+  udpStartServer(port, sendIpcMessage);
+});
+
+ipcMain.handle('udpStopServer', (_, { port }) => {
+  udpStopServer(port);
+});
+
 // Register a system-wide shortcut. Returns true if successful.
 ipcMain.handle('registerGlobalShortcut', async (_, { id, accel }) => {
   // Ensure the accelerator is not already registered by another Figment shortcut.
@@ -398,6 +412,13 @@ app.whenReady().then(async () => {
   // }
   createApplicationMenu();
 
+  // Initialize MIDI
+  midiStartServer((channel, controller, value) => {
+    if (gMainWindow) {
+      gMainWindow.webContents.send('midi-update', { channel, controller, value });
+    }
+  });
+
   // For macOS, use the filePathToOpen if it's been set by the 'open-file' event
   // For Windows/Linux, process command-line arguments to find a .fgmt file to open
   const fileArg = process.argv.find((arg) => arg.endsWith('.fgmt')) || filePathToOpen;
@@ -411,6 +432,8 @@ app.on('will-quit', async (event) => {
     gDevServer = null;
     app.quit();
   }
+  // Clean up MIDI
+  midiStopServer();
   // Clean up any global shortcuts we registered.
   globalShortcut.unregisterAll();
 });

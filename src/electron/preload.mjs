@@ -7,7 +7,9 @@ import { glob } from 'glob';
 const listeners = {
   menu: null,
   osc: null,
+  udp: null,
   shortcut: null,
+  midi: null,
 };
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
@@ -119,14 +121,38 @@ ipcRenderer.on('osc', (_, name, args) => {
   }
 });
 
+ipcRenderer.on('udp', (_, name, args) => {
+  if (typeof listeners['udp'] === 'function') {
+    listeners['udp'](name, args);
+  }
+});
+
 ipcRenderer.on('shortcut', (_, payload) => {
   if (typeof listeners['shortcut'] === 'function') {
     listeners['shortcut'](payload);
   }
 });
 
+ipcRenderer.on('midi-update', (_, data) => {
+  if (typeof listeners['midi'] === 'function') {
+    listeners['midi'](data);
+  }
+});
+
 function registerListener(name, fn) {
   listeners[name] = fn;
+}
+
+function udpSendMessage(ip, port, data) {
+  ipcRenderer.invoke('udpSendMessage', { ip, port, data });
+}
+
+function startUdpServer(port) {
+  ipcRenderer.invoke('udpStartServer', { port });
+}
+
+function stopUdpServer(port) {
+  ipcRenderer.invoke('udpStopServer', { port });
 }
 
 function oscSendMessage(ip, port, address, ...args) {
@@ -183,6 +209,9 @@ contextBridge.exposeInMainWorld('desktop', {
   oscSendMessage,
   startOscServer,
   stopOscServer,
+  udpSendMessage,
+  startUdpServer,
+  stopUdpServer,
   registerGlobalShortcut,
   unregisterGlobalShortcut,
   setRepresentedFilename,

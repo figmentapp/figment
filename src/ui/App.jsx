@@ -54,7 +54,8 @@ export default class App extends Component {
     };
     this.mainRef = React.createRef();
     this.oscMessageMap = new Map();
-    initExpressionContext({ _osc: this.oscMessageMap });
+    this.midiMessageMap = new Map();
+    initExpressionContext({ _osc: this.oscMessageMap, _midi: this.midiMessageMap });
     const firstNode = network.nodes[0];
     if (firstNode) {
       this.state.selection.add(firstNode);
@@ -98,6 +99,7 @@ export default class App extends Component {
     this._onViewNodeSource = this._onViewNodeSource.bind(this);
     this._onChangeProjectSetting = this._onChangeProjectSetting.bind(this);
     this._onOscEvent = this._onOscEvent.bind(this);
+    this._onMidiEvent = this._onMidiEvent.bind(this);
     this._onFrame = this._onFrame.bind(this);
     this._onStart = this._onStart.bind(this);
     this._onStop = this._onStop.bind(this);
@@ -117,6 +119,7 @@ export default class App extends Component {
     window.app = this;
     window.desktop.registerListener('menu', this._onMenuEvent);
     window.desktop.registerListener('osc', this._onOscEvent);
+    window.desktop.registerListener('midi', this._onMidiEvent);
     if (this.state.filePath) {
       this._openFile(this.state.filePath);
     }
@@ -235,7 +238,13 @@ export default class App extends Component {
     const contents = await window.desktop.readProjectFile(filePath);
     // const contents = await fs.readFile(filePath, 'utf-8');
     let project = JSON.parse(contents);
-    project = upgradeProject(project);
+    try {
+      project = upgradeProject(project);
+    } catch (error) {
+      alert(
+        `This file is created with a newer version of Figment. Please download the latest version at figmentapp.com. (${error.message})`,
+      );
+    }
     const network = new Network(this.state.library);
 
     // remote.app.addRecentDocument(filePath);
@@ -617,6 +626,10 @@ export default class App extends Component {
       const frequencies = args;
       this.setState({ oscMessageFrequencies: frequencies });
     }
+  }
+  _onMidiEvent(data) {
+    const { channel, controller, value } = data;
+    this.midiMessageMap.set(`${channel}-${controller}`, value);
   }
 
   async _onFrame() {

@@ -11,6 +11,7 @@ import Port, {
   PORT_TYPE_DIRECTORY,
   PORT_TYPE_IMAGE,
   PORT_TYPE_OBJECT,
+  PORT_TYPE_AUDIO,
   PORT_IN,
   PORT_OUT,
   PORT_TYPE_BOOLEAN,
@@ -43,7 +44,7 @@ export default class Node {
     if (this._timeDependent) {
       return true;
     }
-    return this.inPorts.some((p) => p._value.type === 'expression' && /(\$FRAME|\$TIME|\$NOW|osc)/.test(p._value.expression));
+    return this.inPorts.some((p) => p._value.type === 'expression' && /(\$FRAME|\$TIME|\$NOW|osc|midi)/.test(p._value.expression));
   }
 
   set timeDependent(value) {
@@ -228,6 +229,14 @@ export default class Node {
     }
   }
 
+  audioIn(name) {
+    const oldPort = this.inPorts.find((p) => p.name === name);
+    if (oldPort) return oldPort;
+    const inPort = new Port(this, name, PORT_TYPE_AUDIO, PORT_IN);
+    this.inPorts.push(inPort);
+    return inPort;
+  }
+
   triggerOut(name) {
     const oldPort = this.outPorts.find((p) => p.name === name);
     if (oldPort) return oldPort;
@@ -287,4 +296,5 @@ export default class Node {
     this.outPorts.push(outPort);
     return outPort;
   }
+  
 }

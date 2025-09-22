@@ -1,6 +1,6 @@
 {
   "name": "Figment",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "type": "module",
   "description": "Visual coding environment for creative AI",
   "author": "EMRG",
@@ -26,7 +26,9 @@
     "codemirror": "^5.65.19",
     "fuse.js": "^7.1.0",
     "glob": "^11.0.3",
+    "jazz-midi-electron": "^2.0.3",
     "jexl": "^2.3.0",
+    "jzz": "^1.9.4",
     "lodash": "4.17.21",
     "minimist": "1.2.8",
     "node-osc": "^9.1.5",
