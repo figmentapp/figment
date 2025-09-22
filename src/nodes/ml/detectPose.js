@@ -38,7 +38,7 @@ async function initLandmarker() {
 
   _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(_vision, {
     baseOptions: {
-      modelAssetPath: `./new-mediapipe/pose_landmarker_${modelIn.value}.task`,
+      modelAssetPath: `./mediapipe/pose_landmarker_${modelIn.value}.task`,
       delegate: 'GPU',
     },
     runningMode: 'IMAGE',
@@ -52,7 +52,7 @@ node.onStart = async () => {
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./new-mediapipe');
+  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
   await initLandmarker();
 };
 

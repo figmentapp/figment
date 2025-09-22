@@ -29,7 +29,7 @@ async function initSegmenter() {
     await _imageSegmenter.close();
   }
 
-  const modelPath = `./new-mediapipe/${MODEL_FILES[modelIn.value]}`;
+  const modelPath = `./mediapipe/${MODEL_FILES[modelIn.value]}`;
 
   _imageSegmenter = await mediapipe.ImageSegmenter.createFromOptions(_vision, {
     baseOptions: {
@@ -47,7 +47,7 @@ node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./new-mediapipe');
+  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
   await initSegmenter();
 };
 

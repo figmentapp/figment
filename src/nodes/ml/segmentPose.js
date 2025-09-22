@@ -15,7 +15,7 @@ void main() {
   vec4 input_color = texture2D(u_source_texture, v_uv);
   vec4 mask_color = texture2D(u_mask_texture, v_uv);
   float mask_value = mask_color.r; // Use red channel as mask
-  
+
   if (u_operation == 0) {
     // Remove background: keep foreground where mask is white
     gl_FragColor = vec4(input_color.rgb, input_color.a * mask_value);
@@ -50,7 +50,7 @@ async function initLandmarker() {
 
   _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(_vision, {
     baseOptions: {
-      modelAssetPath: `./new-mediapipe/pose_landmarker_${modelIn.value}.task`,
+      modelAssetPath: `./mediapipe/pose_landmarker_${modelIn.value}.task`,
       delegate: 'GPU',
     },
     runningMode: 'IMAGE',
@@ -65,7 +65,7 @@ node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _maskFramebuffer = new figment.Framebuffer();
   _maskTexture = new figment.Framebuffer();
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./new-mediapipe');
+  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
   await initLandmarker();
 };
 
@@ -108,24 +108,24 @@ function drawResults(pose) {
     if (pose.segmentationMasks && pose.segmentationMasks.length > 0) {
       const segmentationMask = pose.segmentationMasks[0];
       const maskData = segmentationMask.getAsUint8Array();
-      
+
       // Create RGBA data for mask texture
       const rgbaData = new Uint8ClampedArray(width * height * 4);
       for (let i = 0; i < maskData.length; i++) {
         const pixelIndex = i * 4;
         const maskValue = maskData[i];
-        rgbaData[pixelIndex] = maskValue;     // R
-        rgbaData[pixelIndex + 1] = maskValue; // G  
+        rgbaData[pixelIndex] = maskValue; // R
+        rgbaData[pixelIndex + 1] = maskValue; // G
         rgbaData[pixelIndex + 2] = maskValue; // B
-        rgbaData[pixelIndex + 3] = 255;       // A
+        rgbaData[pixelIndex + 3] = 255; // A
       }
-      
+
       // Update mask texture using framebuffer
       _maskTexture.setSize(width, height);
       window.gl.bindTexture(gl.TEXTURE_2D, _maskTexture.texture);
       window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgbaData);
       window.gl.bindTexture(gl.TEXTURE_2D, null);
-      
+
       // Create mask framebuffer for mask output
       _maskFramebuffer.setSize(width, height);
       _maskFramebuffer.bind();
@@ -135,7 +135,7 @@ function drawResults(pose) {
       window.gl.bindTexture(gl.TEXTURE_2D, null);
       _maskFramebuffer.unbind();
       maskOut.value = _maskFramebuffer;
-      
+
       // Apply segmentation using shader
       _framebuffer.setSize(width, height);
       _framebuffer.bind();
