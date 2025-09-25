@@ -12,6 +12,7 @@ playIn.display = 0x03;
 const loopIn = node.toggleIn('loop', true);
 const pauseModeIn = node.selectIn('pauseMode', ['hold', 'restart', 'rewind'], 'hold');
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
+const fpsIn = node.numberIn('fps', 30, { min: 1, max: 240, step: 1 });
 const restartIn = node.triggerButtonIn('restart');
 const frameIn = node.numberIn('frame', 0, { min: 0, step: 1 });
 frameIn.display = 0x03;
@@ -21,7 +22,6 @@ const currentFrameOut = node.numberOut('currentFrame');
 
 let framebuffer, program, video, videoReady, shouldLoad, lastPlayState, renderOnce;
 let frameCount = 0;
-let fps = 30;
 let lastFrameTarget = -1;
 
 node.onStart = () => {
@@ -54,15 +54,11 @@ async function loadMovie() {
     });
   });
   videoReady = true;
-  fps = guessFPS(video);
-  frameCount = Math.floor(video.duration * fps);
+  frameCount = Math.floor(video.duration * fpsIn.value);
   frameCountOut.set(frameCount);
   framebuffer.setSize(video.videoWidth, video.videoHeight);
 }
 
-function guessFPS(video) {
-  return 30;
-}
 
 async function seekAndWait(time) {
   return new Promise((resolve) => {
@@ -76,7 +72,7 @@ async function seekAndWait(time) {
 
 async function seekFrame(frameIndex) {
   if (!video || frameIndex < 0) return;
-  const time = frameIndex / fps;
+  const time = frameIndex / fpsIn.value;
   await seekAndWait(time);
   renderOnce = true;
   if (playIn.value) {
@@ -122,7 +118,7 @@ node.onRender = async () => {
   framebuffer._directImageHack = video;
   imageOut.set(framebuffer);
 
-  const currentFrame = Math.floor(video.currentTime * fps);
+  const currentFrame = Math.floor(video.currentTime * fpsIn.value);
   currentFrameOut.set(currentFrame);
 
   if (video.paused) {
@@ -170,3 +166,9 @@ fileIn.onChange = () => {
 speedIn.onChange = changeSpeed;
 loopIn.onChange = changeLoop;
 restartIn.onTrigger = restartVideo;
+fpsIn.onChange = () => {
+  if (video) {
+    frameCount = Math.floor(video.duration * fpsIn.value);
+    frameCountOut.set(frameCount);
+  }
+};
