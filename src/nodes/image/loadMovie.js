@@ -14,6 +14,7 @@ const pauseModeIn = node.selectIn('pauseMode', ['hold', 'restart', 'rewind'], 'h
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
 const restartIn = node.triggerButtonIn('restart');
 const frameIn = node.numberIn('frame', 0, { min: 0, step: 1 });
+frameIn.display = 0x03;
 const imageOut = node.imageOut('out');
 const frameCountOut = node.numberOut('frameCount');
 const currentFrameOut = node.numberOut('currentFrame');
