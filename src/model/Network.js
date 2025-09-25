@@ -308,8 +308,8 @@ export default class Network {
       }
       json.nodes.push(nodeObj);
     }
-    json.connections = JSON.parse(JSON.stringify(this.connections));
-    json.types = JSON.parse(JSON.stringify(this.types));
+    json.connections = structuredClone(this.connections);
+    json.types = structuredClone(this.types);
     return json;
   }
 
