@@ -219,7 +219,12 @@ export default class NetworkProxy {
 
   updatePreviewOverlay(preview) {
     let changed = false;
-    if (this.previewOverlay && this.previewOverlay !== preview && this.previewOverlay.bitmap && this.previewOverlay.bitmap !== preview?.bitmap) {
+    if (
+      this.previewOverlay &&
+      this.previewOverlay !== preview &&
+      this.previewOverlay.bitmap &&
+      this.previewOverlay.bitmap !== preview?.bitmap
+    ) {
       try {
         this.previewOverlay.bitmap.close();
       } catch (_) {

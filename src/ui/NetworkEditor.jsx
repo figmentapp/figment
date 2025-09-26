@@ -283,10 +283,7 @@ export default class NetworkEditor extends Component {
     const dy = mouseY - this.prevY;
     [this._networkX, this._networkY] = this._networkPosition(e);
     if (this._dragMode === DRAG_MODE_PANNING) {
-      this.setState(
-        (prev) => ({ x: prev.x + dx, y: prev.y + dy }),
-        this._notifyViewportChange,
-      );
+      this.setState((prev) => ({ x: prev.x + dx, y: prev.y + dy }), this._notifyViewportChange);
     } else if (this._dragMode === DRAG_MODE_SELECTING) {
       // FIXME implement box selections
     } else if (this._dragMode === DRAG_MODE_DRAG_NODE) {
