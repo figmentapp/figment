@@ -1,7 +1,7 @@
 import * as Comlink from 'comlink';
 import React, { Component } from 'react';
 import Stats from 'three/examples/jsm/libs/stats.module';
-import Network, { getDefaultNetwork } from '../model/Network';
+import NetworkProxy from '../model/NetworkProxy';
 import { Point } from '../g';
 import { PORT_TYPE_IMAGE } from '../model/Port';
 import Editor from './Editor';
@@ -9,7 +9,6 @@ import Viewer from './Viewer';
 import ParamsEditor from './ParamsEditor';
 import NodeDialog from './NodeDialog';
 import Splitter from './Splitter';
-import Library from '../model/Library';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
@@ -32,6 +31,7 @@ export default class App extends Component {
     this.state = {
       filePath: this.props.filePath,
       dirty: false,
+      network: null,
       tabs: [],
       activeTabIndex: -1,
       selection: new Set(),
@@ -107,26 +107,30 @@ export default class App extends Component {
     const appPath = window.desktop.getAppPath();
     const { nodeTypes } = await this.renderWorker.init(appPath);
     this.nodeTypes = nodeTypes;
-    this.networkProxy = await this.renderWorker.loadNetwork();
+    const networkSchema = await this.renderWorker.loadNetwork();
+    const networkProxy = new NetworkProxy(networkSchema, { nodeTypes });
 
-    const firstNode = this.networkProxy.nodes[0];
+    const selection = new Set();
+    const firstNode = networkProxy.nodes[0];
     if (firstNode) {
-      this.state.selection.add(firstNode);
+      selection.add(firstNode);
     }
 
-    // await this.state.network.start();
-    // await this.state.network.render();
-    this._onStart();
-    window.requestAnimationFrame(this._onFrame);
-    window.addEventListener('keydown', this._onKeyDown);
-    window.addEventListener('resize', this._forceRedraw);
-    window.app = this;
-    window.desktop.registerListener('menu', this._onMenuEvent);
-    window.desktop.registerListener('osc', this._onOscEvent);
-    window.desktop.registerListener('midi', this._onMidiEvent);
-    if (this.state.filePath) {
-      this._openFile(this.state.filePath);
-    }
+    this.setState({ network: networkProxy, selection }, () => {
+      // await this.state.network.start();
+      // await this.state.network.render();
+      this._onStart();
+      window.requestAnimationFrame(this._onFrame);
+      window.addEventListener('keydown', this._onKeyDown);
+      window.addEventListener('resize', this._forceRedraw);
+      window.app = this;
+      window.desktop.registerListener('menu', this._onMenuEvent);
+      window.desktop.registerListener('osc', this._onOscEvent);
+      window.desktop.registerListener('midi', this._onMidiEvent);
+      if (this.state.filePath) {
+        this._openFile(this.state.filePath);
+      }
+    });
   }
 
   componentWillUnmount() {
@@ -638,7 +642,7 @@ export default class App extends Component {
 
   async _onFrame() {
     if (!this.state.isPlaying) return;
-    if (this.networkProxy) {
+    if (this.state.network) {
       window.stats.begin();
       const result = await this.renderWorker.renderFrame();
       // FIXME: better handling of errors
@@ -652,8 +656,8 @@ export default class App extends Component {
 
   _onStart() {
     this.setState({ isPlaying: true }, () => window.requestAnimationFrame(this._onFrame));
-    if (this.networkProxy.settings.oscEnabled) {
-      const port = parseInt(this.networkProxy.settings.oscPort) || 8888;
+    if (this.state.network.settings.oscEnabled) {
+      const port = parseInt(this.state.network.settings.oscPort) || 8888;
       window.desktop.startOscServer(port);
     }
   }
@@ -664,6 +668,7 @@ export default class App extends Component {
 
   render() {
     const {
+      network,
       selection,
       tabs,
       activeTabIndex,
@@ -678,9 +683,7 @@ export default class App extends Component {
       nodeToRename,
       fullscreen,
     } = this.state;
-    const network = this.networkProxy;
     if (!network) return null;
-    console.log('drawing');
     if (fullscreen) {
       return (
         <div className="app">
