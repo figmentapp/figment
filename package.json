@@ -15,7 +15,8 @@
     "dist-mac": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal",
     "dist-win": "rimraf build && rimraf dist && npm run build && electron-builder build --win --x64",
     "fastdist": "rimraf build && rimraf dist && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
-    "format": "prettier --write 'src/**/*.{js,jsx}'"
+    "format": "prettier --write 'src/**/*.{js,jsx}'",
+    "test": "vitest"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
@@ -54,7 +55,8 @@
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "tailwindcss": "^4.0.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   },
   "build": {
     "appId": "be.debleser.figment",
