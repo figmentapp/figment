@@ -19,7 +19,7 @@ import Port, {
 import DependencyGraph from './DependencyGraph';
 import { setExpressionContext } from '../expr';
 
-export const getDefaultNetwork = () => ({
+export const getDefaultNetwork = (appPath) => ({
   nodes: [
     {
       id: 1,
@@ -28,7 +28,7 @@ export const getDefaultNetwork = () => ({
       x: 100,
       y: 50,
       values: {
-        file: { type: 'value', value: window.desktop.getPackagedFile('examples/assets/waves.mp4') },
+        file: { type: 'value', value: `${appPath}/examples/assets/waves.mp4` },
       },
     },
     {
@@ -173,7 +173,7 @@ export default class Network {
         // Ignore if the environment prevents redefining the name.
       }
 
-      fn.call(window, node);
+      fn.call(globalThis, node);
     } catch (e) {
       console.error(`Error creating ${typeId}: ${e && e.stack}`);
     }

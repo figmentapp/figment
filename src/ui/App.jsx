@@ -1,3 +1,4 @@
+import * as Comlink from 'comlink';
 import React, { Component } from 'react';
 import Stats from 'three/examples/jsm/libs/stats.module';
 import Network, { getDefaultNetwork } from '../model/Network';
@@ -27,15 +28,10 @@ window.stats.dom.style.bottom = '0';
 export default class App extends Component {
   constructor(props) {
     super(props);
-    const library = new Library();
-    const network = new Network(library);
-    network.parse(getDefaultNetwork());
     const lastNetworkPoint = new Point(0, 0);
     this.state = {
       filePath: this.props.filePath,
       dirty: false,
-      library,
-      network,
       tabs: [],
       activeTabIndex: -1,
       selection: new Set(),
@@ -56,10 +52,6 @@ export default class App extends Component {
     this.oscMessageMap = new Map();
     this.midiMessageMap = new Map();
     initExpressionContext({ _osc: this.oscMessageMap, _midi: this.midiMessageMap });
-    const firstNode = network.nodes[0];
-    if (firstNode) {
-      this.state.selection.add(firstNode);
-    }
     this._onOpenFile = this._onOpenFile.bind(this);
     this._onMenuEvent = this._onMenuEvent.bind(this);
     this._openFile = this._openFile.bind(this);
@@ -110,8 +102,20 @@ export default class App extends Component {
   }
 
   async componentDidMount() {
-    await this.state.network.start();
-    await this.state.network.render();
+    const worker = new Worker(new URL('../model/RenderWorker.js', import.meta.url), { type: 'module' });
+    this.renderWorker = Comlink.wrap(worker);
+    const appPath = window.desktop.getAppPath();
+    const { nodeTypes } = await this.renderWorker.init(appPath);
+    this.nodeTypes = nodeTypes;
+    this.networkProxy = await this.renderWorker.loadNetwork();
+
+    const firstNode = this.networkProxy.nodes[0];
+    if (firstNode) {
+      this.state.selection.add(firstNode);
+    }
+
+    // await this.state.network.start();
+    // await this.state.network.render();
     this._onStart();
     window.requestAnimationFrame(this._onFrame);
     window.addEventListener('keydown', this._onKeyDown);
@@ -634,9 +638,13 @@ export default class App extends Component {
 
   async _onFrame() {
     if (!this.state.isPlaying) return;
-    if (this.state.network) {
+    if (this.networkProxy) {
       window.stats.begin();
-      await this.state.network.doFrame();
+      const result = await this.renderWorker.renderFrame();
+      // FIXME: better handling of errors
+      if (!result.success) {
+        console.error('Render error:', result.error);
+      }
       window.stats.end();
     }
     window.requestAnimationFrame(this._onFrame);
@@ -644,8 +652,8 @@ export default class App extends Component {
 
   _onStart() {
     this.setState({ isPlaying: true }, () => window.requestAnimationFrame(this._onFrame));
-    if (this.state.network.settings.oscEnabled) {
-      const port = parseInt(this.state.network.settings.oscPort) || 8888;
+    if (this.networkProxy.settings.oscEnabled) {
+      const port = parseInt(this.networkProxy.settings.oscPort) || 8888;
       window.desktop.startOscServer(port);
     }
   }
@@ -656,8 +664,6 @@ export default class App extends Component {
 
   render() {
     const {
-      library,
-      network,
       selection,
       tabs,
       activeTabIndex,
@@ -672,6 +678,9 @@ export default class App extends Component {
       nodeToRename,
       fullscreen,
     } = this.state;
+    const network = this.networkProxy;
+    if (!network) return null;
+    console.log('drawing');
     if (fullscreen) {
       return (
         <div className="app">
@@ -690,7 +699,6 @@ export default class App extends Component {
           <Editor
             tabs={tabs}
             activeTabIndex={activeTabIndex}
-            library={library}
             network={network}
             selection={selection}
             onNewCodeTab={this._onNewCodeTab}

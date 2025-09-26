@@ -22,6 +22,10 @@ const RUNTIME_MODE_EXPORT = 'export';
 let runtimeMode = RUNTIME_MODE_LIVE;
 let currentFrame = 1;
 
+function getAppPath() {
+  return appPath;
+}
+
 function getRuntimeMode() {
   return runtimeMode;
 }
@@ -185,6 +189,7 @@ async function setDocumentEdited(edited) {
 }
 
 contextBridge.exposeInMainWorld('desktop', {
+  getAppPath,
   getRuntimeMode,
   setRuntimeMode,
   getCurrentFrame,
