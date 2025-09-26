@@ -13,6 +13,8 @@ import Port, {
   PORT_TYPE_DIRECTORY,
   PORT_TYPE_IMAGE,
   PORT_TYPE_BOOLEAN,
+  PORT_TYPE_OBJECT,
+  PORT_TYPE_AUDIO,
   PORT_IN,
   PORT_OUT,
 } from './Port';
@@ -83,6 +85,59 @@ export const getDefaultNetwork = (appPath) => ({
     oscPort: 8000,
   },
 });
+
+function serializePortValue(portType, value) {
+  if (value === undefined || value === null) {
+    return value;
+  }
+  if (portType === PORT_TYPE_COLOR) {
+    return Array.isArray(value) ? value.slice() : structuredClone(value);
+  }
+  if (portType === PORT_TYPE_POINT) {
+    if (Array.isArray(value)) {
+      return value.slice();
+    }
+    if (typeof value === 'object' && value !== null) {
+      if (typeof value.x === 'number' || typeof value.y === 'number') {
+        return [value.x ?? 0, value.y ?? 0];
+      }
+      if ('0' in value && '1' in value) {
+        return [value[0], value[1]];
+      }
+    }
+    return value;
+  }
+  if (portType === PORT_TYPE_IMAGE || portType === PORT_TYPE_OBJECT || portType === PORT_TYPE_AUDIO || portType === PORT_TYPE_TRIGGER) {
+    return null;
+  }
+  if (typeof value === 'object') {
+    return structuredClone(value);
+  }
+  return value;
+}
+
+function portToSchema(port, network) {
+  const base = {
+    id: port.__id,
+    name: port.name,
+    label: port.label,
+    type: port.type,
+    direction: port.direction,
+    display: port.display,
+    min: port.min,
+    max: port.max,
+    step: port.step,
+    fileType: port.fileType,
+    defaultValue: serializePortValue(port.type, port.defaultValue),
+    value: serializePortValue(port.type, port.value),
+    _value: structuredClone(port._value),
+    options: port.options ? structuredClone(port.options) : undefined,
+    isConnected: port.direction === PORT_IN ? network.isConnected(port) : undefined,
+    error: port.error ? String(port.error) : null,
+  };
+
+  return base;
+}
 
 export default class Network {
   constructor(library) {
@@ -311,6 +366,29 @@ export default class Network {
     json.connections = structuredClone(this.connections);
     json.types = structuredClone(this.types);
     return json;
+  }
+
+  toSchema() {
+    return {
+      version: LATEST_FORMAT_VERSION,
+      started: this.started,
+      frame: this.frame,
+      nodes: this.nodes.map((node) => ({
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        x: node.x,
+        y: node.y,
+        error: node.error ?? null,
+        isDirty: !!node.isDirty,
+        timeDependent: !!node.timeDependent,
+        inPorts: node.inPorts.map((port) => portToSchema(port, this)),
+        outPorts: node.outPorts.map((port) => portToSchema(port, this)),
+      })),
+      connections: structuredClone(this.connections),
+      settings: structuredClone(this.settings),
+      types: structuredClone(this.types),
+    };
   }
 
   isConnected(port) {

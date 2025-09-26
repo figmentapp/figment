@@ -49,7 +49,7 @@ const service = {
     const schema = networkSchema || getDefaultNetwork(_appPath);
     _network = new Network(_library);
     _network.parse(schema);
-    return _network.serialize();
+    return _network.toSchema();
   },
   renderFrame: async () => {
     if (_renderState === RENDER_STATE_IDLE) {
