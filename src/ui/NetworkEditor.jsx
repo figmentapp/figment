@@ -110,7 +110,7 @@ export default class NetworkEditor extends Component {
     }
 
     this._draw();
-    this.props.network.addChangeListener(this._onNetworkChange);
+    this.props.network.addEventListener('change', this._onNetworkChange);
     this._notifyViewportChange();
     this._animate();
   }
@@ -120,7 +120,7 @@ export default class NetworkEditor extends Component {
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('resize', this._onResize);
     clearInterval(this._timer);
-    this.props.network.removeChangeListener(this._onNetworkChange);
+    this.props.network.removeEventListener('change', this._onNetworkChange);
     if (this.canvasRef.current) {
       this._resizeObserver.unobserve(this.canvasRef.current);
     }
@@ -145,8 +145,8 @@ export default class NetworkEditor extends Component {
 
   componentDidUpdate(prevProps) {
     if (prevProps.network !== this.props.network) {
-      prevProps.network.removeChangeListener(this._onNetworkChange);
-      this.props.network.addChangeListener(this._onNetworkChange);
+      prevProps.network.removeEventListener('change', this._onNetworkChange);
+      this.props.network.addEventListener('change', this._onNetworkChange);
     }
     this._notifyViewportChange();
     this._draw();

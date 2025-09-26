@@ -512,18 +512,18 @@ export default class ParamsEditor extends Component {
   }
 
   componentDidMount() {
-    this.props.network.addChangeListener(this._onNetworkChange);
+    this.props.network.addEventListener('change', this._onNetworkChange);
     this._updateTrackedPortValues();
   }
 
   componentWillUnmount() {
-    this.props.network.removeChangeListener(this._onNetworkChange);
+    this.props.network.removeEventListener('change', this._onNetworkChange);
   }
 
   componentDidUpdate(prevProps) {
     if (prevProps.network !== this.props.network) {
-      prevProps.network.removeChangeListener(this._onNetworkChange);
-      this.props.network.addChangeListener(this._onNetworkChange);
+      prevProps.network.removeEventListener('change', this._onNetworkChange);
+      this.props.network.addEventListener('change', this._onNetworkChange);
     }
     // If the selection has changed, we need to update which ports we're tracking.
     if (prevProps.selection !== this.props.selection) {

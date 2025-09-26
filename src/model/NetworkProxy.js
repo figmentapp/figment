@@ -55,9 +55,9 @@ function normalizePort(port, node) {
   return port;
 }
 
-export default class NetworkProxy {
+export default class NetworkProxy extends EventTarget {
   constructor(schema, { nodeTypes = [] } = {}) {
-    this.listeners = new Set();
+    super();
     this.nodeTypes = nodeTypes;
     this.updateFromSchema(schema, { suppressEvent: true });
   }
@@ -109,18 +109,8 @@ export default class NetworkProxy {
     }
   }
 
-  addChangeListener(listener) {
-    this.listeners.add(listener);
-  }
-
-  removeChangeListener(listener) {
-    this.listeners.delete(listener);
-  }
-
   _emitChange() {
-    for (const listener of this.listeners) {
-      listener(this);
-    }
+    this.dispatchEvent(new CustomEvent('change', { detail: this }));
   }
 
   toSchema() {
