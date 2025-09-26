@@ -34,6 +34,7 @@ export default class Editor extends Component {
       oscServerPort,
       oscMessageFrequencies,
       onClickOsc,
+      onViewportChange,
     } = this.props;
     return (
       <div className="editor" style={style}>
@@ -70,7 +71,7 @@ export default class Editor extends Component {
             onShowNodeDialog={onShowNodeDialog}
             onConnect={onConnect}
             onDisconnect={onDisconnect}
-            offscreenCanvas={this.props.offscreenCanvas}
+            onViewportChange={onViewportChange}
           />
         )}
         {activeTabIndex >= 0 && (

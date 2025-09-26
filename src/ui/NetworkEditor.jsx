@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
-import * as twgl from 'twgl.js';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -25,13 +24,9 @@ const NODE_PORT_WIDTH = 15;
 const NODE_PORT_HEIGHT = 5;
 const NODE_WIDTH = 100;
 const NODE_HEIGHT = 56;
-const NODE_RATIO = NODE_WIDTH / NODE_HEIGHT;
 const NODE_BORDER = 1.5;
 const EDITOR_TABS_HEIGHT = 30;
 const NETWORK_HEADER_HEIGHT = 33;
-const PREVIEW_GEO_WIDTH = NODE_WIDTH;
-const PREVIEW_GEO_HEIGHT = NODE_HEIGHT;
-const PREVIEW_GEO_RATIO = PREVIEW_GEO_WIDTH / PREVIEW_GEO_HEIGHT;
 
 const DRAG_MODE_IDLE = 'idle';
 const DRAG_MODE_PANNING = 'panning';
@@ -51,69 +46,6 @@ const PORT_COLORS = {
   [PORT_TYPE_OBJECT]: COLORS.blue700,
   [PORT_TYPE_BOOLEAN]: COLORS.gray100,
 };
-
-const VERTEX_SHADER = `
-uniform vec2 u_viewport;
-uniform vec2 u_position;
-uniform vec3 u_camera;
-attribute vec2 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_uv;
-  vec2 pos = a_position / u_viewport;
-  pos.x += u_position.x / u_viewport.x;
-  pos.y += u_position.y / u_viewport.y;
-  pos.x *= u_camera.z;
-  pos.y *= u_camera.z;
-  pos.x += u_camera.x / u_viewport.x;
-  pos.y += u_camera.y / u_viewport.y;
-  // Convert position from 0.0-1.0 to -1.0-1.0
-  pos.x = pos.x * 2.0 - 1.0;
-  pos.y = (1.0 - pos.y) * 2.0 - 1.0;
-  gl_Position = vec4(pos, 0.0, 1.0);
-}
-`;
-
-const FRAGMENT_SHADER = `
-precision mediump float;
-uniform sampler2D u_texture;
-uniform vec2 u_resolution;
-uniform vec4 u_color;
-varying vec2 v_uv;
-void main() {
-  // The ratio of the image (width / height)
-  float image_ratio = u_resolution.x / u_resolution.y;
-  // The ratio of the preview node box (width / height)
-  float box_width = ${PREVIEW_GEO_WIDTH}.0;
-  float box_height = ${PREVIEW_GEO_HEIGHT}.0;
-  float box_ratio = ${PREVIEW_GEO_RATIO};
-  float delta_ratio = box_ratio / image_ratio;
-  if (image_ratio >  box_ratio) {
-    // The image is wider than the box
-    float scale_factor = box_width / u_resolution.x;
-    float height_diff = (box_height - u_resolution.y * scale_factor) / box_height;
-    float half_height_diff = height_diff / 2.0;
-    if (v_uv.y < half_height_diff || v_uv.y > 1.0 - half_height_diff) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec2 uv = vec2(v_uv.x, (v_uv.y - half_height_diff) / delta_ratio);
-      gl_FragColor = u_color * texture2D(u_texture, uv);
-    }
-  } else {
-    // The image is taller than the box
-    float scale_factor = box_height / u_resolution.y;
-    float width_diff = (box_width - u_resolution.x * scale_factor) / box_width;
-    float half_width_diff = width_diff / 2.0;
-    if (v_uv.x < half_width_diff || v_uv.x > 1.0 - half_width_diff) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec2 uv = vec2((v_uv.x - half_width_diff) * delta_ratio, v_uv.y);
-      gl_FragColor = u_color * texture2D(u_texture, uv);
-    }
-  }
-}
-`;
 
 function clamp(v, min, max) {
   return Math.min(Math.max(v, min), max);
@@ -145,6 +77,7 @@ export default class NetworkEditor extends Component {
     this._draw = this._draw.bind(this);
     this._drawNodePreviews = this._drawNodePreviews.bind(this);
     this._animate = this._animate.bind(this);
+    this._notifyViewportChange = this._notifyViewportChange.bind(this);
     this._dragMode = DRAG_MODE_IDLE;
     this._spaceDown = false;
     this._dragPort = null;
@@ -154,6 +87,7 @@ export default class NetworkEditor extends Component {
     this._shouldDraw = true;
     this.canvasRef = React.createRef();
     this.previewCanvasRef = React.createRef();
+    this._lastViewport = null;
   }
 
   componentDidMount() {
@@ -166,30 +100,8 @@ export default class NetworkEditor extends Component {
       const parent = this.previewCanvasRef.current.parentElement;
       this.previewCanvasRef.current.width = parent.clientWidth;
       this.previewCanvasRef.current.height = parent.clientHeight;
+      this.previewCtx = this.previewCanvasRef.current.getContext('2d');
     }
-    this._offscreenCanvas = this.props.offscreenCanvas;
-    this.gl = this._offscreenCanvas.getContext('webgl');
-    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
-
-    // Create a default checkerboard texture.
-    const checkerTexture = {
-      mag: this.gl.NEAREST,
-      min: this.gl.LINEAR,
-      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
-    };
-    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
-
-    // Create a buffer for a node rectangle.
-    let x0 = 0;
-    let x1 = NODE_WIDTH;
-    let y0 = 0;
-    let y1 = NODE_HEIGHT;
-    const arrays = {
-      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
-      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-      indices: [0, 1, 2, 0, 2, 3],
-    };
-    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
 
     // Add a resize observer, redrawing the canvas when the size changes
     this._resizeObserver = new ResizeObserver(this._onResize);
@@ -199,6 +111,7 @@ export default class NetworkEditor extends Component {
 
     this._draw();
     this.props.network.addChangeListener(this._onNetworkChange);
+    this._notifyViewportChange();
     this._animate();
   }
 
@@ -235,6 +148,7 @@ export default class NetworkEditor extends Component {
       prevProps.network.removeChangeListener(this._onNetworkChange);
       this.props.network.addChangeListener(this._onNetworkChange);
     }
+    this._notifyViewportChange();
     this._draw();
   }
 
@@ -369,7 +283,10 @@ export default class NetworkEditor extends Component {
     const dy = mouseY - this.prevY;
     [this._networkX, this._networkY] = this._networkPosition(e);
     if (this._dragMode === DRAG_MODE_PANNING) {
-      this.setState({ x: this.state.x + dx, y: this.state.y + dy });
+      this.setState(
+        (prev) => ({ x: prev.x + dx, y: prev.y + dy }),
+        this._notifyViewportChange,
+      );
     } else if (this._dragMode === DRAG_MODE_SELECTING) {
       // FIXME implement box selections
     } else if (this._dragMode === DRAG_MODE_DRAG_NODE) {
@@ -423,11 +340,14 @@ export default class NetworkEditor extends Component {
       newScale = this.MAX_VIEW_SCALE;
     }
     const scaleDelta = newScale - this.state.scale;
-    this.setState({
-      x: this.state.x - mouseX * scaleDelta,
-      y: this.state.y - mouseY * scaleDelta,
-      scale: newScale,
-    });
+    this.setState(
+      {
+        x: this.state.x - mouseX * scaleDelta,
+        y: this.state.y - mouseY * scaleDelta,
+        scale: newScale,
+      },
+      this._notifyViewportChange,
+    );
   }
 
   _onDoubleClick(e) {
@@ -473,6 +393,7 @@ export default class NetworkEditor extends Component {
   }
 
   _onResize() {
+    this._notifyViewportChange();
     this._draw();
   }
 
@@ -673,87 +594,76 @@ export default class NetworkEditor extends Component {
   }
 
   _drawNodePreviews() {
-    const { gl } = this;
     const { network } = this.props;
-    const canvas = this._offscreenCanvas;
     const previewCanvas = this.previewCanvasRef.current;
     if (!previewCanvas) return;
     const parent = previewCanvas.parentElement;
-    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
+    if (previewCanvas.width !== parent.clientWidth || previewCanvas.height !== parent.clientHeight) {
       previewCanvas.width = parent.clientWidth;
       previewCanvas.height = parent.clientHeight;
+      this.previewCtx = previewCanvas.getContext('2d');
     }
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.05, 0.06, 0.09, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    const ctx = this.previewCtx || previewCanvas.getContext('2d');
+    if (!ctx) return;
 
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    const overlay = network.previewOverlay;
+    if (overlay?.bitmap) {
+      const sourceWidth = overlay.width || overlay.bitmap.width || previewCanvas.width;
+      const sourceHeight = overlay.height || overlay.bitmap.height || previewCanvas.height;
+      ctx.drawImage(overlay.bitmap, 0, 0, sourceWidth, sourceHeight, 0, 0, previewCanvas.width, previewCanvas.height);
+      return;
+    }
+
+    ctx.fillStyle = '#06070D';
     for (const node of network.nodes) {
-      const outPort = node.outPorts[0];
-      if (!outPort || outPort.type !== 'image') {
-        this.ctx.fillStyle = 'black';
-        let x = this.state.x + node.x * this.state.scale;
-        let y = this.state.y + node.y * this.state.scale;
-        let width = NODE_WIDTH * this.state.scale;
-        let height = NODE_HEIGHT * this.state.scale;
-        // this.ctx.fillRect(x + NODE_BORDER, y + NODE_BORDER, width - NODE_BORDER * 2, height - NODE_BORDER * 2);
-        continue;
-      }
-
-      let nodeColor = [1, 0, 1, 1];
-      let texture, textureWidth, textureHeight;
-      if (outPort.value && outPort.value._fbo) {
-        nodeColor = [1, 1, 1, 1];
-        texture = outPort.value._fbo.attachments[0];
-        textureWidth = outPort.value.width;
-        textureHeight = outPort.value.height;
-      } else {
-        texture = this.defaultTexture;
-        textureWidth = NODE_WIDTH;
-        textureHeight = NODE_HEIGHT;
-      }
-      //   let ratio = outPort.value.width / outPort.value.height;
-      //   let dRatio = PREVIEW_GEO_RATIO / ratio;
-      //   if (ratio < PREVIEW_GEO_RATIO) {
-      //     mesh.scale.set(1 / dRatio, 1, 1);
-      //   } else {
-      //     mesh.scale.set(1, dRatio, 1);
-      //   }
-      //   mesh.material.color.set(0xffffff);
-      //   mesh.material.map = outPort.value.texture;
-      //   mesh.material.needsUpdate = true;
-      // } else {
-      //   mesh.material.color.set(0xff00ff);
-      //   mesh.material.map = null;
-      // }
-
-      twgl.bindFramebufferInfo(gl, null);
-      gl.useProgram(this.programInfo.program);
-      twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
-      twgl.setUniforms(this.programInfo, {
-        u_texture: texture,
-        u_color: nodeColor,
-        u_viewport: [canvas.width, canvas.height],
-        u_position: [node.x, node.y],
-        u_resolution: [textureWidth, textureHeight],
-        u_camera: [this.state.x, this.state.y, this.state.scale],
-      });
-      twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
+      const destX = this.state.x + node.x * this.state.scale + NODE_BORDER;
+      const destY = this.state.y + node.y * this.state.scale + NODE_BORDER;
+      const destWidth = NODE_WIDTH * this.state.scale - NODE_BORDER * 2;
+      const destHeight = NODE_HEIGHT * this.state.scale - NODE_BORDER * 2;
+      if (destWidth <= 0 || destHeight <= 0) continue;
+      ctx.fillRect(destX, destY, destWidth, destHeight);
     }
-
-    const previewContext = previewCanvas.getContext('bitmaprenderer');
-    const bitmap = canvas.transferToImageBitmap();
-    previewContext.transferFromImageBitmap(bitmap);
   }
 
   _animate() {
     if (this._shouldDraw) {
-      this._drawNodePreviews();
+      this._draw();
       this._shouldDraw = false;
     }
     window.requestAnimationFrame(this._animate);
+  }
+
+  _notifyViewportChange() {
+    if (!this.props.onViewportChange) return;
+    const previewCanvas = this.previewCanvasRef.current;
+    if (!previewCanvas) return;
+    const parent = previewCanvas.parentElement;
+    if (!parent) return;
+    const width = parent.clientWidth;
+    const height = parent.clientHeight;
+    if (previewCanvas.width !== width || previewCanvas.height !== height) {
+      previewCanvas.width = width;
+      previewCanvas.height = height;
+      this.previewCtx = previewCanvas.getContext('2d');
+    }
+    const viewport = {
+      width,
+      height,
+      x: this.state.x,
+      y: this.state.y,
+      scale: this.state.scale,
+    };
+    if (
+      !this._lastViewport ||
+      this._lastViewport.width !== viewport.width ||
+      this._lastViewport.height !== viewport.height ||
+      this._lastViewport.x !== viewport.x ||
+      this._lastViewport.y !== viewport.y ||
+      this._lastViewport.scale !== viewport.scale
+    ) {
+      this._lastViewport = { ...viewport };
+      this.props.onViewportChange(viewport);
+    }
   }
 }

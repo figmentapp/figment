@@ -63,11 +63,31 @@ export default class NetworkProxy {
   }
 
   updateFromSchema(schema, { suppressEvent = false } = {}) {
+    if (this.nodes) {
+      for (const node of this.nodes) {
+        if (node.preview?.bitmap) {
+          try {
+            node.preview.bitmap.close();
+          } catch (_) {
+            // ignore
+          }
+        }
+      }
+    }
+
     this._schema = structuredClone(schema ?? {});
     this.nodes = this._schema.nodes || [];
     this.connections = this._schema.connections || [];
     this.settings = this._schema.settings || {};
     this.types = this._schema.types || [];
+    if (this.previewOverlay?.bitmap) {
+      try {
+        this.previewOverlay.bitmap.close();
+      } catch (_) {
+        // ignore
+      }
+    }
+    this.previewOverlay = null;
 
     this.nodesById = new Map();
     this.portByKey = new Map();
@@ -195,6 +215,35 @@ export default class NetworkProxy {
     }
 
     return json;
+  }
+
+  updatePreviewOverlay(preview) {
+    let changed = false;
+    if (this.previewOverlay && this.previewOverlay !== preview && this.previewOverlay.bitmap && this.previewOverlay.bitmap !== preview?.bitmap) {
+      try {
+        this.previewOverlay.bitmap.close();
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    if (preview) {
+      if (this.previewOverlay !== preview) {
+        this.previewOverlay = {
+          bitmap: preview.bitmap,
+          width: preview.width,
+          height: preview.height,
+        };
+        changed = true;
+      }
+    } else if (this.previewOverlay !== null) {
+      this.previewOverlay = null;
+      changed = true;
+    }
+
+    if (changed) {
+      this._emitChange();
+    }
   }
 
   _resolveNode(nodeOrId) {

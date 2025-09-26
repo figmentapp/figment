@@ -3,7 +3,6 @@ import React, { Component } from 'react';
 import Stats from 'three/examples/jsm/libs/stats.module';
 import NetworkProxy from '../model/NetworkProxy';
 import { Point } from '../g';
-import { PORT_TYPE_IMAGE } from '../model/Port';
 import Editor from './Editor';
 import Viewer from './Viewer';
 import ParamsEditor from './ParamsEditor';
@@ -97,15 +96,17 @@ export default class App extends Component {
     this._onStop = this._onStop.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
     this._forceRedraw = this._forceRedraw.bind(this);
-    this._offscreenCanvas = new OffscreenCanvas(256, 256);
-    window.gl = this._offscreenCanvas.getContext('webgl');
+    this._onNetworkViewportChange = this._onNetworkViewportChange.bind(this);
+    this.viewerRef = React.createRef();
+    this._lastViewportSent = null;
   }
 
   async componentDidMount() {
     const worker = new Worker(new URL('../model/RenderWorker.js', import.meta.url), { type: 'module' });
     this.renderWorker = Comlink.wrap(worker);
     const appPath = window.desktop.getAppPath();
-    const { nodeTypes } = await this.renderWorker.init(appPath);
+    const renderCanvas = new OffscreenCanvas(1, 1);
+    const { nodeTypes } = await this.renderWorker.init(appPath, Comlink.transfer(renderCanvas, [renderCanvas]));
     this.nodeTypes = nodeTypes;
     const networkSchema = await this.renderWorker.loadNetwork();
     const networkProxy = new NetworkProxy(networkSchema, { nodeTypes });
@@ -527,24 +528,27 @@ export default class App extends Component {
   }
 
   async _exportImage(node, filePath, imageType = 'image/png', imageQuality = 1.0) {
-    // Get the output image of the node.
-    const outPort = node.outPorts[0];
-    if (outPort.type !== PORT_TYPE_IMAGE) return;
-    const framebuffer = outPort.value;
-    // Read out the pixels of the framebuffer.
-    const imageData = new ImageData(framebuffer.width, framebuffer.height);
-    framebuffer.bind();
-    window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
-    framebuffer.unbind();
-    // Put the image data into an offscreen canvas.
-    const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
-    const ctx = canvas.getContext('2d');
-    ctx.putImageData(imageData, 0, 0);
-    // Convert the canvas to a PNG blob, then to a buffer.
-    const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });
-    const pngBuffer = await blob.arrayBuffer();
-    // Write the buffer to the given file path.
-    await window.desktop.saveBufferToFile(pngBuffer, filePath);
+    const result = await this.renderWorker.captureNodePreview(node.id);
+    if (!result?.success || !result.bitmap) {
+      console.warn('No preview available for export');
+      return;
+    }
+    const { bitmap, width, height } = result;
+    try {
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });
+      const pngBuffer = await blob.arrayBuffer();
+      // Write the buffer to the given file path.
+      await window.desktop.saveBufferToFile(pngBuffer, filePath);
+    } finally {
+      try {
+        bitmap.close();
+      } catch (_) {
+        // ignore
+      }
+    }
   }
 
   async _onExportImage() {
@@ -645,8 +649,14 @@ export default class App extends Component {
     if (this.state.network) {
       window.stats.begin();
       const result = await this.renderWorker.renderFrame();
-      // FIXME: better handling of errors
-      if (!result.success) {
+      if (result.success) {
+        if (result.frame) {
+          this.viewerRef.current?.setFrame(result.frame);
+        }
+        if ('previewOverlay' in result) {
+          this.state.network.updatePreviewOverlay(result.previewOverlay || null);
+        }
+      } else if (!result.busy) {
         console.error('Render error:', result.error);
       }
       window.stats.end();
@@ -687,12 +697,7 @@ export default class App extends Component {
     if (fullscreen) {
       return (
         <div className="app">
-          <Viewer
-            network={network}
-            offscreenCanvas={this._offscreenCanvas}
-            fullscreen={fullscreen}
-            onToggleFullscreen={this._onToggleFullscreen}
-          />
+          <Viewer ref={this.viewerRef} network={network} fullscreen={fullscreen} onToggleFullscreen={this._onToggleFullscreen} />
         </div>
       );
     }
@@ -718,7 +723,7 @@ export default class App extends Component {
             onShowForkDialog={this._onShowForkDialog}
             onConnect={this._onConnect}
             onDisconnect={this._onDisconnect}
-            offscreenCanvas={this._offscreenCanvas}
+            onViewportChange={this._onNetworkViewportChange}
             oscServerPort={this.state.oscServerPort}
             oscMessageFrequencies={this.state.oscMessageFrequencies}
             onClickOsc={this._onShowProjectSettingsDialog}
@@ -741,7 +746,7 @@ export default class App extends Component {
           size={mainSplitterWidth}
           onChange={(width) => this.setState({ mainSplitterWidth: width })}
         />
-        <Viewer fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} /> */}
+  <Viewer ref={this.viewerRef} network={network} fullscreen={false} onToggleFullscreen={this._onToggleFullscreen} /> */}
         {showNodeDialog && <NodeDialog network={network} onCreateNode={this._onCreateNode} onCancel={this._onHideNodeDialog} />}
         {showForkDialog && (
           <ForkDialog
@@ -761,5 +766,25 @@ export default class App extends Component {
         )}
       </>
     );
+  }
+
+  _onNetworkViewportChange(viewport) {
+    if (!viewport) return;
+    if (this._lastViewportSent) {
+      const last = this._lastViewportSent;
+      if (
+        last.width === viewport.width &&
+        last.height === viewport.height &&
+        last.x === viewport.x &&
+        last.y === viewport.y &&
+        last.scale === viewport.scale
+      ) {
+        return;
+      }
+    }
+    this._lastViewportSent = { ...viewport };
+    if (this.renderWorker?.setPreviewViewport) {
+      this.renderWorker.setPreviewViewport({ ...viewport });
+    }
   }
 }
