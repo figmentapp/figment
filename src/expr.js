@@ -44,7 +44,7 @@ function pingPong(min, max, period = 1, type = 'smooth', time = undefined) {
   const t = (time % period) / period; // Normalizes time to a 0-1 range based on the period
   switch (type) {
     case 'linear':
-      value = Math.abs(t * 2 - 1);
+      value = 1 - Math.abs(t * 2 - 1);
       break;
     case 'smooth':
       // Sine wave for smooth, periodic oscillations
@@ -56,7 +56,7 @@ function pingPong(min, max, period = 1, type = 'smooth', time = undefined) {
       break;
     default:
       console.warn("Unsupported type. Defaulting to 'linear'.");
-      value = Math.abs(t * 2 - 1);
+      value = 1 - Math.abs(t * 2 - 1);
   }
   return min + value * (max - min);
 }
@@ -109,6 +109,6 @@ export function evalExpression(expr) {
   return jexl.evalSync(expr, context);
 }
 
-window.setExpressionContext = setExpressionContext;
-window.evalExpression = evalExpression;
-window.initExpressionContext = initExpressionContext;
+globalThis.setExpressionContext = setExpressionContext;
+globalThis.evalExpression = evalExpression;
+globalThis.initExpressionContext = initExpressionContext;
