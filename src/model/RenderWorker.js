@@ -8,26 +8,22 @@ import NodePreview from './NodePreview';
 globalThis.twgl = twgl;
 globalThis.figment = figment;
 
-const RENDER_STATE_IDLE = 'idle';
-const RENDER_STATE_RENDERING = 'rendering';
 let _appPath = null;
 let _network = null;
 let _library = null;
-let _renderState = RENDER_STATE_IDLE;
-let _scheduledNetwork = null;
+let _isRendering = false;
 let _renderCanvas = null;
 let _gl = null;
 let _nodePreview = null;
 
 async function renderNetwork(network) {
-  let result;
   try {
     await network.render();
     const { frameBitmap, previewOverlay } = await captureRenderOutputs(network);
     const transferables = [];
     if (frameBitmap) transferables.push(frameBitmap);
     if (previewOverlay?.bitmap) transferables.push(previewOverlay.bitmap);
-    result = Comlink.transfer(
+    return Comlink.transfer(
       {
         success: true,
         frame: frameBitmap ?? null,
@@ -36,23 +32,8 @@ async function renderNetwork(network) {
       transferables,
     );
   } catch (error) {
-    result = { success: false, error: error.message };
-  } finally {
-    // See if there is another network to render
-    if (_scheduledNetwork !== null) {
-      const nextNetwork = _scheduledNetwork;
-      _scheduledNetwork = null;
-      renderNetwork(nextNetwork);
-    } else {
-      _renderState = RENDER_STATE_IDLE;
-    }
+    return { success: false, error: error.message };
   }
-  return result;
-}
-
-function scheduleRender(network) {
-  _scheduledNetwork = network;
-  requestAnimationFrame(renderNetwork);
 }
 
 function ensureRenderContext(canvas) {
@@ -90,39 +71,38 @@ async function captureFramebufferBitmap(framebuffer) {
 }
 
 async function captureRenderOutputs(network) {
-  let framePromise = null;
   const outNode = network.nodes.find((n) => n.type === 'core.out');
-  if (outNode && outNode.outPorts?.[0]?.value?._fbo) {
-    framePromise = captureFramebufferBitmap(outNode.outPorts[0].value);
-  }
-
+  const framePromise = outNode?.outPorts?.[0]?.value?._fbo ? captureFramebufferBitmap(outNode.outPorts[0].value) : null;
   const previewPromise = _nodePreview ? _nodePreview.render(network, captureFramebufferBitmap) : null;
+
   const [frameData, previewOverlay] = await Promise.all([framePromise, previewPromise]);
 
   return {
-    frameBitmap: frameData ? frameData.bitmap : null,
+    frameBitmap: frameData?.bitmap ?? null,
     previewOverlay,
   };
+}
+
+function ensureNodePreview() {
+  if (!_nodePreview) {
+    _nodePreview = new NodePreview({
+      canvas: _renderCanvas,
+      ensureRenderContext: (targetCanvas) => ensureRenderContext(targetCanvas ?? _renderCanvas),
+    });
+  }
+  return _nodePreview;
 }
 
 const service = {
   init: (appPath, canvas) => {
     _appPath = appPath;
     ensureRenderContext(canvas);
-    if (!_nodePreview) {
-      _nodePreview = new NodePreview({
-        canvas: _renderCanvas,
-        ensureRenderContext: (targetCanvas) => ensureRenderContext(targetCanvas ?? _renderCanvas),
-      });
-    } else {
-      _nodePreview.setCanvas(_renderCanvas);
-    }
+    ensureNodePreview().setCanvas(_renderCanvas);
     _library = new Library();
     const nodeTypes = _library.nodeTypes.map((n) => ({ name: n.name, type: n.type, description: n.description }));
     return { nodeTypes };
   },
   loadNetwork: async (networkSchema) => {
-    ensureRenderContext(_renderCanvas);
     const schema = networkSchema || getDefaultNetwork(_appPath);
     _network = new Network(_library);
     _network.parse(schema);
@@ -130,25 +110,16 @@ const service = {
     return _network.toSchema();
   },
   renderFrame: async () => {
-    if (_renderState === RENDER_STATE_IDLE) {
-      _renderState = RENDER_STATE_RENDERING;
-      const result = await renderNetwork(_network);
-      return result;
-    } else {
-      // Worker is busy, schedule this render
-      // Replace any existing scheduled render with this newer one.
-      _scheduledNetwork = _network;
+    if (_isRendering) {
       return { success: false, busy: true };
     }
+    _isRendering = true;
+    const result = await renderNetwork(_network);
+    _isRendering = false;
+    return result;
   },
   setPreviewViewport: (viewport) => {
-    if (!_nodePreview) {
-      _nodePreview = new NodePreview({
-        canvas: _renderCanvas,
-        ensureRenderContext: (targetCanvas) => ensureRenderContext(targetCanvas ?? _renderCanvas),
-      });
-    }
-    _nodePreview.setViewport(viewport);
+    ensureNodePreview().setViewport(viewport);
   },
   captureNodePreview: async (nodeId) => {
     if (!_network) {
