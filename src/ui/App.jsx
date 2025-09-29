@@ -622,6 +622,26 @@ export default class App extends Component {
     this.forceUpdate();
   }
 
+  _onNetworkViewportChange(viewport) {
+    if (!viewport) return;
+    if (this._lastViewportSent) {
+      const last = this._lastViewportSent;
+      if (
+        last.width === viewport.width &&
+        last.height === viewport.height &&
+        last.x === viewport.x &&
+        last.y === viewport.y &&
+        last.scale === viewport.scale
+      ) {
+        return;
+      }
+    }
+    this._lastViewportSent = { ...viewport };
+    if (this.renderWorker?.setPreviewViewport) {
+      this.renderWorker.setPreviewViewport({ ...viewport });
+    }
+  }
+
   _onOscEvent(name, args) {
     if (name === 'start-server') {
       const { port } = args;
@@ -766,25 +786,5 @@ export default class App extends Component {
         )}
       </>
     );
-  }
-
-  _onNetworkViewportChange(viewport) {
-    if (!viewport) return;
-    if (this._lastViewportSent) {
-      const last = this._lastViewportSent;
-      if (
-        last.width === viewport.width &&
-        last.height === viewport.height &&
-        last.x === viewport.x &&
-        last.y === viewport.y &&
-        last.scale === viewport.scale
-      ) {
-        return;
-      }
-    }
-    this._lastViewportSent = { ...viewport };
-    if (this.renderWorker?.setPreviewViewport) {
-      this.renderWorker.setPreviewViewport({ ...viewport });
-    }
   }
 }
