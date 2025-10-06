@@ -95,3 +95,4 @@ React-based interface (`src/ui/`):
 - `src/electron/preload.mjs` handles IPC communication
 - Hot reloading supported for node development
 - All shaders use `precision mediump float` for compatibility
+- Make sure code is formatted correctly with `npm run format`
