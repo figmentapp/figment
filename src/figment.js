@@ -14,14 +14,16 @@ try {
 
 export function projectFile() {
   if (!window.app) return '';
-  if (!window.app.state.filePath) return '';
-  return window.app.state.filePath;
+  const state = window.app.getState();
+  if (!state.filePath) return '';
+  return state.filePath;
 }
 
 export function projectDirectory() {
   if (!window.app) return '';
-  if (!window.app.state.filePath) return '';
-  return nodePath.dirname(window.app.state.filePath);
+  const state = window.app.getState();
+  if (!state.filePath) return '';
+  return nodePath.dirname(state.filePath);
 }
 
 export function ensureDirectory(dir) {
