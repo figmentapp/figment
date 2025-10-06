@@ -20,68 +20,24 @@ export default function App(props) {
   const mainRef = useRef(null);
   const offscreenCanvasRef = useRef(new OffscreenCanvas(256, 256));
 
-  const {
-    // state
-    library,
-    network,
-    tabs,
-    activeTabIndex,
-    selection,
-    showNodeDialog,
-    showForkDialog,
-    showRenderDialog,
-    showProjectSettingsDialog,
-    showNodeRenameDialog,
-    nodeToRename,
-    forkDialogNodeType,
-    editorSplitterWidth,
-    fullscreen,
-    oscServerPort,
-    oscMessageFrequencies,
-    // actions
-    startNetwork,
-    start,
-    doFrame,
-    forceRedraw,
-    toggleFullscreen,
-    handleMenuEvent,
-    handleOscEvent,
-    handleMidiEvent,
-    openFile,
-    // tabs & selection
-    newCodeTab,
-    selectTab,
-    closeTab,
-    selectNode,
-    toggleSelectNode,
-    selectNodes,
-    clearSelection,
-    deleteSelection,
-    // node source/ports
-    sourceModified,
-    buildSource,
-    changePortValue,
-    changePortExpression,
-    revertPortValue,
-    triggerButton,
-    // dialogs & nodes
-    openNodeDialog,
-    closeNodeDialog,
-    openForkDialog,
-    closeForkDialog,
-    forkNodeType,
-    closeRenderDialog,
-    openProjectSettingsDialog,
-    closeProjectSettingsDialog,
-    createNode,
-    openNodeRenameDialog,
-    closeNodeRenameDialog,
-    renameNode,
-    connect,
-    disconnect,
-    renderSequence,
-    changeProjectSetting,
-  } = useAppStore();
+  // Selectively subscribe to only the state we need
+  const fullscreen = useAppStore((state) => state.fullscreen);
+  const showNodeDialog = useAppStore((state) => state.showNodeDialog);
+  const showForkDialog = useAppStore((state) => state.showForkDialog);
+  const showRenderDialog = useAppStore((state) => state.showRenderDialog);
+  const showProjectSettingsDialog = useAppStore((state) => state.showProjectSettingsDialog);
+  const showNodeRenameDialog = useAppStore((state) => state.showNodeRenameDialog);
+
+  // Actions
+  const startNetwork = useAppStore((state) => state.startNetwork);
+  const start = useAppStore((state) => state.start);
+  const doFrame = useAppStore((state) => state.doFrame);
+  const forceRedraw = useAppStore((state) => state.forceRedraw);
+  const toggleFullscreen = useAppStore((state) => state.toggleFullscreen);
+  const handleMenuEvent = useAppStore((state) => state.handleMenuEvent);
+  const handleOscEvent = useAppStore((state) => state.handleOscEvent);
+  const handleMidiEvent = useAppStore((state) => state.handleMidiEvent);
+  const openFile = useAppStore((state) => state.openFile);
 
   useEffect(() => {
     window.gl = offscreenCanvasRef.current.getContext('webgl');
@@ -143,42 +99,15 @@ export default function App(props) {
   return (
     <>
       <main ref={mainRef}>
-        <Editor
-          tabs={tabs}
-          activeTabIndex={activeTabIndex}
-          library={library}
-          network={network}
-          selection={selection}
-          onNewCodeTab={newCodeTab}
-          onSelectTab={selectTab}
-          onCloseTab={closeTab}
-          onSelectNode={selectNode}
-          onToggleSelectNode={toggleSelectNode}
-          onSelectNodes={selectNodes}
-          onClearSelection={clearSelection}
-          onDeleteSelection={deleteSelection}
-          onSourceModified={sourceModified}
-          onBuildSource={buildSource}
-          onShowNodeDialog={openNodeDialog}
-          onShowForkDialog={openForkDialog}
-          onConnect={connect}
-          onDisconnect={disconnect}
-          offscreenCanvas={offscreenCanvasRef.current}
-          oscServerPort={oscServerPort}
-          oscMessageFrequencies={oscMessageFrequencies}
-          onClickOsc={openProjectSettingsDialog}
-        />
+        <Editor offscreenCanvas={offscreenCanvasRef.current} />
         <Splitter className="splitter" parentRef={mainRef} direction="horizontal" />
-
         <ParamsEditor />
       </main>
       {showNodeDialog && <NodeDialog />}
       {showForkDialog && <ForkDialog />}
       {showNodeRenameDialog && <NodeRenameDialog />}
       {showRenderDialog && <RenderDialog />}
-      {showProjectSettingsDialog && (
-        <ProjectSettingsDialog network={network} onChange={changeProjectSetting} onCancel={closeProjectSettingsDialog} />
-      )}
+      {showProjectSettingsDialog && <ProjectSettingsDialog />}
     </>
   );
 }

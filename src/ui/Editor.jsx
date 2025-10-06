@@ -5,7 +5,7 @@ import CodeEditor from './CodeEditor';
 import OscWidget from './OscWidget';
 import { useAppStore } from './store';
 
-export default function Editor({ style, offscreenCanvas, onClickOsc }) {
+export default function Editor({ style, offscreenCanvas }) {
   const tabs = useAppStore((state) => state.tabs);
   const activeTabIndex = useAppStore((state) => state.activeTabIndex);
   const oscServerPort = useAppStore((state) => state.oscServerPort);
@@ -13,6 +13,7 @@ export default function Editor({ style, offscreenCanvas, onClickOsc }) {
 
   const selectTab = useAppStore((state) => state.selectTab);
   const closeTab = useAppStore((state) => state.closeTab);
+  const openProjectSettingsDialog = useAppStore((state) => state.openProjectSettingsDialog);
 
   const handleCloseTab = (e, index) => {
     e.stopPropagation();
@@ -39,7 +40,7 @@ export default function Editor({ style, offscreenCanvas, onClickOsc }) {
           </div>
         ))}
         <span className="flex-1"></span>
-        <OscWidget port={oscServerPort} frequencies={oscMessageFrequencies} onClick={onClickOsc} />
+        <OscWidget port={oscServerPort} frequencies={oscMessageFrequencies} onClick={openProjectSettingsDialog} />
       </div>
       {activeTabIndex === -1 && <NetworkEditor offscreenCanvas={offscreenCanvas} />}
       {activeTabIndex >= 0 && <CodeEditor />}
