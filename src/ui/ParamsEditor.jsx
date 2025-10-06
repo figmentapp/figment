@@ -402,6 +402,7 @@ export default function ParamsEditor() {
   const changePortExpression = useAppStore((s) => s.changePortExpression);
   const revertPortValue = useAppStore((s) => s.revertPortValue);
   const triggerButton = useAppStore((s) => s.triggerButton);
+  useAppStore((s) => s.version); // Subscribe to version to trigger re-renders on port changes
 
   const [trackedPortValues, setTrackedPortValues] = useState({});
   const [error, setError] = useState(null);
