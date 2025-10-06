@@ -59,7 +59,6 @@ async function loadMovie() {
   framebuffer.setSize(video.videoWidth, video.videoHeight);
 }
 
-
 async function seekAndWait(time) {
   return new Promise((resolve) => {
     if (!video || video.currentTime === time) {

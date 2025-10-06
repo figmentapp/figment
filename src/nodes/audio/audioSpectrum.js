@@ -43,12 +43,12 @@ void main() {
 
 function buildLinearBands(numBands, fftSize) {
   const bands = [];
-  const binsPerBand = Math.floor((fftSize / 2) / numBands);
+  const binsPerBand = Math.floor(fftSize / 2 / numBands);
 
   for (let i = 0; i < numBands; i++) {
     const binLow = i * binsPerBand;
     let binHigh = (i + 1) * binsPerBand - 1;
-    if (i === numBands - 1) binHigh = (fftSize / 2) - 1;
+    if (i === numBands - 1) binHigh = fftSize / 2 - 1;
     bands.push({ binLow, binHigh });
   }
   return bands;
@@ -159,7 +159,7 @@ node.onRender = async () => {
     try {
       await audioElement.play();
     } catch (err) {
-      console.warn("Playback blocked:", err);
+      console.warn('Playback blocked:', err);
     }
   } else if (!playToggle.value && !audioElement.paused) {
     audioElement.pause();
