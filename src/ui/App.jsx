@@ -132,7 +132,7 @@ export default function App(props) {
   if (fullscreen) {
     return (
       <div className="app">
-        <Viewer network={network} offscreenCanvas={offscreenCanvasRef.current} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />
+        <Viewer offscreenCanvas={offscreenCanvasRef.current} />
       </div>
     )
   }
