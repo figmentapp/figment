@@ -295,7 +295,8 @@ export const useAppStore = create((set, get) => ({
   createNode(nodeType) {
     const { lastNetworkPoint, network } = get()
     network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y)
-    set({ showNodeDialog: false })
+    set({ showNodeDialog: false, dirty: true })
+    get().forceRedraw()
   },
   openNodeRenameDialog(node) {
     set({ showNodeRenameDialog: true, nodeToRename: node })
@@ -307,15 +308,20 @@ export const useAppStore = create((set, get) => ({
     if (newName.trim().length === 0) return
     const { network } = get()
     network.renameNode(node, newName)
-    set({ showNodeRenameDialog: false })
+    set({ showNodeRenameDialog: false, dirty: true })
+    get().forceRedraw()
   },
   connect(outPort, inPort) {
     const { network } = get()
     network.connect(outPort, inPort)
+    set({ dirty: true })
+    get().forceRedraw()
   },
   disconnect(inPort) {
     const { network } = get()
     network.disconnect(inPort)
+    set({ dirty: true })
+    get().forceRedraw()
   },
 
   // Exporting
