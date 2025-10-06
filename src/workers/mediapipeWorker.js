@@ -79,7 +79,9 @@ async function ensureTask(kind, options) {
 
   // Clean up any previous instance
   if (landmarker) {
-    try { await landmarker.close(); } catch (_) {}
+    try {
+      await landmarker.close();
+    } catch (_) {}
   }
   landmarker = null;
   ready = false;
@@ -209,7 +211,9 @@ self.onmessage = async (ev) => {
       if (!ready || !landmarker) return;
       const { id, width, height, bitmap } = msg;
       const raw = landmarker.detect(bitmap);
-      try { if (bitmap && bitmap.close) bitmap.close(); } catch (_) {}
+      try {
+        if (bitmap && bitmap.close) bitmap.close();
+      } catch (_) {}
       const result = sanitizeResult(taskKind, raw, width, height);
       self.postMessage({ type: 'result', id, result }, result.mask ? [result.mask] : undefined);
       return;

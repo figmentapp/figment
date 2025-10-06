@@ -317,12 +317,12 @@ function createMainWindow(filePath) {
       event.preventDefault();
       const choice = dialog.showMessageBoxSync(gMainWindow, {
         type: 'warning',
-        buttons: ['Cancel', 'Don\'t Save', 'Save'],
+        buttons: ['Cancel', "Don't Save", 'Save'],
         defaultId: 2,
         cancelId: 0,
         title: 'Unsaved Changes',
         message: 'Do you want to save the changes you made to this document?',
-        detail: 'Your changes will be lost if you don\'t save them.',
+        detail: "Your changes will be lost if you don't save them.",
       });
 
       if (choice === 1) {

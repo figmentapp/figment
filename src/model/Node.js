@@ -296,5 +296,4 @@ export default class Node {
     this.outPorts.push(outPort);
     return outPort;
   }
-  
 }

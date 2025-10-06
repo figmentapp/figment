@@ -1,42 +1,42 @@
-import React, { useState, useEffect } from 'react'
-import { useAppStore } from './store'
+import React, { useState, useEffect } from 'react';
+import { useAppStore } from './store';
 
 export default function NodeRenameDialog() {
-  const nodeToRename = useAppStore((s) => s.nodeToRename)
-  const closeNodeRenameDialog = useAppStore((s) => s.closeNodeRenameDialog)
-  const renameNode = useAppStore((s) => s.renameNode)
+  const nodeToRename = useAppStore((s) => s.nodeToRename);
+  const closeNodeRenameDialog = useAppStore((s) => s.closeNodeRenameDialog);
+  const renameNode = useAppStore((s) => s.renameNode);
 
-  const [newName, setNewName] = useState('')
+  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     if (nodeToRename) {
-      setNewName(nodeToRename.name)
+      setNewName(nodeToRename.name);
     }
-  }, [nodeToRename])
+  }, [nodeToRename]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.keyCode === 27) {
-        e.preventDefault()
-        closeNodeRenameDialog()
+        e.preventDefault();
+        closeNodeRenameDialog();
       } else if (e.keyCode === 13) {
-        e.preventDefault()
-        renameNode(nodeToRename, newName)
+        e.preventDefault();
+        renameNode(nodeToRename, newName);
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [nodeToRename, newName, closeNodeRenameDialog, renameNode])
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [nodeToRename, newName, closeNodeRenameDialog, renameNode]);
 
   useEffect(() => {
-    document.getElementById('fork-dialog-input')?.select()
-  }, [])
+    document.getElementById('fork-dialog-input')?.select();
+  }, []);
 
-  if (!nodeToRename) return null
+  if (!nodeToRename) return null;
 
   return (
     <div className="dialog-wrapper" onClick={closeNodeRenameDialog}>
@@ -76,5 +76,5 @@ export default function NodeRenameDialog() {
         </div>
       </div>
     </div>
-  )
+  );
 }

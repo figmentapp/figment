@@ -118,9 +118,7 @@ export default function CodeEditor() {
   const nodeType = tab?.nodeType;
   const modified = tab?.modified;
   // Use uncommitted source if it exists, otherwise use nodeType source
-  const source = tab?.uncommittedSource !== null && tab?.uncommittedSource !== undefined
-    ? tab.uncommittedSource
-    : (nodeType?.source || '');
+  const source = tab?.uncommittedSource !== null && tab?.uncommittedSource !== undefined ? tab.uncommittedSource : nodeType?.source || '';
 
   return (
     <div className="code flex-1 flex flex-col overflow-hidden">

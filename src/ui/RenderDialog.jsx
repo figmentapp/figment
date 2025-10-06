@@ -55,10 +55,7 @@ export default function RenderDialog() {
           {/* Top row */}
           <div className="flex flex-row justify-between items-center bg-gray-800">
             <span className="text-xl text-gray-400 py-4 px-6">Render All</span>
-            <span
-              className=" text-gray-600 text-2xl p-4 flex items-center justify-center font-bold cursor-pointer"
-              onClick={handleClose}
-            >
+            <span className=" text-gray-600 text-2xl p-4 flex items-center justify-center font-bold cursor-pointer" onClick={handleClose}>
               &times;
             </span>
           </div>

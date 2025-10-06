@@ -1,80 +1,80 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
-import Fuse from 'fuse.js'
-import { useAppStore } from './store'
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import Fuse from 'fuse.js';
+import { useAppStore } from './store';
 
 export default function NodeDialog() {
-  const network = useAppStore((s) => s.network)
-  const closeNodeDialog = useAppStore((s) => s.closeNodeDialog)
-  const createNode = useAppStore((s) => s.createNode)
+  const network = useAppStore((s) => s.network);
+  const closeNodeDialog = useAppStore((s) => s.closeNodeDialog);
+  const createNode = useAppStore((s) => s.createNode);
 
-  const nodeTypes = useMemo(() => network.allNodeTypes(), [network])
+  const nodeTypes = useMemo(() => network.allNodeTypes(), [network]);
   const fuse = useMemo(() => {
     const options = {
       includeScore: true,
       keys: ['name', 'description'],
-    }
-    return new Fuse(nodeTypes, options)
-  }, [nodeTypes])
+    };
+    return new Fuse(nodeTypes, options);
+  }, [nodeTypes]);
 
-  const [q, setQ] = useState('')
-  const [results, setResults] = useState(nodeTypes)
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const currentNodeTypeRef = useRef(null)
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState(nodeTypes);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const currentNodeTypeRef = useRef(null);
 
   const handleSearch = (e) => {
-    const query = e.target.value
-    const searchResults = query ? fuse.search(query).map((result) => result.item) : nodeTypes
-    setQ(query)
-    setResults(searchResults)
-    setSelectedIndex(0)
-  }
+    const query = e.target.value;
+    const searchResults = query ? fuse.search(query).map((result) => result.item) : nodeTypes;
+    setQ(query);
+    setResults(searchResults);
+    setSelectedIndex(0);
+  };
 
   const handleCreateNode = (nodeType) => {
-    createNode(nodeType)
-  }
+    createNode(nodeType);
+  };
 
   const isElementInViewport = (el) => {
-    const rect = el.getBoundingClientRect()
-    const parentRect = el.parentElement.getBoundingClientRect()
-    return rect.top >= parentRect.top && rect.bottom <= parentRect.bottom
-  }
+    const rect = el.getBoundingClientRect();
+    const parentRect = el.parentElement.getBoundingClientRect();
+    return rect.top >= parentRect.top && rect.bottom <= parentRect.bottom;
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        closeNodeDialog()
+        closeNodeDialog();
       } else if (e.key === 'ArrowDown') {
-        let newIndex = selectedIndex + 1
+        let newIndex = selectedIndex + 1;
         if (newIndex >= results.length) {
-          newIndex = 0
+          newIndex = 0;
         }
-        setSelectedIndex(newIndex)
+        setSelectedIndex(newIndex);
         if (currentNodeTypeRef.current && !isElementInViewport(currentNodeTypeRef.current)) {
-          currentNodeTypeRef.current.scrollIntoView({ behavior: 'auto' })
+          currentNodeTypeRef.current.scrollIntoView({ behavior: 'auto' });
         }
       } else if (e.key === 'ArrowUp') {
-        let newIndex = selectedIndex - 1
+        let newIndex = selectedIndex - 1;
         if (newIndex < 0) {
-          newIndex = results.length - 1
+          newIndex = results.length - 1;
         }
-        setSelectedIndex(newIndex)
+        setSelectedIndex(newIndex);
         if (currentNodeTypeRef.current && !isElementInViewport(currentNodeTypeRef.current)) {
-          currentNodeTypeRef.current.scrollIntoView({ behavior: 'auto' })
+          currentNodeTypeRef.current.scrollIntoView({ behavior: 'auto' });
         }
       } else if (e.key === 'Enter') {
         if (selectedIndex >= 0 && selectedIndex < results.length) {
-          createNode(results[selectedIndex])
+          createNode(results[selectedIndex]);
         }
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    document.getElementById('node-dialog-search')?.focus()
+    window.addEventListener('keydown', handleKeyDown);
+    document.getElementById('node-dialog-search')?.focus();
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [selectedIndex, results, closeNodeDialog, createNode])
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedIndex, results, closeNodeDialog, createNode]);
 
   const renderNodeType = (nodeType, index) => {
     return (
@@ -98,8 +98,8 @@ export default function NodeDialog() {
           </div>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="dialog-wrapper" onClick={closeNodeDialog}>
@@ -129,5 +129,5 @@ export default function NodeDialog() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,24 +1,24 @@
-import React, { useCallback, useEffect, useRef } from 'react'
-import Stats from 'three/examples/jsm/libs/stats.module'
-import Editor from './Editor'
-import Viewer from './Viewer'
-import ParamsEditor from './ParamsEditor'
-import NodeDialog from './NodeDialog'
-import Splitter from './Splitter'
-import ForkDialog from './ForkDialog'
-import NodeRenameDialog from './NodeRenameDialog'
-import RenderDialog from './RenderDialog'
-import ProjectSettingsDialog from './ProjectSettingsDialog'
-import { initExpressionContext } from '../expr'
-import { useAppStore } from './store'
+import React, { useCallback, useEffect, useRef } from 'react';
+import Stats from 'three/examples/jsm/libs/stats.module';
+import Editor from './Editor';
+import Viewer from './Viewer';
+import ParamsEditor from './ParamsEditor';
+import NodeDialog from './NodeDialog';
+import Splitter from './Splitter';
+import ForkDialog from './ForkDialog';
+import NodeRenameDialog from './NodeRenameDialog';
+import RenderDialog from './RenderDialog';
+import ProjectSettingsDialog from './ProjectSettingsDialog';
+import { initExpressionContext } from '../expr';
+import { useAppStore } from './store';
 
-window.stats = new Stats()
-window.stats.dom.style.top = ''
-window.stats.dom.style.bottom = '0'
+window.stats = new Stats();
+window.stats.dom.style.top = '';
+window.stats.dom.style.bottom = '0';
 
 export default function App(props) {
-  const mainRef = useRef(null)
-  const offscreenCanvasRef = useRef(new OffscreenCanvas(256, 256))
+  const mainRef = useRef(null);
+  const offscreenCanvasRef = useRef(new OffscreenCanvas(256, 256));
 
   const {
     // state
@@ -81,60 +81,63 @@ export default function App(props) {
     disconnect,
     renderSequence,
     changeProjectSetting,
-  } = useAppStore()
+  } = useAppStore();
 
   useEffect(() => {
-    window.gl = offscreenCanvasRef.current.getContext('webgl')
-  }, [])
+    window.gl = offscreenCanvasRef.current.getContext('webgl');
+  }, []);
 
   // One-time: expression context for OSC/MIDI
   useEffect(() => {
-    const { oscMessageMap, midiMessageMap } = useAppStore.getState()
-    initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap })
-  }, [])
+    const { oscMessageMap, midiMessageMap } = useAppStore.getState();
+    initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap });
+  }, []);
 
   // Ensure network has started
   useEffect(() => {
-    startNetwork()
-  }, [startNetwork])
+    startNetwork();
+  }, [startNetwork]);
 
-  const onKeyDown = useCallback((e) => {
-    if (e.keyCode === 27 && useAppStore.getState().fullscreen) toggleFullscreen()
-  }, [toggleFullscreen])
+  const onKeyDown = useCallback(
+    (e) => {
+      if (e.keyCode === 27 && useAppStore.getState().fullscreen) toggleFullscreen();
+    },
+    [toggleFullscreen],
+  );
 
   // Wire listeners and RAF loop explicitly here
   useEffect(() => {
     async function frame() {
-      window.stats.begin()
+      window.stats.begin();
       if (useAppStore.getState().isPlaying) {
-        await doFrame()
+        await doFrame();
       }
-      window.stats.end()
-      window.requestAnimationFrame(frame)
+      window.stats.end();
+      window.requestAnimationFrame(frame);
     }
-    start()
-    window.requestAnimationFrame(frame)
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('resize', forceRedraw)
-    window.app = { getState: useAppStore.getState, setState: useAppStore.setState }
-    window.desktop.registerListener('menu', handleMenuEvent)
-    window.desktop.registerListener('osc', handleOscEvent)
-    window.desktop.registerListener('midi', handleMidiEvent)
-    const initialPath = props.filePath || useAppStore.getState().filePath
-    if (initialPath) openFile(initialPath)
+    start();
+    window.requestAnimationFrame(frame);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', forceRedraw);
+    window.app = { getState: useAppStore.getState, setState: useAppStore.setState };
+    window.desktop.registerListener('menu', handleMenuEvent);
+    window.desktop.registerListener('osc', handleOscEvent);
+    window.desktop.registerListener('midi', handleMidiEvent);
+    const initialPath = props.filePath || useAppStore.getState().filePath;
+    if (initialPath) openFile(initialPath);
     return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('resize', forceRedraw)
-      window.app = undefined
-    }
-  }, [doFrame, forceRedraw, handleMenuEvent, handleMidiEvent, handleOscEvent, onKeyDown, openFile, start, props.filePath])
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', forceRedraw);
+      window.app = undefined;
+    };
+  }, [doFrame, forceRedraw, handleMenuEvent, handleMidiEvent, handleOscEvent, onKeyDown, openFile, start, props.filePath]);
 
   if (fullscreen) {
     return (
       <div className="app">
         <Viewer offscreenCanvas={offscreenCanvasRef.current} />
       </div>
-    )
+    );
   }
 
   return (
@@ -177,6 +180,5 @@ export default function App(props) {
         <ProjectSettingsDialog network={network} onChange={changeProjectSetting} onCancel={closeProjectSettingsDialog} />
       )}
     </>
-  )
+  );
 }
-

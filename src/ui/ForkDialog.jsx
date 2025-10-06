@@ -1,106 +1,106 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { camelCase } from 'lodash'
-import { useAppStore } from './store'
+import React, { useState, useEffect, useRef } from 'react';
+import { camelCase } from 'lodash';
+import { useAppStore } from './store';
 
 export default function ForkDialog() {
-  const forkDialogNodeType = useAppStore((s) => s.forkDialogNodeType)
-  const network = useAppStore((s) => s.network)
-  const selection = useAppStore((s) => s.selection)
-  const closeForkDialog = useAppStore((s) => s.closeForkDialog)
-  const forkNodeType = useAppStore((s) => s.forkNodeType)
+  const forkDialogNodeType = useAppStore((s) => s.forkDialogNodeType);
+  const network = useAppStore((s) => s.network);
+  const selection = useAppStore((s) => s.selection);
+  const closeForkDialog = useAppStore((s) => s.closeForkDialog);
+  const forkNodeType = useAppStore((s) => s.forkNodeType);
 
-  const [ns, setNs] = useState('project')
-  const [newName, setNewName] = useState('')
-  const [newTypeName, setNewTypeName] = useState('')
-  const [currentNodes, setCurrentNodes] = useState([])
-  const [selectedNodes, setSelectedNodes] = useState(new Set())
-  const [typeNameChanged, setTypeNameChanged] = useState(false)
+  const [ns, setNs] = useState('project');
+  const [newName, setNewName] = useState('');
+  const [newTypeName, setNewTypeName] = useState('');
+  const [currentNodes, setCurrentNodes] = useState([]);
+  const [selectedNodes, setSelectedNodes] = useState(new Set());
+  const [typeNameChanged, setTypeNameChanged] = useState(false);
 
   // Initialize state from nodeType
   useEffect(() => {
-    if (!forkDialogNodeType) return
+    if (!forkDialogNodeType) return;
 
-    const [, baseName] = forkDialogNodeType.type.split('.')
-    const nodes = network.nodes.filter((node) => node.type === forkDialogNodeType.type)
+    const [, baseName] = forkDialogNodeType.type.split('.');
+    const nodes = network.nodes.filter((node) => node.type === forkDialogNodeType.type);
 
-    const selected = new Set()
+    const selected = new Set();
     for (const node of nodes) {
       if (selection.has(node)) {
-        selected.add(node)
+        selected.add(node);
       }
     }
 
-    setNs('project')
-    setNewName(forkDialogNodeType.name)
-    setNewTypeName(baseName)
-    setCurrentNodes(nodes)
-    setSelectedNodes(selected)
-    setTypeNameChanged(false)
-  }, [forkDialogNodeType, network, selection])
+    setNs('project');
+    setNewName(forkDialogNodeType.name);
+    setNewTypeName(baseName);
+    setCurrentNodes(nodes);
+    setSelectedNodes(selected);
+    setTypeNameChanged(false);
+  }, [forkDialogNodeType, network, selection]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.keyCode === 27) {
-        e.preventDefault()
-        closeForkDialog()
+        e.preventDefault();
+        closeForkDialog();
       } else if (e.keyCode === 13) {
-        e.preventDefault()
-        handleFork()
+        e.preventDefault();
+        handleFork();
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [newName, newTypeName, ns, selectedNodes])
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [newName, newTypeName, ns, selectedNodes]);
 
   useEffect(() => {
-    document.getElementById('fork-dialog-input')?.select()
-  }, [])
+    document.getElementById('fork-dialog-input')?.select();
+  }, []);
 
   const handleFork = () => {
-    const trimmedTypeName = newTypeName.trim()
-    if (trimmedTypeName.length === 0) return closeForkDialog()
-    const trimmedName = newName.trim()
-    if (trimmedName.length === 0) return closeForkDialog()
-    const fullTypeName = ns + '.' + trimmedTypeName
-    forkNodeType(forkDialogNodeType, trimmedName, fullTypeName, Array.from(selectedNodes))
-  }
+    const trimmedTypeName = newTypeName.trim();
+    if (trimmedTypeName.length === 0) return closeForkDialog();
+    const trimmedName = newName.trim();
+    if (trimmedName.length === 0) return closeForkDialog();
+    const fullTypeName = ns + '.' + trimmedTypeName;
+    forkNodeType(forkDialogNodeType, trimmedName, fullTypeName, Array.from(selectedNodes));
+  };
 
   const toggleSelectedNode = (node) => {
     setSelectedNodes((prev) => {
-      const next = new Set(prev)
+      const next = new Set(prev);
       if (next.has(node)) {
-        next.delete(node)
+        next.delete(node);
       } else {
-        next.add(node)
+        next.add(node);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const handleChangeName = (s) => {
     if (typeNameChanged) {
       // If the user has changed the type name, don't automatically update it.
-      setNewName(s)
+      setNewName(s);
     } else {
       // User has not changed the type name, so change it as well.
-      const generatedTypeName = camelCase(s.trim())
-      setNewName(s)
-      setNewTypeName(generatedTypeName)
+      const generatedTypeName = camelCase(s.trim());
+      setNewName(s);
+      setNewTypeName(generatedTypeName);
     }
-  }
+  };
 
   const handleChangeTypeName = (s) => {
-    const typeName = camelCase(s)
-    const proposedTypeName = camelCase(newName)
-    setTypeNameChanged(typeName !== proposedTypeName)
-    setNewTypeName(typeName)
-  }
+    const typeName = camelCase(s);
+    const proposedTypeName = camelCase(newName);
+    setTypeNameChanged(typeName !== proposedTypeName);
+    setNewTypeName(typeName);
+  };
 
-  if (!forkDialogNodeType) return null
+  if (!forkDialogNodeType) return null;
 
   return (
     <div className="dialog-wrapper" onClick={closeForkDialog}>
@@ -162,5 +162,5 @@ export default function ForkDialog() {
         </div>
       </div>
     </div>
-  )
+  );
 }
