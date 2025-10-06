@@ -90,7 +90,13 @@ export const useAppStore = create((set, get) => ({
     set({ filePath })
   },
   async saveFile() {
-    const { filePath } = get()
+    const { filePath, tabs } = get()
+    // Auto-build any modified tabs before saving
+    const modifiedTabs = tabs.filter(t => t.modified)
+    for (const tab of modifiedTabs) {
+      const source = tab.nodeType.source
+      get().buildSource(tab.nodeType, source)
+    }
     if (!filePath) return get().saveFileAs()
     await get().saveFileTo(filePath)
     get().setDirty(false)
@@ -214,6 +220,9 @@ export const useAppStore = create((set, get) => ({
       const newTabs = structuredClone(tabs)
       newTabs[index].modified = modified
       set({ tabs: newTabs })
+      if (modified) {
+        get().setDirty(true)
+      }
     }
   },
   buildSource(nodeType, source) {
