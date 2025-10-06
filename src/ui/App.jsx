@@ -178,18 +178,10 @@ export default function App(props) {
           editorSplitterWidth={editorSplitterWidth}
         />
       </main>
-      {showNodeDialog && <NodeDialog network={network} onCreateNode={createNode} onCancel={closeNodeDialog} />}
-      {showForkDialog && (
-        <ForkDialog
-          network={network}
-          selection={selection}
-          nodeType={forkDialogNodeType}
-          onForkNodeType={forkNodeType}
-          onCancel={closeForkDialog}
-        />
-      )}
-      {showNodeRenameDialog && <NodeRenameDialog node={nodeToRename} onRenameNode={renameNode} onCancel={closeNodeRenameDialog} />}
-      {showRenderDialog && <RenderDialog network={network} renderSequence={renderSequence} onCancel={closeRenderDialog} />}
+      {showNodeDialog && <NodeDialog />}
+      {showForkDialog && <ForkDialog />}
+      {showNodeRenameDialog && <NodeRenameDialog />}
+      {showRenderDialog && <RenderDialog />}
       {showProjectSettingsDialog && (
         <ProjectSettingsDialog network={network} onChange={changeProjectSetting} onCancel={closeProjectSettingsDialog} />
       )}
