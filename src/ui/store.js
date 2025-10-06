@@ -39,6 +39,12 @@ export const useAppStore = create((set, get) => ({
   // Generic setter helper
   set: (partial) => set(partial),
 
+  // Helper to set dirty flag and update macOS window state
+  setDirty(dirty) {
+    window.desktop.setDocumentEdited(dirty)
+    set({ dirty })
+  },
+
   // Frame and runtime
   async doFrame() {
     const { network } = get()
@@ -80,14 +86,14 @@ export const useAppStore = create((set, get) => ({
   // File ops
   setFilePath(filePath, dirty = false) {
     window.desktop.setRepresentedFilename(filePath)
-    window.desktop.setDocumentEdited(dirty)
-    set({ filePath, dirty })
+    get().setDirty(dirty)
+    set({ filePath })
   },
   async saveFile() {
     const { filePath } = get()
     if (!filePath) return get().saveFileAs()
     await get().saveFileTo(filePath)
-    set({ dirty: false })
+    get().setDirty(false)
   },
   async saveFileAs() {
     const filePath = await window.desktop.showSaveProjectDialog()
@@ -130,7 +136,8 @@ export const useAppStore = create((set, get) => ({
   closeProject() {
     const { network } = get()
     if (network) network.stop()
-    set({ filePath: undefined, dirty: false, tabs: [], activeTabIndex: -1, selection: new Set() })
+    get().setDirty(false)
+    set({ filePath: undefined, tabs: [], activeTabIndex: -1, selection: new Set() })
     window.desktop.stopOscServer()
   },
   async newProject() {
@@ -195,7 +202,8 @@ export const useAppStore = create((set, get) => ({
   deleteSelection() {
     const { selection, network } = get()
     network.deleteNodes(Array.from(selection))
-    set({ selection: new Set(), dirty: true })
+    get().setDirty(true)
+    set({ selection: new Set() })
   },
 
   // Node source
@@ -212,7 +220,7 @@ export const useAppStore = create((set, get) => ({
     const { network } = get()
     network.setNodeTypeSource(nodeType, source)
     get().sourceModified(nodeType, false)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
 
@@ -220,13 +228,13 @@ export const useAppStore = create((set, get) => ({
   changePortValue(node, portName, value) {
     const { network } = get()
     network.setPortValue(node, portName, value)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
   changePortExpression(node, portName, expression) {
     const { network } = get()
     network.setPortExpression(node, portName, expression)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
   revertPortValue(node, portName) {
@@ -234,7 +242,7 @@ export const useAppStore = create((set, get) => ({
     const defaultValue = JSON.parse(JSON.stringify(port.defaultValue))
     const { network } = get()
     network.setPortValue(node, portName, defaultValue)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
   togglePortExpression(node, portName) {
@@ -242,13 +250,13 @@ export const useAppStore = create((set, get) => ({
     const expression = JSON.stringify(port.value)
     const { network } = get()
     network.setPortExpression(node, portName, expression)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
   deletePortExpression(node, portName) {
     const { network } = get()
     network.deletePortExpression(node, portName)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
   triggerButton(node, port) {
@@ -275,10 +283,16 @@ export const useAppStore = create((set, get) => ({
     const { network, tabs } = get()
     const newNodeType = network.forkNodeType(nodeType, newName, newTypeName)
     for (const node of nodes) network.changeNodeType(node, newNodeType)
-    get().newCodeTab(newNodeType, () => {
-      const newTabs = tabs.filter((t) => t.nodeType.type !== nodeType.type)
+    const newTabs = tabs.filter((t) => t.nodeType.type !== nodeType.type)
+    const existingTabIndex = newTabs.findIndex((t) => t.nodeType.type === newNodeType.type)
+    get().setDirty(true)
+    if (existingTabIndex >= 0) {
+      set({ tabs: newTabs, showForkDialog: false, activeTabIndex: existingTabIndex })
+    } else {
+      newTabs.push({ nodeType: newNodeType, modified: false })
       set({ tabs: newTabs, showForkDialog: false, activeTabIndex: newTabs.length - 1 })
-    })
+    }
+    get().forceRedraw()
   },
   openRenderDialog() {
     set({ showRenderDialog: true })
@@ -295,7 +309,8 @@ export const useAppStore = create((set, get) => ({
   createNode(nodeType) {
     const { lastNetworkPoint, network } = get()
     network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y)
-    set({ showNodeDialog: false, dirty: true })
+    get().setDirty(true)
+    set({ showNodeDialog: false })
     get().forceRedraw()
   },
   openNodeRenameDialog(node) {
@@ -308,19 +323,20 @@ export const useAppStore = create((set, get) => ({
     if (newName.trim().length === 0) return
     const { network } = get()
     network.renameNode(node, newName)
-    set({ showNodeRenameDialog: false, dirty: true })
+    get().setDirty(true)
+    set({ showNodeRenameDialog: false })
     get().forceRedraw()
   },
   connect(outPort, inPort) {
     const { network } = get()
     network.connect(outPort, inPort)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
   disconnect(inPort) {
     const { network } = get()
     network.disconnect(inPort)
-    set({ dirty: true })
+    get().setDirty(true)
     get().forceRedraw()
   },
 
