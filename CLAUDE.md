@@ -32,12 +32,14 @@ Figment is a visual node-based application for creative AI data processing, buil
 ### Node System
 
 Nodes are dynamically loaded from `src/nodes/`. Node types include:
+
 - **Image processing**: `src/nodes/image/` - WebGL shader-based effects and transformations
 - **Machine learning**: `src/nodes/ml/` - MediaPipe, TensorFlow.js, and ONNX models for pose detection, face detection, etc.
 - **Core**: `src/nodes/core/` - Output nodes and utilities
 - **Communications**: `src/nodes/comms/` - Communication nodes for OSC messaging, etc.
 
 Node structure example:
+
 ```javascript
 /**
  * @name Node Name
@@ -48,9 +50,15 @@ Node structure example:
 const inputPort = node.imageIn('in');
 const outputPort = node.imageOut('out');
 
-node.onStart = async () => { /* initialization */ };
-node.onRender = () => { /* processing logic */ };
-node.onStop = () => { /* cleanup, optional */ };
+node.onStart = async () => {
+  /* initialization */
+};
+node.onRender = () => {
+  /* processing logic */
+};
+node.onStop = () => {
+  /* cleanup, optional */
+};
 ```
 
 ### Graphics Pipeline
@@ -62,6 +70,7 @@ node.onStop = () => { /* cleanup, optional */ };
 ### File Format
 
 Projects use `.fgmt` extension with JSON serialization including:
+
 - Poject format version number
 - Node definitions with positions and parameter values
 - Connection mapping between ports
@@ -72,6 +81,7 @@ Version upgrades happen in `src/file-format.js`.
 ### UI Architecture
 
 React-based interface (`src/ui/`):
+
 - **App.jsx**: Main application state and file management
 - **Editor.jsx**: Node graph visual editor with drag-and-drop
 - **Viewer.jsx**: Real-time output display
@@ -80,7 +90,7 @@ React-based interface (`src/ui/`):
 ### Development Notes
 
 - Nodes support expressions using JEXL with context variables: `$FRAME`, `$TIME`, `$NOW`
-- MediaPipe models stored in `assets/mediapipe/` and `assets/new-mediapipe/`
+- MediaPipe models stored in `assets/mediapipe/`
 - Electron main process `src/electron/main.js` handles file I/O and OSC communication
 - `src/electron/preload.mjs` handles IPC communication
 - Hot reloading supported for node development

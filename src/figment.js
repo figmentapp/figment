@@ -4,9 +4,7 @@ import * as twgl from 'twgl.js';
 
 
 try {
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  //if (!Ctx) throw new Error('AudioContext not supported');
-  window.audioCtx = new Ctx();
+  window.audioCtx = new AudioContext();
   console.log('AudioContext created', window.audioCtx);
 } catch (err) {
   console.error('Failed to create AudioContext:', err);
@@ -224,6 +222,126 @@ export function canvasToFramebuffer(canvas, framebuffer) {
   window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
   window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
   window.gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
+// Create a module worker with a path resolved relative to this module.
+// Usage: const worker = figment.createModuleWorker('./workers/mediapipeWorker.js')
+export const workerUrls = {
+  mediapipe: new URL('./workers/mediapipeWorker.js', import.meta.url),
+};
+
+export function createModuleWorker(pathOrUrl) {
+  // Ensure Vite resolves the worker path and bundles it when provided a URL.
+  const url = pathOrUrl instanceof URL ? pathOrUrl : new URL(pathOrUrl, import.meta.url);
+  return new Worker(url, { type: 'module' });
+}
+
+// Simple request/response client for the MediaPipe worker with per-call promises.
+export class MediaPipeWorkerClient {
+  constructor(task, { basePath, modelAssetPath, taskOptions = {} } = {}) {
+    this.task = task;
+    this.basePath = basePath;
+    this.modelAssetPath = modelAssetPath;
+    this.taskOptions = taskOptions;
+    this._worker = null;
+    this._ready = false;
+    this._reqId = 1;
+    this._pending = new Map();
+    this._onReadyResolvers = [];
+    this._init();
+  }
+
+  _rejectAllPending(reason = 'cancelled') {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    for (const [, { reject }] of this._pending) reject(err);
+    this._pending.clear();
+  }
+
+  _init() {
+    if (this._worker) {
+      // Reject any in-flight requests before killing the worker to avoid hangs.
+      this._rejectAllPending('reinit');
+      try { this._worker.terminate(); } catch (_) {}
+    }
+    this._ready = false;
+    this._worker = createModuleWorker(workerUrls.mediapipe);
+    this._worker.onmessage = (ev) => {
+      const msg = ev.data;
+      if (msg.type === 'ready') {
+        this._ready = true;
+        for (const r of this._onReadyResolvers) r();
+        this._onReadyResolvers = [];
+        return;
+      }
+      if (msg.type === 'optionsUpdated') return;
+      if (msg.type === 'error') {
+        // Reject any in-flight requests to unblock callers
+        for (const [, { reject }] of this._pending) reject(new Error(msg.error));
+        this._pending.clear();
+        return;
+      }
+      if (msg.type === 'result') {
+        const entry = this._pending.get(msg.id);
+        if (entry) {
+          this._pending.delete(msg.id);
+          entry.resolve(msg.result);
+        }
+        return;
+      }
+    };
+    // Send init with the current configuration
+    this._worker.postMessage({
+      type: 'init',
+      task: this.task,
+      options: {
+        basePath: this.basePath,
+        taskOptions: {
+          baseOptions: { modelAssetPath: this.modelAssetPath, delegate: 'GPU' },
+          ...this.taskOptions,
+        },
+      },
+    });
+  }
+
+  async ready() {
+    if (this._ready) return;
+    await new Promise((resolve) => this._onReadyResolvers.push(resolve));
+  }
+
+  async reinit({ basePath, modelAssetPath, taskOptions } = {}) {
+    if (basePath) this.basePath = basePath;
+    if (modelAssetPath) this.modelAssetPath = modelAssetPath;
+    if (taskOptions) this.taskOptions = taskOptions;
+    this._init();
+    await this.ready();
+  }
+
+  async setOptions(options) {
+    await this.ready();
+    return new Promise((resolve) => {
+      // Rely on optionsUpdated fire-and-forget; resolve immediately for simplicity
+      this._worker.postMessage({ type: 'setOptions', options });
+      resolve();
+    });
+  }
+
+  async inferBitmap(bitmap, width, height) {
+    await this.ready();
+    const id = this._reqId++;
+    const promise = new Promise((resolve, reject) => {
+      this._pending.set(id, { resolve, reject });
+    });
+    this._worker.postMessage({ type: 'frameBitmap', id, bitmap, width, height }, [bitmap]);
+    return promise;
+  }
+
+  terminate() {
+    try { if (this._worker) this._worker.terminate(); } catch (_) {}
+    this._worker = null;
+    this._ready = false;
+    for (const [, { reject }] of this._pending) reject(new Error('terminated'));
+    this._pending.clear();
+  }
 }
 
 const _modelCache = {};
