@@ -1,7 +1,7 @@
 /**
- * @name audio frequency-domain
+ * @name Audio Spectrum
  * @description Play audio and visualize its spectrum as a texture.
- * @category image
+ * @category audio
  */
 
 node.timeDependent = true;
