@@ -38,8 +38,10 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
   const dxRef = useRef(0);
   const dyRef = useRef(0);
   const startValueRef = useRef(null);
+  const inputStateRef = useRef(NUMBER_DRAG_IDLE);
 
   useEffect(() => {
+    inputStateRef.current = inputState;
     if (inputState === NUMBER_DRAG_INPUT && inputRef.current) {
       inputRef.current.select();
     }
@@ -69,7 +71,7 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
     document.exitPointerLock();
-    if (inputState === NUMBER_DRAG_IDLE) {
+    if (inputStateRef.current === NUMBER_DRAG_IDLE) {
       setInputState(NUMBER_DRAG_INPUT);
       setTempValue(roundToMaxPlaces(startValueRef.current));
       window.requestAnimationFrame(() => {
