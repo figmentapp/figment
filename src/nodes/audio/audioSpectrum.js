@@ -20,6 +20,7 @@ let framebuffer, program, spectrumTex;
 
 let bandDefs = [];
 let smoothedAmps = [];
+let currentSpacing = null;
 
 const fragmentShader = `
 precision mediump float;
@@ -111,6 +112,7 @@ function updateBands() {
     bandDefs = buildLogBands(numBands, window.audioCtx.sampleRate, analyser.fftSize);
   }
 
+  currentSpacing = spacingIn.value;
   smoothedAmps = new Array(numBands).fill(0);
 
   spectrumTex = twgl.createTexture(window.gl, {
@@ -163,8 +165,7 @@ node.onRender = async () => {
     audioElement.pause();
   }
 
-  if (bandDefs.length !== bandsIn.value ||
-      (spacingIn.value === 'linear' && bandDefs[0]?.binLow !== 0)) {
+  if (bandDefs.length !== bandsIn.value || spacingIn.value !== currentSpacing) {
     updateBands();
   }
 
