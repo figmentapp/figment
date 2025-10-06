@@ -218,26 +218,26 @@ export default function NetworkEditor({ offscreenCanvas }) {
     initialNetwork.addChangeListener(onNetworkChange);
     animate();
 
-    // Subscribe to selection changes from Zustand
-    const unsubscribeSelection = useAppStore.subscribe(
-      (state) => state.selection,
-      () => {
+    // Subscribe to store changes
+    let currentNetwork = initialNetwork;
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      // Redraw on selection changes
+      if (state.selection !== prevState.selection) {
         draw();
       }
-    );
-
-    // Subscribe to network changes from Zustand to update listeners
-    let currentNetwork = initialNetwork;
-    const unsubscribeNetwork = useAppStore.subscribe(
-      (state) => state.network,
-      (newNetwork) => {
-        if (currentNetwork !== newNetwork) {
+      // Redraw on version changes (forceRedraw)
+      if (state.version !== prevState.version) {
+        draw();
+      }
+      // Update network listeners when network changes
+      if (state.network !== prevState.network) {
+        if (currentNetwork !== state.network) {
           currentNetwork.removeChangeListener(onNetworkChange);
-          newNetwork.addChangeListener(onNetworkChange);
-          currentNetwork = newNetwork;
+          state.network.addChangeListener(onNetworkChange);
+          currentNetwork = state.network;
         }
       }
-    );
+    });
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
@@ -247,8 +247,7 @@ export default function NetworkEditor({ offscreenCanvas }) {
       if (canvasRef.current && resizeObserverRef.current) {
         resizeObserverRef.current.unobserve(canvasRef.current);
       }
-      unsubscribeSelection();
-      unsubscribeNetwork();
+      unsubscribe();
     };
   }, []);
 
