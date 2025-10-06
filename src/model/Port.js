@@ -14,6 +14,7 @@ export const PORT_TYPE_DIRECTORY = 'directory';
 export const PORT_TYPE_IMAGE = 'image';
 export const PORT_TYPE_OBJECT = 'object';
 export const PORT_TYPE_BOOLEAN = 'boolean';
+export const PORT_TYPE_AUDIO = 'audio';
 
 export const PORT_IN = 'in';
 export const PORT_OUT = 'out';

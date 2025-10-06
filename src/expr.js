@@ -6,6 +6,7 @@ let context = {
   $NOW: 0,
   _osc: new Map(),
   _midi: new Map(),
+  _bands: new Map(),
   osc: (address, defaultValue = 0) => {
     const osc = context._osc.get(address);
     return osc ? osc : defaultValue;
@@ -18,6 +19,14 @@ function osc(address, defaultValue = 0) {
 
 function midi(channel, controller, defaultValue = 0) {
   return context._midi.get(`${channel}-${controller}`) || defaultValue;
+}
+
+function band(index, defaultValue = 0) {
+  return context._bands.get(index) ?? defaultValue;
+}
+
+function bands() {
+  return Array.from(context._bands.values());
 }
 
 function map(v, inMin, inMax, outMin, outMax, clamp = false) {
@@ -35,7 +44,7 @@ function pingPong(min, max, period = 1, type = 'smooth', time = undefined) {
   const t = (time % period) / period; // Normalizes time to a 0-1 range based on the period
   switch (type) {
     case 'linear':
-      value = Math.abs(t * 2 - 1);
+      value = 1 - Math.abs(t * 2 - 1);
       break;
     case 'smooth':
       // Sine wave for smooth, periodic oscillations
@@ -47,7 +56,7 @@ function pingPong(min, max, period = 1, type = 'smooth', time = undefined) {
       break;
     default:
       console.warn("Unsupported type. Defaulting to 'linear'.");
-      value = Math.abs(t * 2 - 1);
+      value = 1 - Math.abs(t * 2 - 1);
   }
   return min + value * (max - min);
 }
@@ -77,6 +86,9 @@ export function initExpressionContext(newContext) {
   jexl.addFunction('osc', osc);
   // MIDI
   jexl.addFunction('midi', midi);
+  // FFT BANDS
+  jexl.addFunction('band', band);
+  jexl.addFunction('bands', bands);
 }
 
 export function setExpressionContext(newContext) {
@@ -96,3 +108,7 @@ export function evalExpression(expr) {
   expr = fixupExpression(expr);
   return jexl.evalSync(expr, context);
 }
+
+globalThis.setExpressionContext = setExpressionContext;
+globalThis.evalExpression = evalExpression;
+globalThis.initExpressionContext = initExpressionContext;
