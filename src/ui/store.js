@@ -195,7 +195,7 @@ export const useAppStore = create((set, get) => ({
   deleteSelection() {
     const { selection, network } = get()
     network.deleteNodes(Array.from(selection))
-    set({ selection: new Set() })
+    set({ selection: new Set(), dirty: true })
   },
 
   // Node source
@@ -212,6 +212,7 @@ export const useAppStore = create((set, get) => ({
     const { network } = get()
     network.setNodeTypeSource(nodeType, source)
     get().sourceModified(nodeType, false)
+    set({ dirty: true })
     get().forceRedraw()
   },
 
@@ -219,11 +220,13 @@ export const useAppStore = create((set, get) => ({
   changePortValue(node, portName, value) {
     const { network } = get()
     network.setPortValue(node, portName, value)
+    set({ dirty: true })
     get().forceRedraw()
   },
   changePortExpression(node, portName, expression) {
     const { network } = get()
     network.setPortExpression(node, portName, expression)
+    set({ dirty: true })
     get().forceRedraw()
   },
   revertPortValue(node, portName) {
@@ -231,6 +234,7 @@ export const useAppStore = create((set, get) => ({
     const defaultValue = JSON.parse(JSON.stringify(port.defaultValue))
     const { network } = get()
     network.setPortValue(node, portName, defaultValue)
+    set({ dirty: true })
     get().forceRedraw()
   },
   togglePortExpression(node, portName) {
@@ -238,11 +242,13 @@ export const useAppStore = create((set, get) => ({
     const expression = JSON.stringify(port.value)
     const { network } = get()
     network.setPortExpression(node, portName, expression)
+    set({ dirty: true })
     get().forceRedraw()
   },
   deletePortExpression(node, portName) {
     const { network } = get()
     network.deletePortExpression(node, portName)
+    set({ dirty: true })
     get().forceRedraw()
   },
   triggerButton(node, port) {
