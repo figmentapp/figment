@@ -167,16 +167,7 @@ export default function App(props) {
         />
         <Splitter className="splitter" parentRef={mainRef} direction="horizontal" />
 
-        <ParamsEditor
-          network={network}
-          selection={selection}
-          onShowNodeRenameDialog={openNodeRenameDialog}
-          onChangePortValue={changePortValue}
-          _onChangePortExpression={changePortExpression}
-          onRevertPortValue={revertPortValue}
-          onTriggerButton={triggerButton}
-          editorSplitterWidth={editorSplitterWidth}
-        />
+        <ParamsEditor />
       </main>
       {showNodeDialog && <NodeDialog />}
       {showForkDialog && <ForkDialog />}
