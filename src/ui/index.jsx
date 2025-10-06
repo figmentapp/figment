@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import * as tf from '@tensorflow/tfjs';
 import * as twgl from 'twgl.js';
 import * as ort from 'onnxruntime-web/webgpu';
+import * as mediapipe from '@mediapipe/tasks-vision';
+import * as drawing_utils from '@mediapipe/drawing_utils';
 
 import App from './App';
 
@@ -16,6 +18,8 @@ window.tf = tf;
 window.twgl = twgl;
 window.m4 = twgl.m4;
 window.ort = ort;
+window.mediapipe = mediapipe;
+window.drawing_utils = drawing_utils;
 
 // We need to do this in order for Vite to skip injectQuery.
 const ortBase = new URL('./onnxruntime-web/', window.location.href).href;
