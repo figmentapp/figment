@@ -32,9 +32,7 @@ export default function Editor({ style, offscreenCanvas }) {
             <a className={modified ? 'editor__tab-modified' : 'editor__tab-close'} onClick={(e) => handleCloseTab(e, i)}>
               <svg viewBox="0 0 16 16" width="16" height="16">
                 {!modified && <path d="M4 4L12 12M12 4L4 12" />}
-                {modified && (
-                  <circle cx={6} cy={6} r={5} fill="white"/>
-                )}
+                {modified && <circle cx={6} cy={6} r={5} fill="white" />}
               </svg>
             </a>
           </div>

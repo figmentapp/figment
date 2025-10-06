@@ -226,9 +226,7 @@ export const useAppStore = create((set, get) => ({
     const index = tabs.findIndex((t) => t.nodeType.type === nodeType.type);
     if (index !== -1) {
       // Shallow clone - keep references to nodeType objects
-      const newTabs = tabs.map((tab, i) =>
-        i === index ? { ...tab, modified, uncommittedSource: modified ? source : null } : tab,
-      );
+      const newTabs = tabs.map((tab, i) => (i === index ? { ...tab, modified, uncommittedSource: modified ? source : null } : tab));
       set({ tabs: newTabs });
       if (modified) {
         get().setDirty(true);

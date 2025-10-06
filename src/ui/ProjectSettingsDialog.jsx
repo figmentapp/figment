@@ -19,7 +19,13 @@ export default function ProjectSettingsDialog() {
         {/* Top row */}
         <div className="flex flex-row justify-between items-center bg-gray-800">
           <span className="text-xl text-gray-400 py-4 px-6">Project Settings</span>
-          <Icon name="x" size={16} fill={COLORS.gray600} className="text-gray-600 cursor-pointer mr-4" onClick={closeProjectSettingsDialog} />
+          <Icon
+            name="x"
+            size={16}
+            fill={COLORS.gray600}
+            className="text-gray-600 cursor-pointer mr-4"
+            onClick={closeProjectSettingsDialog}
+          />
         </div>
 
         {/* OSC */}
