@@ -36,41 +36,24 @@ const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
 const maskOut = node.imageOut('mask');
 
-let _vision, _poseLandmarker;
 let _framebuffer, _maskFramebuffer, _maskTexture, _imageData;
 let _program;
-let _initialising = false;
-
-async function initLandmarker() {
-  if (_initialising) return;
-  _initialising = true;
-  if (_poseLandmarker) {
-    await _poseLandmarker.close();
-  }
-
-  _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(_vision, {
-    baseOptions: {
-      modelAssetPath: `./mediapipe/pose_landmarker_${modelIn.value}.task`,
-      delegate: 'GPU',
-    },
-    runningMode: 'IMAGE',
-    numPoses: numPosesIn.value,
-    outputSegmentationMasks: true,
-  });
-  _initialising = false;
-}
+let _mpClient = null;
 
 node.onStart = async () => {
   _program = figment.createShaderProgram(fragmentShader);
   _framebuffer = new figment.Framebuffer();
   _maskFramebuffer = new figment.Framebuffer();
   _maskTexture = new figment.Framebuffer();
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
-  await initLandmarker();
+  _mpClient = new figment.MediaPipeWorkerClient('segmentPose', {
+    basePath: new URL('./mediapipe/', window.location.href).href,
+    modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+    taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
+  });
 };
 
-node.onRender = () => {
-  if (!imageIn.value || _initialising) return;
+node.onRender = async () => {
+  if (!imageIn.value) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -83,14 +66,19 @@ node.onRender = () => {
   imageIn.value.bind();
   window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
   imageIn.value.unbind();
-
-  const pose = _poseLandmarker.detect(_imageData);
-  drawResults(pose);
+  const bitmap = await createImageBitmap(_imageData);
+  try {
+    const res = await _mpClient.inferBitmap(bitmap, width, height);
+    drawWorkerResult(res);
+  } catch (_) {
+    // reinit/terminate during rapid param changes; ignore frame
+  }
 };
 
-function drawResults(pose) {
-  if (!imageIn.value || !pose) {
-    // No pose detected, pass through original image
+// Removed legacy sync path; worker result is handled in drawWorkerResult.
+
+function drawWorkerResult(result) {
+  if (!imageIn.value || !result) {
     imageOut.value = imageIn.value;
     detectedOut.value = false;
     landmarksOut.value = null;
@@ -101,32 +89,27 @@ function drawResults(pose) {
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
-  if (pose.landmarks && pose.landmarks.length > 0) {
+  if (result.landmarks && result.landmarks.length > 0) {
     detectedOut.value = true;
-    landmarksOut.value = pose.landmarks;
+    landmarksOut.value = result.landmarks;
 
-    if (pose.segmentationMasks && pose.segmentationMasks.length > 0) {
-      const segmentationMask = pose.segmentationMasks[0];
-      const maskData = segmentationMask.getAsUint8Array();
-
-      // Create RGBA data for mask texture
+    if (result.mask) {
+      const maskData = new Uint8Array(result.mask);
       const rgbaData = new Uint8ClampedArray(width * height * 4);
       for (let i = 0; i < maskData.length; i++) {
-        const pixelIndex = i * 4;
-        const maskValue = maskData[i];
-        rgbaData[pixelIndex] = maskValue; // R
-        rgbaData[pixelIndex + 1] = maskValue; // G
-        rgbaData[pixelIndex + 2] = maskValue; // B
-        rgbaData[pixelIndex + 3] = 255; // A
+        const p = i * 4;
+        const v = maskData[i];
+        rgbaData[p] = v;
+        rgbaData[p + 1] = v;
+        rgbaData[p + 2] = v;
+        rgbaData[p + 3] = 255;
       }
 
-      // Update mask texture using framebuffer
       _maskTexture.setSize(width, height);
       window.gl.bindTexture(gl.TEXTURE_2D, _maskTexture.texture);
       window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgbaData);
       window.gl.bindTexture(gl.TEXTURE_2D, null);
 
-      // Create mask framebuffer for mask output
       _maskFramebuffer.setSize(width, height);
       _maskFramebuffer.bind();
       figment.clear();
@@ -136,7 +119,6 @@ function drawResults(pose) {
       _maskFramebuffer.unbind();
       maskOut.value = _maskFramebuffer;
 
-      // Apply segmentation using shader
       _framebuffer.setSize(width, height);
       _framebuffer.bind();
       figment.clear();
@@ -149,7 +131,6 @@ function drawResults(pose) {
       _framebuffer.unbind();
       imageOut.value = _framebuffer;
     } else {
-      // No segmentation mask, pass through original image
       imageOut.value = imageIn.value;
       maskOut.value = null;
     }
@@ -161,5 +142,24 @@ function drawResults(pose) {
   }
 }
 
-numPosesIn.onChange = initLandmarker;
-modelIn.onChange = initLandmarker;
+function updateOptions() {
+  if (_mpClient) {
+    _mpClient.setOptions({ numPoses: numPosesIn.value });
+  }
+}
+
+numPosesIn.onChange = updateOptions;
+modelIn.onChange = async () => {
+  if (_mpClient) {
+    await _mpClient.reinit({
+      basePath: new URL('./mediapipe/', window.location.href).href,
+      modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+      taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
+    });
+  }
+};
+
+node.onStop = () => {
+  if (_mpClient) _mpClient.terminate();
+  _mpClient = null;
+};

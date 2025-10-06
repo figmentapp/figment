@@ -24,43 +24,30 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _vision, _handLandmarker;
 let _framebuffer, _canvas, _ctx, _imageData;
 let _drawingUtils;
-let _initialising = false;
-
-async function initLandmarker() {
-  if (_initialising) return;
-  _initialising = true;
-  if (_handLandmarker) {
-    await _handLandmarker.close();
-  }
-
-  _handLandmarker = await mediapipe.HandLandmarker.createFromOptions(_vision, {
-    baseOptions: {
-      modelAssetPath: './mediapipe/hand_landmarker.task',
-      delegate: 'GPU',
-    },
-    runningMode: 'IMAGE',
-    numHands: numHandsIn.value,
-    minHandDetectionConfidence: confidenceIn.value,
-    minHandPresenceConfidence: confidenceIn.value,
-    minTrackingConfidence: confidenceIn.value,
-  });
-  _initialising = false;
-}
+let _mpClient = null;
 
 node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
-  await initLandmarker();
+  _mpClient = new figment.MediaPipeWorkerClient('hands', {
+    basePath: new URL('./mediapipe/', window.location.href).href,
+    modelAssetPath: new URL('./mediapipe/hand_landmarker.task', window.location.href).href,
+    taskOptions: {
+      runningMode: 'IMAGE',
+      numHands: numHandsIn.value,
+      minHandDetectionConfidence: confidenceIn.value,
+      minHandPresenceConfidence: confidenceIn.value,
+      minTrackingConfidence: confidenceIn.value,
+    },
+  });
 };
 
-node.onRender = () => {
-  if (!imageIn.value || _initialising) return;
+node.onRender = async () => {
+  if (!imageIn.value) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -74,9 +61,13 @@ node.onRender = () => {
   imageIn.value.bind();
   window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
   imageIn.value.unbind();
-
-  const handResult = _handLandmarker.detect(_imageData);
-  drawResults(handResult);
+  const bitmap = await createImageBitmap(_imageData);
+  try {
+    const r = await _mpClient.inferBitmap(bitmap, width, height);
+    drawResults({ landmarks: r.landmarks, worldLandmarks: r.worldLandmarks, handednesses: r.handednesses });
+  } catch (_) {
+    // reinit/terminate during rapid param changes; ignore frame
+  }
 };
 
 function drawResults(handResult) {
@@ -125,5 +116,21 @@ function drawResults(handResult) {
   imageOut.value = _framebuffer;
 }
 
-numHandsIn.onChange = initLandmarker;
-confidenceIn.onChange = initLandmarker;
+function updateOptions() {
+  if (_mpClient) {
+    _mpClient.setOptions({
+      numHands: numHandsIn.value,
+      minHandDetectionConfidence: confidenceIn.value,
+      minHandPresenceConfidence: confidenceIn.value,
+      minTrackingConfidence: confidenceIn.value,
+    });
+  }
+}
+
+numHandsIn.onChange = updateOptions;
+confidenceIn.onChange = updateOptions;
+
+node.onStop = () => {
+  if (_mpClient) _mpClient.terminate();
+  _mpClient = null;
+};

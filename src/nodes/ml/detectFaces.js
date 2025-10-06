@@ -19,45 +19,32 @@ const landmarksOut = node.objectOut('landmarks');
 drawColorIn.label = 'Color';
 drawLineWidthIn.label = 'Line Width';
 
-let _vision, _faceLandmarker;
 let _framebuffer, _canvas, _ctx, _imageData;
 let _drawingUtils;
-let _initialising = false;
-
-async function initLandmarker() {
-  if (_initialising) return;
-  _initialising = true;
-  if (_faceLandmarker) {
-    await _faceLandmarker.close();
-  }
-
-  _faceLandmarker = await mediapipe.FaceLandmarker.createFromOptions(_vision, {
-    baseOptions: {
-      modelAssetPath: './mediapipe/face_landmarker.task',
-      delegate: 'GPU',
-    },
-    runningMode: 'IMAGE',
-    numFaces: numFacesIn.value,
-    minFaceDetectionConfidence: confidenceIn.value,
-    minFacePresenceConfidence: confidenceIn.value,
-    minTrackingConfidence: confidenceIn.value,
-    outputFaceBlendshapes: false,
-    outputFacialTransformationMatrixes: false,
-  });
-  _initialising = false;
-}
+let _mpClient = null;
 
 node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
-  await initLandmarker();
+  _mpClient = new figment.MediaPipeWorkerClient('face', {
+    basePath: new URL('./mediapipe/', window.location.href).href,
+    modelAssetPath: new URL('./mediapipe/face_landmarker.task', window.location.href).href,
+    taskOptions: {
+      runningMode: 'IMAGE',
+      numFaces: numFacesIn.value,
+      minFaceDetectionConfidence: confidenceIn.value,
+      minFacePresenceConfidence: confidenceIn.value,
+      minTrackingConfidence: confidenceIn.value,
+      outputFaceBlendshapes: false,
+      outputFacialTransformationMatrixes: false,
+    },
+  });
 };
 
-node.onRender = () => {
-  if (!imageIn.value || _initialising) return;
+node.onRender = async () => {
+  if (!imageIn.value) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -72,8 +59,21 @@ node.onRender = () => {
   window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
   imageIn.value.unbind();
 
-  const faceResult = _faceLandmarker.detect(_imageData);
-  drawResults(faceResult);
+  const bitmap = await createImageBitmap(_imageData);
+  try {
+    const res = await _mpClient.inferBitmap(bitmap, width, height);
+    drawResults({ faceLandmarks: res.faceLandmarks });
+  } catch (_) {
+    // reinit/terminate during rapid param changes; ignore frame
+  }
+};
+
+node.onStop = () => {
+  try {
+    if (_worker) _worker.terminate();
+  } catch (_) {}
+  _worker = null;
+  _workerBusy = false;
 };
 
 function drawResults(faceResult) {
@@ -131,5 +131,16 @@ function drawResults(faceResult) {
   imageOut.value = _framebuffer;
 }
 
-numFacesIn.onChange = initLandmarker;
-confidenceIn.onChange = initLandmarker;
+function updateOptions() {
+  if (_mpClient) {
+    _mpClient.setOptions({
+      numFaces: numFacesIn.value,
+      minFaceDetectionConfidence: confidenceIn.value,
+      minFacePresenceConfidence: confidenceIn.value,
+      minTrackingConfidence: confidenceIn.value,
+    });
+  }
+}
+
+numFacesIn.onChange = updateOptions;
+confidenceIn.onChange = updateOptions;

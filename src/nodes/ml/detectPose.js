@@ -24,40 +24,24 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _vision, _poseLandmarker;
 let _framebuffer, _canvas, _ctx, _imageData;
 let _drawingUtils;
-let _initialising = false;
-
-async function initLandmarker() {
-  if (_initialising) return;
-  _initialising = true;
-  if (_poseLandmarker) {
-    await _poseLandmarker.close();
-  }
-
-  _poseLandmarker = await mediapipe.PoseLandmarker.createFromOptions(_vision, {
-    baseOptions: {
-      modelAssetPath: `./mediapipe/pose_landmarker_${modelIn.value}.task`,
-      delegate: 'GPU',
-    },
-    runningMode: 'IMAGE',
-    numPoses: numPosesIn.value,
-  });
-  _initialising = false;
-}
+let _mpClient = null;
 
 node.onStart = async () => {
   _framebuffer = new figment.Framebuffer();
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
-  _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
-  await initLandmarker();
+  _mpClient = new figment.MediaPipeWorkerClient('pose', {
+    basePath: new URL('./mediapipe/', window.location.href).href,
+    modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+    taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
+  });
 };
 
-node.onRender = () => {
-  if (!imageIn.value || _initialising) return;
+node.onRender = async () => {
+  if (!imageIn.value) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -71,9 +55,13 @@ node.onRender = () => {
   imageIn.value.bind();
   window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
   imageIn.value.unbind();
-
-  const pose = _poseLandmarker.detect(_imageData);
-  drawResults(pose);
+  const bitmap = await createImageBitmap(_imageData);
+  try {
+    const res = await _mpClient.inferBitmap(bitmap, width, height);
+    drawResults({ landmarks: res.landmarks });
+  } catch (err) {
+    // Likely reinit/termination; skip this frame without erroring the node
+  }
 };
 
 function drawResults(pose) {
@@ -117,5 +105,26 @@ function drawResults(pose) {
   imageOut.value = _framebuffer;
 }
 
-numPosesIn.onChange = initLandmarker;
-modelIn.onChange = initLandmarker;
+
+function updateOptions() {
+  if (_mpClient) {
+    _mpClient.setOptions({ numPoses: numPosesIn.value });
+  }
+}
+
+numPosesIn.onChange = updateOptions;
+// Model change requires re-init to swap model assets.
+modelIn.onChange = async () => {
+  if (_mpClient) {
+    await _mpClient.reinit({
+      basePath: new URL('./mediapipe/', window.location.href).href,
+      modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+      taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
+    });
+  }
+};
+
+node.onStop = () => {
+  if (_mpClient) _mpClient.terminate();
+  _mpClient = null;
+};
