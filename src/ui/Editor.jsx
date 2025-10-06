@@ -33,7 +33,7 @@ export default function Editor({ style, offscreenCanvas }) {
               <svg viewBox="0 0 16 16" width="16" height="16">
                 {!modified && <path d="M4 4L12 12M12 4L4 12" />}
                 {modified && (
-                  <path d="M10 5C10 7.76142 7.76142 10 5 10C2.23858 10 0 7.76142 0 5C0 2.23858 2.23858 0 5 0C7.76142 0 10 2.23858 10 5Z" />
+                  <circle cx={6} cy={6} r={5} fill="white"/>
                 )}
               </svg>
             </a>
