@@ -103,6 +103,7 @@ const service = {
     return { nodeTypes };
   },
   loadNetwork: async (networkSchema) => {
+    ensureRenderContext(_renderCanvas);
     const schema = networkSchema || getDefaultNetwork(_appPath);
     _network = new Network(_library);
     _network.parse(schema);
