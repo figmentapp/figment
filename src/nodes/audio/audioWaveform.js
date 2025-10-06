@@ -1,7 +1,7 @@
 /**
- * @name audio time-domain
+ * @name Audio Waveform
  * @description Play audio and visualize its waveform as a texture.
- * @category image
+ * @category audio
  */
 
 node.timeDependent = true;

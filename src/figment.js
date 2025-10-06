@@ -4,9 +4,7 @@ import * as twgl from 'twgl.js';
 
 
 try {
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  //if (!Ctx) throw new Error('AudioContext not supported');
-  window.audioCtx = new Ctx();
+  window.audioCtx = new AudioContext();
   console.log('AudioContext created', window.audioCtx);
 } catch (err) {
   console.error('Failed to create AudioContext:', err);
