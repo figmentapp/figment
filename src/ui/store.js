@@ -92,16 +92,21 @@ export const useAppStore = create((set, get) => ({
   async saveFile() {
     const { filePath, tabs } = get()
     // Auto-build any modified tabs before saving
-    const modifiedTabs = tabs.filter(t => t.modified)
+    const modifiedTabs = tabs.filter(t => t.modified && t.uncommittedSource !== null)
     for (const tab of modifiedTabs) {
-      const source = tab.nodeType.source
-      get().buildSource(tab.nodeType, source)
+      get().buildSource(tab.nodeType, tab.uncommittedSource)
     }
     if (!filePath) return get().saveFileAs()
     await get().saveFileTo(filePath)
     get().setDirty(false)
   },
   async saveFileAs() {
+    const { tabs } = get()
+    // Auto-build any modified tabs before saving
+    const modifiedTabs = tabs.filter(t => t.modified && t.uncommittedSource !== null)
+    for (const tab of modifiedTabs) {
+      get().buildSource(tab.nodeType, tab.uncommittedSource)
+    }
     const filePath = await window.desktop.showSaveProjectDialog()
     if (!filePath) return
     await get().saveFileTo(filePath)
@@ -168,7 +173,7 @@ export const useAppStore = create((set, get) => ({
       return
     }
     const newTabs = structuredClone(s.tabs)
-    newTabs.push({ nodeType, modified: false })
+    newTabs.push({ nodeType, modified: false, uncommittedSource: null })
     set({ tabs: newTabs, activeTabIndex: newTabs.length - 1 })
     if (callback) callback()
   },
@@ -213,12 +218,13 @@ export const useAppStore = create((set, get) => ({
   },
 
   // Node source
-  sourceModified(nodeType, modified = true) {
+  sourceModified(nodeType, source, modified = true) {
     const { tabs } = get()
     const index = tabs.findIndex((t) => t.nodeType.type === nodeType.type)
     if (index !== -1) {
       const newTabs = structuredClone(tabs)
       newTabs[index].modified = modified
+      newTabs[index].uncommittedSource = modified ? source : null
       set({ tabs: newTabs })
       if (modified) {
         get().setDirty(true)
@@ -228,7 +234,7 @@ export const useAppStore = create((set, get) => ({
   buildSource(nodeType, source) {
     const { network } = get()
     network.setNodeTypeSource(nodeType, source)
-    get().sourceModified(nodeType, false)
+    get().sourceModified(nodeType, null, false)
     get().setDirty(true)
     get().forceRedraw()
   },
@@ -298,7 +304,7 @@ export const useAppStore = create((set, get) => ({
     if (existingTabIndex >= 0) {
       set({ tabs: newTabs, showForkDialog: false, activeTabIndex: existingTabIndex })
     } else {
-      newTabs.push({ nodeType: newNodeType, modified: false })
+      newTabs.push({ nodeType: newNodeType, modified: false, uncommittedSource: null })
       set({ tabs: newTabs, showForkDialog: false, activeTabIndex: newTabs.length - 1 })
     }
     get().forceRedraw()

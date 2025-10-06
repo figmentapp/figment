@@ -41,8 +41,9 @@ export default class CodeEditor extends Component {
       },
     });
     this.editor.on('change', () => {
-      if (this.state.source !== this.editor.getValue()) {
-        this.props.onSourceModified(this.props.nodeType);
+      const currentSource = this.editor.getValue();
+      if (this.state.source !== currentSource) {
+        this.props.onSourceModified(this.props.nodeType, currentSource);
       }
     });
   }
