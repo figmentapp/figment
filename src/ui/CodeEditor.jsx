@@ -6,119 +6,68 @@ import clsx from 'clsx';
 import { useAppStore } from './store';
 
 export default function CodeEditor() {
+  const tabs = useAppStore((state) => state.tabs);
+  const activeTabIndex = useAppStore((state) => state.activeTabIndex);
   const sourceModified = useAppStore((state) => state.sourceModified);
   const buildSource = useAppStore((state) => state.buildSource);
   const openForkDialog = useAppStore((state) => state.openForkDialog);
 
   const editorRef = useRef(null);
 
-  const getCurrentTab = () => {
-    const { tabs, activeTabIndex } = useAppStore.getState();
-    return tabs[activeTabIndex];
-  };
-
-  const isReadOnly = () => {
-    const tab = getCurrentTab();
-    if (!tab?.nodeType) return true;
-    const ns = tab.nodeType.type.split('.')[0];
-    return ns !== 'project';
-  };
+  const tab = tabs[activeTabIndex];
+  const nodeType = tab?.nodeType;
+  const modified = tab?.modified;
+  const readOnly = nodeType ? nodeType.type.split('.')[0] !== 'project' : true;
+  const source = tab?.uncommittedSource !== null && tab?.uncommittedSource !== undefined ? tab.uncommittedSource : nodeType?.source || '';
 
   const handleBuildSource = () => {
-    try {
-      const tab = getCurrentTab();
-      if (tab?.nodeType) {
-        buildSource(tab.nodeType, editorRef.current.getValue());
-      }
-    } catch (e) {
-      console.error(e);
+    if (editorRef.current && nodeType) {
+      buildSource(nodeType, editorRef.current.getValue());
     }
   };
 
   useEffect(() => {
+    if (!nodeType) return;
+
     const $code = document.getElementById('code');
     const editor = CodeMirror.fromTextArea($code, {
       lineNumbers: true,
-      readOnly: isReadOnly(),
+      readOnly: readOnly,
       mode: 'javascript',
       theme: 'darcula',
     });
 
-    // Set initial value from uncommitted source if available
-    const tab = getCurrentTab();
-    if (tab) {
-      const initialSource = tab.uncommittedSource !== null ? tab.uncommittedSource : tab.nodeType?.source;
-      if (initialSource) {
-        editor.setValue(initialSource);
-      }
-    }
+    // Set initial value
+    editor.setValue(source);
 
+    // Keyboard shortcuts
     editor.setOption('extraKeys', {
       'Shift-Enter': () => {
         handleBuildSource();
         return false;
       },
     });
+
     editor.on('change', () => {
       const currentSource = editor.getValue();
-      const tab = getCurrentTab();
-      if (tab?.nodeType) {
-        // Compare against uncommitted source if it exists, otherwise nodeType source
-        const tabSource = tab.uncommittedSource !== null ? tab.uncommittedSource : tab.nodeType.source;
-        if (tabSource !== currentSource) {
-          sourceModified(tab.nodeType, currentSource);
-        }
+      const { tabs, activeTabIndex } = useAppStore.getState();
+      const currentTab = tabs[activeTabIndex];
+      if (!currentTab?.nodeType) return;
+
+      // Compare against uncommitted source if it exists, otherwise nodeType source
+      const tabSource = currentTab.uncommittedSource !== null ? currentTab.uncommittedSource : currentTab.nodeType.source;
+      if (tabSource !== currentSource) {
+        sourceModified(currentTab.nodeType, currentSource);
       }
     });
+
     editorRef.current = editor;
 
     return () => {
       editor.toTextArea();
+      editorRef.current = null;
     };
-  }, []);
-
-  // Subscribe to tab changes to update editor
-  // Only update editor when tab changes or nodeType changes, not on every store update
-  useEffect(() => {
-    // Initialize prevTabKey to current tab to avoid triggering on first store change
-    const { tabs, activeTabIndex } = useAppStore.getState();
-    const initialTab = tabs[activeTabIndex];
-    let prevTabKey = initialTab?.nodeType ? `${activeTabIndex}-${initialTab.nodeType.type}` : null;
-
-    const unsubscribe = useAppStore.subscribe(() => {
-      const { tabs, activeTabIndex } = useAppStore.getState();
-      const tab = tabs[activeTabIndex];
-
-      // Create a key to detect actual tab changes (not just modified flag changes)
-      const currentTabKey = tab?.nodeType ? `${activeTabIndex}-${tab.nodeType.type}` : null;
-
-      // Only update editor if we switched tabs or the tab's nodeType changed
-      if (currentTabKey !== prevTabKey) {
-        prevTabKey = currentTabKey;
-
-        if (editorRef.current && tab?.nodeType) {
-          // Load uncommitted source if it exists, otherwise load from nodeType
-          const source = tab.uncommittedSource !== null ? tab.uncommittedSource : tab.nodeType.source;
-          editorRef.current.setValue(source);
-
-          // Calculate readOnly directly here to avoid closure issues
-          const ns = tab.nodeType.type.split('.')[0];
-          const readOnly = ns !== 'project';
-          editorRef.current.setOption('readOnly', readOnly);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Get current tab data for rendering
-  const tab = getCurrentTab();
-  const readOnly = isReadOnly();
-  const nodeType = tab?.nodeType;
-  const modified = tab?.modified;
-  // Use uncommitted source if it exists, otherwise use nodeType source
-  const source = tab?.uncommittedSource !== null && tab?.uncommittedSource !== undefined ? tab.uncommittedSource : nodeType?.source || '';
+  }, [activeTabIndex, nodeType?.type]); // Remount when tab or nodeType changes
 
   return (
     <div className="code flex-1 flex flex-col overflow-hidden">

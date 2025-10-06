@@ -174,7 +174,8 @@ export const useAppStore = create((set, get) => ({
       set({ activeTabIndex: existingTabIndex });
       return;
     }
-    const newTabs = structuredClone(s.tabs);
+    // Shallow clone - keep references to nodeType objects
+    const newTabs = [...s.tabs];
     newTabs.push({ nodeType, modified: false, uncommittedSource: null });
     set({ tabs: newTabs, activeTabIndex: newTabs.length - 1 });
     if (callback) callback();
@@ -224,9 +225,10 @@ export const useAppStore = create((set, get) => ({
     const { tabs } = get();
     const index = tabs.findIndex((t) => t.nodeType.type === nodeType.type);
     if (index !== -1) {
-      const newTabs = structuredClone(tabs);
-      newTabs[index].modified = modified;
-      newTabs[index].uncommittedSource = modified ? source : null;
+      // Shallow clone - keep references to nodeType objects
+      const newTabs = tabs.map((tab, i) =>
+        i === index ? { ...tab, modified, uncommittedSource: modified ? source : null } : tab,
+      );
       set({ tabs: newTabs });
       if (modified) {
         get().setDirty(true);
