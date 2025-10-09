@@ -42,9 +42,7 @@ void main() {
 
 function getFileUrl() {
   if (!fileIn.value) return null;
-  return fileIn.value instanceof File
-    ? URL.createObjectURL(fileIn.value)
-    : figment.urlForAsset(fileIn.value);
+  return fileIn.value instanceof File ? URL.createObjectURL(fileIn.value) : figment.urlForAsset(fileIn.value);
 }
 
 node.onStart = () => {
@@ -83,7 +81,6 @@ async function loadAudio() {
   await new Promise((resolve) => {
     audioElement.addEventListener('canplay', resolve, { once: true });
   });
-
 }
 
 node.onRender = async () => {
@@ -101,7 +98,7 @@ node.onRender = async () => {
     try {
       await audioElement.play();
     } catch (err) {
-      console.warn("Playback blocked:", err);
+      console.warn('Playback blocked:', err);
     }
   } else if (!playToggle.value && !audioElement.paused) {
     audioElement.pause();
@@ -109,16 +106,16 @@ node.onRender = async () => {
 
   if (analyser) {
     analyser.getByteTimeDomainData(dataArray);
-  
+
     const rgba = new Uint8Array(dataArray.length * 4);
     for (let i = 0; i < dataArray.length; i++) {
       const v = dataArray[i];
-      rgba[i * 4]     = v;
+      rgba[i * 4] = v;
       rgba[i * 4 + 1] = v;
       rgba[i * 4 + 2] = v;
       rgba[i * 4 + 3] = 255;
     }
-  
+
     twgl.setTextureFromArray(window.gl, waveformTex, rgba, {
       width: dataArray.length,
       height: 1,

@@ -2,7 +2,6 @@
 // Look in preload.js for functions that are exposed in this module (e.g. nodePath).
 import * as twgl from 'twgl.js';
 
-
 try {
   window.audioCtx = new AudioContext();
   console.log('AudioContext created', window.audioCtx);
@@ -261,7 +260,9 @@ export class MediaPipeWorkerClient {
     if (this._worker) {
       // Reject any in-flight requests before killing the worker to avoid hangs.
       this._rejectAllPending('reinit');
-      try { this._worker.terminate(); } catch (_) {}
+      try {
+        this._worker.terminate();
+      } catch (_) {}
     }
     this._ready = false;
     this._worker = createModuleWorker(workerUrls.mediapipe);
@@ -336,7 +337,9 @@ export class MediaPipeWorkerClient {
   }
 
   terminate() {
-    try { if (this._worker) this._worker.terminate(); } catch (_) {}
+    try {
+      if (this._worker) this._worker.terminate();
+    } catch (_) {}
     this._worker = null;
     this._ready = false;
     for (const [, { reject }] of this._pending) reject(new Error('terminated'));

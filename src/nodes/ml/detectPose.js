@@ -105,7 +105,6 @@ function drawResults(pose) {
   imageOut.value = _framebuffer;
 }
 
-
 function updateOptions() {
   if (_mpClient) {
     _mpClient.setOptions({ numPoses: numPosesIn.value });
