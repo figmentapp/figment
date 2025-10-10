@@ -9,6 +9,7 @@ import Port, {
   PORT_TYPE_COLOR,
   PORT_TYPE_FILE,
   PORT_TYPE_DIRECTORY,
+  PORT_TYPE_SECTION,
   PORT_TYPE_IMAGE,
   PORT_TYPE_OBJECT,
   PORT_TYPE_AUDIO,
@@ -176,6 +177,14 @@ export default class Node {
       this.inPorts.push(inPort);
       return inPort;
     }
+  }
+
+  sectionIn(name = '') {
+    const portName = `__section_${this.inPorts.length}`;
+    const inPort = new Port(this, portName, PORT_TYPE_SECTION, PORT_IN);
+    inPort.label = name;
+    this.inPorts.push(inPort);
+    return inPort;
   }
 
   imageIn(name) {

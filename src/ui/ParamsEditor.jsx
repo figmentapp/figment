@@ -19,6 +19,7 @@ import {
   PORT_TYPE_FILE,
   PORT_TYPE_DIRECTORY,
   PORT_TYPE_OBJECT,
+  PORT_TYPE_SECTION,
 } from '../model/Port';
 
 const NUMBER_DRAG_IDLE = 'idle';
@@ -671,6 +672,12 @@ export default class ParamsEditor extends Component {
       );
     } else if (port.type === PORT_TYPE_TRIGGER) {
       return;
+    } else if (port.type === PORT_TYPE_SECTION) {
+      return (
+        <div key={port.name} className="col-span-3 my-2">
+          {port.label ? <div className="uppercase text-gray-300 text-xs">{port.label}</div> : <hr className="border-gray-700" />}
+        </div>
+      );
     } else if (port.type === PORT_TYPE_BUTTON) {
       field = (
         <Fragment key={port.name}>
