@@ -69,9 +69,9 @@ export default function RenderDialog() {
           <div className="flex flex-row justify-between items-center bg-gray-700">
             <span className="text-gray-200 text-sm py-4 px-6">Render out all "Save Image" nodes.</span>
             {movieNodes.length > 0 && detectedFrameCount > 0 && (
-                <span className="text-blue-200 text-sm py-1 px-2 bg-gray-800 rounded-lg mx-2">
-                  Detected movie with {detectedFrameCount} frames at {Math.round(detectedFps)} fps
-                </span>
+              <span className="text-blue-200 text-sm py-1 px-2 bg-gray-800 rounded-lg mx-2">
+                Detected movie with {detectedFrameCount} frames at {Math.round(detectedFps)} fps
+              </span>
             )}
           </div>
 
