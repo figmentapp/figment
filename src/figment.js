@@ -1,6 +1,7 @@
 // Functions that are available in the "figment" namespace. Related to project files.
 // Look in preload.js for functions that are exposed in this module (e.g. nodePath).
 import * as twgl from 'twgl.js';
+import * as mediabunny from 'mediabunny';
 
 try {
   window.audioCtx = new AudioContext();

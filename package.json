@@ -33,6 +33,7 @@
     "jexl": "^2.3.0",
     "jzz": "^1.9.4",
     "lodash": "4.17.21",
+    "mediabunny": "^1.23.0",
     "minimist": "1.2.8",
     "node-osc": "^9.1.5",
     "onnxruntime-web": "^1.23.0",
