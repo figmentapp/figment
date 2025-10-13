@@ -12,7 +12,7 @@ const loopIn = node.toggleIn('loop', true);
 const pauseModeIn = node.selectIn('pauseMode', ['hold', 'restart', 'rewind'], 'hold');
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
 const restartIn = node.triggerButtonIn('restart');
-const frameIn = node.numberIn('frame', 0, { min: 0, step: 1 });
+const frameIn = node.numberIn('frame', 1, { min: 1, step: 1 });
 frameIn.display = 0x03;
 
 const imageOut = node.imageOut('out');
@@ -27,6 +27,7 @@ let frameCount = 0;
 let detectedFps = 0;
 let duration = 0;
 let shouldLoad = true;
+let lastRenderedTimestamp = null;
 
 // Playback state machine
 const STATE_STOPPED = 'stopped';
@@ -41,6 +42,13 @@ let lastRenderedFrame = -1;
 let canvasIterator = null;
 let renderPending = false;
 
+function clearCanvasIterator() {
+  if (canvasIterator && typeof canvasIterator.return === 'function') {
+    canvasIterator.return().catch(() => {});
+  }
+  canvasIterator = null;
+}
+
 node.onStart = () => {
   framebuffer = new figment.Framebuffer();
   shouldLoad = true;
@@ -49,8 +57,9 @@ node.onStart = () => {
   playbackStartTime = 0;
   currentFrame = 0;
   lastRenderedFrame = -1;
-  canvasIterator = null;
+  clearCanvasIterator();
   renderPending = false;
+  lastRenderedTimestamp = null;
 };
 
 async function loadMovie() {
@@ -63,7 +72,7 @@ async function loadMovie() {
   }
   videoTrack = null;
   canvasSink = null;
-  canvasIterator = null;
+  clearCanvasIterator();
 
   try {
     const { Input, BlobSource, CanvasSink, MP4, WEBM, MATROSKA } = window.mediabunny;
@@ -107,6 +116,7 @@ async function loadMovie() {
     playbackStartTime = 0;
     currentFrame = 0;
     lastRenderedFrame = -1;
+    lastRenderedTimestamp = null;
   } catch (err) {
     console.error('Error loading movie:', err);
     node.error = err.message;
@@ -117,12 +127,13 @@ function calculateTargetFrame() {
   if (!videoTrack) return 0;
 
   const runtimeMode = window.desktop.getRuntimeMode();
+  const safeFps = detectedFps > 0 ? detectedFps : 1;
 
   if (runtimeMode === 'export') {
     // Export mode: direct frame mapping based on FPS ratio
-    const exportFrame = window.desktop.getCurrentFrame();
-    const exportFps = window.desktop.getExportFps();
-    const videoFrame = Math.floor((exportFrame / exportFps) * detectedFps);
+    const exportFrameIndex = Math.max(0, window.desktop.getCurrentFrame() - 1);
+    const exportFps = window.desktop.getExportFps() || safeFps;
+    const videoFrame = Math.floor((exportFrameIndex / exportFps) * safeFps);
     return Math.min(videoFrame, frameCount - 1);
   }
 
@@ -133,7 +144,7 @@ function calculateTargetFrame() {
       playbackStartTime = now;
     }
     const elapsed = (now - playbackStartTime) / 1000;
-    const framesElapsed = Math.floor(elapsed * detectedFps * speedIn.value);
+    const framesElapsed = Math.floor(elapsed * safeFps * speedIn.value);
     let videoFrame = playbackStartFrame + framesElapsed;
 
     if (loopIn.value) {
@@ -149,6 +160,13 @@ function calculateTargetFrame() {
   return currentFrame;
 }
 
+function disposeWrappedCanvas(wrappedCanvas) {
+  if (!wrappedCanvas) return;
+  const frame = wrappedCanvas.frame ?? wrappedCanvas.videoFrame ?? wrappedCanvas.sample;
+  if (frame && typeof frame.close === 'function') frame.close();
+  if (wrappedCanvas.close && typeof wrappedCanvas.close === 'function') wrappedCanvas.close();
+}
+
 function uploadFrameToTexture(wrappedCanvas, videoFrame) {
   if (!wrappedCanvas || !framebuffer) return;
 
@@ -160,16 +178,12 @@ function uploadFrameToTexture(wrappedCanvas, videoFrame) {
     window.gl.bindTexture(window.gl.TEXTURE_2D, null);
 
     imageOut.set(framebuffer);
-    currentFrameOut.set(videoFrame);
+    currentFrameOut.set(videoFrame + 1);
     lastRenderedFrame = videoFrame;
+    lastRenderedTimestamp = wrappedCanvas.timestamp ?? lastRenderedTimestamp;
   } finally {
     // Close VideoFrame to prevent memory leaks
-    if (wrappedCanvas.frame && typeof wrappedCanvas.frame.close === 'function') {
-      wrappedCanvas.frame.close();
-    }
-    if (wrappedCanvas.close && typeof wrappedCanvas.close === 'function') {
-      wrappedCanvas.close();
-    }
+    disposeWrappedCanvas(wrappedCanvas);
   }
 }
 
@@ -190,22 +204,29 @@ async function renderFrame(targetFrame) {
       // Sequential access: use iterator for performance
       const result = await canvasIterator.next();
       if (!result.done) {
-        uploadFrameToTexture(result.value, targetFrame);
-        return true;
+        const nextCanvas = result.value;
+        if (nextCanvas && (lastRenderedTimestamp === null || nextCanvas.timestamp >= lastRenderedTimestamp)) {
+          uploadFrameToTexture(nextCanvas, targetFrame);
+          return true;
+        }
+        disposeWrappedCanvas(nextCanvas);
       }
+      clearCanvasIterator();
     }
 
     // Random access or iterator failed: seek directly
-    canvasIterator = null;
-    const timestamp = targetFrame / detectedFps;
+    clearCanvasIterator();
+    const safeFps = detectedFps > 0 ? detectedFps : 1;
+    const timestamp = targetFrame / safeFps;
     const wrappedCanvas = await canvasSink.getCanvas(timestamp);
 
     if (wrappedCanvas) {
       uploadFrameToTexture(wrappedCanvas, targetFrame);
 
       // Start new iterator for future sequential access
-      const nextTimestamp = (targetFrame + 1) / detectedFps;
-      if (nextTimestamp < duration) {
+      const frameDuration = wrappedCanvas.duration && wrappedCanvas.duration > 0 ? wrappedCanvas.duration : 1 / safeFps;
+      const nextTimestamp = wrappedCanvas.timestamp + frameDuration;
+      if (Number.isFinite(nextTimestamp) && nextTimestamp < duration) {
         canvasIterator = canvasSink.canvases(nextTimestamp, duration);
       }
 
@@ -216,7 +237,8 @@ async function renderFrame(targetFrame) {
   } catch (err) {
     console.error('Error rendering video frame:', err);
     node.error = err.message;
-    canvasIterator = null;
+    clearCanvasIterator();
+    lastRenderedTimestamp = null;
     return false;
   }
 }
@@ -227,7 +249,8 @@ function resetPlayback() {
   playbackStartTime = 0;
   currentFrame = 0;
   lastRenderedFrame = -1;
-  canvasIterator = null;
+  clearCanvasIterator();
+  lastRenderedTimestamp = null;
   node._markDirty();
 }
 
@@ -268,10 +291,16 @@ node.onRender = async () => {
       playbackState = STATE_PAUSED;
     }
 
-    // Handle manual frame input
-    if (frameIn.value !== currentFrame && !shouldPlay) {
-      currentFrame = Math.min(Math.max(0, frameIn.value), frameCount - 1);
-      canvasIterator = null;
+    // Handle manual frame input (1-based incoming value)
+    if (!shouldPlay) {
+      const requested = Number.isFinite(frameIn.value) ? Math.round(frameIn.value) : 1;
+      const atLeastOne = Math.max(1, requested);
+      const clampedOneBased = frameCount > 0 ? Math.min(atLeastOne, frameCount) : atLeastOne;
+      const desiredFrame = clampedOneBased - 1;
+      if (desiredFrame !== currentFrame) {
+        currentFrame = desiredFrame;
+        clearCanvasIterator();
+      }
     }
 
     // Calculate target frame
@@ -301,17 +330,19 @@ node.onStop = () => {
   }
   videoTrack = null;
   canvasSink = null;
-  canvasIterator = null;
+  clearCanvasIterator();
   lastRenderedFrame = -1;
   renderPending = false;
+  lastRenderedTimestamp = null;
 };
 
 node.onReset = resetPlayback;
 
 fileIn.onChange = () => {
   shouldLoad = true;
-  canvasIterator = null;
+  clearCanvasIterator();
   lastRenderedFrame = -1;
+  lastRenderedTimestamp = null;
 };
 
 speedIn.onChange = () => {
