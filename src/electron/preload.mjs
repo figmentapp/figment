@@ -21,6 +21,7 @@ const RUNTIME_MODE_LIVE = 'live';
 const RUNTIME_MODE_EXPORT = 'export';
 let runtimeMode = RUNTIME_MODE_LIVE;
 let currentFrame = 1;
+let exportFps = 60; // Default export frame rate
 
 function getRuntimeMode() {
   return runtimeMode;
@@ -38,6 +39,14 @@ function getCurrentFrame() {
 
 function setCurrentFrame(frame) {
   currentFrame = frame;
+}
+
+function getExportFps() {
+  return exportFps;
+}
+
+function setExportFps(fps) {
+  exportFps = fps;
 }
 
 function getPackagedFile(filePath) {
@@ -189,6 +198,8 @@ contextBridge.exposeInMainWorld('desktop', {
   setRuntimeMode,
   getCurrentFrame,
   setCurrentFrame,
+  getExportFps,
+  setExportFps,
   getPackagedFile,
   showOpenProjectDialog,
   showSaveProjectDialog,
