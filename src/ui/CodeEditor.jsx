@@ -1,94 +1,102 @@
-import React, { Component } from 'react';
+import React, { useEffect, useRef } from 'react';
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/javascript/javascript.js';
 import 'codemirror/theme/darcula.css';
 import clsx from 'clsx';
+import { useAppStore } from './store';
 
-export default class CodeEditor extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { source: props.nodeType.source };
-    //this._onKeyDown = this._onKeyDown.bind(this);
-    this._onBuildSource = this._onBuildSource.bind(this);
-  }
+export default function CodeEditor() {
+  const tabs = useAppStore((state) => state.tabs);
+  const activeTabIndex = useAppStore((state) => state.activeTabIndex);
+  const sourceModified = useAppStore((state) => state.sourceModified);
+  const buildSource = useAppStore((state) => state.buildSource);
+  const openForkDialog = useAppStore((state) => state.openForkDialog);
 
-  isReadOnly() {
-    const ns = this.props.nodeType.type.split('.')[0];
-    const readOnly = ns !== 'project';
-    return readOnly;
-  }
+  const editorRef = useRef(null);
 
-  _onBuildSource() {
-    try {
-      this.props.onBuildSource(this.props.nodeType, this.editor.getValue());
-    } catch (e) {
-      console.error(e);
+  const tab = tabs[activeTabIndex];
+  const nodeType = tab?.nodeType;
+  const modified = tab?.modified;
+  const readOnly = nodeType ? nodeType.type.split('.')[0] !== 'project' : true;
+  const source = tab?.uncommittedSource !== null && tab?.uncommittedSource !== undefined ? tab.uncommittedSource : nodeType?.source || '';
+
+  const handleBuildSource = () => {
+    if (editorRef.current && nodeType) {
+      buildSource(nodeType, editorRef.current.getValue());
     }
-  }
+  };
 
-  componentDidMount() {
+  useEffect(() => {
+    if (!nodeType) return;
+
     const $code = document.getElementById('code');
-    this.editor = CodeMirror.fromTextArea($code, {
+    const editor = CodeMirror.fromTextArea($code, {
       lineNumbers: true,
-      readOnly: this.isReadOnly(),
+      readOnly: readOnly,
       mode: 'javascript',
       theme: 'darcula',
     });
-    this.editor.setOption('extraKeys', {
-      [`Shift-Enter`]: () => {
-        this._onBuildSource();
+
+    // Set initial value
+    editor.setValue(source);
+
+    // Keyboard shortcuts
+    editor.setOption('extraKeys', {
+      'Shift-Enter': () => {
+        handleBuildSource();
         return false;
       },
     });
-    this.editor.on('change', () => {
-      if (this.state.source !== this.editor.getValue()) {
-        this.props.onSourceModified(this.props.nodeType);
+
+    editor.on('change', () => {
+      const currentSource = editor.getValue();
+      const { tabs, activeTabIndex } = useAppStore.getState();
+      const currentTab = tabs[activeTabIndex];
+      if (!currentTab?.nodeType) return;
+
+      // Compare against uncommitted source if it exists, otherwise nodeType source
+      const tabSource = currentTab.uncommittedSource !== null ? currentTab.uncommittedSource : currentTab.nodeType.source;
+      if (tabSource !== currentSource) {
+        sourceModified(currentTab.nodeType, currentSource);
       }
     });
-  }
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.nodeType.type !== this.props.nodeType.type) {
-      this.setState({ source: this.props.nodeType.source });
-      this.editor.setValue(this.props.nodeType.source);
-      this.editor.setOption('readOnly', this.isReadOnly());
-    }
-  }
+    editorRef.current = editor;
 
-  render() {
-    const readOnly = this.isReadOnly();
-    return (
-      <div className="code flex-1 flex flex-col overflow-hidden">
-        <div className={'flex-1 overflow-hidden ' + (readOnly ? 'opacity-50' : '')}>
-          <textarea className="code__area" id="code" defaultValue={this.state.source} readOnly={readOnly} />
-        </div>
-        <div className="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
-          {readOnly && (
-            <>
-              {' '}
-              <span className="text-gray-500">Code is read-only. Fork the code.</span>
-              <button
-                onClick={() => this.props.onShowForkDialog(this.props.nodeType)}
-                className="bg-gray-700 px-4 py-1 rounded text-gray-200"
-              >
-                Fork
-              </button>
-            </>
-          )}
-          {!readOnly && (
-            <>
-              <span className="text-gray-400">{this.props.nodeType.type}</span>
-              <button
-                onClick={this._onBuildSource}
-                className={clsx('bg-gray-700 px-4 py-1 rounded text-gray-200', { 'opacity-20': !this.props.modified })}
-                disabled={!this.props.modified}
-              >
-                Build
-              </button>
-            </>
-          )}
-        </div>
+    return () => {
+      editor.toTextArea();
+      editorRef.current = null;
+    };
+  }, [activeTabIndex, nodeType?.type]); // Remount when tab or nodeType changes
+
+  return (
+    <div className="code flex-1 flex flex-col overflow-hidden">
+      <div className={'flex-1 overflow-hidden ' + (readOnly ? 'opacity-50' : '')}>
+        <textarea className="code__area" id="code" defaultValue={source} readOnly={readOnly} />
       </div>
-    );
-  }
+      <div className="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
+        {readOnly && (
+          <>
+            {' '}
+            <span className="text-gray-500">Code is read-only. Fork the code.</span>
+            <button onClick={() => openForkDialog(nodeType)} className="bg-gray-700 px-4 py-1 rounded text-gray-200">
+              Fork
+            </button>
+          </>
+        )}
+        {!readOnly && (
+          <>
+            <span className="text-gray-400">{nodeType?.type}</span>
+            <button
+              onClick={handleBuildSource}
+              className={clsx('bg-gray-700 px-4 py-1 rounded text-gray-200', { 'opacity-20': !modified })}
+              disabled={!modified}
+            >
+              Build
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

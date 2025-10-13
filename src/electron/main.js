@@ -61,6 +61,8 @@ class Settings {
 
 let gMainWindow;
 let gSettings = new Settings();
+let gDocumentEdited = false;
+let gPendingClose = false;
 
 function emit(name, args = {}) {
   return () => {
@@ -256,7 +258,14 @@ ipcMain.handle('setRepresentedFilename', (_, filePath) => {
 });
 
 ipcMain.handle('setDocumentEdited', (_, edited) => {
+  gDocumentEdited = edited;
   gMainWindow.setDocumentEdited(edited);
+
+  // If we were waiting for save to complete before closing, close now
+  if (gPendingClose && !edited) {
+    gPendingClose = false;
+    gMainWindow.destroy();
+  }
 });
 
 async function startDevServer() {
@@ -301,6 +310,37 @@ function createMainWindow(filePath) {
     const uiDir = path.join(asarDir, 'build');
     gMainWindow.loadURL(`file:///${uiDir}/index.html?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
   }
+
+  // Handle window close with unsaved changes
+  gMainWindow.on('close', (event) => {
+    if (gDocumentEdited && !gPendingClose) {
+      event.preventDefault();
+      const choice = dialog.showMessageBoxSync(gMainWindow, {
+        type: 'warning',
+        buttons: ['Cancel', "Don't Save", 'Save'],
+        defaultId: 2,
+        cancelId: 0,
+        title: 'Unsaved Changes',
+        message: 'Do you want to save the changes you made to this document?',
+        detail: "Your changes will be lost if you don't save them.",
+      });
+
+      if (choice === 1) {
+        // Don't Save - close without saving
+        gDocumentEdited = false;
+        gMainWindow.destroy();
+      } else if (choice === 2) {
+        // Save - trigger save, then close when save completes
+        gPendingClose = true;
+        gMainWindow.webContents.send('menu', 'save');
+        // Reset flag after 5 seconds in case save was cancelled
+        setTimeout(() => {
+          gPendingClose = false;
+        }, 5000);
+      }
+      // choice === 0 (Cancel) - do nothing, window stays open
+    }
+  });
 
   // Open the window
   gMainWindow.once('ready-to-show', () => {

@@ -15,7 +15,7 @@
   --gray800: #2d3748;
   --gray900: #1a202c;
   --font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
-  --splitter: 70%;
+  --splitter: 350px;
 }
 
 html,
@@ -53,7 +53,7 @@ img {
 
 main {
   display: grid;
-  grid-template-columns: var(--splitter) 4px minmax(20px, auto);
+  grid-template-columns: 1fr 4px var(--splitter);
   height: 100vh;
 }
 

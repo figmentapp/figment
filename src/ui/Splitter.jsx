@@ -1,18 +1,23 @@
 import React from 'react';
+import { useAppStore } from './store';
 
 export default function Splitter({ className, parentRef, direction }) {
+  const setEditorSplitterWidth = useAppStore((s) => s.setEditorSplitterWidth);
+
   function handleMouseDown(e) {
     e.preventDefault();
     const parent = parentRef.current;
     parent.style.cursor = direction === 'horizontal' ? 'ew-resize' : 'ns-resize';
     const mouseMoveHandler = (e) => {
-      let sizePct;
       if (direction === 'horizontal') {
-        sizePct = (e.clientX / parent.clientWidth) * 100;
+        // Calculate params panel width (from splitter to right edge)
+        const paramsWidth = parent.clientWidth - e.clientX;
+        setEditorSplitterWidth(paramsWidth);
+        document.documentElement.style.setProperty(`--${className}`, `${paramsWidth}px`);
       } else {
-        sizePct = ((e.clientY - 40) / parent.clientHeight) * 100;
+        const sizePct = ((e.clientY - 40) / parent.clientHeight) * 100;
+        document.documentElement.style.setProperty(`--${className}`, `${sizePct}%`);
       }
-      document.documentElement.style.setProperty(`--${className}`, `${sizePct}%`);
     };
     const mouseUpHandler = () => {
       document.body.removeEventListener('mousemove', mouseMoveHandler);

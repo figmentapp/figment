@@ -1,4 +1,4 @@
-import React, { Component, Fragment } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import chroma from 'chroma-js';
 import InlineEditor from './InlineEditor';
 import { ChromePicker } from 'react-color';
@@ -6,6 +6,7 @@ import { Point } from '../g';
 import Icon from './Icon';
 import * as figment from '../figment';
 import { throttle } from 'lodash';
+import { useAppStore } from './store';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -25,201 +26,158 @@ const NUMBER_DRAG_IDLE = 'idle';
 const NUMBER_DRAG_DRAGGING = 'drag';
 const NUMBER_DRAG_INPUT = 'input';
 
-// Conver the value to a string and round to the correct number of digits.
+// Convert the value to a string and round to the correct number of digits.
 function roundToMaxPlaces(v, places = 4) {
   return (Math.round(v * Math.pow(10, places)) / Math.pow(10, places)).toString();
-  // return +(Math.round(v + 'e+' + places) + 'e-' + places);
 }
 
-function Spacer() {
-  return <div className="flex-1" />;
-}
+function NumberDrag({ label, value, min, max, step, disabled, direction, onChange }) {
+  const [inputState, setInputState] = useState(NUMBER_DRAG_IDLE);
+  const [tempValue, setTempValue] = useState('');
+  const inputRef = useRef(null);
+  const dxRef = useRef(0);
+  const dyRef = useRef(0);
+  const startValueRef = useRef(null);
+  const inputStateRef = useRef(NUMBER_DRAG_IDLE);
 
-class NumberDrag extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { inputState: NUMBER_DRAG_IDLE, tempValue: '' };
-    this._startX = 0;
-    this._startY = 0;
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
-    this._onInputKey = this._onInputKey.bind(this);
-    this._onInputEnd = this._onInputEnd.bind(this);
-    this.inputRef = React.createRef();
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps.inputState !== this.props.inputState && this.props.inputState === NUMBER_DRAG_INPUT) {
-      this.inputRef.current.select();
+  useEffect(() => {
+    inputStateRef.current = inputState;
+    if (inputState === NUMBER_DRAG_INPUT && inputRef.current) {
+      inputRef.current.select();
     }
-  }
+  }, [inputState]);
 
-  _onMouseDown(e) {
+  const onMouseMove = useRef((e) => {
     e.preventDefault();
-    if (this.props.disabled) return;
-    e.target.requestPointerLock();
-    window.addEventListener('mousemove', this._onMouseMove);
-    window.addEventListener('mouseup', this._onMouseUp);
-    this._dx = 0;
-    this._dy = 0;
-  }
-
-  _onMouseMove(e) {
-    e.preventDefault();
-    this._dx += Math.abs(e.movementX);
-    this._dy += Math.abs(e.movementY);
-    const totalDistance = this._dx + this._dy;
+    dxRef.current += e.movementX;
+    dyRef.current += e.movementY;
+    const totalDistance = Math.abs(dxRef.current) + Math.abs(dyRef.current);
     if (totalDistance <= 2) return;
-    this.setState({ inputState: NUMBER_DRAG_DRAGGING });
-    if (this.props.direction === 'xy') {
-      const value = this.props.value;
-      this.props.onChange(new Point(value.x + e.movementX * this.props.step, value.y + e.movementY * this.props.step));
+    setInputState(NUMBER_DRAG_DRAGGING);
+    if (direction === 'xy') {
+      const newX = startValueRef.current.x + dxRef.current * step;
+      const newY = startValueRef.current.y + dyRef.current * step;
+      onChange(new Point(newX, newY));
     } else {
-      let newValue = this.props.value + e.movementX * this.props.step;
-      if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
-      if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
-      this.props.onChange(newValue);
+      let newValue = startValueRef.current + dxRef.current * step;
+      if (min !== undefined && newValue < min) newValue = min;
+      if (max !== undefined && newValue > max) newValue = max;
+      onChange(newValue);
     }
-  }
+  }).current;
 
-  _onMouseUp(e) {
+  const onMouseUp = useRef((e) => {
     e.preventDefault();
-    window.removeEventListener('mousemove', this._onMouseMove);
-    window.removeEventListener('mouseup', this._onMouseUp);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
     document.exitPointerLock();
-    if (this.state.inputState === NUMBER_DRAG_IDLE) {
-      this.setState({ inputState: NUMBER_DRAG_INPUT, tempValue: roundToMaxPlaces(this.props.value) });
+    if (inputStateRef.current === NUMBER_DRAG_IDLE) {
+      setInputState(NUMBER_DRAG_INPUT);
+      setTempValue(roundToMaxPlaces(startValueRef.current));
       window.requestAnimationFrame(() => {
-        this.inputRef.current && this.inputRef.current.select();
+        inputRef.current?.select();
       });
     } else {
-      this.setState({ inputState: NUMBER_DRAG_IDLE });
+      setInputState(NUMBER_DRAG_IDLE);
     }
-  }
+  }).current;
 
-  _onInputKey(e) {
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    if (disabled) return;
+    startValueRef.current = value;
+    e.target.requestPointerLock();
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    dxRef.current = 0;
+    dyRef.current = 0;
+  };
+
+  const onInputKey = (e) => {
     if (e.keyCode === 13) {
       e.preventDefault();
-      this._onInputEnd();
+      onInputEnd();
     } else if (e.keyCode === 27) {
       e.preventDefault();
-      this.setState({ inputState: NUMBER_DRAG_IDLE });
+      setInputState(NUMBER_DRAG_IDLE);
     }
-  }
+  };
 
-  _onInputEnd() {
-    let newValue = parseFloat(this.state.tempValue);
+  const onInputEnd = () => {
+    let newValue = parseFloat(tempValue);
     if (isNaN(newValue)) return;
-    if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
-    if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
-    this.props.onChange(newValue);
-    this.setState({ inputState: NUMBER_DRAG_IDLE });
+    if (min !== undefined && newValue < min) newValue = min;
+    if (max !== undefined && newValue > max) newValue = max;
+    onChange(newValue);
+    setInputState(NUMBER_DRAG_IDLE);
+  };
+
+  const cursor = disabled ? 'cursor-default' : direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
+
+  // Calculate fill percent for min/max indicator
+  let percent = 0;
+  if (typeof value === 'number' && min !== undefined && max !== undefined && max > min) {
+    percent = (value - min) / (max - min);
+    percent = Math.max(0, Math.min(1, percent));
   }
+  const barColor = disabled ? 'bg-gray-700' : 'bg-gray-400';
 
-  render() {
-    const { label, direction, disabled, value, min, max } = this.props;
-    let cursor;
-    if (disabled) {
-      cursor = 'cursor-default';
-    } else {
-      cursor = direction === 'xy' ? 'cursor-move' : 'cursor-col-resize';
-    }
+  const indicator = (
+    <div className="relative w-full h-0">
+      <div className={`absolute left-0 bottom-0 h-0.5 ${barColor}`} style={{ width: percent === 0 ? 0 : `${percent * 100}%` }} />
+    </div>
+  );
 
-    // Calculate fill percent for min/max indicator
-    let percent = 0;
-    if (typeof value === 'number' && min !== undefined && max !== undefined && max > min) {
-      percent = (value - min) / (max - min);
-      percent = Math.max(0, Math.min(1, percent));
-    }
-    // Bar color
-    const barColor = disabled ? 'bg-gray-700' : 'bg-gray-400';
-
-    // Indicator bar element
-    const indicator = (
-      <div className="relative w-full h-0">
-        <div className={`absolute left-0 bottom-0 h-0.5 ${barColor}`} style={{ width: percent === 0 ? 0 : `${percent * 100}%` }} />
+  if (inputState !== NUMBER_DRAG_INPUT) {
+    return (
+      <div
+        className={`flex-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
+          disabled ? 'text-gray-700' : 'text-gray-400'
+        } relative`}
+        onMouseDown={onMouseDown}
+      >
+        <span className="py-2 px-1 block">{roundToMaxPlaces(value)}</span>
+        {indicator}
       </div>
     );
-
-    if (this.state.inputState !== NUMBER_DRAG_INPUT) {
-      return (
-        <div
-          className={`flex-1 whitespace-nowrap border border-transparent bg-gray-800 ${cursor} ${
-            disabled ? 'text-gray-700' : 'text-gray-400'
-          } relative`}
-          onMouseDown={this._onMouseDown}
-          style={{ position: 'relative' }}
-        >
-          <span className="py-2 px-1 block">{roundToMaxPlaces(value)}</span>
-          {indicator}
-        </div>
-      );
-    } else {
-      return (
-        <input
-          ref={this.inputRef}
-          className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100 w-full"
-          type="text"
-          autoFocus={true}
-          value={this.state.tempValue}
-          onChange={(e) => this.setState({ tempValue: e.target.value })}
-          onKeyDown={this._onInputKey}
-          onBlur={this._onInputEnd}
-        />
-      );
-    }
-  }
-}
-
-class FloatParam extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { newValue: props.value };
-    this._onInput = this._onInput.bind(this);
-    this._onChange = this._onChange.bind(this);
-    this._onShowMenu = this._onShowMenu.bind(this);
-  }
-
-  _onInput(e) {
-    this.setState({ newValue: e.target.value });
-    if (e.keycode === 13) {
-      this._onChange(e);
-    }
-  }
-
-  _onChange(e) {
-    let { newValue } = this.state;
-    if (isNaN(newValue)) return;
-    if (this.props.min !== undefined && newValue < this.props.min) newValue = this.props.min;
-    if (this.props.max !== undefined && newValue > this.props.max) newValue = this.props.max;
-    this.props.onChange(newValue);
-  }
-
-  _onShowMenu(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    window.desktop.showPortContextMenu(this.props.port);
-  }
-
-  render() {
-    const { label, value, min, max, step, disabled, onChange } = this.props;
+  } else {
     return (
-      <>
-        <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
-        <NumberDrag label={label} value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} />
-        <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
-      </>
+      <input
+        ref={inputRef}
+        className="flex-1 bg-gray-800 border border-gray-700 outline-none py-2 px-1 whitespace-nowrap text-gray-100 w-full"
+        type="text"
+        autoFocus={true}
+        value={tempValue}
+        onChange={(e) => setTempValue(e.target.value)}
+        onKeyDown={onInputKey}
+        onBlur={onInputEnd}
+      />
     );
   }
 }
 
-function ToggleParam({ port, disabled, onChange }) {
-  function handleShowMenu(e) {
+function FloatParam({ port, label, value, min, max, step, disabled, onChange }) {
+  const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
     window.desktop.showPortContextMenu(port);
-  }
+  };
+
+  return (
+    <>
+      <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
+      <NumberDrag label={label} value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} />
+      <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
+    </>
+  );
+}
+
+function ToggleParam({ port, disabled, onChange }) {
+  const handleShowMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.desktop.showPortContextMenu(port);
+  };
 
   return (
     <>
@@ -234,11 +192,11 @@ function ToggleParam({ port, disabled, onChange }) {
 }
 
 function ExpressionParam({ port, label, expression, onChange }) {
-  function handleShowMenu(e) {
+  const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
     window.desktop.showPortContextMenu(port);
-  }
+  };
 
   return (
     <>
@@ -249,414 +207,318 @@ function ExpressionParam({ port, label, expression, onChange }) {
   );
 }
 
-class StringParam extends Component {
-  constructor(props) {
-    super(props);
-    this._onChange = throttle(this._onChange.bind(this), 200);
-    this._onShowMenu = this._onShowMenu.bind(this);
-  }
+function StringParam({ port, label, value, disabled, onChange }) {
+  const throttledOnChange = useRef(throttle(onChange, 200)).current;
 
-  _onChange(e) {
-    const value = e.target.value;
-    this.props.onChange(value);
-  }
-
-  _onShowMenu(e) {
+  const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    window.desktop.showPortContextMenu(this.props.port);
-  }
+    window.desktop.showPortContextMenu(port);
+  };
 
-  render() {
-    const { label, value, disabled, onChange } = this.props;
-    return (
-      <>
-        <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
-        <InlineEditor value={value} onChange={onChange} />
-        <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
-      </>
-    );
-  }
+  return (
+    <>
+      <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
+      <InlineEditor value={value} onChange={throttledOnChange} />
+      <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
+    </>
+  );
 }
 
-class SelectParam extends Component {
-  constructor(props) {
-    super(props);
-    this._onShowMenu = this._onShowMenu.bind(this);
-    this._handleChange = this._handleChange.bind(this);
-  }
-
-  _onShowMenu(e) {
+function SelectParam({ port, label, value, options, disabled, onChange }) {
+  const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    window.desktop.showPortContextMenu(this.props.port);
-  }
+    window.desktop.showPortContextMenu(port);
+  };
 
-  _handleChange(e) {
-    const { options, onChange } = this.props;
+  const handleChange = (e) => {
     const selectedStr = e.target.value;
     const originalVal = options.find((opt) => String(opt) === selectedStr);
     onChange(originalVal !== undefined ? originalVal : selectedStr);
-  }
+  };
 
-  render() {
-    const { label, value, options, disabled, onChange } = this.props;
-    const stringValue = String(value);
+  const stringValue = String(value);
 
-    return (
-      <>
-        <label className="w-32 text-right text-gray-500 whitespace-nowrap">{label}</label>
-        <select
-          type="text"
-          spellCheck="false"
-          disabled={disabled}
-          className={'flex-1 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
-          value={stringValue}
-          onChange={this._handleChange}
-        >
-          {options.map((option, index) => {
-            if (option === '---') {
-              return (
-                <option disabled key={index}>
-                  ───────────────
-                </option>
-              );
-            }
-            const optStr = String(option);
+  return (
+    <>
+      <label className="w-32 text-right text-gray-500 whitespace-nowrap">{label}</label>
+      <select
+        type="text"
+        spellCheck="false"
+        disabled={disabled}
+        className={'flex-1 p-2 ' + (disabled ? 'bg-gray-800 text-gray-700' : 'bg-gray-700 text-gray-200')}
+        value={stringValue}
+        onChange={handleChange}
+      >
+        {options.map((option, index) => {
+          if (option === '---') {
             return (
-              <option key={index} value={optStr}>
-                {optStr}
+              <option disabled key={index}>
+                ───────────────
               </option>
             );
-          })}
-        </select>
-        <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
-      </>
-    );
-  }
+          }
+          const optStr = String(option);
+          return (
+            <option key={index} value={optStr}>
+              {optStr}
+            </option>
+          );
+        })}
+      </select>
+      <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
+    </>
+  );
 }
 
-class ColorParam extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { pickerVisible: false };
-    this._onToggleColorPicker = this._onToggleColorPicker.bind(this);
-    this._onChange = this._onChange.bind(this);
-    this._onShowMenu = this._onShowMenu.bind(this);
-  }
+function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
+  const [pickerVisible, setPickerVisible] = useState(false);
 
-  componentDidUpdate(nextProps) {
-    if (this.props.port !== nextProps.port) {
-      this.setState({ pickerVisible: false });
-    }
-  }
+  const handleToggleColorPicker = () => {
+    setPickerVisible(!pickerVisible);
+  };
 
-  _onToggleColorPicker(e) {
-    this.setState({ pickerVisible: !this.state.pickerVisible });
-    // let value = e.target.value;
-    // value = chroma(value).rgb();
-    // this.props.onChange(value);
-  }
-
-  _onChange(color) {
+  const handleChange = (color) => {
     const { r, g, b, a } = color.rgb;
-    this.props.onChange([r, g, b, a]);
-  }
+    onChange([r, g, b, a]);
+  };
 
-  _onShowMenu(e) {
+  const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    window.desktop.showPortContextMenu(this.props.port);
-  }
+    window.desktop.showPortContextMenu(port);
+  };
 
-  render() {
-    const { label, value, onChange } = this.props;
-    const { pickerVisible } = this.state;
-    const rgbaValue = chroma(value).rgba();
-    const [r, g, b, a] = value;
-    const pickerValue = { r, g, b, a };
-    const popover = {
-      position: 'absolute',
-      zIndex: '2',
-      top: '10px',
-      right: `${this.props.editorSplitterWidth + 2}px`,
-    };
-    const cover = {
-      position: 'fixed',
-      top: '0px',
-      right: '0px',
-      bottom: '0px',
-      left: '0px',
-    };
-    return (
-      <>
-        <label className="text-right text-gray-500 py-2 whitespace-nowrap">{label}</label>
-        <span
-          className="w-16 bg-gray-700 h-8 border border-gray-800"
-          style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
-          onClick={this._onToggleColorPicker}
-        />
-        <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
-        {pickerVisible && (
-          <div style={popover}>
-            <div style={cover} onClick={this._onToggleColorPicker} />
-            <ChromePicker color={pickerValue} onChange={this._onChange} />
-          </div>
-        )}
-      </>
-    );
-  }
+  const rgbaValue = chroma(value).rgba();
+  const [r, g, b, a] = value;
+  const pickerValue = { r, g, b, a };
+  const popover = {
+    position: 'absolute',
+    zIndex: '2',
+    top: '10px',
+    right: `${editorSplitterWidth + 10}px`,
+  };
+  const cover = {
+    position: 'fixed',
+    top: '0px',
+    right: '0px',
+    bottom: '0px',
+    left: '0px',
+  };
+
+  return (
+    <>
+      <label className="text-right text-gray-500 py-2 whitespace-nowrap">{label}</label>
+      <span
+        className="w-16 bg-gray-700 h-8 border border-gray-800"
+        style={{ backgroundColor: `rgba(${rgbaValue.join(',')})` }}
+        onClick={handleToggleColorPicker}
+      />
+      <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
+      {pickerVisible && (
+        <div style={popover}>
+          <div style={cover} onClick={handleToggleColorPicker} />
+          <ChromePicker color={pickerValue} onChange={handleChange} />
+        </div>
+      )}
+    </>
+  );
 }
 
-class PointParam extends Component {
-  constructor(props) {
-    super(props);
-    this._onShowMenu = this._onShowMenu.bind(this);
-  }
-
-  _onShowMenu(e) {
+function PointParam({ port, label, value, onChange }) {
+  const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    window.desktop.showPortContextMenu(this.props.port);
-  }
+    window.desktop.showPortContextMenu(port);
+  };
 
-  render() {
-    const { label, value } = this.props;
-    return (
-      <>
-        <label className="text-right text-gray-500 py-2 whitespace-nowrap">{label}</label>
-        <span className="flex gap-2">
-          <NumberDrag label={label} value={value.x} step={0.1} onChange={(v) => this.props.onChange(new Point(v, value.y))} />
-          <NumberDrag label={label} value={value.y} step={0.1} onChange={(v) => this.props.onChange(new Point(value.x, v))} />
-        </span>
-        <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={this._onShowMenu} />
-      </>
-    );
-  }
+  return (
+    <>
+      <label className="text-right text-gray-500 py-2 whitespace-nowrap">{label}</label>
+      <span className="flex gap-2">
+        <NumberDrag label={label} value={value.x} step={0.1} onChange={(v) => onChange(new Point(v, value.y))} />
+        <NumberDrag label={label} value={value.y} step={0.1} onChange={(v) => onChange(new Point(value.x, v))} />
+      </span>
+      <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
+    </>
+  );
 }
 
-class FileParam extends Component {
-  constructor(props) {
-    super(props);
-    this._onSelectFile = this._onSelectFile.bind(this);
-  }
-
-  async _onSelectFile() {
-    const filePath = await window.desktop.showOpenFileDialog(this.props.fileType);
+function FileParam({ label, value, fileType, onChange }) {
+  const handleSelectFile = async () => {
+    const filePath = await window.desktop.showOpenFileDialog(fileType);
     if (!filePath) return;
     const file = figment.filePathToRelative(filePath);
-    this.props.onChange(file);
-  }
+    onChange(file);
+  };
 
-  render() {
-    const { label, value } = this.props;
-    return (
-      <>
-        <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
-        <div className="flex items-center overflow-hidden">
-          <span className="flex-1 text-gray-400 truncate whitespace-nowrap" onClick={this._onSelectFile} title={value}>
-            {value}
-          </span>
-          <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectFile}>
-            Open…
-          </button>
-        </div>
-        <span />
-      </>
-    );
-  }
+  return (
+    <>
+      <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
+      <div className="flex items-center overflow-hidden">
+        <span className="flex-1 text-gray-400 truncate whitespace-nowrap" onClick={handleSelectFile} title={value}>
+          {value}
+        </span>
+        <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={handleSelectFile}>
+          Open…
+        </button>
+      </div>
+      <span />
+    </>
+  );
 }
 
-class DirectoryParam extends Component {
-  constructor(props) {
-    super(props);
-    this._onSelectDirectory = this._onSelectDirectory.bind(this);
-  }
-
-  async _onSelectDirectory() {
+function DirectoryParam({ label, value, onChange }) {
+  const handleSelectDirectory = async () => {
     const filePath = await window.desktop.showOpenDirectoryDialog();
     if (!filePath) return;
     const directory = figment.filePathToRelative(filePath);
-    this.props.onChange(directory);
-  }
+    onChange(directory);
+  };
 
-  render() {
-    const { label, value } = this.props;
-    return (
-      <>
-        <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
-        <div className="flex items-center overflow-hidden">
-          <span className="w-32 text-gray-400 truncate" onClick={this._onSelectDirectory} title={value}>
-            {value}
-          </span>
-          <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={this._onSelectDirectory}>
-            Open…
-          </button>
-        </div>
-        <span />
-      </>
-    );
-  }
+  return (
+    <>
+      <label className="w-32 text-right text-gray-500 mr-4 whitespace-nowrap">{label}</label>
+      <div className="flex items-center overflow-hidden">
+        <span className="w-32 text-gray-400 truncate" onClick={handleSelectDirectory} title={value}>
+          {value}
+        </span>
+        <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={handleSelectDirectory}>
+          Open…
+        </button>
+      </div>
+      <span />
+    </>
+  );
 }
 
-export default class ParamsEditor extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      trackedPortValues: {},
-      error: null,
-    };
-    this._onChangePortValue = this._onChangePortValue.bind(this);
-    this._onChangePortExpression = this._onChangePortExpression.bind(this);
-    this._onNetworkChange = this._onNetworkChange.bind(this);
-  }
+export default function ParamsEditor() {
+  const network = useAppStore((s) => s.network);
+  const selection = useAppStore((s) => s.selection);
+  const editorSplitterWidth = useAppStore((s) => s.editorSplitterWidth);
+  const openNodeRenameDialog = useAppStore((s) => s.openNodeRenameDialog);
+  const changePortValue = useAppStore((s) => s.changePortValue);
+  const changePortExpression = useAppStore((s) => s.changePortExpression);
+  const revertPortValue = useAppStore((s) => s.revertPortValue);
+  const triggerButton = useAppStore((s) => s.triggerButton);
+  useAppStore((s) => s.version); // Subscribe to version to trigger re-renders on port changes
 
-  componentDidMount() {
-    this.props.network.addChangeListener(this._onNetworkChange);
-    this._updateTrackedPortValues();
-  }
+  const [trackedPortValues, setTrackedPortValues] = useState({});
+  const [error, setError] = useState(null);
 
-  componentWillUnmount() {
-    this.props.network.removeChangeListener(this._onNetworkChange);
-  }
+  // Use refs to avoid stale closures in event listeners
+  const trackedPortValuesRef = useRef({});
+  const errorRef = useRef(null);
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.network !== this.props.network) {
-      prevProps.network.removeChangeListener(this._onNetworkChange);
-      this.props.network.addChangeListener(this._onNetworkChange);
-    }
-    // If the selection has changed, we need to update which ports we're tracking.
-    if (prevProps.selection !== this.props.selection) {
-      this._updateTrackedPortValues();
-    }
-  }
+  // Keep refs in sync with state
+  useEffect(() => {
+    trackedPortValuesRef.current = trackedPortValues;
+    errorRef.current = error;
+  }, [trackedPortValues, error]);
 
-  _getTrackablePorts(node) {
+  const getTrackablePorts = (node) => {
     if (!node) return [];
     // Only track connected toggle ports, as their value can change externally and they are visible in the inspector.
-    return node.inPorts.filter((port) => port.type === PORT_TYPE_TOGGLE && this.props.network.isConnected(port));
-  }
+    const currentNetwork = useAppStore.getState().network;
+    return node.inPorts.filter((port) => port.type === PORT_TYPE_TOGGLE && currentNetwork.isConnected(port));
+  };
 
-  _updateTrackedPortValues() {
-    const { selection } = this.props;
-    if (selection.size !== 1) {
-      if (Object.keys(this.state.trackedPortValues).length > 0 || this.state.error) {
-        this.setState({ trackedPortValues: {}, error: null });
+  const updateTrackedPortValues = () => {
+    const currentSelection = useAppStore.getState().selection;
+    if (currentSelection.size !== 1) {
+      if (Object.keys(trackedPortValuesRef.current).length > 0 || errorRef.current) {
+        setTrackedPortValues({});
+        setError(null);
       }
       return;
     }
-    const node = Array.from(selection)[0];
-    const trackablePorts = this._getTrackablePorts(node);
+    const node = Array.from(currentSelection)[0];
+    const trackablePorts = getTrackablePorts(node);
     const newTrackedValues = {};
     for (const port of trackablePorts) {
       newTrackedValues[port.name] = port.value;
     }
     // Only update state if the values have actually changed to avoid an extra render cycle.
-    if (JSON.stringify(this.state.trackedPortValues) !== JSON.stringify(newTrackedValues) || this.state.error !== node.error) {
-      this.setState({ trackedPortValues: newTrackedValues, error: node.error });
+    if (JSON.stringify(trackedPortValuesRef.current) !== JSON.stringify(newTrackedValues) || errorRef.current !== node.error) {
+      setTrackedPortValues(newTrackedValues);
+      setError(node.error);
     }
-  }
+  };
 
-  _onNetworkChange() {
-    const { selection } = this.props;
-    if (selection.size !== 1) return;
+  const onNetworkChange = () => {
+    const currentSelection = useAppStore.getState().selection;
+    if (currentSelection.size !== 1) return;
 
-    const node = Array.from(selection)[0];
-    const trackablePorts = this._getTrackablePorts(node);
+    const node = Array.from(currentSelection)[0];
+    const trackablePorts = getTrackablePorts(node);
 
     let needsUpdate = false;
-    const newTrackedValues = { ...this.state.trackedPortValues };
+    const newTrackedValues = { ...trackedPortValuesRef.current };
 
     for (const port of trackablePorts) {
-      if (this.state.trackedPortValues[port.name] !== port.value) {
+      if (trackedPortValuesRef.current[port.name] !== port.value) {
         newTrackedValues[port.name] = port.value;
         needsUpdate = true;
       }
     }
 
-    if (node.error !== this.state.error) {
+    if (node.error !== errorRef.current) {
       needsUpdate = true;
     }
 
     if (needsUpdate) {
-      this.setState({ trackedPortValues: newTrackedValues, error: node.error });
+      setTrackedPortValues(newTrackedValues);
+      setError(node.error);
     }
-  }
+  };
 
-  _onChangePortValue(portName, value) {
-    this.props.selection.forEach((node) => {
-      this.props.onChangePortValue(node, portName, value);
-    });
-  }
+  useEffect(() => {
+    const initialNetwork = useAppStore.getState().network;
+    initialNetwork.addChangeListener(onNetworkChange);
+    updateTrackedPortValues();
 
-  _onChangePortExpression(portName, expression) {
-    this.props.selection.forEach((node) => {
-      this.props._onChangePortExpression(node, portName, expression);
-    });
-  }
-
-  _onTriggerButton(port) {
-    this.props.selection.forEach((node) => {
-      this.props.onTriggerButton(node, port);
-    });
-  }
-
-  render() {
-    const { network, selection, onShowNodeRenameDialog } = this.props;
-    if (selection.size === 0) {
-      return (
-        <div className="params">
-          <div className="params__header"></div>
-          <p className="params__empty">Nothing selected</p>
-        </div>
-      );
-    }
-    if (selection.size > 1) {
-      return (
-        <div className="params">
-          <div className="params__header"></div>
-          <p className="params__empty">Many nodes selected</p>
-        </div>
-      );
-    }
-    const node = Array.from(selection)[0];
-    const errorLines = node.error ? node.error.split('\n') : [];
-    const errorTitle = errorLines[0] || 'Error';
-    const stackLines = errorLines.slice(1);
-    const cleanedStackLines = stackLines.map((line) => {
-      const match = line.match(/\((.*)\)/);
-      if (match && match[1]) {
-        const path = match[1];
-        if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('file:///')) {
-          return line.replace(/\s\(.*\)$/, '');
+    // Subscribe to network changes from Zustand
+    let currentNetwork = initialNetwork;
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      if (state.network !== prevState.network) {
+        if (currentNetwork !== state.network) {
+          currentNetwork.removeChangeListener(onNetworkChange);
+          state.network.addChangeListener(onNetworkChange);
+          currentNetwork = state.network;
         }
       }
-      return line;
+      // Update tracked port values when selection changes
+      if (state.selection !== prevState.selection) {
+        updateTrackedPortValues();
+      }
     });
-    const errorStack = cleanedStackLines.join('\n');
 
-    return (
-      <div className="params">
-        <div className="params__header">
-          <span className="text-gray-200 hover:bg-gray-700 px-2 py-1" onClick={() => onShowNodeRenameDialog(node)}>
-            {node.name}
-          </span>
-          <span className="text-gray-500 text-xs ml-3">{node.type}</span>
-        </div>
-        {node.error && (
-          <div className="bg-gray-900 text-white text-xs font-mono shadow border-l-2 border-red-500">
-            <div className="p-2">
-              <pre className="whitespace-pre-wrap flex-1 mb-2">{errorTitle}</pre>
-              <pre className="whitespace-pre-wrap">{errorStack}</pre>
-            </div>
-          </div>
-        )}
-        <div className="params__grid grid ">{node.inPorts.map((port) => this._renderPort(network, node, port))}</div>
-      </div>
-    );
-  }
+    return () => {
+      currentNetwork.removeChangeListener(onNetworkChange);
+      unsubscribe();
+    };
+  }, []);
 
-  _renderPort(network, node, port) {
+  const handleChangePortValue = (portName, value) => {
+    selection.forEach((node) => {
+      changePortValue(node, portName, value);
+    });
+  };
+
+  const handleChangePortExpression = (portName, expression) => {
+    selection.forEach((node) => {
+      changePortExpression(node, portName, expression);
+    });
+  };
+
+  const handleTriggerButton = (port) => {
+    selection.forEach((node) => {
+      triggerButton(node, port);
+    });
+  };
+
+  const renderPort = (network, node, port) => {
     let field;
     if (port._value.type === 'expression') {
       field = (
@@ -666,24 +528,24 @@ export default class ParamsEditor extends Component {
           label={port.label}
           expression={port._value.expression}
           disabled={network.isConnected(port)}
-          onChange={(expr) => this._onChangePortExpression(port.name, expr)}
+          onChange={(expr) => handleChangePortExpression(port.name, expr)}
         />
       );
     } else if (port.type === PORT_TYPE_TRIGGER) {
-      return;
+      return null;
     } else if (port.type === PORT_TYPE_BUTTON) {
       field = (
-        <Fragment key={port.name}>
+        <React.Fragment key={port.name}>
           <span className="w-32 mr-4"></span>
           <button
             className="bg-gray-600 text-gray-200 w-32 p-2"
             disabled={network.isConnected(port)}
-            onClick={() => this._onTriggerButton(port)}
+            onClick={() => handleTriggerButton(port)}
           >
             {port.label}
           </button>
           <span />
-        </Fragment>
+        </React.Fragment>
       );
     } else if (port.type === PORT_TYPE_TOGGLE) {
       field = (
@@ -693,7 +555,7 @@ export default class ParamsEditor extends Component {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_NUMBER) {
@@ -707,8 +569,7 @@ export default class ParamsEditor extends Component {
           max={port.max}
           step={port.step}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
-          onRevert={() => this.props.onRevertPortValue(node, port.name)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_STRING) {
@@ -719,7 +580,7 @@ export default class ParamsEditor extends Component {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_SELECT) {
@@ -731,8 +592,7 @@ export default class ParamsEditor extends Component {
           value={port.value}
           options={port.options}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
-          onRevert={() => this.props.onRevertPortValue(node, port.name)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_POINT) {
@@ -743,7 +603,7 @@ export default class ParamsEditor extends Component {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_COLOR) {
@@ -754,9 +614,8 @@ export default class ParamsEditor extends Component {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
-          onRevert={() => this.props.onRevertPortValue(node, port.name)}
-          editorSplitterWidth={this.props.editorSplitterWidth}
+          onChange={(value) => handleChangePortValue(port.name, value)}
+          editorSplitterWidth={editorSplitterWidth}
         />
       );
     } else if (port.type === PORT_TYPE_FILE) {
@@ -768,7 +627,7 @@ export default class ParamsEditor extends Component {
           value={port.value}
           fileType={port.fileType}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_DIRECTORY) {
@@ -779,19 +638,64 @@ export default class ParamsEditor extends Component {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => this._onChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValue(port.name, value)}
         />
       );
-    } else {
-      field = undefined;
     }
     return field;
-    // (
-    //   <div className="params__row">
-    //   {field}
-    //     <div className="params__label">{port.name}</div>
-    //     <div className="params__field">{field}</div>
-    //   </div>
-    // );
+  };
+
+  if (selection.size === 0) {
+    return (
+      <div className="params">
+        <div className="params__header"></div>
+        <p className="params__empty">Nothing selected</p>
+      </div>
+    );
   }
+
+  if (selection.size > 1) {
+    return (
+      <div className="params">
+        <div className="params__header"></div>
+        <p className="params__empty">Many nodes selected</p>
+      </div>
+    );
+  }
+
+  const node = Array.from(selection)[0];
+  const errorLines = node.error ? node.error.split('\n') : [];
+  const errorTitle = errorLines[0] || 'Error';
+  const stackLines = errorLines.slice(1);
+  const cleanedStackLines = stackLines.map((line) => {
+    const match = line.match(/\((.*)\)/);
+    if (match && match[1]) {
+      const path = match[1];
+      if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('file:///')) {
+        return line.replace(/\s\(.*\)$/, '');
+      }
+    }
+    return line;
+  });
+  const errorStack = cleanedStackLines.join('\n');
+
+  return (
+    <div className="params">
+      <div className="params__header">
+        <span className="text-gray-200 hover:bg-gray-700 px-2 py-1" onClick={() => openNodeRenameDialog(node)}>
+          {node.name}
+        </span>
+        <span className="text-gray-500 text-xs ml-3">{node.type}</span>
+      </div>
+      {node.error && (
+        <div className="bg-gray-900 text-white text-xs font-mono shadow border-l-2 border-red-500">
+          <div className="p-2">
+            <pre className="whitespace-pre-wrap flex-1 mb-2">{errorTitle}</pre>
+            <pre className="whitespace-pre-wrap">{errorStack}</pre>
+          </div>
+        </div>
+      )}
+      <div className="params__grid grid ">{node.inPorts.map((port) => renderPort(network, node, port))}</div>
+    </div>
+  );
 }

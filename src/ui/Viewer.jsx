@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as twgl from 'twgl.js';
+import { useAppStore } from './store';
 
 const NODE_WIDTH = 100;
 const NODE_HEIGHT = 56;
@@ -14,7 +15,7 @@ void main() {
   vec2 pos = a_position;
   // Convert position from 0.0-1.0 to -1.0-1.0
   pos = pos * 2.0 - 1.0;
-  pos.y = -pos.y;  
+  pos.y = -pos.y;
   pos *= u_scale;
   gl_Position = vec4(pos, 0.0, 1.0);
 }
@@ -30,66 +31,22 @@ void main() {
 }
 `;
 
-export default class Viewer extends Component {
-  constructor(props) {
-    super(props);
-    this.previewCanvasRef = React.createRef();
-    this._onNetworkChange = this._onNetworkChange.bind(this);
-    this._animate = this._animate.bind(this);
-  }
+export default function Viewer({ offscreenCanvas }) {
+  const network = useAppStore((s) => s.network);
 
-  componentDidMount() {
-    this._offscreenCanvas = this.props.offscreenCanvas;
-    this.gl = this._offscreenCanvas.getContext('webgl');
-    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+  const previewCanvasRef = useRef(null);
+  const glRef = useRef(null);
+  const programInfoRef = useRef(null);
+  const defaultTextureRef = useRef(null);
+  const nodeRectBufferInfoRef = useRef(null);
+  const shouldDrawRef = useRef(false);
 
-    // Create a default checkerboard texture.
-    const checkerTexture = {
-      mag: this.gl.NEAREST,
-      min: this.gl.LINEAR,
-      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
-    };
-    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
+  const draw = () => {
+    const gl = glRef.current;
+    const canvas = offscreenCanvas;
+    const previewCanvas = previewCanvasRef.current;
+    if (!gl || !previewCanvas) return;
 
-    // Create a buffer for a node rectangle.
-    let x0 = 0;
-    let x1 = 1;
-    let y0 = 0;
-    let y1 = 1;
-    const arrays = {
-      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
-      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-      indices: [0, 1, 2, 0, 2, 3],
-    };
-    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
-
-    // Listen for network changes.
-    this.props.network.addChangeListener(this._onNetworkChange);
-    this._animate();
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps.network !== this.props.network) {
-      prevProps.network.removeChangeListener(this._onNetworkChange);
-      this.props.network.addChangeListener(this._onNetworkChange);
-    }
-    this._draw();
-  }
-
-  render() {
-    return (
-      <div className="fixed inset-0 overflow-hidden bg-black">
-        <canvas ref={this.previewCanvasRef}></canvas>
-      </div>
-    );
-  }
-
-  _draw() {
-    const { gl } = this;
-    const { network } = this.props;
-    const canvas = this._offscreenCanvas;
-    const previewCanvas = this.previewCanvasRef.current;
-    if (!previewCanvas) return;
     const parent = previewCanvas.parentElement;
     if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
       canvas.width = parent.clientWidth;
@@ -119,7 +76,7 @@ export default class Viewer extends Component {
       textureWidth = outPort.value.width;
       textureHeight = outPort.value.height;
     } else {
-      texture = this.defaultTexture;
+      texture = defaultTextureRef.current;
       textureWidth = NODE_WIDTH;
       textureHeight = NODE_HEIGHT;
     }
@@ -139,32 +96,86 @@ export default class Viewer extends Component {
     }
 
     twgl.bindFramebufferInfo(gl, null);
-    gl.useProgram(this.programInfo.program);
-    twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
-    twgl.setUniforms(this.programInfo, {
+    gl.useProgram(programInfoRef.current.program);
+    twgl.setBuffersAndAttributes(gl, programInfoRef.current, nodeRectBufferInfoRef.current);
+    twgl.setUniforms(programInfoRef.current, {
       u_texture: texture,
       u_color: nodeColor,
       u_viewport: [canvas.width, canvas.height],
       u_resolution: [textureWidth, textureHeight],
       u_scale: u_scale,
     });
-    twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
+    twgl.drawBufferInfo(gl, nodeRectBufferInfoRef.current);
 
     // Draw the offscreen canvas on the preview canvas.
     const previewContext = previewCanvas.getContext('bitmaprenderer');
     const bitmap = canvas.transferToImageBitmap();
     previewContext.transferFromImageBitmap(bitmap);
-  }
+  };
 
-  _onNetworkChange() {
-    this._shouldDraw = true;
-  }
+  const onNetworkChange = () => {
+    shouldDrawRef.current = true;
+  };
 
-  _animate() {
-    if (this._shouldDraw) {
-      this._draw();
-      this._shouldDraw = false;
+  const animate = () => {
+    if (shouldDrawRef.current) {
+      draw();
+      shouldDrawRef.current = false;
     }
-    window.requestAnimationFrame(this._animate);
-  }
+    window.requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    const gl = offscreenCanvas.getContext('webgl');
+    glRef.current = gl;
+    programInfoRef.current = twgl.createProgramInfo(gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+
+    // Create a default checkerboard texture.
+    const checkerTexture = {
+      mag: gl.NEAREST,
+      min: gl.LINEAR,
+      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
+    };
+    defaultTextureRef.current = twgl.createTexture(gl, checkerTexture);
+
+    // Create a buffer for a node rectangle.
+    let x0 = 0;
+    let x1 = 1;
+    let y0 = 0;
+    let y1 = 1;
+    const arrays = {
+      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
+      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
+      indices: [0, 1, 2, 0, 2, 3],
+    };
+    nodeRectBufferInfoRef.current = twgl.createBufferInfoFromArrays(gl, arrays);
+
+    // Listen for network changes.
+    const initialNetwork = useAppStore.getState().network;
+    initialNetwork.addChangeListener(onNetworkChange);
+    animate();
+
+    // Subscribe to network changes from Zustand
+    let currentNetwork = initialNetwork;
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      if (state.network !== prevState.network) {
+        if (currentNetwork !== state.network) {
+          currentNetwork.removeChangeListener(onNetworkChange);
+          state.network.addChangeListener(onNetworkChange);
+          currentNetwork = state.network;
+        }
+      }
+    });
+
+    return () => {
+      currentNetwork.removeChangeListener(onNetworkChange);
+      unsubscribe();
+    };
+  }, [offscreenCanvas]);
+
+  return (
+    <div className="fixed inset-0 overflow-hidden bg-black">
+      <canvas ref={previewCanvasRef}></canvas>
+    </div>
+  );
 }

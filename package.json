@@ -42,7 +42,8 @@
     "seedrandom": "3.0.5",
     "three": "^0.177.0",
     "tween-functions": "1.2.0",
-    "twgl.js": "^6.1.1"
+    "twgl.js": "^6.1.1",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@electron/notarize": "^3.0.1",

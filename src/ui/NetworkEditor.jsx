@@ -1,7 +1,8 @@
-import React, { Component } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
 import * as twgl from 'twgl.js';
+import { useAppStore } from './store';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -125,59 +126,74 @@ function clamp(v, min, max) {
 //   return portCount * NODE_PORT_WIDTH;
 // }
 
-export default class NetworkEditor extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { x: 0, y: 0, scale: 1.0 };
-    this.MIN_VIEW_SCALE = 0.15;
-    this.MAX_VIEW_SCALE = 15;
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseDrag = this._onMouseDrag.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
-    this._onMouseWheel = this._onMouseWheel.bind(this);
-    this._onDoubleClick = this._onDoubleClick.bind(this);
-    this._onContextMenu = this._onContextMenu.bind(this);
-    this._onKeyDown = this._onKeyDown.bind(this);
-    this._onKeyUp = this._onKeyUp.bind(this);
-    this._onResize = this._onResize.bind(this);
-    this._onNetworkChange = this._onNetworkChange.bind(this);
-    this._draw = this._draw.bind(this);
-    this._drawNodePreviews = this._drawNodePreviews.bind(this);
-    this._animate = this._animate.bind(this);
-    this._dragMode = DRAG_MODE_IDLE;
-    this._spaceDown = false;
-    this._dragPort = null;
-    this._networkX = this._networkY = 0;
-    this._dragX = this._dragY = 0;
-    this._timer = undefined;
-    this._shouldDraw = true;
-    this.canvasRef = React.createRef();
-    this.previewCanvasRef = React.createRef();
-  }
+export default function NetworkEditor({ offscreenCanvas }) {
+  // In order to avoid stale closures, all data (network, selection) states are retrieved
+  // from Zustand when needed. Action functions (e.g. selectNode) are stable in Zustand,
+  // so it's safe to capture in closures.
 
-  componentDidMount() {
-    window.addEventListener('keydown', this._onKeyDown);
-    window.addEventListener('keyup', this._onKeyUp);
-    window.addEventListener('resize', this._onResize);
-    this.canvas = this.canvasRef.current;
-    this.ctx = this.canvas.getContext('2d');
-    if (this.previewCanvasRef.current) {
-      const parent = this.previewCanvasRef.current.parentElement;
-      this.previewCanvasRef.current.width = parent.clientWidth;
-      this.previewCanvasRef.current.height = parent.clientHeight;
+  const selectNode = useAppStore((state) => state.selectNode);
+  const toggleSelectNode = useAppStore((state) => state.toggleSelectNode);
+  const selectNodes = useAppStore((state) => state.selectNodes);
+  const clearSelection = useAppStore((state) => state.clearSelection);
+  const deleteSelection = useAppStore((state) => state.deleteSelection);
+  const openNodeDialog = useAppStore((state) => state.openNodeDialog);
+  const connect = useAppStore((state) => state.connect);
+  const disconnect = useAppStore((state) => state.disconnect);
+
+  const MIN_VIEW_SCALE = 0.15;
+  const MAX_VIEW_SCALE = 15;
+
+  const stateRef = useRef({ x: 0, y: 0, scale: 1.0 });
+  const [, forceUpdate] = useState({});
+
+  const dragModeRef = useRef(DRAG_MODE_IDLE);
+  const spaceDownRef = useRef(false);
+  const dragPortRef = useRef(null);
+  const networkXRef = useRef(0);
+  const networkYRef = useRef(0);
+  const dragXRef = useRef(0);
+  const dragYRef = useRef(0);
+  const shouldDrawRef = useRef(true);
+  const canvasRef = useRef(null);
+  const previewCanvasRef = useRef(null);
+  const ctxRef = useRef(null);
+  const glRef = useRef(null);
+  const programInfoRef = useRef(null);
+  const defaultTextureRef = useRef(null);
+  const nodeRectBufferInfoRef = useRef(null);
+  const offscreenCanvasRef = useRef(null);
+  const prevXRef = useRef(0);
+  const prevYRef = useRef(0);
+  const resizeObserverRef = useRef(null);
+
+  // On component mount
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('resize', onResize);
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctxRef.current = ctx;
+
+    if (previewCanvasRef.current) {
+      const parent = previewCanvasRef.current.parentElement;
+      previewCanvasRef.current.width = parent.clientWidth;
+      previewCanvasRef.current.height = parent.clientHeight;
     }
-    this._offscreenCanvas = this.props.offscreenCanvas;
-    this.gl = this._offscreenCanvas.getContext('webgl');
-    this.programInfo = twgl.createProgramInfo(this.gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+
+    offscreenCanvasRef.current = offscreenCanvas;
+    const gl = offscreenCanvas.getContext('webgl');
+    glRef.current = gl;
+    programInfoRef.current = twgl.createProgramInfo(gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
 
     // Create a default checkerboard texture.
     const checkerTexture = {
-      mag: this.gl.NEAREST,
-      min: this.gl.LINEAR,
+      mag: gl.NEAREST,
+      min: gl.LINEAR,
       src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
     };
-    this.defaultTexture = twgl.createTexture(this.gl, checkerTexture);
+    defaultTextureRef.current = twgl.createTexture(gl, checkerTexture);
 
     // Create a buffer for a node rectangle.
     let x0 = 0;
@@ -189,301 +205,301 @@ export default class NetworkEditor extends Component {
       a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
       indices: [0, 1, 2, 0, 2, 3],
     };
-    this.nodeRectBufferInfo = twgl.createBufferInfoFromArrays(this.gl, arrays);
+    nodeRectBufferInfoRef.current = twgl.createBufferInfoFromArrays(gl, arrays);
 
     // Add a resize observer, redrawing the canvas when the size changes
-    this._resizeObserver = new ResizeObserver(this._onResize);
-    if (this.canvasRef.current) {
-      this._resizeObserver.observe(this.canvasRef.current);
+    resizeObserverRef.current = new ResizeObserver(onResize);
+    if (canvasRef.current) {
+      resizeObserverRef.current.observe(canvasRef.current);
     }
 
-    this._draw();
-    this.props.network.addChangeListener(this._onNetworkChange);
-    this._animate();
-  }
+    draw();
+    const initialNetwork = useAppStore.getState().network;
+    initialNetwork.addChangeListener(onNetworkChange);
+    animate();
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this._onKeyDown);
-    window.removeEventListener('keyup', this._onKeyUp);
-    window.removeEventListener('resize', this._onResize);
-    clearInterval(this._timer);
-    this.props.network.removeChangeListener(this._onNetworkChange);
-    if (this.canvasRef.current) {
-      this._resizeObserver.unobserve(this.canvasRef.current);
-    }
-  }
+    // Subscribe to store changes
+    let currentNetwork = initialNetwork;
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      // Redraw on selection changes
+      if (state.selection !== prevState.selection) {
+        draw();
+      }
+      // Redraw on version changes (forceRedraw)
+      if (state.version !== prevState.version) {
+        draw();
+      }
+      // Update network listeners when network changes
+      if (state.network !== prevState.network) {
+        if (currentNetwork !== state.network) {
+          currentNetwork.removeChangeListener(onNetworkChange);
+          state.network.addChangeListener(onNetworkChange);
+          currentNetwork = state.network;
+        }
+      }
+    });
 
-  render() {
-    return (
-      <div className="network relative">
-        <canvas ref={this.previewCanvasRef} className="absolute inset-0 pointer-events-none" />
-        <canvas
-          className="network__canvas"
-          ref={this.canvasRef}
-          onMouseDown={this._onMouseDown}
-          onMouseMove={this._onMouseMove}
-          onDoubleClick={this._onDoubleClick}
-          onWheel={this._onMouseWheel}
-          onContextMenu={this._onContextMenu}
-        />
-      </div>
-    );
-  }
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('resize', onResize);
+      currentNetwork.removeChangeListener(onNetworkChange);
+      if (canvasRef.current && resizeObserverRef.current) {
+        resizeObserverRef.current.unobserve(canvasRef.current);
+      }
+      unsubscribe();
+    };
+  }, []);
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.network !== this.props.network) {
-      prevProps.network.removeChangeListener(this._onNetworkChange);
-      this.props.network.addChangeListener(this._onNetworkChange);
-    }
-    this._draw();
-  }
-
-  _hitTest(node, x, y) {
-    const padding = 5 / this.state.scale;
+  const hitTest = (node, x, y) => {
+    const padding = 5 / stateRef.current.scale;
     const x1 = node.x;
     const x2 = node.x + NODE_WIDTH;
-    const y1 = node.y - padding; // Some slack for the input ports
-    const y2 = node.y + NODE_HEIGHT + padding; // Some slack for the output ports
+    const y1 = node.y - padding;
+    const y2 = node.y + NODE_HEIGHT + padding;
     return x >= x1 && x <= x2 && y >= y1 && y <= y2;
-  }
+  };
 
-  _findNode(x, y) {
-    for (const node of this.props.network.nodes) {
-      if (this._hitTest(node, x, y)) {
+  const findNode = (x, y) => {
+    const network = useAppStore.getState().network;
+    for (const node of network.nodes) {
+      if (hitTest(node, x, y)) {
         return node;
       }
     }
-  }
+  };
 
-  _visibleInPorts(node) {
+  const visibleInPorts = (node) => {
     return node.inPorts.filter((port) => port.display & PORT_DISPLAY_PLUG);
-  }
+  };
 
-  _visibleOutPorts(node) {
+  const visibleOutPorts = (node) => {
     return node.outPorts;
-  }
+  };
 
-  _findPort(node, x, y) {
-    const dx = (x - node.x) * this.state.scale;
-    const dy = (y - node.y) * this.state.scale;
+  const findPort = (node, x, y) => {
+    const dx = (x - node.x) * stateRef.current.scale;
+    const dy = (y - node.y) * stateRef.current.scale;
     const portIndex = Math.floor(dx / NODE_PORT_WIDTH);
-    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
-      return this._visibleInPorts(node)[portIndex];
+    if (dragModeRef.current === DRAG_MODE_DRAG_PORT) {
+      return visibleInPorts(node)[portIndex];
     } else {
       if (dy <= 10) {
-        return this._visibleInPorts(node)[portIndex];
-      } else if (dy >= NODE_HEIGHT * this.state.scale - 10) {
-        return this._visibleOutPorts(node)[portIndex];
+        return visibleInPorts(node)[portIndex];
+      } else if (dy >= NODE_HEIGHT * stateRef.current.scale - 10) {
+        return visibleOutPorts(node)[portIndex];
       }
     }
-  }
+  };
 
-  _networkPosition(e) {
+  const networkPosition = (e) => {
     const mouseX = e.clientX;
     const mouseY = e.clientY - NETWORK_HEADER_HEIGHT;
-    const networkX = (mouseX - this.state.x) / this.state.scale;
-    const networkY = (mouseY - this.state.y) / this.state.scale;
+    const networkX = (mouseX - stateRef.current.x) / stateRef.current.scale;
+    const networkY = (mouseY - stateRef.current.y) / stateRef.current.scale;
     return [networkX, networkY];
-  }
+  };
 
-  _coordsToView(x, y) {
-    // return [(x + this.state.x) * this.state.scale, (y + this.state.y) * this.state.scale];
-    return [this.state.x + x * this.state.scale, this.state.y + y * this.state.scale];
-  }
+  const coordsToView = (x, y) => {
+    return [stateRef.current.x + x * stateRef.current.scale, stateRef.current.y + y * stateRef.current.scale];
+  };
 
-  _onMouseDown(e) {
+  const onMouseDown = (e) => {
     if (e.button !== 0) {
       return;
     }
     e.preventDefault();
-    // if (e.button === 0 && e.shiftKey) {
-    //   this._dragMode = DRAG_MODE_SELECTING;
-    // } else {
-    //   this._dragMode = DRAG_MODE_IDLE;
-    //   return;
-    // }
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
-    this.prevX = mouseX;
-    this.prevY = mouseY;
-    const [networkX, networkY] = this._networkPosition(e);
-    const node = this._findNode(networkX, networkY);
+    prevXRef.current = mouseX;
+    prevYRef.current = mouseY;
+    const [networkX, networkY] = networkPosition(e);
+    const node = findNode(networkX, networkY);
     if (!node) {
       if (e.shiftKey) {
-        this._dragMode = DRAG_MODE_SELECTING;
-        this._dragX = networkX;
-        this._dragY = networkY;
+        dragModeRef.current = DRAG_MODE_SELECTING;
+        dragXRef.current = networkX;
+        dragYRef.current = networkY;
       } else {
-        this.props.onClearSelection();
-        this._dragMode = DRAG_MODE_PANNING;
+        clearSelection();
+        dragModeRef.current = DRAG_MODE_PANNING;
       }
     } else {
       // Mouse is over a node.
-      const port = node && this._findPort(node, networkX, networkY);
+      const port = node && findPort(node, networkX, networkY);
       if (port && port.direction === PORT_OUT) {
-        this._dragMode = DRAG_MODE_DRAG_PORT;
-        this._dragPort = port;
-        const [x, y] = this._networkPosition(e);
-        this._dragX = x;
-        this._dragY = y;
+        dragModeRef.current = DRAG_MODE_DRAG_PORT;
+        dragPortRef.current = port;
+        const [x, y] = networkPosition(e);
+        dragXRef.current = x;
+        dragYRef.current = y;
       } else if (port && port.direction === PORT_IN) {
-        const conn = this.props.network.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
+        const network = useAppStore.getState().network;
+        const conn = network.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
         if (conn) {
-          this.props.onDisconnect(port);
-          this._dragMode = DRAG_MODE_DRAG_PORT;
-          const outNode = this.props.network.nodes.find((node) => node.id === conn.outNode);
+          disconnect(port);
+          dragModeRef.current = DRAG_MODE_DRAG_PORT;
+          const outNode = network.nodes.find((node) => node.id === conn.outNode);
           const outPort = outNode.outPorts.find((port) => port.name === conn.outPort);
-          this._dragPort = outPort;
-          const [x, y] = this._networkPosition(e);
-          this._dragX = x;
-          this._dragY = y;
+          dragPortRef.current = outPort;
+          const [x, y] = networkPosition(e);
+          dragXRef.current = x;
+          dragYRef.current = y;
         }
       } else {
         // Mouse is over a node, but not a port.
         if (e.shiftKey) {
-          this.props.onToggleSelectNode(node);
-          this._dragMode = DRAG_MODE_IDLE;
+          toggleSelectNode(node);
+          dragModeRef.current = DRAG_MODE_IDLE;
         } else {
-          this._dragMode = DRAG_MODE_DRAG_NODE;
-          if (!this.props.selection.has(node)) {
-            this.props.onSelectNode(node);
+          dragModeRef.current = DRAG_MODE_DRAG_NODE;
+          const currentSelection = useAppStore.getState().selection;
+          if (!currentSelection.has(node)) {
+            selectNode(node);
           }
-          this._draw();
+          draw();
         }
       }
     }
-    window.addEventListener('mousemove', this._onMouseDrag);
-    window.addEventListener('mouseup', this._onMouseUp);
-  }
+    window.addEventListener('mousemove', onMouseDrag);
+    window.addEventListener('mouseup', onMouseUp);
+  };
 
-  _onMouseMove(e) {
-    [this._networkX, this._networkY] = this._networkPosition(e);
-    this._draw();
-  }
+  const onMouseMove = (e) => {
+    [networkXRef.current, networkYRef.current] = networkPosition(e);
+    draw();
+  };
 
-  _onMouseDrag(e) {
+  const onMouseDrag = (e) => {
     e.preventDefault();
     const mouseX = e.clientX;
     const mouseY = e.clientY - EDITOR_TABS_HEIGHT;
-    const dx = mouseX - this.prevX;
-    const dy = mouseY - this.prevY;
-    [this._networkX, this._networkY] = this._networkPosition(e);
-    if (this._dragMode === DRAG_MODE_PANNING) {
-      this.setState({ x: this.state.x + dx, y: this.state.y + dy });
-    } else if (this._dragMode === DRAG_MODE_SELECTING) {
-      // FIXME implement box selections
-    } else if (this._dragMode === DRAG_MODE_DRAG_NODE) {
-      this.props.selection.forEach((node) => {
-        node.x += dx / this.state.scale;
-        node.y += dy / this.state.scale;
+    const dx = mouseX - prevXRef.current;
+    const dy = mouseY - prevYRef.current;
+    [networkXRef.current, networkYRef.current] = networkPosition(e);
+    if (dragModeRef.current === DRAG_MODE_PANNING) {
+      stateRef.current.x += dx;
+      stateRef.current.y += dy;
+      draw();
+    } else if (dragModeRef.current === DRAG_MODE_SELECTING) {
+      // Box selections: nothing is needed here
+    } else if (dragModeRef.current === DRAG_MODE_DRAG_NODE) {
+      const currentSelection = useAppStore.getState().selection;
+      currentSelection.forEach((node) => {
+        node.x += dx / stateRef.current.scale;
+        node.y += dy / stateRef.current.scale;
       });
-      this._draw();
-    } else if (this._dragMode === DRAG_MODE_DRAG_PORT) {
-      const [x, y] = this._networkPosition(e);
-      this._dragX = x;
-      this._dragY = y;
-      this._draw();
+      draw();
+    } else if (dragModeRef.current === DRAG_MODE_DRAG_PORT) {
+      const [x, y] = networkPosition(e);
+      dragXRef.current = x;
+      dragYRef.current = y;
+      draw();
     }
-    this.prevX = mouseX;
-    this.prevY = mouseY;
-  }
+    prevXRef.current = mouseX;
+    prevYRef.current = mouseY;
+  };
 
-  _onMouseUp(e) {
+  const onMouseUp = (e) => {
     e.preventDefault();
-    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
-      const [networkX, networkY] = this._networkPosition(e);
-      const node = this._findNode(networkX, networkY);
-      const port = node && this._findPort(node, networkX, networkY);
-      if (port && port.direction === PORT_IN) this.props.onConnect(this._dragPort, port);
-    } else if (this._dragMode === DRAG_MODE_SELECTING) {
+    if (dragModeRef.current === DRAG_MODE_DRAG_PORT) {
+      const [networkX, networkY] = networkPosition(e);
+      const node = findNode(networkX, networkY);
+      const port = node && findPort(node, networkX, networkY);
+      if (port && port.direction === PORT_IN) connect(dragPortRef.current, port);
+    } else if (dragModeRef.current === DRAG_MODE_SELECTING) {
       // Find out which nodes are in the selection rectangle.
+      const network = useAppStore.getState().network;
       const newSelection = new Set();
-      for (const node of this.props.network.nodes) {
-        if (node.x >= this._dragX && node.x <= this._networkX && node.y >= this._dragY && node.y <= this._networkY) {
+      for (const node of network.nodes) {
+        if (node.x >= dragXRef.current && node.x <= networkXRef.current && node.y >= dragYRef.current && node.y <= networkYRef.current) {
           newSelection.add(node);
         }
       }
-      this.props.onSelectNodes(newSelection);
+      selectNodes(newSelection);
     }
-    window.removeEventListener('mousemove', this._onMouseDrag);
-    window.removeEventListener('mouseup', this._onMouseUp);
-    this._dragMode = DRAG_MODE_IDLE;
-    this._draw();
-  }
+    window.removeEventListener('mousemove', onMouseDrag);
+    window.removeEventListener('mouseup', onMouseUp);
+    dragModeRef.current = DRAG_MODE_IDLE;
+    draw();
+  };
 
-  _onMouseWheel(e) {
-    // e.preventDefault();
-    const [mouseX, mouseY] = this._networkPosition(e);
+  const onMouseWheel = (e) => {
+    const [mouseX, mouseY] = networkPosition(e);
     const wheel = -e.deltaY;
     const zoom = Math.exp(wheel * 0.0005);
-    let newScale = this.state.scale * zoom;
-    if (newScale < this.MIN_VIEW_SCALE) {
-      newScale = this.MIN_VIEW_SCALE;
-    } else if (newScale > this.MAX_VIEW_SCALE) {
-      newScale = this.MAX_VIEW_SCALE;
+    let newScale = stateRef.current.scale * zoom;
+    if (newScale < MIN_VIEW_SCALE) {
+      newScale = MIN_VIEW_SCALE;
+    } else if (newScale > MAX_VIEW_SCALE) {
+      newScale = MAX_VIEW_SCALE;
     }
-    const scaleDelta = newScale - this.state.scale;
-    this.setState({
-      x: this.state.x - mouseX * scaleDelta,
-      y: this.state.y - mouseY * scaleDelta,
-      scale: newScale,
-    });
-  }
+    const scaleDelta = newScale - stateRef.current.scale;
+    stateRef.current.x = stateRef.current.x - mouseX * scaleDelta;
+    stateRef.current.y = stateRef.current.y - mouseY * scaleDelta;
+    stateRef.current.scale = newScale;
+    draw();
+  };
 
-  _onDoubleClick(e) {
-    const [networkX, networkY] = this._networkPosition(e);
-    const node = this._findNode(networkX, networkY);
+  const onDoubleClick = (e) => {
+    const [networkX, networkY] = networkPosition(e);
+    const node = findNode(networkX, networkY);
     if (!node) {
-      this.props.onShowNodeDialog(new Point(networkX, networkY));
+      openNodeDialog(new Point(networkX, networkY));
     }
-  }
+  };
 
-  _onContextMenu(e) {
+  const onContextMenu = (e) => {
     e.preventDefault();
-    const [networkX, networkY] = this._networkPosition(e);
-    const node = this._findNode(networkX, networkY);
-    this._dragMode = DRAG_MODE_IDLE;
+    const [networkX, networkY] = networkPosition(e);
+    const node = findNode(networkX, networkY);
+    dragModeRef.current = DRAG_MODE_IDLE;
     if (node) {
-      this.props.onSelectNode(node);
+      selectNode(node);
       window.desktop.showNodeContextMenu(node.id);
     } else {
       // FIXME: Show network context menu
     }
-  }
+  };
 
-  _onKeyDown(e) {
+  const onKeyDown = (e) => {
     if (e.keyCode === 32) {
       if (e.target.nodeName === 'INPUT' && e.target.type === 'text') return;
       e.preventDefault();
-      this._spaceDown = true;
+      spaceDownRef.current = true;
     }
-  }
+  };
 
-  _onKeyUp(e) {
+  const onKeyUp = (e) => {
     if (e.keyCode === 32) {
       if (e.target.nodeName === 'INPUT' && e.target.type === 'text') return;
       e.preventDefault();
-      this._spaceDown = false;
+      spaceDownRef.current = false;
     } else if (e.keyCode === 46 || e.keyCode === 8) {
       // Delete or backspace;
       if (e.target.localName === 'input' || e.target.localName === 'textarea') return;
       e.preventDefault();
-      this.props.onDeleteSelection();
+      deleteSelection();
+      draw(); // Redraw immediately after deletion
     }
-  }
+  };
 
-  _onResize() {
-    this._draw();
-  }
+  const onResize = () => {
+    draw();
+  };
 
-  _onNetworkChange() {
-    this._shouldDraw = true;
-  }
+  const onNetworkChange = () => {
+    shouldDrawRef.current = true;
+  };
 
-  _draw() {
-    const { canvas, ctx } = this;
-    const { network, selection } = this.props;
+  const draw = () => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
 
+    const state = stateRef.current;
+    const network = useAppStore.getState().network;
+    const selection = useAppStore.getState().selection;
     const ratio = window.devicePixelRatio;
     const bounds = canvas.getBoundingClientRect();
     if (canvas.width !== bounds.width * ratio || canvas.height !== bounds.height * ratio) {
@@ -492,8 +508,8 @@ export default class NetworkEditor extends Component {
     }
 
     // Detect if we're hovering over a node.
-    const overNode = this._findNode(this._networkX, this._networkY);
-    const overPort = overNode ? this._findPort(overNode, this._networkX, this._networkY) : undefined;
+    const overNode = findNode(networkXRef.current, networkYRef.current);
+    const overPort = overNode ? findPort(overNode, networkXRef.current, networkYRef.current) : undefined;
 
     // Set up the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -501,9 +517,9 @@ export default class NetworkEditor extends Component {
 
     // Draw nodes
     for (const node of network.nodes) {
-      const [nodeX, nodeY] = this._coordsToView(node.x, node.y);
-      const nodeWidth = NODE_WIDTH * this.state.scale;
-      const nodeHeight = NODE_HEIGHT * this.state.scale;
+      const [nodeX, nodeY] = coordsToView(node.x, node.y);
+      const nodeWidth = NODE_WIDTH * state.scale;
+      const nodeHeight = NODE_HEIGHT * state.scale;
       let borderColor = COLORS.gray700;
       if (node.error) {
         borderColor = COLORS.red500;
@@ -530,7 +546,7 @@ export default class NetworkEditor extends Component {
       for (let i = 0; i < node.outPorts.length; i++) {
         const port = node.outPorts[i];
         ctx.fillStyle = PORT_COLORS[port.type];
-        ctx.fillRect(nodeX + portX, nodeY + NODE_HEIGHT * this.state.scale - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
+        ctx.fillRect(nodeX + portX, nodeY + NODE_HEIGHT * state.scale - NODE_BORDER, NODE_PORT_WIDTH - 2, NODE_BORDER * 2);
         portX += NODE_PORT_WIDTH;
       }
     }
@@ -539,16 +555,16 @@ export default class NetworkEditor extends Component {
     ctx.fillStyle = COLORS.gray300;
     ctx.font = `12px ${FONT_FAMILY_MONO}`;
     for (const node of network.nodes) {
-      const [textX, textY] = this._coordsToView(node.x + NODE_WIDTH, node.y + NODE_HEIGHT / 2);
+      const [textX, textY] = coordsToView(node.x + NODE_WIDTH, node.y + NODE_HEIGHT / 2);
       ctx.fillText(node.name, textX + 10, textY);
     }
 
     // Draw node output sizes
-    if (this.state.scale > 0.5) {
+    if (state.scale > 0.5) {
       ctx.fillStyle = COLORS.gray700;
       ctx.font = `10px ${FONT_FAMILY_MONO}`;
       for (const node of network.nodes) {
-        const [textX, textY] = this._coordsToView(node.x + NODE_WIDTH, node.y + NODE_HEIGHT / 2);
+        const [textX, textY] = coordsToView(node.x + NODE_WIDTH, node.y + NODE_HEIGHT / 2);
 
         if (node.debugMessage) {
           ctx.fillText(node.debugMessage, textX + 10, textY + 16);
@@ -569,88 +585,83 @@ export default class NetworkEditor extends Component {
     const clipPath = new Path2D();
     clipPath.rect(0, 0, canvas.width, canvas.height);
     for (const node of network.nodes) {
-      let x = this.state.x + node.x * this.state.scale;
-      let y = this.state.y + node.y * this.state.scale;
-      clipPath.rect(x, y, NODE_WIDTH * this.state.scale, NODE_HEIGHT * this.state.scale);
+      let x = state.x + node.x * state.scale;
+      let y = state.y + node.y * state.scale;
+      clipPath.rect(x, y, NODE_WIDTH * state.scale, NODE_HEIGHT * state.scale);
     }
     ctx.clip(clipPath, 'evenodd');
 
     for (const conn of network.connections) {
       const outNode = network.nodes.find((node) => node.id === conn.outNode);
-      const outPortIndex = this._visibleOutPorts(outNode).findIndex((port) => port.name === conn.outPort);
+      const outPortIndex = visibleOutPorts(outNode).findIndex((port) => port.name === conn.outPort);
       const inNode = network.nodes.find((node) => node.id === conn.inNode);
-      const inPortIndex = this._visibleInPorts(inNode).findIndex((port) => port.name === conn.inPort);
+      const inPortIndex = visibleInPorts(inNode).findIndex((port) => port.name === conn.inPort);
       const outPort = outNode.outPorts.find((port) => port.name === conn.outPort);
-      const outX = this.state.x + outNode.x * this.state.scale + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-      const outY = this.state.y + (outNode.y + NODE_HEIGHT) * this.state.scale;
-      const inX = this.state.x + inNode.x * this.state.scale + inPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-      const inY = this.state.y + inNode.y * this.state.scale;
-      // const [outXScaled, outYScaled] = this._coordsToView(outX, outY);
-      // const [inXScaled, inYScaled] = this._coordsToView(inX, inY);
+      const outX = state.x + outNode.x * state.scale + outPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+      const outY = state.y + (outNode.y + NODE_HEIGHT) * state.scale;
+      const inX = state.x + inNode.x * state.scale + inPortIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+      const inY = state.y + inNode.y * state.scale;
       ctx.strokeStyle = PORT_COLORS[outPort.type];
-      this._drawConnectionLine(ctx, outX, outY, inX, inY);
+      drawConnectionLine(ctx, outX, outY, inX, inY);
     }
     ctx.restore();
 
-    this._drawPortTooltip(ctx, overNode, overPort);
+    drawPortTooltip(ctx, overNode, overPort);
 
     // Draw connection line when dragging
-    if (this._dragMode === DRAG_MODE_DRAG_PORT) {
+    if (dragModeRef.current === DRAG_MODE_DRAG_PORT) {
       ctx.strokeStyle = COLORS.gray300;
-      const port = this._dragPort;
-      const portIndex = port.node.outPorts.findIndex((p) => p === this._dragPort);
+      const port = dragPortRef.current;
+      const portIndex = port.node.outPorts.findIndex((p) => p === dragPortRef.current);
       ctx.beginPath();
       let x1, y1, x2, y2;
       if (port.direction === PORT_OUT) {
-        x1 = this.state.x + port.node.x * this.state.scale + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-        // y1 =
-        //   this.state.y + port.direction === PORT_IN
-        //     ? port.node.y * this.state.scale
-        //     : (port.node.y + NODE_HEIGHT) * this.state.scale;
-        y1 = this.state.y + (port.node.y + NODE_HEIGHT) * this.state.scale;
-        x2 = this.state.x + this._dragX * this.state.scale;
-        y2 = this.state.y + this._dragY * this.state.scale;
+        x1 = state.x + port.node.x * state.scale + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+        y1 = state.y + (port.node.y + NODE_HEIGHT) * state.scale;
+        x2 = state.x + dragXRef.current * state.scale;
+        y2 = state.y + dragYRef.current * state.scale;
       } else {
-        x2 = this.state.x + port.node.x * this.state.scale + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
-        y2 = this.state.y + port.direction === PORT_IN ? port.node.y * this.state.scale : (port.node.y + NODE_HEIGHT) * this.state.scale;
-        x1 = this._dragX;
-        y1 = this._dragY;
+        x2 = state.x + port.node.x * state.scale + portIndex * NODE_PORT_WIDTH + NODE_PORT_WIDTH / 2;
+        y2 = state.y + port.direction === PORT_IN ? port.node.y * state.scale : (port.node.y + NODE_HEIGHT) * state.scale;
+        x1 = dragXRef.current;
+        y1 = dragYRef.current;
       }
       ctx.beginPath();
-      this._drawConnectionLine(ctx, x1, y1, x2, y2);
+      drawConnectionLine(ctx, x1, y1, x2, y2);
       ctx.stroke();
     }
 
     // Draw drag rectangle
-    if (this._dragMode === DRAG_MODE_SELECTING) {
+    if (dragModeRef.current === DRAG_MODE_SELECTING) {
       ctx.strokeStyle = COLORS.gray300;
       ctx.lineWidth = 1;
-      let x1 = this._dragX;
-      let y1 = this._dragY;
-      let x2 = this._networkX - this._dragX;
-      let y2 = this._networkY - this._dragY;
+      let x1 = dragXRef.current;
+      let y1 = dragYRef.current;
+      let x2 = networkXRef.current - dragXRef.current;
+      let y2 = networkYRef.current - dragYRef.current;
       ctx.beginPath();
-      ctx.rect(this.state.scale * x1 + this.state.x, this.state.scale * y1 + this.state.y, this.state.scale * x2, this.state.scale * y2);
+      ctx.rect(state.scale * x1 + state.x, state.scale * y1 + state.y, state.scale * x2, state.scale * y2);
       ctx.stroke();
     }
 
-    this._drawNodePreviews();
-  }
+    drawNodePreviews();
+  };
 
-  _drawPortTooltip(ctx, overNode, overPort) {
+  const drawPortTooltip = (ctx, overNode, overPort) => {
     if (!overPort) return;
-    if (this._dragMode !== DRAG_MODE_IDLE && this._dragMode !== DRAG_MODE_DRAG_PORT) return;
-    if (this._dragMode === DRAG_MODE_DRAG_PORT && overPort.direction !== PORT_IN) return;
-    let toolTipX = this.state.x + overNode.x * this.state.scale;
-    let toolTipY = this.state.y + overNode.y * this.state.scale;
+    if (dragModeRef.current !== DRAG_MODE_IDLE && dragModeRef.current !== DRAG_MODE_DRAG_PORT) return;
+    if (dragModeRef.current === DRAG_MODE_DRAG_PORT && overPort.direction !== PORT_IN) return;
+    const state = stateRef.current;
+    let toolTipX = state.x + overNode.x * state.scale;
+    let toolTipY = state.y + overNode.y * state.scale;
     if (overPort.direction === PORT_IN) {
-      const index = this._visibleInPorts(overNode).indexOf(overPort);
+      const index = visibleInPorts(overNode).indexOf(overPort);
       toolTipX += index * NODE_PORT_WIDTH;
       toolTipY += 25;
     } else {
-      const index = this._visibleOutPorts(overNode).indexOf(overPort);
+      const index = visibleOutPorts(overNode).indexOf(overPort);
       toolTipX += index * NODE_PORT_WIDTH;
-      toolTipY += NODE_HEIGHT * this.state.scale + 20;
+      toolTipY += NODE_HEIGHT * state.scale + 20;
     }
 
     let text = overPort.name;
@@ -662,22 +673,24 @@ export default class NetworkEditor extends Component {
     ctx.fillRect(toolTipX, toolTipY, 10 + text.length * 8, 25);
     ctx.fillStyle = COLORS.gray900;
     ctx.fillText(text, toolTipX + 5, toolTipY + 17);
-  }
+  };
 
-  _drawConnectionLine(ctx, x1, y1, x2, y2) {
+  const drawConnectionLine = (ctx, x1, y1, x2, y2) => {
     const halfDy = Math.abs(y2 - y1) / 2.0;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.bezierCurveTo(x1, y1 + halfDy, x2, y2 - halfDy, x2, y2);
     ctx.stroke();
-  }
+  };
 
-  _drawNodePreviews() {
-    const { gl } = this;
-    const { network } = this.props;
-    const canvas = this._offscreenCanvas;
-    const previewCanvas = this.previewCanvasRef.current;
-    if (!previewCanvas) return;
+  const drawNodePreviews = () => {
+    const gl = glRef.current;
+    const canvas = offscreenCanvasRef.current;
+    const previewCanvas = previewCanvasRef.current;
+    if (!gl || !canvas || !previewCanvas) return;
+
+    const state = stateRef.current;
+    const network = useAppStore.getState().network;
     const parent = previewCanvas.parentElement;
     if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
       canvas.width = parent.clientWidth;
@@ -694,12 +707,6 @@ export default class NetworkEditor extends Component {
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
       if (!outPort || outPort.type !== 'image') {
-        this.ctx.fillStyle = 'black';
-        let x = this.state.x + node.x * this.state.scale;
-        let y = this.state.y + node.y * this.state.scale;
-        let width = NODE_WIDTH * this.state.scale;
-        let height = NODE_HEIGHT * this.state.scale;
-        // this.ctx.fillRect(x + NODE_BORDER, y + NODE_BORDER, width - NODE_BORDER * 2, height - NODE_BORDER * 2);
         continue;
       }
 
@@ -711,49 +718,50 @@ export default class NetworkEditor extends Component {
         textureWidth = outPort.value.width;
         textureHeight = outPort.value.height;
       } else {
-        texture = this.defaultTexture;
+        texture = defaultTextureRef.current;
         textureWidth = NODE_WIDTH;
         textureHeight = NODE_HEIGHT;
       }
-      //   let ratio = outPort.value.width / outPort.value.height;
-      //   let dRatio = PREVIEW_GEO_RATIO / ratio;
-      //   if (ratio < PREVIEW_GEO_RATIO) {
-      //     mesh.scale.set(1 / dRatio, 1, 1);
-      //   } else {
-      //     mesh.scale.set(1, dRatio, 1);
-      //   }
-      //   mesh.material.color.set(0xffffff);
-      //   mesh.material.map = outPort.value.texture;
-      //   mesh.material.needsUpdate = true;
-      // } else {
-      //   mesh.material.color.set(0xff00ff);
-      //   mesh.material.map = null;
-      // }
 
       twgl.bindFramebufferInfo(gl, null);
-      gl.useProgram(this.programInfo.program);
-      twgl.setBuffersAndAttributes(gl, this.programInfo, this.nodeRectBufferInfo);
-      twgl.setUniforms(this.programInfo, {
+      gl.useProgram(programInfoRef.current.program);
+      twgl.setBuffersAndAttributes(gl, programInfoRef.current, nodeRectBufferInfoRef.current);
+      twgl.setUniforms(programInfoRef.current, {
         u_texture: texture,
         u_color: nodeColor,
         u_viewport: [canvas.width, canvas.height],
         u_position: [node.x, node.y],
         u_resolution: [textureWidth, textureHeight],
-        u_camera: [this.state.x, this.state.y, this.state.scale],
+        u_camera: [state.x, state.y, state.scale],
       });
-      twgl.drawBufferInfo(gl, this.nodeRectBufferInfo);
+      twgl.drawBufferInfo(gl, nodeRectBufferInfoRef.current);
     }
 
     const previewContext = previewCanvas.getContext('bitmaprenderer');
     const bitmap = canvas.transferToImageBitmap();
     previewContext.transferFromImageBitmap(bitmap);
-  }
+  };
 
-  _animate() {
-    if (this._shouldDraw) {
-      this._drawNodePreviews();
-      this._shouldDraw = false;
+  const animate = () => {
+    if (shouldDrawRef.current) {
+      drawNodePreviews();
+      shouldDrawRef.current = false;
     }
-    window.requestAnimationFrame(this._animate);
-  }
+    window.requestAnimationFrame(animate);
+  };
+
+  return (
+    <div className="network relative">
+      <canvas ref={previewCanvasRef} className="absolute inset-0 pointer-events-none" />
+      <canvas
+        className="network__canvas"
+        ref={canvasRef}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onDoubleClick={onDoubleClick}
+        onWheel={onMouseWheel}
+        onContextMenu={onContextMenu}
+      />
+    </div>
+  );
 }

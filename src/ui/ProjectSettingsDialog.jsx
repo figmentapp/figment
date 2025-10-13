@@ -3,10 +3,15 @@ import clsx from 'clsx';
 import Icon from './Icon';
 import { COLORS } from '../colors';
 import InlineEditor from './InlineEditor';
+import { useAppStore } from './store';
 
-export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
+export default function ProjectSettingsDialog() {
+  const network = useAppStore((state) => state.network);
+  useAppStore((state) => state.version); // Subscribe to version to trigger re-renders on setting changes
+  const closeProjectSettingsDialog = useAppStore((state) => state.closeProjectSettingsDialog);
+  const changeProjectSetting = useAppStore((state) => state.changeProjectSetting);
   return (
-    <div className="dialog-wrapper" onClick={onCancel}>
+    <div className="dialog-wrapper" onClick={closeProjectSettingsDialog}>
       <div
         className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900 rounded-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -14,7 +19,13 @@ export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
         {/* Top row */}
         <div className="flex flex-row justify-between items-center bg-gray-800">
           <span className="text-xl text-gray-400 py-4 px-6">Project Settings</span>
-          <Icon name="x" size={16} fill={COLORS.gray600} className="text-gray-600 cursor-pointer mr-4" onClick={onCancel} />
+          <Icon
+            name="x"
+            size={16}
+            fill={COLORS.gray600}
+            className="text-gray-600 cursor-pointer mr-4"
+            onClick={closeProjectSettingsDialog}
+          />
         </div>
 
         {/* OSC */}
@@ -24,7 +35,7 @@ export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
               type="checkbox"
               className="m-4"
               checked={!!network.settings.oscEnabled}
-              onChange={(e) => onChange('oscEnabled', e.target.checked)}
+              onChange={(e) => changeProjectSetting('oscEnabled', e.target.checked)}
             />
             <span>Enable OSC</span>
           </label>
@@ -32,7 +43,7 @@ export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
             <span>Port</span>
             <InlineEditor
               value={network.settings.oscPort || 8888}
-              onChange={(v) => onChange('oscPort', parseInt(v) || 8888)}
+              onChange={(v) => changeProjectSetting('oscPort', parseInt(v) || 8888)}
               disabled={!network.settings.oscEnabled}
               onValidate={(v) => !isNaN(parseInt(v))}
             />
@@ -41,7 +52,7 @@ export default function ProjectSettingsDialog({ network, onChange, onCancel }) {
 
         {/* Action bar */}
         <div className="flex flex-row justify-end mt-6  m-2 ">
-          <button className="py-2 px-4 text-gray-200  bg-gray-600 hover:bg-gray-700" onClick={onCancel}>
+          <button className="py-2 px-4 text-gray-200  bg-gray-600 hover:bg-gray-700" onClick={closeProjectSettingsDialog}>
             Close
           </button>
         </div>
