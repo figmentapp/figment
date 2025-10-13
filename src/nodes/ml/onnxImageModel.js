@@ -25,6 +25,14 @@ node.onStart = async () => {
   framebuffer = new figment.Framebuffer(512, 512);
 };
 
+node.onStop = () => {
+  // Clean up GPU resources
+  if (inputBuffer) inputBuffer.destroy();
+  if (outputBuffer) outputBuffer.destroy();
+  if (stagingBuffer) stagingBuffer.destroy();
+  if (session) session.release();
+};
+
 async function loadModel() {
   if (!modelFileIn.value) return;
 
