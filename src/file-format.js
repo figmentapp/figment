@@ -1,4 +1,4 @@
-export const LATEST_FORMAT_VERSION = 4;
+export const LATEST_FORMAT_VERSION = 5;
 
 export function upgradeProject(project) {
   if (typeof project.version !== 'number') {
@@ -46,6 +46,20 @@ export function upgradeProject(project) {
     // Older versions of the project just work though.
     const newProject = structuredClone(project);
     newProject.version = 4;
+    return upgradeProject(newProject);
+  } else if (project.version === 4) {
+    // Version 5 renames the Save Image node parameter "enable" to "save".
+    // The "enable" select port (On Export/Always/Never) is now called "save",
+    // and a new boolean "enable" port was added for conditional saving.
+    const newProject = structuredClone(project);
+    newProject.version = 5;
+    for (const node of newProject.nodes) {
+      if (!node || !node.type) continue;
+      if (node.type === 'image.saveImage' && node.values && 'enable' in node.values) {
+        node.values.save = node.values.enable;
+        delete node.values.enable;
+      }
+    }
     return upgradeProject(newProject);
   }
 }
