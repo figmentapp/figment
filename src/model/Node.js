@@ -200,12 +200,17 @@ export default class Node {
     }
   }
 
-  booleanIn(name) {
+  booleanIn(name, value) {
+    if (value === undefined) value = false;
     const oldPort = this.inPorts.find((p) => p.name === name);
     if (oldPort) {
+      if (oldPort.hasDefaultValue()) {
+        oldPort.value = value;
+        oldPort.defaultValue = value;
+      }
       return oldPort;
     } else {
-      const inPort = new Port(this, name, PORT_TYPE_BOOLEAN, PORT_IN);
+      const inPort = new Port(this, name, PORT_TYPE_BOOLEAN, PORT_IN, value);
       this.inPorts.push(inPort);
       return inPort;
     }

@@ -12,10 +12,17 @@ playIn.display = 0x03;
 const loopIn = node.toggleIn('loop', true);
 const pauseModeIn = node.selectIn('pauseMode', ['hold', 'restart', 'rewind'], 'hold');
 const speedIn = node.numberIn('speed', 1, { min: 0.0, max: 10, step: 0.1 });
+const fpsIn = node.numberIn('fps', 30, { min: 1, max: 240, step: 1 });
 const restartIn = node.triggerButtonIn('restart');
+const frameIn = node.numberIn('frame', 0, { min: 0, step: 1 });
+frameIn.display = 0x03;
 const imageOut = node.imageOut('out');
+const frameCountOut = node.numberOut('frameCount');
+const currentFrameOut = node.numberOut('currentFrame');
 
 let framebuffer, program, video, videoReady, shouldLoad, lastPlayState, renderOnce;
+let frameCount = 0;
+let lastFrameTarget = -1;
 
 node.onStart = () => {
   framebuffer = new figment.Framebuffer();
@@ -47,6 +54,8 @@ async function loadMovie() {
     });
   });
   videoReady = true;
+  frameCount = Math.floor(video.duration * fpsIn.value);
+  frameCountOut.set(frameCount);
   framebuffer.setSize(video.videoWidth, video.videoHeight);
 }
 
@@ -58,6 +67,17 @@ async function seekAndWait(time) {
     video.addEventListener('seeked', resolve, { once: true });
     video.currentTime = time;
   });
+}
+
+async function seekFrame(frameIndex) {
+  if (!video || frameIndex < 0) return;
+  const time = frameIndex / fpsIn.value;
+  await seekAndWait(time);
+  renderOnce = true;
+  if (playIn.value) {
+    video.play();
+  }
+  node._markDirty();
 }
 
 node.onRender = async () => {
@@ -83,6 +103,11 @@ node.onRender = async () => {
   }
   lastPlayState = isPlaying;
 
+  if (frameIn.value !== lastFrameTarget) {
+    lastFrameTarget = frameIn.value;
+    await seekFrame(lastFrameTarget);
+  }
+
   if (video.paused && !renderOnce) return;
 
   framebuffer.unbind();
@@ -91,6 +116,9 @@ node.onRender = async () => {
   window.gl.bindTexture(window.gl.TEXTURE_2D, null);
   framebuffer._directImageHack = video;
   imageOut.set(framebuffer);
+
+  const currentFrame = Math.floor(video.currentTime * fpsIn.value);
+  currentFrameOut.set(currentFrame);
 
   if (video.paused) {
     renderOnce = false;
@@ -137,3 +165,9 @@ fileIn.onChange = () => {
 speedIn.onChange = changeSpeed;
 loopIn.onChange = changeLoop;
 restartIn.onTrigger = restartVideo;
+fpsIn.onChange = () => {
+  if (video) {
+    frameCount = Math.floor(video.duration * fpsIn.value);
+    frameCountOut.set(frameCount);
+  }
+};

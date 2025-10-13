@@ -5,7 +5,8 @@
  */
 
 const imageIn = node.imageIn('in');
-const enableIn = node.selectIn('Enable', ['On Export', 'Always', 'Never'], 'On Export');
+const enableIn = node.booleanIn('enable', true);
+const saveIn = node.selectIn('Save', ['On Export', 'Always', 'Never'], 'On Export');
 const folderIn = node.directoryIn('folder', '');
 const templateIn = node.stringIn('template', 'image-#####.png');
 const imageQualityIn = node.numberIn('quality', 0.9, { min: 0.0, max: 1.0, step: 0.01 });
@@ -15,9 +16,10 @@ node.onRender = async () => {
   if (!imageIn.value) return;
   imageOut.set(imageIn.value);
 
-  if (enableIn.value === 'Never') return;
+  if (!enableIn.value) return;
+  if (saveIn.value === 'Never') return;
   const runtimeMode = window.desktop.getRuntimeMode();
-  if (enableIn.value === 'On Export' && runtimeMode !== 'export') return;
+  if (saveIn.value === 'On Export' && runtimeMode !== 'export') return;
 
   const folder = folderIn.value;
   if (!folder) return;
