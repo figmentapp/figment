@@ -27,6 +27,13 @@ node.onStart = async () => {
 
 async function loadModel() {
   if (!modelFileIn.value) return;
+
+  // Clean up old resources to prevent memory leak
+  if (inputBuffer) inputBuffer.destroy();
+  if (outputBuffer) outputBuffer.destroy();
+  if (stagingBuffer) stagingBuffer.destroy();
+  if (session) await session.release();
+
   const modelUrl = figment.urlForAsset(modelFileIn.value);
   try {
     ort.env.webgpu.powerPreference = 'high-performance';
