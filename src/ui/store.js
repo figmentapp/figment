@@ -27,7 +27,7 @@ export const useAppStore = create((set, get) => ({
   nodeToRename: null,
   forkDialogNodeType: null,
   lastNetworkPoint: new Point(0, 0),
-  editorSplitterWidth: 350,
+  editorSplitterWidth: 350, // Width of params panel (sidebar)
   fullscreen: false,
   version: 1,
   isPlaying: true,
@@ -81,6 +81,9 @@ export const useAppStore = create((set, get) => ({
     window.desktop.setFullScreen(next);
     if (next) document.documentElement.classList.add('hide-cursor');
     else document.documentElement.classList.remove('hide-cursor');
+  },
+  setEditorSplitterWidth(width) {
+    set({ editorSplitterWidth: width });
   },
 
   // File ops

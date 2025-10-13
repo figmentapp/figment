@@ -297,7 +297,7 @@ function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
     position: 'absolute',
     zIndex: '2',
     top: '10px',
-    right: `${editorSplitterWidth + 2}px`,
+    right: `${editorSplitterWidth + 10}px`,
   };
   const cover = {
     position: 'fixed',

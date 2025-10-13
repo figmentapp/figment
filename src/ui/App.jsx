@@ -38,10 +38,26 @@ export default function App(props) {
   const handleOscEvent = useAppStore((state) => state.handleOscEvent);
   const handleMidiEvent = useAppStore((state) => state.handleMidiEvent);
   const openFile = useAppStore((state) => state.openFile);
+  const setEditorSplitterWidth = useAppStore((state) => state.setEditorSplitterWidth);
 
   useEffect(() => {
     window.gl = offscreenCanvasRef.current.getContext('webgl');
   }, []);
+
+  // Initialize editor splitter width from actual DOM dimensions
+  useEffect(() => {
+    const mainEl = mainRef.current;
+    if (mainEl) {
+      // Wait a frame for layout to complete
+      requestAnimationFrame(() => {
+        const paramsEl = mainEl.querySelector('.params');
+        if (paramsEl) {
+          const paramsWidth = paramsEl.offsetWidth;
+          setEditorSplitterWidth(paramsWidth);
+        }
+      });
+    }
+  }, [setEditorSplitterWidth]);
 
   // One-time: expression context for OSC/MIDI
   useEffect(() => {
