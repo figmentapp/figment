@@ -80,12 +80,13 @@ Version upgrades happen in `src/file-format.js`.
 
 ### UI Architecture
 
-React-based interface (`src/ui/`):
+React-based interface (`src/ui/`) using functional components and Zustand for state management:
 
 - **App.jsx**: Main application state and file management
 - **Editor.jsx**: Node graph visual editor with drag-and-drop
 - **Viewer.jsx**: Real-time output display
 - **ParamsEditor.jsx**: Node parameter controls
+- State is managed globally using Zustand stores for reactive updates
 
 ### Development Notes
 
