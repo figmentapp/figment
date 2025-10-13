@@ -45,7 +45,7 @@ async function loadModel() {
   const modelUrl = figment.urlForAsset(modelFileIn.value);
   try {
     ort.env.webgpu.powerPreference = 'high-performance';
-    session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['webgpu'], enableGraphCapture: true });
+    session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['webgpu'] });
     device = ort.env.webgpu.device;
     inputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, size: BUFFER_SIZE });
     outputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC, size: BUFFER_SIZE });
