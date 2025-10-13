@@ -6,8 +6,13 @@ export default function RenderDialog() {
   const renderSequence = useAppStore((s) => s.renderSequence);
   const closeRenderDialog = useAppStore((s) => s.closeRenderDialog);
 
-  const [frameCount, setFrameCount] = useState(100);
-  const [frameRate, setFrameRate] = useState(60);
+  // Find movie nodes and auto-populate frame count and FPS
+  const movieNodes = network.nodes.filter((n) => n.type === 'image.loadMovie');
+  const detectedFrameCount = Math.max(...movieNodes.map((n) => n.outPorts.find((p) => p.name === 'frameCount')?.value || 0), 0);
+  const detectedFps = movieNodes.length > 0 ? movieNodes[0].outPorts.find((p) => p.name === 'fps')?.value || 60 : 60;
+
+  const [frameCount, setFrameCount] = useState(detectedFrameCount > 0 ? detectedFrameCount : 100);
+  const [frameRate, setFrameRate] = useState(detectedFps);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isRendering, setIsRendering] = useState(false);
   const cancelRequestedRef = useRef(false);
@@ -61,13 +66,20 @@ export default function RenderDialog() {
           </div>
 
           {/* Description */}
-          <div className="flex flex-row items-center bg-gray-700 mb-6">
+          <div className="flex flex-row justify-between items-center bg-gray-700">
             <span className="text-gray-200 text-sm py-4 px-6">Render out all "Save Image" nodes.</span>
+            {movieNodes.length > 0 && detectedFrameCount > 0 && (
+                <span className="text-blue-200 text-sm py-1 px-2 bg-gray-800 rounded-lg mx-2">
+                  Detected movie with {detectedFrameCount} frames at {Math.round(detectedFps)} fps
+                </span>
+            )}
           </div>
 
+          {/* Movie detection info */}
+
           {/* Time range */}
-          <div className="flex flex-row items-center mb-6">
-            <span className="text-right w-40 mr-2 text-gray-400 px-4">Frames</span>
+          <div className="flex flex-row items-center mt-6 mb-6">
+            <span className="text-right w-48 mr-2 text-gray-400 px-4">Frames</span>
             <input
               className="bg-gray-800 text-gray-300 p-2 w-24"
               type="number"
@@ -76,7 +88,7 @@ export default function RenderDialog() {
             />
           </div>
           <div className="flex flex-row items-center">
-            <span className="text-right w-40 mr-2 text-gray-400 px-4 truncate">Frame rate</span>
+            <span className="text-right w-48 mr-2 text-gray-400 px-4 truncate">Frame rate</span>
             <input
               className="bg-gray-800 text-gray-300 p-2 w-24"
               type="number"
