@@ -125,7 +125,10 @@ async function loadModel() {
 
     // Create GPU buffers
     const RGBA_SIZE = 4 * 512 * 512; // RGBA as u32 array (or bytes)
-    rgbaBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC, size: RGBA_SIZE });
+    rgbaBuffer = device.createBuffer({
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+      size: RGBA_SIZE,
+    });
     inputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, size: BUFFER_SIZE });
     outputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC, size: BUFFER_SIZE });
     stagingBuffer = device.createBuffer({ usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, size: BUFFER_SIZE });
@@ -141,12 +144,12 @@ async function loadModel() {
 
     convertInputPipeline = device.createComputePipeline({
       layout: 'auto',
-      compute: { module: convertInputModule, entryPoint: 'main' }
+      compute: { module: convertInputModule, entryPoint: 'main' },
     });
 
     convertOutputPipeline = device.createComputePipeline({
       layout: 'auto',
-      compute: { module: convertOutputModule, entryPoint: 'main' }
+      compute: { module: convertOutputModule, entryPoint: 'main' },
     });
 
     // Create bind groups for the pipelines
@@ -154,16 +157,16 @@ async function loadModel() {
       layout: convertInputPipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: rgbaBuffer } },
-        { binding: 1, resource: { buffer: inputBuffer } }
-      ]
+        { binding: 1, resource: { buffer: inputBuffer } },
+      ],
     });
 
     convertOutputBindGroup = device.createBindGroup({
       layout: convertOutputPipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: outputBuffer } },
-        { binding: 1, resource: { buffer: rgbaBuffer } }
-      ]
+        { binding: 1, resource: { buffer: rgbaBuffer } },
+      ],
     });
 
     oldModelFile = modelFileIn.value;
