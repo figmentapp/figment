@@ -28,6 +28,7 @@ let detectedFps = 0;
 let duration = 0;
 let shouldLoad = true;
 let lastRenderedTimestamp = null;
+let firstTimestamp = 0;
 
 // Playback state machine
 const STATE_STOPPED = 'stopped';
@@ -40,13 +41,29 @@ let playbackStartTime = 0;
 let currentFrame = 0;
 let lastRenderedFrame = -1;
 let canvasIterator = null;
+let queuedSequentialCanvas = null;
+let frameFlowState = 'idle';
 let renderPending = false;
+
+const FRAMEFLOW_IDLE = 'idle';
+const FRAMEFLOW_SEEKING = 'seeking';
+const FRAMEFLOW_ITERATING = 'iterating';
+const TIMESTAMP_EPSILON = 1e-6;
+
+function disposeQueuedSequentialCanvas() {
+  if (queuedSequentialCanvas) {
+    disposeWrappedCanvas(queuedSequentialCanvas);
+    queuedSequentialCanvas = null;
+  }
+}
 
 function clearCanvasIterator() {
   if (canvasIterator && typeof canvasIterator.return === 'function') {
     canvasIterator.return().catch(() => {});
   }
   canvasIterator = null;
+  disposeQueuedSequentialCanvas();
+  frameFlowState = FRAMEFLOW_IDLE;
 }
 
 node.onStart = () => {
@@ -60,6 +77,8 @@ node.onStart = () => {
   clearCanvasIterator();
   renderPending = false;
   lastRenderedTimestamp = null;
+  firstTimestamp = 0;
+  frameFlowState = FRAMEFLOW_IDLE;
 };
 
 async function loadMovie() {
@@ -97,6 +116,7 @@ async function loadMovie() {
     frameCount = stats.packetCount;
     detectedFps = stats.averagePacketRate;
     duration = await videoTrack.computeDuration();
+    firstTimestamp = Math.max(0, videoTrack.getFirstTimestamp());
 
     canvasSink = new CanvasSink(videoTrack, {
       alpha: false,
@@ -117,6 +137,8 @@ async function loadMovie() {
     currentFrame = 0;
     lastRenderedFrame = -1;
     lastRenderedTimestamp = null;
+    frameFlowState = FRAMEFLOW_IDLE;
+    disposeQueuedSequentialCanvas();
   } catch (err) {
     console.error('Error loading movie:', err);
     node.error = err.message;
@@ -187,6 +209,73 @@ function uploadFrameToTexture(wrappedCanvas, videoFrame) {
   }
 }
 
+async function pullNextSequentialCanvas() {
+  if (!canvasIterator) return null;
+
+  frameFlowState = FRAMEFLOW_ITERATING;
+
+  while (true) {
+    const result = await canvasIterator.next();
+    if (result.done) {
+      clearCanvasIterator();
+      return null;
+    }
+
+    const nextCanvas = result.value;
+    if (!nextCanvas) continue;
+
+    const nextTimestamp = typeof nextCanvas.timestamp === 'number' ? nextCanvas.timestamp : null;
+    if (nextTimestamp !== null && lastRenderedTimestamp !== null && nextTimestamp <= lastRenderedTimestamp + TIMESTAMP_EPSILON) {
+      disposeWrappedCanvas(nextCanvas);
+      continue;
+    }
+
+    return nextCanvas;
+  }
+}
+
+async function consumeSequentialCanvas() {
+  if (queuedSequentialCanvas) {
+    const readyCanvas = queuedSequentialCanvas;
+    queuedSequentialCanvas = null;
+    return readyCanvas;
+  }
+
+  return await pullNextSequentialCanvas();
+}
+
+function computeTimestampForFrame(targetFrame, safeFps) {
+  const base = Number.isFinite(firstTimestamp) ? firstTimestamp : 0;
+  const unclamped = base + targetFrame / safeFps;
+  if (duration > 0) {
+    const capped = Math.max(base, duration - TIMESTAMP_EPSILON);
+    return Math.min(unclamped, capped);
+  }
+  return unclamped;
+}
+
+async function primeSequentialIteratorFrom(wrappedCanvas, safeFps) {
+  if (!canvasSink) {
+    clearCanvasIterator();
+    return;
+  }
+
+  const anchorTimestamp = typeof wrappedCanvas.timestamp === 'number' ? wrappedCanvas.timestamp : null;
+  if (anchorTimestamp === null) {
+    clearCanvasIterator();
+    return;
+  }
+
+  const canvasDuration = wrappedCanvas.duration && wrappedCanvas.duration > 0 ? wrappedCanvas.duration : 1 / safeFps;
+  const step = Math.max(canvasDuration * 0.75, TIMESTAMP_EPSILON);
+  const nextStart = Math.min(duration, anchorTimestamp + step);
+
+  clearCanvasIterator();
+  canvasIterator = canvasSink.canvases(nextStart, duration);
+  frameFlowState = FRAMEFLOW_ITERATING;
+  queuedSequentialCanvas = await pullNextSequentialCanvas();
+}
+
 async function renderFrame(targetFrame) {
   if (!canvasSink || !videoTrack || targetFrame < 0 || targetFrame >= frameCount) {
     return false;
@@ -197,39 +286,36 @@ async function renderFrame(targetFrame) {
     return true;
   }
 
-  try {
-    const isSequential = targetFrame === lastRenderedFrame + 1;
+  const safeFps = detectedFps > 0 ? detectedFps : 1;
 
-    if (isSequential && canvasIterator) {
-      // Sequential access: use iterator for performance
-      const result = await canvasIterator.next();
-      if (!result.done) {
-        const nextCanvas = result.value;
-        if (nextCanvas && (lastRenderedTimestamp === null || nextCanvas.timestamp >= lastRenderedTimestamp)) {
-          uploadFrameToTexture(nextCanvas, targetFrame);
+  try {
+    if (targetFrame === lastRenderedFrame + 1) {
+      if (frameFlowState === FRAMEFLOW_ITERATING || queuedSequentialCanvas) {
+        const sequentialCanvas = await consumeSequentialCanvas();
+        if (sequentialCanvas) {
+          uploadFrameToTexture(sequentialCanvas, targetFrame);
+          if (canvasIterator) {
+            queuedSequentialCanvas = await pullNextSequentialCanvas();
+          }
           return true;
         }
-        disposeWrappedCanvas(nextCanvas);
+        clearCanvasIterator();
+        frameFlowState = FRAMEFLOW_SEEKING;
+      } else {
+        clearCanvasIterator();
+        frameFlowState = FRAMEFLOW_SEEKING;
       }
+    } else {
       clearCanvasIterator();
+      frameFlowState = FRAMEFLOW_SEEKING;
     }
 
-    // Random access or iterator failed: seek directly
-    clearCanvasIterator();
-    const safeFps = detectedFps > 0 ? detectedFps : 1;
-    const timestamp = targetFrame / safeFps;
+    const timestamp = computeTimestampForFrame(targetFrame, safeFps);
     const wrappedCanvas = await canvasSink.getCanvas(timestamp);
 
     if (wrappedCanvas) {
       uploadFrameToTexture(wrappedCanvas, targetFrame);
-
-      // Start new iterator for future sequential access
-      const frameDuration = wrappedCanvas.duration && wrappedCanvas.duration > 0 ? wrappedCanvas.duration : 1 / safeFps;
-      const nextTimestamp = wrappedCanvas.timestamp + frameDuration;
-      if (Number.isFinite(nextTimestamp) && nextTimestamp < duration) {
-        canvasIterator = canvasSink.canvases(nextTimestamp, duration);
-      }
-
+      await primeSequentialIteratorFrom(wrappedCanvas, safeFps);
       return true;
     }
 
@@ -239,6 +325,7 @@ async function renderFrame(targetFrame) {
     node.error = err.message;
     clearCanvasIterator();
     lastRenderedTimestamp = null;
+    frameFlowState = FRAMEFLOW_IDLE;
     return false;
   }
 }
@@ -251,6 +338,7 @@ function resetPlayback() {
   lastRenderedFrame = -1;
   clearCanvasIterator();
   lastRenderedTimestamp = null;
+  frameFlowState = FRAMEFLOW_IDLE;
   node._markDirty();
 }
 
@@ -334,6 +422,7 @@ node.onStop = () => {
   lastRenderedFrame = -1;
   renderPending = false;
   lastRenderedTimestamp = null;
+  frameFlowState = FRAMEFLOW_IDLE;
 };
 
 node.onReset = resetPlayback;
@@ -343,6 +432,7 @@ fileIn.onChange = () => {
   clearCanvasIterator();
   lastRenderedFrame = -1;
   lastRenderedTimestamp = null;
+  frameFlowState = FRAMEFLOW_IDLE;
 };
 
 speedIn.onChange = () => {
