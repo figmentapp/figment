@@ -10,7 +10,6 @@
 // wasm helpers. Module workers don’t allow importScripts, so we override it with a
 // synchronous XHR + eval shim before dynamically importing the library.
 try {
-  const original = self.importScripts;
   self.importScripts = function (...urls) {
     for (const u of urls) {
       const abs = new URL(u, self.location.href).href;
@@ -27,6 +26,30 @@ try {
 }
 
 let mediapipe = null;
+let mediapipeBaseUrl = null;
+
+async function importModuleFromUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const source = await res.text();
+  const blob = new Blob([source], { type: 'application/javascript' });
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await import(objectUrl);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function ensureMediapipe(baseUrl) {
+  if (mediapipe && mediapipeBaseUrl && mediapipeBaseUrl.href === baseUrl.href) {
+    return mediapipe;
+  }
+  const moduleUrl = new URL('vision_bundle.mjs', baseUrl).href;
+  mediapipe = await importModuleFromUrl(moduleUrl);
+  mediapipeBaseUrl = baseUrl;
+  return mediapipe;
+}
 
 let taskKind = null;
 let landmarker = null;
@@ -90,12 +113,10 @@ async function ensureTask(kind, options) {
   const normalizedBasePath = rawBasePath.replace(/\/+$/, '');
   const resolverBasePath = normalizedBasePath || '.';
   const modelBasePath = normalizedBasePath ? `${normalizedBasePath}/` : './';
-  if (!mediapipe) {
-    // Ensure importScripts polyfill is present before importing the module.
-    mediapipe = await import('@mediapipe/tasks-vision');
-  }
+  const moduleBaseUrl = new URL(modelBasePath, self.location.href);
+  const mediapipeModule = await ensureMediapipe(moduleBaseUrl);
   if (!vision || visionBase !== resolverBasePath) {
-    vision = await mediapipe.FilesetResolver.forVisionTasks(resolverBasePath);
+    vision = await mediapipeModule.FilesetResolver.forVisionTasks(resolverBasePath);
     visionBase = resolverBasePath;
   }
 
@@ -129,13 +150,13 @@ async function ensureTask(kind, options) {
   }
 
   if (kind === 'face') {
-    landmarker = await tryCreate((opts) => mediapipe.FaceLandmarker.createFromOptions(vision, opts));
+    landmarker = await tryCreate((opts) => mediapipeModule.FaceLandmarker.createFromOptions(vision, opts));
   } else if (kind === 'hands') {
-    landmarker = await tryCreate((opts) => mediapipe.HandLandmarker.createFromOptions(vision, opts));
+    landmarker = await tryCreate((opts) => mediapipeModule.HandLandmarker.createFromOptions(vision, opts));
   } else if (kind === 'pose') {
-    landmarker = await tryCreate((opts) => mediapipe.PoseLandmarker.createFromOptions(vision, opts));
+    landmarker = await tryCreate((opts) => mediapipeModule.PoseLandmarker.createFromOptions(vision, opts));
   } else if (kind === 'segmentPose') {
-    landmarker = await tryCreate((opts) => mediapipe.PoseLandmarker.createFromOptions(vision, opts));
+    landmarker = await tryCreate((opts) => mediapipeModule.PoseLandmarker.createFromOptions(vision, opts));
   } else {
     throw new Error(`Unsupported task kind: ${kind}`);
   }
