@@ -86,21 +86,24 @@ async function ensureTask(kind, options) {
   landmarker = null;
   ready = false;
 
-  const basePath = options?.basePath || './mediapipe';
+  const rawBasePath = options?.basePath || './mediapipe';
+  const normalizedBasePath = rawBasePath.replace(/\/+$/, '');
+  const resolverBasePath = normalizedBasePath || '.';
+  const modelBasePath = normalizedBasePath ? `${normalizedBasePath}/` : './';
   if (!mediapipe) {
     // Ensure importScripts polyfill is present before importing the module.
     mediapipe = await import('@mediapipe/tasks-vision');
   }
-  if (!vision || visionBase !== basePath) {
-    vision = await mediapipe.FilesetResolver.forVisionTasks(basePath);
-    visionBase = basePath;
+  if (!vision || visionBase !== resolverBasePath) {
+    vision = await mediapipe.FilesetResolver.forVisionTasks(resolverBasePath);
+    visionBase = resolverBasePath;
   }
 
   const common = options?.taskOptions ? JSON.parse(JSON.stringify(options.taskOptions)) : {};
   // If a model path is provided, load it now and pass as buffer to avoid path issues.
   if (common.baseOptions && common.baseOptions.modelAssetPath) {
     try {
-      const modelUrl = new URL(common.baseOptions.modelAssetPath, basePath).href;
+      const modelUrl = new URL(common.baseOptions.modelAssetPath, modelBasePath).href;
       const bytes = await loadBinary(modelUrl);
       delete common.baseOptions.modelAssetPath;
       common.baseOptions.modelAssetBuffer = bytes;
