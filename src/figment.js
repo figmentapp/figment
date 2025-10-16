@@ -248,7 +248,9 @@ export class MediaPipeWorkerClient {
     this._ready = false;
     this._reqId = 1;
     this._pending = new Map();
-    this._onReadyResolvers = [];
+    this._readyPromise = null;
+    this._readyResolve = null;
+    this._readyReject = null;
     this._init();
   }
 
@@ -256,6 +258,13 @@ export class MediaPipeWorkerClient {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     for (const [, { reject }] of this._pending) reject(err);
     this._pending.clear();
+  }
+
+  _createReadyPromise() {
+    this._readyPromise = new Promise((resolve, reject) => {
+      this._readyResolve = resolve;
+      this._readyReject = reject;
+    });
   }
 
   _init() {
@@ -267,20 +276,31 @@ export class MediaPipeWorkerClient {
       } catch (_) {}
     }
     this._ready = false;
+    this._createReadyPromise();
     this._worker = createModuleWorker(workerUrls.mediapipe);
     this._worker.onmessage = (ev) => {
       const msg = ev.data;
       if (msg.type === 'ready') {
         this._ready = true;
-        for (const r of this._onReadyResolvers) r();
-        this._onReadyResolvers = [];
+        if (this._readyResolve) this._readyResolve();
+        this._readyResolve = null;
+        this._readyReject = null;
         return;
       }
       if (msg.type === 'optionsUpdated') return;
       if (msg.type === 'error') {
+        const error = new Error(msg.error);
         // Reject any in-flight requests to unblock callers
-        for (const [, { reject }] of this._pending) reject(new Error(msg.error));
-        this._pending.clear();
+        this._rejectAllPending(error);
+        this._ready = false;
+        if (this._readyReject) {
+          this._readyReject(error);
+        } else {
+          this._readyPromise = Promise.reject(error);
+          this._readyPromise.catch(() => {});
+        }
+        this._readyResolve = null;
+        this._readyReject = null;
         return;
       }
       if (msg.type === 'result') {
@@ -308,7 +328,8 @@ export class MediaPipeWorkerClient {
 
   async ready() {
     if (this._ready) return;
-    await new Promise((resolve) => this._onReadyResolvers.push(resolve));
+    if (!this._readyPromise) this._createReadyPromise();
+    await this._readyPromise;
   }
 
   async reinit({ basePath, modelAssetPath, taskOptions } = {}) {

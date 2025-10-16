@@ -27,6 +27,7 @@ try {
 }
 
 let mediapipe = null;
+let mediapipeModuleUrl = null;
 
 let taskKind = null;
 let landmarker = null;
@@ -86,21 +87,30 @@ async function ensureTask(kind, options) {
   landmarker = null;
   ready = false;
 
-  const basePath = options?.basePath || './mediapipe';
-  if (!mediapipe) {
-    // Ensure importScripts polyfill is present before importing the module.
-    mediapipe = await import('@mediapipe/tasks-vision');
+  const basePathInput = options?.basePath || './mediapipe';
+  let normalizedBasePath = basePathInput;
+  try {
+    const resolved = new URL(basePathInput, self.location.href).href;
+    normalizedBasePath = resolved.endsWith('/') ? resolved.slice(0, -1) : resolved;
+  } catch (_) {
+    normalizedBasePath = basePathInput.endsWith('/') ? basePathInput.slice(0, -1) : basePathInput;
   }
-  if (!vision || visionBase !== basePath) {
-    vision = await mediapipe.FilesetResolver.forVisionTasks(basePath);
-    visionBase = basePath;
+  const moduleUrl = `${normalizedBasePath}/vision_bundle.mjs`;
+  if (!mediapipe || mediapipeModuleUrl !== moduleUrl) {
+    // Ensure importScripts polyfill is present before importing the module.
+    mediapipe = await import(/* @vite-ignore */ moduleUrl);
+    mediapipeModuleUrl = moduleUrl;
+  }
+  if (!vision || visionBase !== normalizedBasePath) {
+    vision = await mediapipe.FilesetResolver.forVisionTasks(normalizedBasePath);
+    visionBase = normalizedBasePath;
   }
 
   const common = options?.taskOptions ? JSON.parse(JSON.stringify(options.taskOptions)) : {};
   // If a model path is provided, load it now and pass as buffer to avoid path issues.
   if (common.baseOptions && common.baseOptions.modelAssetPath) {
     try {
-      const modelUrl = new URL(common.baseOptions.modelAssetPath, basePath).href;
+      const modelUrl = new URL(common.baseOptions.modelAssetPath, `${normalizedBasePath}/`).href;
       const bytes = await loadBinary(modelUrl);
       delete common.baseOptions.modelAssetPath;
       common.baseOptions.modelAssetBuffer = bytes;

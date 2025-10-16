@@ -34,7 +34,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('hands', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
+    basePath: new URL('./mediapipe', window.location.href).href,
     modelAssetPath: new URL('./mediapipe/hand_landmarker.task', window.location.href).href,
     taskOptions: {
       runningMode: 'IMAGE',
@@ -65,8 +65,10 @@ node.onRender = async () => {
   try {
     const r = await _mpClient.inferBitmap(bitmap, width, height);
     drawResults({ landmarks: r.landmarks, worldLandmarks: r.worldLandmarks, handednesses: r.handednesses });
-  } catch (_) {
-    // reinit/terminate during rapid param changes; ignore frame
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    if (message === 'reinit' || message === 'terminated') return;
+    throw err instanceof Error ? err : new Error(message);
   }
 };
 

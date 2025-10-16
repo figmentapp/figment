@@ -34,7 +34,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('pose', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
+    basePath: new URL('./mediapipe', window.location.href).href,
     modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
     taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
   });
@@ -60,7 +60,9 @@ node.onRender = async () => {
     const res = await _mpClient.inferBitmap(bitmap, width, height);
     drawResults({ landmarks: res.landmarks });
   } catch (err) {
-    // Likely reinit/termination; skip this frame without erroring the node
+    const message = err && err.message ? err.message : String(err);
+    if (message === 'reinit' || message === 'terminated') return;
+    throw err instanceof Error ? err : new Error(message);
   }
 };
 
@@ -116,7 +118,7 @@ numPosesIn.onChange = updateOptions;
 modelIn.onChange = async () => {
   if (_mpClient) {
     await _mpClient.reinit({
-      basePath: new URL('./mediapipe/', window.location.href).href,
+      basePath: new URL('./mediapipe', window.location.href).href,
       modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
       taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
     });

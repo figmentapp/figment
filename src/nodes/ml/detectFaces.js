@@ -29,7 +29,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('face', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
+    basePath: new URL('./mediapipe', window.location.href).href,
     modelAssetPath: new URL('./mediapipe/face_landmarker.task', window.location.href).href,
     taskOptions: {
       runningMode: 'IMAGE',
@@ -63,8 +63,10 @@ node.onRender = async () => {
   try {
     const res = await _mpClient.inferBitmap(bitmap, width, height);
     drawResults({ faceLandmarks: res.faceLandmarks });
-  } catch (_) {
-    // reinit/terminate during rapid param changes; ignore frame
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    if (message === 'reinit' || message === 'terminated') return;
+    throw err instanceof Error ? err : new Error(message);
   }
 };
 
