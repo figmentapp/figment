@@ -94,7 +94,7 @@ async function loadMovie() {
   clearCanvasIterator();
 
   try {
-    const { Input, BlobSource, CanvasSink, MP4, WEBM, MATROSKA } = window.mediabunny;
+    const { Input, BlobSource, CanvasSink, MP4, QTFF, WEBM, MATROSKA } = window.mediabunny;
 
     // Load video file
     const fileUrl = figment.urlForAsset(fileIn.value);
@@ -103,7 +103,7 @@ async function loadMovie() {
 
     input = new Input({
       source: new BlobSource(blob),
-      formats: [MP4, WEBM, MATROSKA],
+      formats: [MP4, QTFF, WEBM, MATROSKA],
     });
 
     videoTrack = await input.getPrimaryVideoTrack();
