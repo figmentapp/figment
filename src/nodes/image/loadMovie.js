@@ -153,9 +153,10 @@ function calculateTargetFrame() {
 
   if (runtimeMode === 'export') {
     // Export mode: direct frame mapping based on FPS ratio
+    const effectiveSpeed = Number.isFinite(speedIn.value) ? Math.max(speedIn.value, 0) : 1;
     const exportFrameIndex = Math.max(0, window.desktop.getCurrentFrame() - 1);
     const exportFps = window.desktop.getExportFps() || safeFps;
-    const videoFrame = Math.floor((exportFrameIndex / exportFps) * safeFps);
+    const videoFrame = Math.floor((exportFrameIndex / exportFps) * safeFps * effectiveSpeed);
     return Math.min(videoFrame, frameCount - 1);
   }
 
@@ -403,7 +404,8 @@ node.onRender = async () => {
       }
     }
 
-    // Render the frame (CRITICAL: await this!)
+    // Render the frame
+    // We await here to ensure the frame has loaded (can take a while when seeking)
     await renderFrame(targetFrame);
     currentFrame = targetFrame;
   } finally {
