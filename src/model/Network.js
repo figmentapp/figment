@@ -338,11 +338,12 @@ export default class Network {
     this.frame++;
   }
 
-  reset() {
-    for (const node of this.nodes) {
-      if (node.onReset) {
+  async reset() {
+    const orderedNodes = Array.isArray(this._dag.nodeOrder) && this._dag.nodeOrder.length > 0 ? this._dag.nodeOrder : this.nodes;
+    for (const node of orderedNodes) {
+      if (node && typeof node.onReset === 'function') {
         try {
-          node.onReset(node);
+          await node.onReset(node);
         } catch (e) {
           console.error(e && e.stack);
         }

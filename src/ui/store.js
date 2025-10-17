@@ -387,7 +387,7 @@ export const useAppStore = create((set, get) => ({
 
   async renderSequence(frameCount, frameRate, callback) {
     const { network } = get();
-    network.reset();
+    await network.reset();
     window.desktop.setRuntimeMode('export');
     window.desktop.setExportFps(frameRate);
     for (let currentFrame = 1; currentFrame <= frameCount; currentFrame++) {

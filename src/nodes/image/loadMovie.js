@@ -331,7 +331,7 @@ async function renderFrame(targetFrame) {
   }
 }
 
-function resetPlayback() {
+function resetPlaybackState() {
   playbackState = STATE_STOPPED;
   playbackStartFrame = 0;
   playbackStartTime = 0;
@@ -341,6 +341,40 @@ function resetPlayback() {
   lastRenderedTimestamp = null;
   frameFlowState = FRAMEFLOW_IDLE;
   node._markDirty();
+}
+
+async function ensureFramePrimed() {
+  if (!fileIn.value || fileIn.value.trim().length === 0) return;
+
+  while (renderPending) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  try {
+    if (shouldLoad || !canvasSink || !videoTrack) {
+      await loadMovie();
+      if (!canvasSink || !videoTrack) return;
+      shouldLoad = false;
+    }
+
+    if (!framebuffer || frameCount <= 0) return;
+
+    renderPending = true;
+    const success = await renderFrame(0);
+    if (success) {
+      currentFrame = 0;
+    }
+  } catch (err) {
+    console.error('Error priming video frame:', err);
+    node.error = err.message;
+  } finally {
+    renderPending = false;
+  }
+}
+
+async function resetPlayback() {
+  resetPlaybackState();
+  await ensureFramePrimed();
 }
 
 node.onRender = async () => {
