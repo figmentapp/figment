@@ -8,12 +8,44 @@
 
 import { FilesetResolver, FaceLandmarker, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
 
-// The mediapipe library uses `importScripts` internally which is not supported in modules.
-// Here's a little shim for this:
+function mediapipeRoot() {
+  // Dev: http(s) -> use origin + /mediapipe/
+  // Prod/Electron: file:///.../build/assets/worker.js -> /build/mediapipe/
+  const href = String((self.location && self.location.href) || import.meta.url || '');
+  const iBuild = href.lastIndexOf('/build/');
+  if (iBuild !== -1) return href.slice(0, iBuild + '/build/'.length) + 'mediapipe/';
+
+  // If we see /assets/, back up to its parent and swap to /mediapipe/
+  const iAssets = href.lastIndexOf('/assets/');
+  if (iAssets !== -1) return href.slice(0, iAssets) + '/mediapipe/';
+
+  // Fallback for dev servers (http://localhost:3000)
+  try {
+    const u = new URL(href);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return `${u.origin}/mediapipe/`;
+  } catch {}
+  // Last resort: relative
+  return 'mediapipe/';
+}
+
+function mediapipeResolve(path) {
+  if (!path) return mediapipeRoot();
+  const s = String(path);
+
+  // If caller passed an absolute URL, try to peel to ".../mediapipe/<tail>"
+  const m = s.match(/mediapipe\/(.+)$/);
+  const tail = (m ? m[1] : s)
+    .replace(/^(\.?\/)+/, '') // drop leading ./ or /
+    .replace(/^assets\//, '') // strip accidental "assets/"
+    .replace(/^mediapipe\//, ''); // and "mediapipe/"
+
+  // Join on our computed root (which already ends with /)
+  return mediapipeRoot() + tail.replace(/^\/+/, '');
+}
+
 self.importScripts = function (...urls) {
   for (const url of urls) {
-    const abs = new URL(url, self.location.href).toString();
-    console.log('LOC', self.location.href, url);
+    const abs = mediapipeResolve(url);
     const req = new XMLHttpRequest();
     req.open('GET', abs, false); // async = false
     try {
@@ -57,27 +89,18 @@ async function ensureTask(kind, options) {
   _landmarker = null;
   _ready = false;
 
-  let mediapipeRoot = new URL('/assets/mediapipe/', import.meta.url).href;
-  mediapipeRoot = mediapipeRoot.endsWith('/') ? mediapipeRoot : `${mediapipeRoot}/`;
-  console.log('media pipe root', mediapipeRoot);
+  const mpRoot = mediapipeRoot();
 
   if (!_vision || _visionBase !== mediapipeRoot) {
-    _vision = await FilesetResolver.forVisionTasks(mediapipeRoot);
+    _vision = await FilesetResolver.forVisionTasks(mpRoot);
     _visionBase = mediapipeRoot;
   }
 
   _taskKind = kind;
-  const modelAssetPath =
-    options?.modelAssetPath ?? (taskFile ? new URL(taskFile, mediapipeRoot).href : taskOptions?.baseOptions?.modelAssetPath);
-  const mergedBaseOptions = {
-    delegate: 'GPU',
-    ...(taskOptions.baseOptions || {}),
-    ...(modelAssetPath ? { modelAssetPath } : {}),
-  };
-  const { baseOptions: _ignored, ...restTaskOptions } = taskOptions;
   const allOptions = {
-    ...restTaskOptions,
-    baseOptions: mergedBaseOptions,
+    baseOptions: { modelAssetPath: mediapipeResolve(taskFile) },
+    delegate: 'GPU',
+    ...taskOptions,
   };
   console.log(allOptions);
 
