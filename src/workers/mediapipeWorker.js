@@ -8,6 +8,13 @@
 
 import { FilesetResolver, FaceLandmarker, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
 
+const LANDMARKER_FACTORIES = {
+  face: FaceLandmarker,
+  hands: HandLandmarker,
+  pose: PoseLandmarker,
+  segmentPose: PoseLandmarker,
+};
+
 function mediapipeRoot() {
   // Dev: http(s) -> use origin + /mediapipe/
   // Prod/Electron: file:///.../build/assets/worker.js -> /build/mediapipe/
@@ -65,19 +72,21 @@ let _vision = null;
 let _visionBase = null;
 let _ready = false;
 
-async function ensureTask(kind, options) {
-  const taskFile = options?.taskFile;
-  const taskOptions = options?.taskOptions ?? {};
+async function ensureTask(kind, options = {}) {
+  const taskFile = options.taskFile;
+  const taskOptions = options.taskOptions ?? {};
+
   if (_ready && _taskKind === kind && _landmarker) {
-    if (options) {
+    if (Object.keys(taskOptions).length > 0) {
       try {
-        // Some tasks support setOptions to update things like numFaces, confidences, etc.
         await _landmarker.setOptions(taskOptions);
+        return;
       } catch (_) {
-        // Fallback to recreate if setOptions unsupported or failed.
+        // Fall through to recreate with new options.
       }
+    } else {
+      return;
     }
-    return;
   }
 
   // Clean up any previous instance
@@ -96,26 +105,39 @@ async function ensureTask(kind, options) {
     _visionBase = mpRoot;
   }
 
-  _taskKind = kind;
-  const allOptions = {
-    baseOptions: { modelAssetPath: mediapipeResolve(taskFile) },
-    delegate: 'GPU',
-    ...taskOptions,
-  };
+  const factory = LANDMARKER_FACTORIES[kind];
+  if (!factory) throw new Error(`Unsupported task kind: ${kind}`);
 
-  if (kind === 'face') {
-    _landmarker = await FaceLandmarker.createFromOptions(_vision, allOptions);
-  } else if (kind === 'hands') {
-    _landmarker = await HandLandmarker.createFromOptions(_vision, allOptions);
-  } else if (kind === 'pose') {
-    _landmarker = await PoseLandmarker.createFromOptions(_vision, allOptions);
-  } else if (kind === 'segmentPose') {
-    _landmarker = await PoseLandmarker.createFromOptions(_vision, allOptions);
-  } else {
-    throw new Error(`Unsupported task kind: ${kind}`);
+  const baseOptions = { ...(taskOptions.baseOptions || {}) };
+  const initialModelPath = taskFile ?? baseOptions.modelAssetPath;
+  if (initialModelPath) {
+    baseOptions.modelAssetPath = mediapipeResolve(initialModelPath);
   }
 
-  _ready = true;
+  const requestedDelegate = baseOptions.delegate;
+  const delegates = requestedDelegate ? [requestedDelegate] : ['GPU', 'CPU'];
+
+  const optionsSansBase = { ...taskOptions };
+  delete optionsSansBase.baseOptions;
+
+  let lastError = null;
+  for (const delegate of delegates) {
+    const opts = {
+      ...optionsSansBase,
+      baseOptions: { ...baseOptions, delegate },
+    };
+    try {
+      _landmarker = await factory.createFromOptions(_vision, opts);
+      _taskKind = kind;
+      _ready = true;
+      return;
+    } catch (err) {
+      lastError = err;
+      if (requestedDelegate) break;
+    }
+  }
+
+  throw lastError || new Error(`Failed to initialize MediaPipe task: ${kind}`);
 }
 
 function sanitizeResult(kind, raw, width, height) {
