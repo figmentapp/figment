@@ -91,9 +91,9 @@ async function ensureTask(kind, options) {
 
   const mpRoot = mediapipeRoot();
 
-  if (!_vision || _visionBase !== mediapipeRoot) {
+  if (!_vision || _visionBase !== mpRoot) {
     _vision = await FilesetResolver.forVisionTasks(mpRoot);
-    _visionBase = mediapipeRoot;
+    _visionBase = mpRoot;
   }
 
   _taskKind = kind;
@@ -102,7 +102,6 @@ async function ensureTask(kind, options) {
     delegate: 'GPU',
     ...taskOptions,
   };
-  console.log(allOptions);
 
   if (kind === 'face') {
     _landmarker = await FaceLandmarker.createFromOptions(_vision, allOptions);
