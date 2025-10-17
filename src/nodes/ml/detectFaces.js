@@ -69,11 +69,8 @@ node.onRender = async () => {
 };
 
 node.onStop = () => {
-  try {
-    if (_worker) _worker.terminate();
-  } catch (_) {}
-  _worker = null;
-  _workerBusy = false;
+  if (_mpClient) _mpClient.terminate();
+  _mpClient = null;
 };
 
 function drawResults(faceResult) {
