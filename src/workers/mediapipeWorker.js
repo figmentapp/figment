@@ -10,23 +10,21 @@ import { FilesetResolver, FaceLandmarker, HandLandmarker, PoseLandmarker } from 
 
 // The mediapipe library uses `importScripts` internally which is not supported in modules.
 // Here's a little shim for this:
-if (typeof self.importScripts !== 'function') {
-  self.importScripts = function (...urls) {
-    for (const url of urls) {
-      const abs = new URL(url, self.location.href).toString();
-      const req = new XMLHttpRequest();
-      req.open('GET', abs, false); // async = false
-      try {
-        req.send();
-      } catch (err) {
-        throw new Error(`importScripts shim: network error for ${abs}: ${err.message || err}`);
-      }
-      const ok = req.status === 0 || (req.status >= 200 && req.status < 300);
-      if (!ok) throw new Error(`importScripts shim: ${abs} -> HTTP ${req.status}`);
-      (0, eval)(`${req.responseText}\n//# sourceURL=${abs}`);
+self.importScripts = function (...urls) {
+  for (const url of urls) {
+    const abs = new URL(url, self.location.href).toString();
+    const req = new XMLHttpRequest();
+    req.open('GET', abs, false); // async = false
+    try {
+      req.send();
+    } catch (err) {
+      throw new Error(`importScripts shim: network error for ${abs}: ${err.message || err}`);
     }
-  };
-}
+    const ok = req.status === 0 || (req.status >= 200 && req.status < 300);
+    if (!ok) throw new Error(`importScripts shim: ${abs} -> HTTP ${req.status}`);
+    (0, eval)(`${req.responseText}\n//# sourceURL=${abs}`);
+  }
+};
 
 let _taskKind = null;
 let _landmarker = null;
@@ -35,7 +33,7 @@ let _visionBase = null;
 let _ready = false;
 
 async function ensureTask(kind, options) {
-  debugger;
+  const taskFile = options?.taskFile;
   const taskOptions = options?.taskOptions ?? {};
   if (_ready && _taskKind === kind && _landmarker) {
     if (options) {
@@ -58,36 +56,27 @@ async function ensureTask(kind, options) {
   _landmarker = null;
   _ready = false;
 
-  const mediapipeRoot = `${self.location.origin}/mediapipe/wasm`;
-  console.log('MEDIA PIPE ROOT', mediapipeRoot);
+  const mediapipeRoot = `${self.location.origin}/mediapipe`;
 
   if (!_vision) {
     _vision = await FilesetResolver.forVisionTasks(mediapipeRoot);
   }
 
-  // const common = options?.taskOptions ? JSON.parse(JSON.stringify(options.taskOptions)) : {};
-  // If a model path is provided, load it now and pass as buffer to avoid path issues.
-  // if (common.baseOptions && common.baseOptions.modelAssetPath) {
-  //   try {
-  //     const modelUrl = new URL(common.baseOptions.modelAssetPath, modelBasePath).href;
-  //     const bytes = await loadBinary(modelUrl);
-  //     delete common.baseOptions.modelAssetPath;
-  //     common.baseOptions.modelAssetBuffer = bytes;
-  //   } catch (e) {
-  //     // Surface a clearer initialization error to the main thread
-  //     throw new Error(`Failed to load model asset: ${e.message}`);
-  //   }
-  // }
   _taskKind = kind;
+  const allOptions = {
+    baseOptions: { modelAssetPath: `${mediapipeRoot}/${taskFile}` },
+    delegate: 'GPU',
+    ...taskOptions,
+  };
 
   if (kind === 'face') {
-    _landmarker = await FaceLandmarker.createFromOptions(_vision, taskOptions);
+    _landmarker = await FaceLandmarker.createFromOptions(_vision, allOptions);
   } else if (kind === 'hands') {
-    _landmarker = await HandLandmarker.createFromOptions(_vision, taskOptions);
+    _landmarker = await HandLandmarker.createFromOptions(_vision, allOptions);
   } else if (kind === 'pose') {
-    _landmarker = await HandLandmarker.createFromOptions(_vision, taskOptions);
+    _landmarker = await PoseLandmarker.createFromOptions(_vision, allOptions);
   } else if (kind === 'segmentPose') {
-    _landmarker = await PoseLandmarker.createFromOptions(_vision, taskOptions);
+    _landmarker = await PoseLandmarker.createFromOptions(_vision, allOptions);
   } else {
     throw new Error(`Unsupported task kind: ${kind}`);
   }

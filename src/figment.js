@@ -228,10 +228,9 @@ export function canvasToFramebuffer(canvas, framebuffer) {
 
 // Simple request/response client for the MediaPipe worker with per-call promises.
 export class MediaPipeWorkerClient {
-  constructor(task, { basePath, modelAssetPath, taskOptions = {} } = {}) {
+  constructor(task, { taskFile, taskOptions = {} } = {}) {
     this.task = task;
-    this.basePath = basePath;
-    this.modelAssetPath = modelAssetPath;
+    this.taskFile = taskFile;
     this.taskOptions = taskOptions;
     this._worker = null;
     this._ready = false;
@@ -286,11 +285,8 @@ export class MediaPipeWorkerClient {
       type: 'init',
       task: this.task,
       options: {
-        basePath: this.basePath,
-        taskOptions: {
-          baseOptions: { modelAssetPath: this.modelAssetPath, delegate: 'GPU' },
-          ...this.taskOptions,
-        },
+        taskFile: this.taskFile,
+        taskOptions: this.taskOptions,
       },
     });
   }
@@ -300,9 +296,8 @@ export class MediaPipeWorkerClient {
     await new Promise((resolve) => this._onReadyResolvers.push(resolve));
   }
 
-  async reinit({ basePath, modelAssetPath, taskOptions } = {}) {
-    if (basePath) this.basePath = basePath;
-    if (modelAssetPath) this.modelAssetPath = modelAssetPath;
+  async reinit({ taskFile, taskOptions } = {}) {
+    if (taskFile) this.taskFile = taskFile;
     if (taskOptions) this.taskOptions = taskOptions;
     this._init();
     await this.ready();
