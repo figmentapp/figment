@@ -6,93 +6,42 @@
 // - { type: 'frameBitmap', bitmap, width, height }
 // - { type: 'setOptions', options }
 
-// Note: @mediapipe/tasks-vision may attempt to call importScripts inside workers to load
-// wasm helpers. Module workers don’t allow importScripts, so we override it with a
-// synchronous XHR + eval shim before dynamically importing the library.
-try {
+import { FilesetResolver, FaceLandmarker, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
+
+// The mediapipe library uses `importScripts` internally which is not supported in modules.
+// Here's a little shim for this:
+if (typeof self.importScripts !== 'function') {
   self.importScripts = function (...urls) {
-    for (const u of urls) {
-      const abs = new URL(u, self.location.href).href;
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', abs, false);
-      xhr.responseType = 'text';
-      xhr.send(null);
-      const code = xhr.responseText || '';
-      (0, eval)(code + `\n//# sourceURL=${abs}`);
+    for (const url of urls) {
+      const abs = new URL(url, self.location.href).toString();
+      const req = new XMLHttpRequest();
+      req.open('GET', abs, false); // async = false
+      try {
+        req.send();
+      } catch (err) {
+        throw new Error(`importScripts shim: network error for ${abs}: ${err.message || err}`);
+      }
+      const ok = req.status === 0 || (req.status >= 200 && req.status < 300);
+      if (!ok) throw new Error(`importScripts shim: ${abs} -> HTTP ${req.status}`);
+      (0, eval)(`${req.responseText}\n//# sourceURL=${abs}`);
     }
   };
-} catch (_) {
-  // Ignore if redefining fails; many engines allow overriding on WorkerGlobalScope.
 }
 
-let mediapipe = null;
-let mediapipeBaseUrl = null;
-
-async function importModuleFromUrl(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const source = await res.text();
-  const blob = new Blob([source], { type: 'application/javascript' });
-  const objectUrl = URL.createObjectURL(blob);
-  try {
-    return await import(objectUrl);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-async function ensureMediapipe(baseUrl) {
-  if (mediapipe && mediapipeBaseUrl && mediapipeBaseUrl.href === baseUrl.href) {
-    return mediapipe;
-  }
-  const moduleUrl = new URL('vision_bundle.mjs', baseUrl).href;
-  mediapipe = await importModuleFromUrl(moduleUrl);
-  mediapipeBaseUrl = baseUrl;
-  return mediapipe;
-}
-
-let taskKind = null;
-let landmarker = null;
-let vision = null;
-let visionBase = null;
-let ready = false;
-
-async function loadBinary(url) {
-  try {
-    // Prefer fetch when available and allowed.
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const ab = await res.arrayBuffer();
-    return new Uint8Array(ab);
-  } catch (err) {
-    // Fallback to XHR (works for file:// in Electron)
-    return await new Promise((resolve, reject) => {
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.responseType = 'arraybuffer';
-        xhr.onload = () => {
-          if (xhr.status === 200 || (xhr.status === 0 && xhr.response)) {
-            resolve(new Uint8Array(xhr.response));
-          } else {
-            reject(new Error(`XHR ${xhr.status}`));
-          }
-        };
-        xhr.onerror = () => reject(new Error('XHR error'));
-        xhr.send();
-      } catch (e) {
-        reject(e);
-      }
-    });
-  }
-}
+let _taskKind = null;
+let _landmarker = null;
+let _vision = null;
+let _visionBase = null;
+let _ready = false;
 
 async function ensureTask(kind, options) {
-  if (ready && taskKind === kind && landmarker) {
+  debugger;
+  const taskOptions = options?.taskOptions ?? {};
+  if (_ready && _taskKind === kind && _landmarker) {
     if (options) {
       try {
         // Some tasks support setOptions to update things like numFaces, confidences, etc.
-        await landmarker.setOptions(options.taskOptions ?? {});
+        await _landmarker.setOptions(taskOptions);
       } catch (_) {
         // Fallback to recreate if setOptions unsupported or failed.
       }
@@ -101,67 +50,49 @@ async function ensureTask(kind, options) {
   }
 
   // Clean up any previous instance
-  if (landmarker) {
+  if (_landmarker) {
     try {
-      await landmarker.close();
+      await _landmarker.close();
     } catch (_) {}
   }
-  landmarker = null;
-  ready = false;
+  _landmarker = null;
+  _ready = false;
 
-  const rawBasePath = options?.basePath || './mediapipe';
-  const normalizedBasePath = rawBasePath.replace(/\/+$/, '');
-  const resolverBasePath = normalizedBasePath || '.';
-  const modelBasePath = normalizedBasePath ? `${normalizedBasePath}/` : './';
-  const moduleBaseUrl = new URL(modelBasePath, self.location.href);
-  const mediapipeModule = await ensureMediapipe(moduleBaseUrl);
-  if (!vision || visionBase !== resolverBasePath) {
-    vision = await mediapipeModule.FilesetResolver.forVisionTasks(resolverBasePath);
-    visionBase = resolverBasePath;
+  const mediapipeRoot = `${self.location.origin}/mediapipe/wasm`;
+  console.log('MEDIA PIPE ROOT', mediapipeRoot);
+
+  if (!_vision) {
+    _vision = await FilesetResolver.forVisionTasks(mediapipeRoot);
   }
 
-  const common = options?.taskOptions ? JSON.parse(JSON.stringify(options.taskOptions)) : {};
+  // const common = options?.taskOptions ? JSON.parse(JSON.stringify(options.taskOptions)) : {};
   // If a model path is provided, load it now and pass as buffer to avoid path issues.
-  if (common.baseOptions && common.baseOptions.modelAssetPath) {
-    try {
-      const modelUrl = new URL(common.baseOptions.modelAssetPath, modelBasePath).href;
-      const bytes = await loadBinary(modelUrl);
-      delete common.baseOptions.modelAssetPath;
-      common.baseOptions.modelAssetBuffer = bytes;
-    } catch (e) {
-      // Surface a clearer initialization error to the main thread
-      throw new Error(`Failed to load model asset: ${e.message}`);
-    }
-  }
-  taskKind = kind;
-
-  async function tryCreate(factory) {
-    try {
-      return await factory(common);
-    } catch (e) {
-      // Retry with CPU delegate if GPU fails.
-      try {
-        if (common.baseOptions) common.baseOptions.delegate = 'CPU';
-        return await factory(common);
-      } catch (e2) {
-        throw e2;
-      }
-    }
-  }
+  // if (common.baseOptions && common.baseOptions.modelAssetPath) {
+  //   try {
+  //     const modelUrl = new URL(common.baseOptions.modelAssetPath, modelBasePath).href;
+  //     const bytes = await loadBinary(modelUrl);
+  //     delete common.baseOptions.modelAssetPath;
+  //     common.baseOptions.modelAssetBuffer = bytes;
+  //   } catch (e) {
+  //     // Surface a clearer initialization error to the main thread
+  //     throw new Error(`Failed to load model asset: ${e.message}`);
+  //   }
+  // }
+  _taskKind = kind;
 
   if (kind === 'face') {
-    landmarker = await tryCreate((opts) => mediapipeModule.FaceLandmarker.createFromOptions(vision, opts));
+    _landmarker = await FaceLandmarker.createFromOptions(_vision, taskOptions);
   } else if (kind === 'hands') {
-    landmarker = await tryCreate((opts) => mediapipeModule.HandLandmarker.createFromOptions(vision, opts));
+    _landmarker = await HandLandmarker.createFromOptions(_vision, taskOptions);
   } else if (kind === 'pose') {
-    landmarker = await tryCreate((opts) => mediapipeModule.PoseLandmarker.createFromOptions(vision, opts));
+    _landmarker = await HandLandmarker.createFromOptions(_vision, taskOptions);
   } else if (kind === 'segmentPose') {
-    landmarker = await tryCreate((opts) => mediapipeModule.PoseLandmarker.createFromOptions(vision, opts));
+    _landmarker = await PoseLandmarker.createFromOptions(_vision, taskOptions);
   } else {
     throw new Error(`Unsupported task kind: ${kind}`);
   }
 
-  ready = true;
+  _ready = true;
 }
 
 function sanitizeResult(kind, raw, width, height) {
@@ -216,33 +147,34 @@ self.onmessage = async (ev) => {
       return;
     }
     if (msg.type === 'setOptions') {
-      await ensureTask(taskKind, { taskOptions: msg.options });
+      await ensureTask(_taskKind, { taskOptions: msg.options });
       self.postMessage({ type: 'optionsUpdated' });
       return;
     }
     if (msg.type === 'frame') {
-      if (!ready || !landmarker) return;
+      if (!_ready || !_landmarker) return;
       const { id, width, height, buffer } = msg;
       const data = new Uint8ClampedArray(buffer);
       const imageData = new ImageData(data, width, height);
       // All nodes here use runningMode: 'IMAGE'. Use .detect(image).
-      const raw = landmarker.detect(imageData);
-      const result = sanitizeResult(taskKind, raw, width, height);
+      const raw = _landmarker.detect(imageData);
+      const result = sanitizeResult(_taskKind, raw, width, height);
       self.postMessage({ type: 'result', id, result }, result.mask ? [result.mask] : undefined);
       return;
     }
     if (msg.type === 'frameBitmap') {
-      if (!ready || !landmarker) return;
+      if (!_ready || !_landmarker) return;
       const { id, width, height, bitmap } = msg;
-      const raw = landmarker.detect(bitmap);
+      const raw = _landmarker.detect(bitmap);
       try {
         if (bitmap && bitmap.close) bitmap.close();
       } catch (_) {}
-      const result = sanitizeResult(taskKind, raw, width, height);
+      const result = sanitizeResult(_taskKind, raw, width, height);
       self.postMessage({ type: 'result', id, result }, result.mask ? [result.mask] : undefined);
       return;
     }
   } catch (err) {
+    console.error(err);
     self.postMessage({ type: 'error', error: String(err && err.message ? err.message : err) });
   }
 };

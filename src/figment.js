@@ -1,6 +1,7 @@
 // Functions that are available in the "figment" namespace. Related to project files.
 // Look in preload.js for functions that are exposed in this module (e.g. nodePath).
 import * as twgl from 'twgl.js';
+import MediaPipeWorker from './workers/mediapipeWorker?worker';
 
 try {
   window.audioCtx = new AudioContext();
@@ -225,18 +226,6 @@ export function canvasToFramebuffer(canvas, framebuffer) {
   window.gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
-// Create a module worker with a path resolved relative to this module.
-// Usage: const worker = figment.createModuleWorker('./workers/mediapipeWorker.js')
-export const workerUrls = {
-  mediapipe: new URL('./workers/mediapipeWorker.js', import.meta.url),
-};
-
-export function createModuleWorker(pathOrUrl) {
-  // Ensure Vite resolves the worker path and bundles it when provided a URL.
-  const url = pathOrUrl instanceof URL ? pathOrUrl : new URL(pathOrUrl, import.meta.url);
-  return new Worker(url, { type: 'module' });
-}
-
 // Simple request/response client for the MediaPipe worker with per-call promises.
 export class MediaPipeWorkerClient {
   constructor(task, { basePath, modelAssetPath, taskOptions = {} } = {}) {
@@ -267,7 +256,7 @@ export class MediaPipeWorkerClient {
       } catch (_) {}
     }
     this._ready = false;
-    this._worker = createModuleWorker(workerUrls.mediapipe);
+    this._worker = new Worker(new URL('./workers/mediapipeWorker.js', import.meta.url), { type: 'module' });
     this._worker.onmessage = (ev) => {
       const msg = ev.data;
       if (msg.type === 'ready') {
