@@ -34,8 +34,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('hands', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
-    modelAssetPath: new URL('./mediapipe/hand_landmarker.task', window.location.href).href,
+    taskFile: 'hand_landmarker.task',
     taskOptions: {
       runningMode: 'IMAGE',
       numHands: numHandsIn.value,

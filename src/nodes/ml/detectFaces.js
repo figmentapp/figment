@@ -29,8 +29,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('face', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
-    modelAssetPath: new URL('./mediapipe/face_landmarker.task', window.location.href).href,
+    taskFile: 'face_landmarker.task',
     taskOptions: {
       runningMode: 'IMAGE',
       numFaces: numFacesIn.value,
@@ -69,11 +68,8 @@ node.onRender = async () => {
 };
 
 node.onStop = () => {
-  try {
-    if (_worker) _worker.terminate();
-  } catch (_) {}
-  _worker = null;
-  _workerBusy = false;
+  if (_mpClient) _mpClient.terminate();
+  _mpClient = null;
 };
 
 function drawResults(faceResult) {
