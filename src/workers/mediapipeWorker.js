@@ -1,7 +1,7 @@
 // Worker for MediaPipe Tasks off-main-thread inference.
 // Supports: face, hands, pose, segmentPose (segmentation mask)
 // Messages:
-// - { type: 'init', task: 'face'|'hands'|'pose'|'segmentPose', options: { basePath, taskOptions } }
+// - { type: 'init', task: 'face'|'hands'|'pose'|'segmentPose', options: { taskFile, taskOptions } }
 // - { type: 'frame', width, height, buffer }
 // - { type: 'frameBitmap', bitmap, width, height }
 // - { type: 'setOptions', options }
@@ -13,6 +13,7 @@ import { FilesetResolver, FaceLandmarker, HandLandmarker, PoseLandmarker } from 
 self.importScripts = function (...urls) {
   for (const url of urls) {
     const abs = new URL(url, self.location.href).toString();
+    console.log('LOC', self.location.href, url);
     const req = new XMLHttpRequest();
     req.open('GET', abs, false); // async = false
     try {
@@ -56,18 +57,29 @@ async function ensureTask(kind, options) {
   _landmarker = null;
   _ready = false;
 
-  const mediapipeRoot = `${self.location.origin}/mediapipe`;
+  let mediapipeRoot = new URL('/assets/mediapipe/', import.meta.url).href;
+  mediapipeRoot = mediapipeRoot.endsWith('/') ? mediapipeRoot : `${mediapipeRoot}/`;
+  console.log('media pipe root', mediapipeRoot);
 
-  if (!_vision) {
+  if (!_vision || _visionBase !== mediapipeRoot) {
     _vision = await FilesetResolver.forVisionTasks(mediapipeRoot);
+    _visionBase = mediapipeRoot;
   }
 
   _taskKind = kind;
-  const allOptions = {
-    baseOptions: { modelAssetPath: `${mediapipeRoot}/${taskFile}` },
+  const modelAssetPath =
+    options?.modelAssetPath ?? (taskFile ? new URL(taskFile, mediapipeRoot).href : taskOptions?.baseOptions?.modelAssetPath);
+  const mergedBaseOptions = {
     delegate: 'GPU',
-    ...taskOptions,
+    ...(taskOptions.baseOptions || {}),
+    ...(modelAssetPath ? { modelAssetPath } : {}),
   };
+  const { baseOptions: _ignored, ...restTaskOptions } = taskOptions;
+  const allOptions = {
+    ...restTaskOptions,
+    baseOptions: mergedBaseOptions,
+  };
+  console.log(allOptions);
 
   if (kind === 'face') {
     _landmarker = await FaceLandmarker.createFromOptions(_vision, allOptions);
