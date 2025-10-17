@@ -29,8 +29,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('face', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
-    modelAssetPath: new URL('./mediapipe/face_landmarker.task', window.location.href).href,
+    taskFile: 'face_landmarker.task',
     taskOptions: {
       runningMode: 'IMAGE',
       numFaces: numFacesIn.value,

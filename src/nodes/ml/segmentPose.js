@@ -46,8 +46,7 @@ node.onStart = async () => {
   _maskFramebuffer = new figment.Framebuffer();
   _maskTexture = new figment.Framebuffer();
   _mpClient = new figment.MediaPipeWorkerClient('segmentPose', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
-    modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+    taskFile: `pose_landmarker_${modelIn.value}.task`,
     taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
   });
 };
@@ -152,8 +151,7 @@ numPosesIn.onChange = updateOptions;
 modelIn.onChange = async () => {
   if (_mpClient) {
     await _mpClient.reinit({
-      basePath: new URL('./mediapipe/', window.location.href).href,
-      modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+      taskFile: `pose_landmarker_${modelIn.value}.task`,
       taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
     });
   }
