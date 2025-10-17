@@ -52,4 +52,5 @@
 ## Agent-Specific Instructions
 - Safe in headless agents: `npm install`, `npm run format`, `npm run build`, `npm run build-library`, `npm run fastdist`.
 - Local-only: `npm start` and `npm run dist*` (require Electron/runtime and codesigning access).
+- Commit atomically: include only the changes you made so other agents' in-progress work stays isolated.
 - Expressions: Nodes support JEXL expressions (`$FRAME`, `$TIME`, `$NOW`). MediaPipe models are cached in `assets/mediapipe*/`.

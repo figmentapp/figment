@@ -185,7 +185,9 @@ async function onClearRecentProjects() {
 }
 
 function sendIpcMessage(channel, ...args) {
-  if (gMainWindow.isDestroyed()) return;
+  if (!gMainWindow || gMainWindow.isDestroyed()) return;
+  // Check if webContents is ready before sending
+  if (!gMainWindow.webContents) return;
   gMainWindow.webContents.send(channel, ...args);
 }
 
@@ -452,17 +454,15 @@ app.whenReady().then(async () => {
   // }
   createApplicationMenu();
 
-  // Initialize MIDI
-  midiStartServer((channel, controller, value) => {
-    if (gMainWindow) {
-      gMainWindow.webContents.send('midi-update', { channel, controller, value });
-    }
-  });
-
   // For macOS, use the filePathToOpen if it's been set by the 'open-file' event
   // For Windows/Linux, process command-line arguments to find a .fgmt file to open
   const fileArg = process.argv.find((arg) => arg.endsWith('.fgmt')) || filePathToOpen;
   createMainWindow(fileArg);
+
+  // Initialize MIDI after window is created
+  midiStartServer((channel, controller, value) => {
+    sendIpcMessage('midi-update', { channel, controller, value });
+  });
 });
 
 app.on('will-quit', async (event) => {

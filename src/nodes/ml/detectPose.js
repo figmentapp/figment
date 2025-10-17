@@ -34,8 +34,7 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _mpClient = new figment.MediaPipeWorkerClient('pose', {
-    basePath: new URL('./mediapipe/', window.location.href).href,
-    modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+    taskFile: `pose_landmarker_${modelIn.value}.task`,
     taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
   });
 };
@@ -116,8 +115,7 @@ numPosesIn.onChange = updateOptions;
 modelIn.onChange = async () => {
   if (_mpClient) {
     await _mpClient.reinit({
-      basePath: new URL('./mediapipe/', window.location.href).href,
-      modelAssetPath: new URL(`./mediapipe/pose_landmarker_${modelIn.value}.task`, window.location.href).href,
+      taskFile: `pose_landmarker_${modelIn.value}.task`,
       taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
     });
   }
