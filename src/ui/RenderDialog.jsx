@@ -6,11 +6,51 @@ export default function RenderDialog() {
   const renderSequence = useAppStore((s) => s.renderSequence);
   const closeRenderDialog = useAppStore((s) => s.closeRenderDialog);
 
-  const [frameCount, setFrameCount] = useState(100);
-  const [frameRate, setFrameRate] = useState(60);
+  // Find movie nodes and auto-populate frame count and FPS
+  const movieNodes = network.nodes.filter((n) => n.type === 'image.loadMovie');
+  const movieMetadata = movieNodes.map((node) => {
+    const frameCountPort = node.outPorts.find((p) => p.name === 'frameCount');
+    const fpsPort = node.outPorts.find((p) => p.name === 'fps');
+    const speedPort = node.inPorts.find((p) => p.name === 'speed');
+
+    const baseFrameCount = Number(frameCountPort?.value) || 0;
+    const rawSpeed = Number(speedPort?.value);
+    const speed = Number.isFinite(rawSpeed) && rawSpeed > 0 ? rawSpeed : 1;
+    const adjustedFrameCount = speed === 1 ? baseFrameCount : Math.ceil(baseFrameCount / speed);
+    const fps = Number(fpsPort?.value) || 60;
+
+    return {
+      baseFrameCount,
+      adjustedFrameCount,
+      fps,
+      speed,
+    };
+  });
+
+  const longestMovie =
+    movieMetadata.length > 0
+      ? movieMetadata.reduce(
+          (selected, current) => (current.adjustedFrameCount > selected.adjustedFrameCount ? current : selected),
+          movieMetadata[0],
+        )
+      : { baseFrameCount: 0, adjustedFrameCount: 0, fps: 60, speed: 1 };
+
+  const detectedFrameCount = longestMovie.adjustedFrameCount;
+  const detectedBaseFrameCount = longestMovie.baseFrameCount || longestMovie.adjustedFrameCount;
+  const detectedSpeed = longestMovie.speed;
+  const detectedFps = longestMovie.fps;
+
+  const [frameCount, setFrameCount] = useState(detectedFrameCount > 0 ? detectedFrameCount : 100);
+  const [frameRate, setFrameRate] = useState(detectedFps);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isRendering, setIsRendering] = useState(false);
   const cancelRequestedRef = useRef(false);
+
+  const formatSpeed = (value) => {
+    if (!Number.isFinite(value)) return '1';
+    if (Math.abs(Math.round(value) - value) < 1e-6) return `${Math.round(value)}`;
+    return value.toFixed(2).replace(/\.?0+$/, '');
+  };
 
   const handleRenderFrameCallback = (frame) => {
     setCurrentFrame(frame);
@@ -61,13 +101,25 @@ export default function RenderDialog() {
           </div>
 
           {/* Description */}
-          <div className="flex flex-row items-center bg-gray-700 mb-6">
+          <div className="flex flex-row justify-between items-center bg-gray-700">
             <span className="text-gray-200 text-sm py-4 px-6">Render out all "Save Image" nodes.</span>
+            {movieNodes.length > 0 && detectedFrameCount > 0 && (
+              <span className="text-blue-200 text-sm py-1 px-2 bg-gray-800 rounded-lg mx-2">
+                <span className="block">
+                  Detected movie with {detectedBaseFrameCount} frames at {Math.round(detectedFps)} fps
+                </span>
+                {detectedSpeed !== 1 && (
+                  <span className="block">
+                    Speed {formatSpeed(detectedSpeed)}x → {detectedFrameCount} export frames
+                  </span>
+                )}
+              </span>
+            )}
           </div>
 
           {/* Time range */}
-          <div className="flex flex-row items-center mb-6">
-            <span className="text-right w-40 mr-2 text-gray-400 px-4">Frames</span>
+          <div className="flex flex-row items-center mt-6 mb-6">
+            <span className="text-right w-48 mr-2 text-gray-400 px-4">Frames</span>
             <input
               className="bg-gray-800 text-gray-300 p-2 w-24"
               type="number"
@@ -76,7 +128,7 @@ export default function RenderDialog() {
             />
           </div>
           <div className="flex flex-row items-center">
-            <span className="text-right w-40 mr-2 text-gray-400 px-4 truncate">Frame rate</span>
+            <span className="text-right w-48 mr-2 text-gray-400 px-4 truncate">Frame rate</span>
             <input
               className="bg-gray-800 text-gray-300 p-2 w-24"
               type="number"
