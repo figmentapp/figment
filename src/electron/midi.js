@@ -1,38 +1,37 @@
 import JZZ from 'jzz';
-// import 'jazz-midi-electron';
 
+let midiInstance = null;
 let midiInputs = [];
 let midiCallback = null;
+let connectedDeviceNames = new Set();
 
 export async function midiStartServer(callback) {
   midiCallback = callback;
 
   try {
     // Initialize JZZ
-    const midi = await JZZ();
-    console.log('MIDI initialized successfully');
+    midiInstance = await JZZ();
+    midiInstance.onChange = handleMidiDeviceChange;
 
     // Get all available MIDI inputs
-    const inputs = midi.info().inputs;
-    console.log(
-      'Available MIDI inputs:',
-      inputs.map((input) => input.name),
-    );
+    const inputs = midiInstance.info().inputs;
+    if (inputs.length > 0) {
+      console.log(
+        'Available MIDI inputs:',
+        inputs.map((input) => input.name),
+      );
+    }
 
     // Connect to all MIDI inputs
     for (const inputInfo of inputs) {
       try {
-        const input = await midi.openMidiIn(inputInfo.name);
+        const input = await midiInstance.openMidiIn(inputInfo.name);
         input.connect(handleMidiMessage);
         midiInputs.push(input);
         console.log(`Connected to MIDI input: ${inputInfo.name}`);
       } catch (error) {
         console.error(`Failed to connect to MIDI input ${inputInfo.name}:`, error);
       }
-    }
-
-    if (midiInputs.length === 0) {
-      console.log('No MIDI inputs available');
     }
   } catch (error) {
     console.error('Failed to initialize MIDI:', error);
@@ -52,7 +51,6 @@ export function midiStopServer() {
 
   midiInputs = [];
   midiCallback = null;
-  console.log('MIDI server stopped');
 }
 
 function handleMidiMessage(msg) {
@@ -70,4 +68,50 @@ function handleMidiMessage(msg) {
     // Send to callback
     midiCallback(channel, controller, value);
   }
+}
+
+function handleMidiDeviceChange(opts) {
+  console.log('MIDI device change detected. opts:', opts);
+
+  if (!midiInstance) return;
+  const currentDeviceNames = new Set(midiInstance.info().inputs.map((input) => input.name));
+  console.log('MIDI device change detected. Current devices:', [...currentDeviceNames]);
+  const disconnectedDevices = [...connectedDeviceNames].filter((name) => !currentDeviceNames.has(name));
+  disconnectedDevices.forEach((deviceName) => {
+    disconnectFromDevice(deviceName);
+  });
+  currentDeviceNames.forEach((deviceName) => {
+    if (!connectedDeviceNames.has(deviceName)) {
+      connectToDevice(deviceName);
+    }
+  });
+}
+
+async function connectToDevice(deviceName) {
+  if (connectedDeviceNames.has(deviceName)) return;
+
+  try {
+    const input = await midiInstance.openMidiIn(deviceName);
+    input.connect(handleMidiMessage);
+    midiInputs.push(input);
+    connectedDeviceNames.add(deviceName);
+    console.log(`Connected to MIDI input: ${deviceName}`);
+  } catch (error) {
+    console.error(`Failed to connect to MIDI input ${deviceName}:`, error);
+  }
+}
+
+async function disconnectFromDevice(deviceName) {
+  const index = midiInputs.findIndex((input) => input.name() === deviceName);
+  if (index === -1) return;
+  const input = midiInputs[index];
+  try {
+    input.disconnect();
+    input.close();
+    console.log(`Disconnected from MIDI input: ${deviceName}`);
+  } catch (error) {
+    console.error(`Error disconnecting MIDI input ${deviceName}:`, error);
+  }
+  midiInputs.splice(index, 1);
+  connectedDeviceNames.delete(deviceName);
 }
