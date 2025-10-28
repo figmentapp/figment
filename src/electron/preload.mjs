@@ -112,6 +112,31 @@ async function globFiles(baseDir, pattern) {
   return await glob(globPattern, { windowsPathsNoEscape: true });
 }
 
+async function globFilesWithStats(baseDir, pattern) {
+  const globPattern = path.join(baseDir, pattern);
+  const files = await glob(globPattern, { windowsPathsNoEscape: true });
+  const filesWithStats = await Promise.all(
+    files.map(async (file) => {
+      try {
+        const stats = await fs.stat(file);
+        return {
+          path: file,
+          birthtime: stats.birthtime.getTime(),
+          mtime: stats.mtime.getTime(),
+        };
+      } catch (err) {
+        // If we can't get stats, return the file without metadata
+        return {
+          path: file,
+          birthtime: 0,
+          mtime: 0,
+        };
+      }
+    })
+  );
+  return filesWithStats;
+}
+
 async function saveBufferToFile(buffer, filePath) {
   await fs.writeFile(filePath, Buffer.from(buffer));
 }
@@ -214,6 +239,7 @@ contextBridge.exposeInMainWorld('desktop', {
   writeProjectFile,
   ensureDirectory,
   globFiles,
+  globFilesWithStats,
   saveBufferToFile,
   pathToFileURL,
   registerListener,

@@ -9,6 +9,8 @@ const folderIn = node.directoryIn('folder', '');
 const filterIn = node.stringIn('filter', '*.jpg');
 const animateIn = node.toggleIn('animate', false);
 const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
+const sortIn = node.menuIn('sort', 'name', ['name', 'created', 'modified']);
+const orderIn = node.menuIn('order', 'ascending', ['ascending', 'descending']);
 const imageOut = node.imageOut('out');
 
 const LOAD_STATE_NONE = 0;
@@ -69,7 +71,33 @@ async function loadDirectory() {
   }
   const baseDir = figment.filePathForAsset(folderIn.value);
   try {
-    _files = await window.desktop.globFiles(baseDir, filterIn.value);
+    const filesWithStats = await window.desktop.globFilesWithStats(baseDir, filterIn.value);
+
+    // Sort the files based on the selected sort method
+    filesWithStats.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortIn.value === 'name') {
+        // Sort by file path (name)
+        comparison = a.path.localeCompare(b.path);
+      } else if (sortIn.value === 'created') {
+        // Sort by creation time
+        comparison = a.birthtime - b.birthtime;
+      } else if (sortIn.value === 'modified') {
+        // Sort by modified time
+        comparison = a.mtime - b.mtime;
+      }
+
+      // Reverse the comparison if descending order
+      if (orderIn.value === 'descending') {
+        comparison = -comparison;
+      }
+
+      return comparison;
+    });
+
+    // Extract just the paths for the _files array
+    _files = filesWithStats.map((file) => file.path);
   } catch (err) {
     onLoadError();
   }
@@ -122,3 +150,5 @@ async function loadImage() {
 
 folderIn.onChange = changeDirectory;
 filterIn.onChange = changeDirectory;
+sortIn.onChange = changeDirectory;
+orderIn.onChange = changeDirectory;
