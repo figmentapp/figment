@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
 import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
 import { midiStartServer, midiStopServer } from './midi.js';
+import { initializeSyphonSpout, startSyphonSpout, stopSyphonSpout, sendSyphonSpoutFrame } from './syphonSpout.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -270,6 +271,19 @@ ipcMain.handle('setDocumentEdited', (_, edited) => {
   }
 });
 
+// Syphon/Spout handlers
+ipcMain.handle('startSyphonSpout', (_, { serverName }) => {
+  startSyphonSpout(serverName);
+});
+
+ipcMain.handle('stopSyphonSpout', (_) => {
+  stopSyphonSpout();
+});
+
+ipcMain.handle('sendSyphonSpoutFrame', (_, { frameData, width, height }) => {
+  sendSyphonSpoutFrame(frameData, width, height);
+});
+
 async function startDevServer() {
   if (process.env.NODE_ENV !== 'development') return;
   const { createServer, createLogger, build } = await import('vite');
@@ -298,8 +312,14 @@ function createMainWindow(filePath) {
       webSecurity: false,
       nodeIntegration: true,
       backgroundThrottling: false,
+      offscreen: {
+        useSharedTexture: true,
+      },
     },
   });
+
+  // Initialize Syphon/Spout support with shared textures
+  initializeSyphonSpout(gMainWindow);
 
   const encodedFilePath = filePath ? querystring.escape(filePath) : '';
   // Load the index.html of the app.

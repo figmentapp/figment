@@ -231,6 +231,19 @@ async function setDocumentEdited(edited) {
   await ipcRenderer.invoke('setDocumentEdited', edited);
 }
 
+// Syphon/Spout functions
+async function startSyphonSpout(serverName) {
+  await ipcRenderer.invoke('startSyphonSpout', { serverName });
+}
+
+async function stopSyphonSpout() {
+  await ipcRenderer.invoke('stopSyphonSpout');
+}
+
+async function sendSyphonSpoutFrame(frameData, width, height) {
+  await ipcRenderer.invoke('sendSyphonSpoutFrame', { frameData, width, height });
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
@@ -265,4 +278,7 @@ contextBridge.exposeInMainWorld('desktop', {
   unregisterGlobalShortcut,
   setRepresentedFilename,
   setDocumentEdited,
+  startSyphonSpout,
+  stopSyphonSpout,
+  sendSyphonSpoutFrame,
 });
