@@ -58,9 +58,28 @@ node.onStop = () => {
   window.desktop.stopSyphonSpout();
 };
 
+const restartServer = () => {
+  window.desktop.stopSyphonSpout();
+  window.desktop.startSyphonSpout(serverNameIn.value);
+};
+
+const updateTimer = () => {
+  if (_timer) {
+    clearInterval(_timer);
+  }
+  if (enableIn.value) {
+    _timer = setInterval(() => {
+      _shouldSend = true;
+    }, 1000 / fpsIn.value);
+  }
+};
+
 enableIn.onChange = () => {
   if (enableIn.value) {
-    node.onStart();
+    // Only start if not already running
+    if (!_timer) {
+      node.onStart();
+    }
   } else {
     node.onStop();
   }
@@ -68,16 +87,8 @@ enableIn.onChange = () => {
 
 serverNameIn.onChange = () => {
   if (enableIn.value) {
-    window.desktop.stopSyphonSpout();
-    window.desktop.startSyphonSpout(serverNameIn.value);
+    restartServer();
   }
 };
 
-fpsIn.onChange = () => {
-  if (_timer) {
-    clearInterval(_timer);
-    _timer = setInterval(() => {
-      _shouldSend = true;
-    }, 1000 / fpsIn.value);
-  }
-};
+fpsIn.onChange = updateTimer;

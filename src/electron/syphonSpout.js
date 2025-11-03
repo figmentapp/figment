@@ -19,10 +19,10 @@ export function initializeSyphonSpout(browserWindow) {
 
   // Listen for paint events when offscreen rendering is enabled
   // This is where we can access the shared texture
-  browserWindow.webContents.on('paint', async (event, dirty, image) => {
+  browserWindow.webContents.on('paint', (event, dirty, image) => {
     if (!_isActive) return;
 
-    // Check if shared texture is available (Electron 29+)
+    // Check if shared texture is available (Electron 38+)
     if (event.texture) {
       try {
         // The texture info contains the native handle that can be used
