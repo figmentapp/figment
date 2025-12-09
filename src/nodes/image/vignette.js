@@ -1,6 +1,6 @@
 /**
  * @name Vignette
- * @description Vignette on image.
+ * @description Darkens or tints the edges of the image.
  * @category image
  */
 
