@@ -26,11 +26,11 @@ void main() {
 `;
 
 const imageIn = node.imageIn('in');
-const radiusIn = node.numberIn('radius', 0.4, { min: 0.0, max: 1.0, step: 0.01 });
+const radiusIn = node.numberIn('radius', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const centerXIn = node.numberIn('center x', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const centerYIn = node.numberIn('center y', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
-const strengthIn = node.numberIn('strength', 1.0, { min: 0.0, max: 1.0, step: 0.01 });
-const softnessIn = node.numberIn('softness', 0.3, { min: 0.01, max: 1.0, step: 0.01 });
+const strengthIn = node.numberIn('strength', 0.4, { min: 0.0, max: 1.0, step: 0.01 });
+const softnessIn = node.numberIn('softness', 0.1, { min: 0.01, max: 1.0, step: 0.01 });
 const colorIn = node.colorIn('color', [0, 0, 0, 1.0]);
 const imageOut = node.imageOut('out');
 
