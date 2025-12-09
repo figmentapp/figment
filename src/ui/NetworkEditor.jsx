@@ -406,7 +406,12 @@ export default function NetworkEditor({ offscreenCanvas }) {
       const [networkX, networkY] = networkPosition(e);
       const node = findNode(networkX, networkY);
       const port = node && findPort(node, networkX, networkY);
-      if (port && port.direction === PORT_IN) connect(dragPortRef.current, port);
+      if (port && port.direction === PORT_IN) {
+        connect(dragPortRef.current, port);
+      } else if (!node) {
+        // Dragged to empty space - open node dialog with pending connection
+        openNodeDialog(new Point(networkX, networkY), dragPortRef.current);
+      }
     } else if (dragModeRef.current === DRAG_MODE_SELECTING) {
       // Find out which nodes are in the selection rectangle.
       const network = useAppStore.getState().network;

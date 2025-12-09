@@ -20,6 +20,7 @@ export const useAppStore = create((set, get) => ({
   activeTabIndex: -1,
   selection: new Set(),
   showNodeDialog: false,
+  pendingConnectionPort: null,
   showForkDialog: false,
   showRenderDialog: false,
   showProjectSettingsDialog: false,
@@ -291,12 +292,12 @@ export const useAppStore = create((set, get) => ({
   },
 
   // Dialogs + nodes
-  openNodeDialog(pt) {
+  openNodeDialog(pt, pendingPort = null) {
     const p = pt || new Point(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
-    set({ showNodeDialog: true, lastNetworkPoint: p });
+    set({ showNodeDialog: true, lastNetworkPoint: p, pendingConnectionPort: pendingPort });
   },
   closeNodeDialog() {
-    set({ showNodeDialog: false });
+    set({ showNodeDialog: false, pendingConnectionPort: null });
   },
   openForkDialog(nodeType) {
     set({ showForkDialog: true, forkDialogNodeType: nodeType });
@@ -332,10 +333,18 @@ export const useAppStore = create((set, get) => ({
     set({ showProjectSettingsDialog: false });
   },
   createNode(nodeType) {
-    const { lastNetworkPoint, network } = get();
-    network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y);
+    const { lastNetworkPoint, network, pendingConnectionPort } = get();
+    const newNode = network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y);
+    // If there's a pending connection (from dragging an output port to empty space),
+    // connect the first compatible input port of the new node
+    if (pendingConnectionPort && newNode) {
+      const compatibleInPort = newNode.inPorts.find((port) => port.type === pendingConnectionPort.type);
+      if (compatibleInPort) {
+        network.connect(pendingConnectionPort, compatibleInPort);
+      }
+    }
     get().setDirty(true);
-    set({ showNodeDialog: false });
+    set({ showNodeDialog: false, pendingConnectionPort: null });
     get().forceRedraw();
   },
   openNodeRenameDialog(node) {
