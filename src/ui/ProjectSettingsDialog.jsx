@@ -10,6 +10,7 @@ export default function ProjectSettingsDialog() {
   useAppStore((state) => state.version); // Subscribe to version to trigger re-renders on setting changes
   const closeProjectSettingsDialog = useAppStore((state) => state.closeProjectSettingsDialog);
   const changeProjectSetting = useAppStore((state) => state.changeProjectSetting);
+  const midiDevices = useAppStore((state) => state.midiDevices);
   return (
     <div className="dialog-wrapper" onClick={closeProjectSettingsDialog}>
       <div
@@ -48,6 +49,20 @@ export default function ProjectSettingsDialog() {
               onValidate={(v) => !isNaN(parseInt(v))}
             />
           </div>
+        </div>
+
+        {/* MIDI Devices */}
+        <div className="flex flex-col mb-6 mx-4">
+          <span className="text-gray-400 mb-2 font-bold">MIDI Devices</span>
+          {midiDevices && midiDevices.length > 0 ? (
+            <ul className="text-gray-200 list-disc pl-5">
+              {midiDevices.map((device) => (
+                <li key={device}>{device}</li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-gray-600">No MIDI devices found</span>
+          )}
         </div>
 
         {/* Action bar */}
