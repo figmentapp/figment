@@ -35,9 +35,14 @@ export const useAppStore = create((set, get) => ({
   oscMessageFrequencies: [],
   oscMessageMap: new Map(),
   midiMessageMap: new Map(),
+  midiDevices: [],
 
   // Generic setter helper
   set: (partial) => set(partial),
+
+  setMidiDevices(devices) {
+    set({ midiDevices: devices });
+  },
 
   // Helper to set dirty flag and update macOS window state
   setDirty(dirty) {

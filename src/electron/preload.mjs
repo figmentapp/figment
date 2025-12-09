@@ -10,6 +10,7 @@ const listeners = {
   udp: null,
   shortcut: null,
   midi: null,
+  midiDevices: null,
 };
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
@@ -148,6 +149,12 @@ ipcRenderer.on('midi-update', (_, data) => {
   }
 });
 
+ipcRenderer.on('midi-devices', (_, data) => {
+  if (typeof listeners['midiDevices'] === 'function') {
+    listeners['midiDevices'](data);
+  }
+});
+
 function registerListener(name, fn) {
   listeners[name] = fn;
 }
@@ -193,6 +200,10 @@ async function setDocumentEdited(edited) {
   await ipcRenderer.invoke('setDocumentEdited', edited);
 }
 
+async function getMidiDevices() {
+  return await ipcRenderer.invoke('getMidiDevices');
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
@@ -227,4 +238,5 @@ contextBridge.exposeInMainWorld('desktop', {
   unregisterGlobalShortcut,
   setRepresentedFilename,
   setDocumentEdited,
+  getMidiDevices,
 });

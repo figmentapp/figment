@@ -1,13 +1,17 @@
 import JZZ from 'jzz';
+import { EventEmitter } from 'events';
+
+export const midiEmitter = new EventEmitter();
 
 let midiInstance = null;
 let midiInputs = [];
-let midiCallback = null;
 let connectedDeviceNames = new Set();
 
-export async function midiStartServer(callback) {
-  midiCallback = callback;
+export function getMidiDevices() {
+  return [...connectedDeviceNames];
+}
 
+export async function midiStartServer() {
   try {
     // Initialize JZZ
     midiInstance = await JZZ();
@@ -26,6 +30,8 @@ export async function midiStartServer(callback) {
     for (const inputInfo of inputs) {
       await connectToDevice(inputInfo.name);
     }
+
+    midiEmitter.emit('devices', [...connectedDeviceNames]);
   } catch (error) {
     console.error('Failed to initialize MIDI:', error);
   }
@@ -39,13 +45,11 @@ export function midiStopServer() {
 
   midiInputs = [];
   connectedDeviceNames.clear();
-  midiCallback = null;
   midiInstance = null;
+  midiEmitter.removeAllListeners();
 }
 
 function handleMidiMessage(msg) {
-  if (!midiCallback) return;
-
   // Parse MIDI message
   const [status, data1, data2] = msg;
 
@@ -55,8 +59,8 @@ function handleMidiMessage(msg) {
     const controller = data1;
     const value = data2 / 127.0; // Normalize to 0-1
 
-    // Send to callback
-    midiCallback(channel, controller, value);
+    // Emit event
+    midiEmitter.emit('message', channel, controller, value);
   }
 }
 
@@ -75,6 +79,8 @@ function handleMidiDeviceChange(opts) {
       connectToDevice(deviceName);
     }
   });
+
+  midiEmitter.emit('devices', [...currentDeviceNames]);
 }
 
 async function connectToDevice(deviceName) {

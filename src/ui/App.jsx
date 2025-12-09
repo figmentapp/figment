@@ -95,6 +95,8 @@ export default function App(props) {
     window.desktop.registerListener('menu', handleMenuEvent);
     window.desktop.registerListener('osc', handleOscEvent);
     window.desktop.registerListener('midi', handleMidiEvent);
+    window.desktop.registerListener('midiDevices', (devices) => useAppStore.getState().setMidiDevices(devices));
+    window.desktop.getMidiDevices().then((devices) => useAppStore.getState().setMidiDevices(devices));
     const initialPath = props.filePath || useAppStore.getState().filePath;
     if (initialPath) openFile(initialPath);
     return () => {
