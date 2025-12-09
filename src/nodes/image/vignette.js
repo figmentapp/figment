@@ -16,7 +16,8 @@ varying vec2 v_uv;
 
 void main() {
     vec2 uv = v_uv;
-    float dist = distance(uv, u_center);
+    vec2 d = abs(uv - u_center);
+    float dist = pow(pow(d.x, 4.0) + pow(d.y, 4.0), 0.25);
     float vignette = smoothstep(u_radius, u_radius - u_softness, dist);
     vignette = mix(1.0, vignette, u_strength);
     vec4 color = texture2D(u_input_texture, uv);
