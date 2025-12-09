@@ -169,6 +169,11 @@ function showPortContextMenu(_, { nodeId, portName, valueType }) {
 ipcMain.handle('showPortContextMenu', showPortContextMenu);
 
 function setFullScreen(_, fullscreen) {
+  // Guard against destroyed window
+  if (!gMainWindow || gMainWindow.isDestroyed()) {
+    return;
+  }
+
   gMainWindow.setFullScreen(fullscreen);
   gMainWindow.setMenuBarVisibility(!fullscreen);
 }
@@ -250,6 +255,11 @@ ipcMain.handle('unregisterGlobalShortcut', async (_, { accel }) => {
 });
 
 ipcMain.handle('setRepresentedFilename', (_, filePath) => {
+  // Guard against destroyed window
+  if (!gMainWindow || gMainWindow.isDestroyed()) {
+    return;
+  }
+
   if (filePath) {
     gMainWindow.setRepresentedFilename(filePath);
     gMainWindow.setTitle(`${path.basename(filePath)}`);
@@ -261,6 +271,12 @@ ipcMain.handle('setRepresentedFilename', (_, filePath) => {
 
 ipcMain.handle('setDocumentEdited', (_, edited) => {
   gDocumentEdited = edited;
+
+  // Guard against destroyed window
+  if (!gMainWindow || gMainWindow.isDestroyed()) {
+    return;
+  }
+
   gMainWindow.setDocumentEdited(edited);
 
   // If we were waiting for save to complete before closing, close now
@@ -335,10 +351,14 @@ function createMainWindow(filePath) {
         // Save - trigger save, then close when save completes
         gPendingClose = true;
         gMainWindow.webContents.send('menu', 'save');
-        // Reset flag after 5 seconds in case save was cancelled
+        // Reset flag after 10 seconds in case save was cancelled or failed
+        // This is a safety fallback - normal flow clears the flag in setDocumentEdited
         setTimeout(() => {
-          gPendingClose = false;
-        }, 5000);
+          if (gPendingClose) {
+            console.warn('Save-before-close timeout expired, resetting pending close flag');
+            gPendingClose = false;
+          }
+        }, 10000);
       }
       // choice === 0 (Cancel) - do nothing, window stays open
     }
