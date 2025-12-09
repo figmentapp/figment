@@ -7,6 +7,8 @@
 node.timeDependent = true;
 const folderIn = node.directoryIn('folder', '');
 const filterIn = node.stringIn('filter', '*.jpg');
+const sortByIn = node.selectIn('sortBy', ['alphabetical', 'created', 'modified'], 'alphabetical');
+const orderIn = node.selectIn('order', ['ascending', 'descending'], 'ascending');
 const animateIn = node.toggleIn('animate', false);
 const frameRateIn = node.numberIn('frameRate', 10, { min: 1, max: 60 });
 const imageOut = node.imageOut('out');
@@ -69,7 +71,10 @@ async function loadDirectory() {
   }
   const baseDir = figment.filePathForAsset(folderIn.value);
   try {
-    _files = await window.desktop.globFiles(baseDir, filterIn.value);
+    _files = await window.desktop.globFiles(baseDir, filterIn.value, {
+      sortBy: sortByIn.value,
+      order: orderIn.value,
+    });
   } catch (err) {
     onLoadError();
   }
@@ -122,3 +127,5 @@ async function loadImage() {
 
 folderIn.onChange = changeDirectory;
 filterIn.onChange = changeDirectory;
+sortByIn.onChange = changeDirectory;
+orderIn.onChange = changeDirectory;

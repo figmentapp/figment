@@ -108,9 +108,47 @@ async function ensureDirectory(dir) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-async function globFiles(baseDir, pattern) {
+async function globFiles(baseDir, pattern, options = {}) {
   const globPattern = path.join(baseDir, pattern);
-  return await glob(globPattern, { windowsPathsNoEscape: true });
+  const files = await glob(globPattern, { windowsPathsNoEscape: true });
+
+  const { sortBy = 'alphabetical', order = 'ascending' } = options ?? {};
+  const isDescending = order === 'descending';
+
+  if (sortBy === 'alphabetical') {
+    const sorted = [...files].sort((a, b) => a.localeCompare(b));
+    return isDescending ? sorted.reverse() : sorted;
+  }
+
+  const sortKey = sortBy === 'created' ? 'created' : 'modified';
+  const fileMeta = await Promise.all(
+    files.map(async (file) => {
+      try {
+        const stats = await fs.stat(file);
+        return {
+          file,
+          created: stats.birthtimeMs,
+          modified: stats.mtimeMs,
+        };
+      } catch (err) {
+        return {
+          file,
+          created: 0,
+          modified: 0,
+        };
+      }
+    })
+  );
+
+  fileMeta.sort((a, b) => {
+    const diff = a[sortKey] - b[sortKey];
+    if (diff === 0) {
+      return a.file.localeCompare(b.file);
+    }
+    return isDescending ? -diff : diff;
+  });
+
+  return fileMeta.map(({ file }) => file);
 }
 
 async function saveBufferToFile(buffer, filePath) {
