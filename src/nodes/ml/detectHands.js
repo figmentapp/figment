@@ -81,7 +81,7 @@ function drawResults(handResult) {
   if (handResult.landmarks && handResult.landmarks.length > 0) {
     detectedOut.value = true;
     landmarksOut.value = {
-      type: 'hands',
+      type: 'hand',
       landmarks: handResult.landmarks,
       handedness: handResult.handednesses,
       worldLandmarks: handResult.worldLandmarks,
