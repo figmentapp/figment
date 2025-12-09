@@ -6,6 +6,7 @@ export const midiEmitter = new EventEmitter();
 let midiInstance = null;
 let midiInputs = [];
 let connectedDeviceNames = new Set();
+let retryInterval = null;
 
 export function getMidiDevices() {
   return [...connectedDeviceNames];
@@ -32,12 +33,21 @@ export async function midiStartServer() {
     }
 
     midiEmitter.emit('devices', [...connectedDeviceNames]);
+
+    // Start polling for devices that might become available (e.g. other apps closing on Windows)
+    if (retryInterval) clearInterval(retryInterval);
+    retryInterval = setInterval(checkAndConnectDevices, 3000);
   } catch (error) {
     console.error('Failed to initialize MIDI:', error);
   }
 }
 
 export function midiStopServer() {
+  if (retryInterval) {
+    clearInterval(retryInterval);
+    retryInterval = null;
+  }
+
   // Disconnect all MIDI inputs
   [...connectedDeviceNames].forEach((deviceName) => {
     disconnectFromDevice(deviceName);
@@ -74,16 +84,28 @@ function handleMidiDeviceChange(opts) {
   disconnectedDevices.forEach((deviceName) => {
     disconnectFromDevice(deviceName);
   });
-  currentDeviceNames.forEach((deviceName) => {
-    if (!connectedDeviceNames.has(deviceName)) {
-      connectToDevice(deviceName);
-    }
-  });
 
-  midiEmitter.emit('devices', [...currentDeviceNames]);
+  // Use async iteration to ensure we try connecting one by one
+  (async () => {
+    for (const deviceName of currentDeviceNames) {
+      if (!connectedDeviceNames.has(deviceName)) {
+        await connectToDevice(deviceName);
+      }
+    }
+  })();
 }
 
-async function connectToDevice(deviceName) {
+async function checkAndConnectDevices() {
+  if (!midiInstance) return;
+  const inputs = midiInstance.info().inputs;
+  for (const input of inputs) {
+    if (!connectedDeviceNames.has(input.name)) {
+      await connectToDevice(input.name, true);
+    }
+  }
+}
+
+async function connectToDevice(deviceName, quiet = false) {
   if (connectedDeviceNames.has(deviceName)) return;
 
   try {
@@ -92,8 +114,16 @@ async function connectToDevice(deviceName) {
     midiInputs.push(input);
     connectedDeviceNames.add(deviceName);
     console.log(`Connected to MIDI input: ${deviceName}`);
+    midiEmitter.emit('devices', [...connectedDeviceNames]);
   } catch (error) {
-    console.error(`Failed to connect to MIDI input ${deviceName}:`, error);
+    if (!quiet) {
+      console.error(`Failed to connect to MIDI input ${deviceName}:`, error);
+      if (process.platform === 'win32') {
+        console.error(
+          'On Windows, MIDI devices can typically only be used by one application at a time. Please close other applications using this device.',
+        );
+      }
+    }
   }
 }
 
@@ -110,4 +140,5 @@ async function disconnectFromDevice(deviceName) {
   }
   midiInputs.splice(index, 1);
   connectedDeviceNames.delete(deviceName);
+  midiEmitter.emit('devices', [...connectedDeviceNames]);
 }
