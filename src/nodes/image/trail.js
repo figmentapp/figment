@@ -25,6 +25,14 @@ void main() {
   float fade = pow(u_fade, 4.0);
   prev *= (1.0 - fade);
 
+  // Dithering to handle sub-bit precision for slow fades
+  // Only apply to pixels that have some opacity to avoid noise in empty space
+  if (prev.a > 0.001) {
+    float noise = random(v_uv + u_seed);
+    prev += (noise - 0.5) / 255.0;
+    prev = clamp(prev, 0.0, 1.0);
+  }
+
   // Apply mix to new image
   next.a *= u_mix;
 
@@ -36,10 +44,6 @@ void main() {
   }
   
   vec4 result = vec4(outRGB, outA);
-
-  // Dithering to handle sub-bit precision for slow fades
-  float noise = random(v_uv + u_seed);
-  result += (noise - 0.5) / 255.0;
 
   gl_FragColor = result;
 }
@@ -91,7 +95,7 @@ node.onRender = () => {
   figment.drawQuad(program, {
     u_prev_texture: current.texture,
     u_new_texture: input.texture,
-    u_fade: fadeParam.value * 0.6,
+    u_fade: fadeParam.value * 0.5,
     u_mix: mixParam.value,
     u_seed: Math.random(),
   });
