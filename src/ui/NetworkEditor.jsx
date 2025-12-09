@@ -407,7 +407,11 @@ export default function NetworkEditor({ offscreenCanvas }) {
       const [networkX, networkY] = networkPosition(e);
       const node = findNode(networkX, networkY);
       const port = node && findPort(node, networkX, networkY);
-      if (port && port.direction === PORT_IN) {
+      const sourceNode = dragPortRef.current.node;
+      // Prevent connecting a node to itself
+      if (node === sourceNode) {
+        // Do nothing - can't connect to same node
+      } else if (port && port.direction === PORT_IN) {
         connect(dragPortRef.current, port);
       } else if (!node && dragModeRef.current === DRAG_MODE_NEW_CONNECTION) {
         // Dragged to empty space from output port - open node dialog with pending connection
