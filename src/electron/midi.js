@@ -11,7 +11,7 @@ export async function midiStartServer(callback) {
   try {
     // Initialize JZZ
     midiInstance = await JZZ();
-    midiInstance.onChange = handleMidiDeviceChange;
+    midiInstance.onChange(handleMidiDeviceChange);
 
     // Get all available MIDI inputs
     const inputs = midiInstance.info().inputs;
@@ -24,14 +24,7 @@ export async function midiStartServer(callback) {
 
     // Connect to all MIDI inputs
     for (const inputInfo of inputs) {
-      try {
-        const input = await midiInstance.openMidiIn(inputInfo.name);
-        input.connect(handleMidiMessage);
-        midiInputs.push(input);
-        console.log(`Connected to MIDI input: ${inputInfo.name}`);
-      } catch (error) {
-        console.error(`Failed to connect to MIDI input ${inputInfo.name}:`, error);
-      }
+      await connectToDevice(inputInfo.name);
     }
   } catch (error) {
     console.error('Failed to initialize MIDI:', error);
@@ -40,17 +33,14 @@ export async function midiStartServer(callback) {
 
 export function midiStopServer() {
   // Disconnect all MIDI inputs
-  midiInputs.forEach((input) => {
-    try {
-      input.disconnect();
-      input.close();
-    } catch (error) {
-      console.error('Error closing MIDI input:', error);
-    }
+  [...connectedDeviceNames].forEach((deviceName) => {
+    disconnectFromDevice(deviceName);
   });
 
   midiInputs = [];
+  connectedDeviceNames.clear();
   midiCallback = null;
+  midiInstance = null;
 }
 
 function handleMidiMessage(msg) {
