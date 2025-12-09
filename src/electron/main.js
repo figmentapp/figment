@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
 import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
-import { midiStartServer, midiStopServer } from './midi.js';
+import { midiStartServer, midiStopServer, midiEmitter, getMidiDevices } from './midi.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -87,6 +87,10 @@ async function showOpenProjectDialog() {
   return filePath;
 }
 ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
+
+ipcMain.handle('getMidiDevices', () => {
+  return getMidiDevices();
+});
 
 async function showOpenFileDialog(fileType = 'generic') {
   const { filePaths } = await dialog.showOpenDialog({
@@ -460,8 +464,12 @@ app.whenReady().then(async () => {
   createMainWindow(fileArg);
 
   // Initialize MIDI after window is created
-  midiStartServer((channel, controller, value) => {
+  midiStartServer();
+  midiEmitter.on('message', (channel, controller, value) => {
     sendIpcMessage('midi-update', { channel, controller, value });
+  });
+  midiEmitter.on('devices', (devices) => {
+    sendIpcMessage('midi-devices', devices);
   });
 });
 
