@@ -20,7 +20,7 @@ void main() {
     float vignette = smoothstep(u_radius, u_radius - u_softness, dist);
     vignette = mix(1.0, vignette, u_strength);
     vec4 color = texture2D(u_input_texture, uv);
-    color.rgb = mix(color.rgb, color.rgb * u_color, 1.0 - vignette);
+    color.rgb = mix(u_color, color.rgb, vignette);
     gl_FragColor = color;
 }
 `;
