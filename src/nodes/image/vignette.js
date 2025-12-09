@@ -18,7 +18,7 @@ void main() {
     vec2 uv = v_uv;
     vec2 d = abs(uv - u_center);
     float dist = pow(pow(d.x, 4.0) + pow(d.y, 4.0), 0.25);
-    float vignette = smoothstep(u_radius, u_radius - u_softness, dist);
+    float vignette = 1.0 - smoothstep(u_radius * (1.0 - u_softness), u_radius, dist);
     vignette = mix(1.0, vignette, u_strength);
     vec4 color = texture2D(u_input_texture, uv);
     color.rgb = mix(u_color, color.rgb, vignette);
@@ -30,8 +30,8 @@ const imageIn = node.imageIn('in');
 const radiusIn = node.numberIn('radius', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const centerXIn = node.numberIn('center x', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const centerYIn = node.numberIn('center y', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
-const strengthIn = node.numberIn('strength', 0.4, { min: 0.0, max: 1.0, step: 0.01 });
-const softnessIn = node.numberIn('softness', 0.1, { min: 0.01, max: 1.0, step: 0.01 });
+const strengthIn = node.numberIn('strength', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
+const softnessIn = node.numberIn('softness', 0.25, { min: 0.01, max: 1.0, step: 0.01 });
 const colorIn = node.colorIn('color', [0, 0, 0, 1.0]);
 const imageOut = node.imageOut('out');
 
