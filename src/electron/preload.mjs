@@ -10,6 +10,7 @@ const listeners = {
   udp: null,
   shortcut: null,
   midi: null,
+  midiDevices: null,
 };
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
@@ -107,9 +108,47 @@ async function ensureDirectory(dir) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-async function globFiles(baseDir, pattern) {
+async function globFiles(baseDir, pattern, options = {}) {
   const globPattern = path.join(baseDir, pattern);
-  return await glob(globPattern, { windowsPathsNoEscape: true });
+  const files = await glob(globPattern, { windowsPathsNoEscape: true });
+
+  const { sortBy = 'alphabetical', order = 'ascending' } = options ?? {};
+  const isDescending = order === 'descending';
+
+  if (sortBy === 'alphabetical') {
+    const sorted = [...files].sort((a, b) => a.localeCompare(b));
+    return isDescending ? sorted.reverse() : sorted;
+  }
+
+  const sortKey = sortBy === 'created' ? 'created' : 'modified';
+  const fileMeta = await Promise.all(
+    files.map(async (file) => {
+      try {
+        const stats = await fs.stat(file);
+        return {
+          file,
+          created: stats.birthtimeMs,
+          modified: stats.mtimeMs,
+        };
+      } catch (err) {
+        return {
+          file,
+          created: 0,
+          modified: 0,
+        };
+      }
+    })
+  );
+
+  fileMeta.sort((a, b) => {
+    const diff = a[sortKey] - b[sortKey];
+    if (diff === 0) {
+      return a.file.localeCompare(b.file);
+    }
+    return isDescending ? -diff : diff;
+  });
+
+  return fileMeta.map(({ file }) => file);
 }
 
 async function saveBufferToFile(buffer, filePath) {
@@ -145,6 +184,12 @@ ipcRenderer.on('shortcut', (_, payload) => {
 ipcRenderer.on('midi-update', (_, data) => {
   if (typeof listeners['midi'] === 'function') {
     listeners['midi'](data);
+  }
+});
+
+ipcRenderer.on('midi-devices', (_, data) => {
+  if (typeof listeners['midiDevices'] === 'function') {
+    listeners['midiDevices'](data);
   }
 });
 
@@ -193,6 +238,10 @@ async function setDocumentEdited(edited) {
   await ipcRenderer.invoke('setDocumentEdited', edited);
 }
 
+async function getMidiDevices() {
+  return await ipcRenderer.invoke('getMidiDevices');
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
@@ -227,4 +276,5 @@ contextBridge.exposeInMainWorld('desktop', {
   unregisterGlobalShortcut,
   setRepresentedFilename,
   setDocumentEdited,
+  getMidiDevices,
 });
