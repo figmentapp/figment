@@ -187,6 +187,12 @@ ipcRenderer.on('midi-update', (_, data) => {
   }
 });
 
+ipcRenderer.on('midi-program-change', (_, data) => {
+  if (typeof listeners['midiProgramChange'] === 'function') {
+    listeners['midiProgramChange'](data);
+  }
+});
+
 ipcRenderer.on('midi-devices', (_, data) => {
   if (typeof listeners['midiDevices'] === 'function') {
     listeners['midiDevices'](data);

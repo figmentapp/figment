@@ -36,6 +36,7 @@ export const useAppStore = create((set, get) => ({
   oscMessageFrequencies: [],
   oscMessageMap: new Map(),
   midiMessageMap: new Map(),
+  midiProgramChangeMap: new Map(),
   midiDevices: [],
 
   // Generic setter helper
@@ -472,6 +473,10 @@ export const useAppStore = create((set, get) => ({
   handleMidiEvent(data) {
     const { channel, controller, value } = data;
     get().midiMessageMap.set(`${channel}-${controller}`, value);
+  },
+  handleMidiProgramChange(data) {
+    const { channel, program } = data;
+    get().midiProgramChangeMap.set(channel, program);
   },
   handleMenuEvent(name, args) {
     switch (name) {

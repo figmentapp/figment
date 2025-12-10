@@ -488,6 +488,9 @@ app.whenReady().then(async () => {
   midiEmitter.on('message', (channel, controller, value) => {
     sendIpcMessage('midi-update', { channel, controller, value });
   });
+  midiEmitter.on('programChange', (channel, program) => {
+    sendIpcMessage('midi-program-change', { channel, program });
+  });
   midiEmitter.on('devices', (devices) => {
     sendIpcMessage('midi-devices', devices);
   });

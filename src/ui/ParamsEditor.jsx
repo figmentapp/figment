@@ -20,6 +20,8 @@ import {
   PORT_TYPE_FILE,
   PORT_TYPE_DIRECTORY,
   PORT_TYPE_OBJECT,
+  PORT_TYPE_BOOLEAN,
+  PORT_DISPLAY_PARAMETER,
 } from '../model/Port';
 
 const NUMBER_DRAG_IDLE = 'idle';
@@ -519,6 +521,9 @@ export default function ParamsEditor() {
   };
 
   const renderPort = (network, node, port) => {
+    if (!(port.display & PORT_DISPLAY_PARAMETER)) {
+      return null;
+    }
     let field;
     if (port._value.type === 'expression') {
       field = (
@@ -547,7 +552,7 @@ export default function ParamsEditor() {
           <span />
         </React.Fragment>
       );
-    } else if (port.type === PORT_TYPE_TOGGLE) {
+    } else if (port.type === PORT_TYPE_TOGGLE || port.type === PORT_TYPE_BOOLEAN) {
       field = (
         <ToggleParam
           key={port.name}
