@@ -9,7 +9,6 @@ precision mediump float;
 uniform sampler2D u_prev_texture;
 uniform sampler2D u_new_texture;
 uniform float u_fade;
-uniform float u_mix;
 uniform float u_seed;
 varying vec2 v_uv;
 
@@ -21,20 +20,14 @@ void main() {
   vec4 prev = texture2D(u_prev_texture, v_uv);
   vec4 next = texture2D(u_new_texture, v_uv);
 
-  // Use a curve that allows for very slow fades
+  // Monte Carlo fading: each pixel has probability 'fade' of being cleared
+  // Use pow curve so low values give very slow fades
   float fade = pow(u_fade, 4.0);
-  prev *= (1.0 - fade);
+  float noise = random(v_uv + u_seed);
 
-  // Dithering to handle sub-bit precision for slow fades
-  // Only apply to pixels that have some opacity to avoid noise in empty space
-  if (prev.a > 0.001) {
-    float noise = random(v_uv + u_seed);
-    prev += (noise - 0.5) / 255.0;
-    prev = clamp(prev, 0.0, 1.0);
+  if (noise < fade) {
+    prev = vec4(0.0); // Clear this pixel
   }
-
-  // Apply mix to new image
-  next.a *= u_mix;
 
   // Standard alpha blending: next over prev
   float outA = next.a + prev.a * (1.0 - next.a);
@@ -42,15 +35,12 @@ void main() {
   if (outA > 0.0) {
     outRGB = (next.rgb * next.a + prev.rgb * prev.a * (1.0 - next.a)) / outA;
   }
-  
-  vec4 result = vec4(outRGB, outA);
 
-  gl_FragColor = result;
+  gl_FragColor = vec4(outRGB, outA);
 }
 `;
 
 const imageIn = node.imageIn('in');
-const mixParam = node.numberIn('mix', 1, { min: 0, max: 1, step: 0.01 });
 const fadeParam = node.numberIn('fade', 0, { min: 0, max: 1, step: 0.01 });
 const clearButtonIn = node.triggerButtonIn('clear');
 const imageOut = node.imageOut('out');
@@ -95,8 +85,7 @@ node.onRender = () => {
   figment.drawQuad(program, {
     u_prev_texture: current.texture,
     u_new_texture: input.texture,
-    u_fade: fadeParam.value * 0.5,
-    u_mix: mixParam.value,
+    u_fade: fadeParam.value,
     u_seed: Math.random(),
   });
   next.unbind();
