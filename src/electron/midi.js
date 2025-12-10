@@ -62,15 +62,23 @@ export function midiStopServer() {
 function handleMidiMessage(msg) {
   // Parse MIDI message
   const [status, data1, data2] = msg;
+  const messageType = status & 0xf0;
+  const channel = (status & 0x0f) + 1; // Convert to 1-based channel
 
   // Check if it's a Control Change message (0xB0-0xBF)
-  if ((status & 0xb0) === 0xb0) {
-    const channel = (status & 0x0f) + 1; // Convert to 1-based channel
+  if (messageType === 0xb0) {
     const controller = data1;
     const value = data2 / 127.0; // Normalize to 0-1
 
     // Emit event
     midiEmitter.emit('message', channel, controller, value);
+  }
+  // Check if it's a Program Change message (0xC0-0xCF)
+  else if (messageType === 0xc0) {
+    const program = data1; // Program number 0-127
+
+    // Emit program change event
+    midiEmitter.emit('programChange', channel, program);
   }
 }
 

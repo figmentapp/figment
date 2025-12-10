@@ -37,6 +37,7 @@ export default function App(props) {
   const handleMenuEvent = useAppStore((state) => state.handleMenuEvent);
   const handleOscEvent = useAppStore((state) => state.handleOscEvent);
   const handleMidiEvent = useAppStore((state) => state.handleMidiEvent);
+  const handleMidiProgramChange = useAppStore((state) => state.handleMidiProgramChange);
   const openFile = useAppStore((state) => state.openFile);
   const setEditorSplitterWidth = useAppStore((state) => state.setEditorSplitterWidth);
 
@@ -61,8 +62,8 @@ export default function App(props) {
 
   // One-time: expression context for OSC/MIDI
   useEffect(() => {
-    const { oscMessageMap, midiMessageMap } = useAppStore.getState();
-    initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap });
+    const { oscMessageMap, midiMessageMap, midiProgramChangeMap } = useAppStore.getState();
+    initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap, _midipc: midiProgramChangeMap });
   }, []);
 
   // Ensure network has started
@@ -95,6 +96,7 @@ export default function App(props) {
     window.desktop.registerListener('menu', handleMenuEvent);
     window.desktop.registerListener('osc', handleOscEvent);
     window.desktop.registerListener('midi', handleMidiEvent);
+    window.desktop.registerListener('midiProgramChange', handleMidiProgramChange);
     window.desktop.registerListener('midiDevices', (devices) => useAppStore.getState().setMidiDevices(devices));
     window.desktop.getMidiDevices().then((devices) => useAppStore.getState().setMidiDevices(devices));
     const initialPath = props.filePath || useAppStore.getState().filePath;
@@ -104,7 +106,18 @@ export default function App(props) {
       window.removeEventListener('resize', forceRedraw);
       window.app = undefined;
     };
-  }, [doFrame, forceRedraw, handleMenuEvent, handleMidiEvent, handleOscEvent, onKeyDown, openFile, start, props.filePath]);
+  }, [
+    doFrame,
+    forceRedraw,
+    handleMenuEvent,
+    handleMidiEvent,
+    handleMidiProgramChange,
+    handleOscEvent,
+    onKeyDown,
+    openFile,
+    start,
+    props.filePath,
+  ]);
 
   if (fullscreen) {
     return (
