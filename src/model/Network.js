@@ -567,6 +567,46 @@ export default class Network {
       if (newPort.type !== oldPort.type) continue;
       newPort.value = oldPort.cloneValue();
     }
+    // Remove invalid connections.
+    // Check all connections that reference this node and remove those with invalid ports.
+    const invalidConnections = [];
+    for (const conn of this.connections) {
+      if (conn.outNode === newNode.id) {
+        // Check if the output port still exists
+        const outPort = newNode.outPorts.find((p) => p.name === conn.outPort);
+        if (!outPort) {
+          invalidConnections.push(conn);
+          continue;
+        }
+        // Check if the input port still exists and types match
+        const inNode = this.nodes.find((n) => n.id === conn.inNode);
+        if (inNode) {
+          const inPort = inNode.inPorts.find((p) => p.name === conn.inPort);
+          if (!inPort || inPort.type !== outPort.type) {
+            invalidConnections.push(conn);
+          }
+        }
+      } else if (conn.inNode === newNode.id) {
+        // Check if the input port still exists
+        const inPort = newNode.inPorts.find((p) => p.name === conn.inPort);
+        if (!inPort) {
+          invalidConnections.push(conn);
+          continue;
+        }
+        // Check if the output port still exists and types match
+        const outNode = this.nodes.find((n) => n.id === conn.outNode);
+        if (outNode) {
+          const outPort = outNode.outPorts.find((p) => p.name === conn.outPort);
+          if (!outPort || outPort.type !== inPort.type) {
+            invalidConnections.push(conn);
+          }
+        }
+      }
+    }
+    // Remove invalid connections
+    for (const conn of invalidConnections) {
+      this.connections = this.connections.filter((c) => c !== conn);
+    }
     this._rebuildDependencyGraph();
     this.markNodeDirty(node);
   }
