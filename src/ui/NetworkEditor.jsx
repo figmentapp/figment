@@ -658,10 +658,9 @@ export default function NetworkEditor({ offscreenCanvas }) {
     drawNodePreviews();
   };
 
-  const isDraggingConnection = dragModeRef.current === DRAG_MODE_NEW_CONNECTION || dragModeRef.current === DRAG_MODE_RECONNECT;
-
   const drawPortTooltip = (ctx, overNode, overPort) => {
     if (!overPort) return;
+    const isDraggingConnection = dragModeRef.current === DRAG_MODE_NEW_CONNECTION || dragModeRef.current === DRAG_MODE_RECONNECT;
     if (dragModeRef.current !== DRAG_MODE_IDLE && !isDraggingConnection) return;
     if (isDraggingConnection && overPort.direction !== PORT_IN) return;
     const state = stateRef.current;
