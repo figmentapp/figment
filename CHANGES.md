@@ -1,8 +1,12 @@
 # CHANGES
 
-## Version 0.6.2 (2025-12-11)
+## Version 0.6.3 (2025-12-11)
 
 - Load movie now has a "quality" setting. "fast" videos play well but are not frame-perfect. "Accurate" use MediaBunny and are frame-perfect.
+- Crop node now has a "cropped" and "original" output mode. Original output mode keeps the same size but masks out the area outside the crop.
+
+## Version 0.6.2 (2025-12-11)
+
 - Trail node is now fixed.
 - Fixed a regression where port tooltips wouldn't appear when dragging.
 - Tried fixing the documentEditedBug again.
