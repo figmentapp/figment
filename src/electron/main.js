@@ -281,7 +281,11 @@ ipcMain.handle('setDocumentEdited', (_, edited) => {
     return;
   }
 
-  gMainWindow.setDocumentEdited(edited);
+  try {
+    gMainWindow.setDocumentEdited(edited);
+  } catch (e) {
+    console.error(`Error while calling setDocumentEdited: ${e}`);
+  }
 
   // If we were waiting for save to complete before closing, close now
   if (gPendingClose && !edited) {
