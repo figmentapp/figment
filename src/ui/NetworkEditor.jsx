@@ -154,6 +154,8 @@ export default function NetworkEditor({ offscreenCanvas }) {
   const networkYRef = useRef(0);
   const dragXRef = useRef(0);
   const dragYRef = useRef(0);
+  const dragStartXRef = useRef(0);
+  const dragStartYRef = useRef(0);
   const shouldDrawRef = useRef(true);
   const canvasRef = useRef(null);
   const previewCanvasRef = useRef(null);
@@ -334,6 +336,8 @@ export default function NetworkEditor({ offscreenCanvas }) {
         const [x, y] = networkPosition(e);
         dragXRef.current = x;
         dragYRef.current = y;
+        dragStartXRef.current = x;
+        dragStartYRef.current = y;
       } else if (port && port.direction === PORT_IN) {
         const network = useAppStore.getState().network;
         const conn = network.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
@@ -416,7 +420,13 @@ export default function NetworkEditor({ offscreenCanvas }) {
       } else if (!node && dragModeRef.current === DRAG_MODE_NEW_CONNECTION) {
         // Dragged to empty space from output port - open node dialog with pending connection
         // Only for new connections, not when reconnecting (disconnecting then re-dragging)
-        openNodeDialog(new Point(networkX, networkY), dragPortRef.current);
+        // Require minimum drag distance of 20 screen pixels to avoid accidental triggers
+        const dx = (networkX - dragStartXRef.current) * stateRef.current.scale;
+        const dy = (networkY - dragStartYRef.current) * stateRef.current.scale;
+        const dragDistance = Math.sqrt(dx * dx + dy * dy);
+        if (dragDistance >= 20) {
+          openNodeDialog(new Point(networkX, networkY), dragPortRef.current);
+        }
       }
     } else if (dragModeRef.current === DRAG_MODE_SELECTING) {
       // Find out which nodes are in the selection rectangle.
@@ -658,10 +668,9 @@ export default function NetworkEditor({ offscreenCanvas }) {
     drawNodePreviews();
   };
 
-  const isDraggingConnection = dragModeRef.current === DRAG_MODE_NEW_CONNECTION || dragModeRef.current === DRAG_MODE_RECONNECT;
-
   const drawPortTooltip = (ctx, overNode, overPort) => {
     if (!overPort) return;
+    const isDraggingConnection = dragModeRef.current === DRAG_MODE_NEW_CONNECTION || dragModeRef.current === DRAG_MODE_RECONNECT;
     if (dragModeRef.current !== DRAG_MODE_IDLE && !isDraggingConnection) return;
     if (isDraggingConnection && overPort.direction !== PORT_IN) return;
     const state = stateRef.current;
