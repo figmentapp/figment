@@ -51,6 +51,10 @@ function setExportFps(fps) {
 }
 
 function getPackagedFile(filePath) {
+  if (!appPath) {
+    // Return empty string when appPath is not available (e.g., in test environments)
+    return '';
+  }
   return path.resolve(appPath, filePath);
 }
 

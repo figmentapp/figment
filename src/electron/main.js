@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const FILTER_MAP = {
   project: { name: 'Figment Project', extensions: ['fgmt'] },
-  image: { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] },
+  image: { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif'] },
   video: { name: 'Videos', extensions: ['mp4', 'webm'] },
   generic: { name: 'All Files', extensions: ['*'] },
 };

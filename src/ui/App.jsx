@@ -121,7 +121,7 @@ export default function App(props) {
 
   if (fullscreen) {
     return (
-      <div className="app">
+      <div className="app" data-testid="app-fullscreen">
         <Viewer offscreenCanvas={offscreenCanvasRef.current} />
       </div>
     );
@@ -129,7 +129,7 @@ export default function App(props) {
 
   return (
     <>
-      <main ref={mainRef}>
+      <main ref={mainRef} data-testid="app-main">
         <Editor offscreenCanvas={offscreenCanvasRef.current} />
         <Splitter className="splitter" parentRef={mainRef} direction="horizontal" />
         <ParamsEditor />

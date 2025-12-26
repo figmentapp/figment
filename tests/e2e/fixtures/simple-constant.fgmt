@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Constant",
+      "type": "image.constant",
+      "x": 100,
+      "y": 100,
+      "values": {
+        "color": { "type": "value", "value": [255, 0, 0, 1.0] },
+        "width": { "type": "value", "value": 256 },
+        "height": { "type": "value", "value": 256 }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Out",
+      "type": "core.out",
+      "x": 100,
+      "y": 200
+    }
+  ],
+  "connections": [
+    {
+      "outNode": 1,
+      "outPort": "out",
+      "inNode": 2,
+      "inPort": "in"
+    }
+  ],
+  "settings": {},
+  "types": []
+}

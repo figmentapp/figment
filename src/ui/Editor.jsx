@@ -21,9 +21,13 @@ export default function Editor({ style, offscreenCanvas }) {
   };
 
   return (
-    <div className="editor" style={style}>
-      <div className="editor__tabs">
-        <div className={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')} onClick={() => selectTab(-1)}>
+    <div className="editor" style={style} data-testid="editor">
+      <div className="editor__tabs" data-testid="editor-tabs">
+        <div
+          className={'editor__tab' + (activeTabIndex === -1 ? ' editor__tab--active' : '')}
+          onClick={() => selectTab(-1)}
+          data-testid="editor-tab-network"
+        >
           Network
         </div>
         {tabs.map(({ nodeType, modified }, i) => (

@@ -778,6 +778,7 @@ export default function NetworkEditor({ offscreenCanvas }) {
       <canvas
         className="network__canvas"
         ref={canvasRef}
+        data-testid="network-editor-canvas"
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onDoubleClick={onDoubleClick}

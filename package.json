@@ -18,7 +18,10 @@
     "format": "prettier --write 'src/**/*.{js,jsx}'",
     "format-check": "prettier --check 'src/**/*.{js,jsx}'",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:headed": "npm run build && playwright test --headed",
+    "test:e2e:only": "playwright test"
   },
   "dependencies": {
     "@mediapipe/drawing_utils": "^0.3.1675466124",
@@ -48,6 +51,7 @@
   },
   "devDependencies": {
     "@electron/notarize": "^3.0.1",
+    "@playwright/test": "^1.57.0",
     "@rollup/plugin-commonjs": "^28.0.7",
     "@rollup/plugin-node-resolve": "^16.0.2",
     "@tailwindcss/vite": "^4.1.14",

@@ -5,6 +5,98 @@ import { Point } from '../g';
 import { upgradeProject } from '../file-format';
 import { PORT_TYPE_IMAGE } from '../model/Port';
 
+// Test utilities exposed via window.__figmentTestUtils for E2E testing
+const createTestUtils = (getState, setState) => ({
+  // Wait for the next render frame to complete
+  async waitForRender(frameCount = 1) {
+    const { network, isPlaying } = getState();
+    if (!network) return;
+    for (let i = 0; i < frameCount; i++) {
+      await network.doFrame();
+    }
+  },
+
+  // Get the output framebuffer from the Out node
+  getOutputFramebuffer() {
+    const { network } = getState();
+    if (!network) return null;
+    const outNode = network.nodes.find((n) => n.type === 'core.out');
+    if (!outNode || !outNode.outPorts[0]) return null;
+    return outNode.outPorts[0].value;
+  },
+
+  // Get pixel data from the Out node as ImageData
+  getOutputImageData() {
+    const framebuffer = this.getOutputFramebuffer();
+    if (!framebuffer || !framebuffer._fbo) return null;
+    const { width, height } = framebuffer;
+    const imageData = new ImageData(width, height);
+    framebuffer.bind();
+    window.gl.readPixels(0, 0, width, height, window.gl.RGBA, window.gl.UNSIGNED_BYTE, imageData.data);
+    framebuffer.unbind();
+    return imageData;
+  },
+
+  // Get the average color of the output (useful for testing color effects)
+  getOutputAverageColor() {
+    const imageData = this.getOutputImageData();
+    if (!imageData) return null;
+    const { data, width, height } = imageData;
+    let r = 0,
+      g = 0,
+      b = 0,
+      a = 0;
+    const pixelCount = width * height;
+    for (let i = 0; i < data.length; i += 4) {
+      r += data[i];
+      g += data[i + 1];
+      b += data[i + 2];
+      a += data[i + 3];
+    }
+    return {
+      r: Math.round(r / pixelCount),
+      g: Math.round(g / pixelCount),
+      b: Math.round(b / pixelCount),
+      a: Math.round(a / pixelCount),
+    };
+  },
+
+  // Get current network state summary
+  getNetworkState() {
+    const { network, selection, isPlaying } = getState();
+    if (!network) return null;
+    return {
+      nodeCount: network.nodes.length,
+      connectionCount: network.connections.length,
+      selectedNodeCount: selection.size,
+      isPlaying,
+      nodes: network.nodes.map((n) => ({
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        x: n.x,
+        y: n.y,
+        error: n.error,
+      })),
+    };
+  },
+
+  // Find a node by type or name
+  findNode(typeOrName) {
+    const { network } = getState();
+    if (!network) return null;
+    return network.nodes.find((n) => n.type === typeOrName || n.name === typeOrName);
+  },
+
+  // Get a node's port value
+  getPortValue(nodeTypeOrName, portName) {
+    const node = this.findNode(nodeTypeOrName);
+    if (!node) return undefined;
+    const port = node.inPorts.find((p) => p.name === portName) || node.outPorts.find((p) => p.name === portName);
+    return port ? port.value : undefined;
+  },
+});
+
 // Centralized app UI state using Zustand
 const initialLibrary = new Library();
 const initialNetwork = new Network(initialLibrary);
@@ -531,3 +623,8 @@ export const useAppStore = create((set, get) => ({
     }
   },
 }));
+
+// Expose test utilities for E2E testing (only created once)
+if (typeof window !== 'undefined') {
+  window.__figmentTestUtils = createTestUtils(useAppStore.getState, useAppStore.setState);
+}

@@ -174,8 +174,8 @@ export default function Viewer({ offscreenCanvas }) {
   }, [offscreenCanvas]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black">
-      <canvas ref={previewCanvasRef}></canvas>
+    <div className="fixed inset-0 overflow-hidden bg-black" data-testid="viewer-container">
+      <canvas ref={previewCanvasRef} data-testid="viewer-canvas"></canvas>
     </div>
   );
 }

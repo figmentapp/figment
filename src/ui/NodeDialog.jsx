@@ -85,6 +85,7 @@ export default function NodeDialog() {
           index === selectedIndex ? 'bg-gray-600' : 'bg-gray-800'
         } p-4 flex items-center border-t border-gray-700 cursor-pointer`}
         onDoubleClick={() => handleCreateNode(nodeType)}
+        data-testid={`node-type-item-${nodeType.type}`}
       >
         <div className="flex-grow">
           <h4 className="text-xl text-gray-200">
@@ -94,7 +95,9 @@ export default function NodeDialog() {
         </div>
         <div className="ml-5">
           <div className="rounded-sm bg-gray-700 text-gray-400 text-xl w-8 h-8 flex items-center justify-center font-bold cursor-pointer">
-            <div onClick={() => handleCreateNode(nodeType)}>+</div>
+            <div onClick={() => handleCreateNode(nodeType)} data-testid={`node-create-btn-${nodeType.type}`}>
+              +
+            </div>
           </div>
         </div>
       </div>
@@ -102,11 +105,12 @@ export default function NodeDialog() {
   };
 
   return (
-    <div className="dialog-wrapper" onClick={closeNodeDialog}>
+    <div className="dialog-wrapper" onClick={closeNodeDialog} data-testid="node-dialog-wrapper">
       <div
         className="bg-gray-800 dialog node-dialog shadow-xl w-1/2 rounded-lg overflow-hidden flex flex-col border-gray-900 border-2"
         style={{ height: '80vh' }}
         onClick={(e) => e.stopPropagation()}
+        data-testid="node-dialog"
       >
         <div className="flex">
           <input
@@ -116,6 +120,7 @@ export default function NodeDialog() {
             placeholder="Type to search"
             onInput={handleSearch}
             autoFocus
+            data-testid="node-dialog-search"
           />
           <span
             className="bg-gray-900 text-gray-600 p-6 text-2xl flex items-center justify-center font-bold cursor-pointer"
