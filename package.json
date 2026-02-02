@@ -27,6 +27,7 @@
     "chroma-js": "^3.1.2",
     "clsx": "^2.1.0",
     "codemirror": "^5.65.19",
+    "electron-updater": "^6.6.2",
     "fuse.js": "^7.1.0",
     "glob": "^11.0.3",
     "jazz-midi-electron": "^2.0.3",
@@ -112,5 +113,9 @@
         "icon": "res/fgmt.ico"
       }
     ]
+  },
+  "publish": {
+    "provider": "generic",
+    "url": "https://figmentapp.s3.amazonaws.com/releases/"
   }
 }

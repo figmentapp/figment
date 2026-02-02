@@ -9,6 +9,7 @@ import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
 import ProjectSettingsDialog from './ProjectSettingsDialog';
+import UpdateNotification from './UpdateNotification';
 import { initExpressionContext } from '../expr';
 import { useAppStore } from './store';
 
@@ -124,6 +125,7 @@ export default function App(props) {
       {showNodeRenameDialog && <NodeRenameDialog />}
       {showRenderDialog && <RenderDialog />}
       {showProjectSettingsDialog && <ProjectSettingsDialog />}
+      <UpdateNotification />
     </>
   );
 }

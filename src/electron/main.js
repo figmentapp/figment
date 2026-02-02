@@ -1,5 +1,7 @@
 import querystring from 'node:querystring';
 import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut } from 'electron';
+import electronUpdater from 'electron-updater';
+const { autoUpdater } = electronUpdater;
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
@@ -63,6 +65,7 @@ let gMainWindow;
 let gSettings = new Settings();
 let gDocumentEdited = false;
 let gPendingClose = false;
+let isManualCheck = false;
 
 function emit(name, args = {}) {
   return () => {
@@ -355,6 +358,13 @@ function createApplicationMenu() {
     label: app.name,
     submenu: [
       { role: 'about' },
+      {
+        label: 'Check for Updates…',
+        click: () => {
+          isManualCheck = true;
+          autoUpdater.checkForUpdates();
+        },
+      },
       { type: 'separator' },
       { role: 'services' },
       { type: 'separator' },
@@ -425,7 +435,20 @@ function createApplicationMenu() {
     ],
   };
 
-  const template = [...(isMac ? [macAppMenu] : []), fileMenu, { role: 'editMenu' }, viewMenu, { role: 'windowMenu' }];
+  const helpMenu = {
+    role: 'help',
+    submenu: [
+      {
+        label: 'Check for Updates…',
+        click: () => {
+          isManualCheck = true;
+          autoUpdater.checkForUpdates();
+        },
+      },
+    ],
+  };
+
+  const template = [...(isMac ? [macAppMenu] : []), fileMenu, { role: 'editMenu' }, viewMenu, { role: 'windowMenu' }, helpMenu];
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }
@@ -463,6 +486,54 @@ app.whenReady().then(async () => {
   midiStartServer((channel, controller, value) => {
     sendIpcMessage('midi-update', { channel, controller, value });
   });
+
+  // Auto-updater configuration
+  autoUpdater.autoDownload = false;
+
+  autoUpdater.on('update-available', (info) => {
+    sendIpcMessage('update-available', info);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    sendIpcMessage('update-downloaded', info);
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    if (isManualCheck) {
+      dialog.showMessageBox(gMainWindow, {
+        type: 'info',
+        title: 'No Updates',
+        message: 'Current version is up-to-date.',
+        detail: `You are running version ${app.getVersion()}.`,
+      });
+      isManualCheck = false;
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    if (isManualCheck) {
+      dialog.showErrorBox('Update Error', 'There was a problem checking for updates: ' + err.message);
+      isManualCheck = false;
+    }
+    sendIpcMessage('update-error', err.message);
+  });
+
+  // Check for updates after a short delay
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 3000);
+});
+
+ipcMain.handle('checkForUpdates', () => {
+  autoUpdater.checkForUpdates();
+});
+
+ipcMain.handle('startDownload', () => {
+  autoUpdater.downloadUpdate();
+});
+
+ipcMain.handle('quitAndInstall', () => {
+  autoUpdater.quitAndInstall();
 });
 
 app.on('will-quit', async (event) => {
