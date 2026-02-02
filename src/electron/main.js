@@ -7,7 +7,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
 import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
-import { midiStartServer, midiStopServer } from './midi.js';
+import { midiStartServer, midiStopServer, midiEmitter, getMidiDevices } from './midi.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -91,6 +91,10 @@ async function showOpenProjectDialog() {
 }
 ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
 
+ipcMain.handle('getMidiDevices', () => {
+  return getMidiDevices();
+});
+
 async function showOpenFileDialog(fileType = 'generic') {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Open Image',
@@ -172,6 +176,11 @@ function showPortContextMenu(_, { nodeId, portName, valueType }) {
 ipcMain.handle('showPortContextMenu', showPortContextMenu);
 
 function setFullScreen(_, fullscreen) {
+  // Guard against destroyed window
+  if (!gMainWindow || gMainWindow.isDestroyed()) {
+    return;
+  }
+
   gMainWindow.setFullScreen(fullscreen);
   gMainWindow.setMenuBarVisibility(!fullscreen);
 }
@@ -253,6 +262,11 @@ ipcMain.handle('unregisterGlobalShortcut', async (_, { accel }) => {
 });
 
 ipcMain.handle('setRepresentedFilename', (_, filePath) => {
+  // Guard against destroyed window
+  if (!gMainWindow || gMainWindow.isDestroyed()) {
+    return;
+  }
+
   if (filePath) {
     gMainWindow.setRepresentedFilename(filePath);
     gMainWindow.setTitle(`${path.basename(filePath)}`);
@@ -264,7 +278,17 @@ ipcMain.handle('setRepresentedFilename', (_, filePath) => {
 
 ipcMain.handle('setDocumentEdited', (_, edited) => {
   gDocumentEdited = edited;
-  gMainWindow.setDocumentEdited(edited);
+
+  // Guard against destroyed window
+  if (!gMainWindow || gMainWindow.isDestroyed()) {
+    return;
+  }
+
+  try {
+    gMainWindow.setDocumentEdited(edited);
+  } catch (e) {
+    console.error(`Error while calling setDocumentEdited: ${e}`);
+  }
 
   // If we were waiting for save to complete before closing, close now
   if (gPendingClose && !edited) {
@@ -338,10 +362,14 @@ function createMainWindow(filePath) {
         // Save - trigger save, then close when save completes
         gPendingClose = true;
         gMainWindow.webContents.send('menu', 'save');
-        // Reset flag after 5 seconds in case save was cancelled
+        // Reset flag after 10 seconds in case save was cancelled or failed
+        // This is a safety fallback - normal flow clears the flag in setDocumentEdited
         setTimeout(() => {
-          gPendingClose = false;
-        }, 5000);
+          if (gPendingClose) {
+            console.warn('Save-before-close timeout expired, resetting pending close flag');
+            gPendingClose = false;
+          }
+        }, 10000);
       }
       // choice === 0 (Cancel) - do nothing, window stays open
     }
@@ -483,8 +511,15 @@ app.whenReady().then(async () => {
   createMainWindow(fileArg);
 
   // Initialize MIDI after window is created
-  midiStartServer((channel, controller, value) => {
+  midiStartServer();
+  midiEmitter.on('message', (channel, controller, value) => {
     sendIpcMessage('midi-update', { channel, controller, value });
+  });
+  midiEmitter.on('programChange', (channel, program) => {
+    sendIpcMessage('midi-program-change', { channel, program });
+  });
+  midiEmitter.on('devices', (devices) => {
+    sendIpcMessage('midi-devices', devices);
   });
 
   // Auto-updater configuration

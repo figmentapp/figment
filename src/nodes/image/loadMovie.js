@@ -6,6 +6,7 @@
 
 node.timeDependent = true;
 const fileIn = node.fileIn('file', '', { fileType: 'movie' });
+const qualityIn = node.selectIn('quality', ['fast', 'accurate'], 'fast');
 const playIn = node.toggleIn('play', true);
 playIn.display = 0x03;
 const loopIn = node.toggleIn('loop', true);
@@ -21,16 +22,27 @@ const currentFrameOut = node.numberOut('currentFrame');
 const fpsOut = node.numberOut('fps');
 const durationOut = node.numberOut('duration');
 
-// Video resources
-let framebuffer, input, videoTrack, canvasSink;
+// Shared resources
+let framebuffer;
 let frameCount = 0;
 let detectedFps = 0;
 let duration = 0;
 let shouldLoad = true;
+let renderPending = false;
+
+// MediaBunny resources (for metadata and accurate mode)
+let input, videoTrack, canvasSink;
 let lastRenderedTimestamp = null;
 let firstTimestamp = 0;
 
-// Playback state machine
+// Fast mode resources (native video element)
+let video = null;
+let videoReady = false;
+let lastPlayState = false;
+let renderOnce = false;
+let lastFrameTarget = -1;
+
+// Playback state machine (for accurate mode)
 const STATE_STOPPED = 'stopped';
 const STATE_PLAYING = 'playing';
 const STATE_PAUSED = 'paused';
@@ -43,7 +55,6 @@ let lastRenderedFrame = -1;
 let canvasIterator = null;
 let queuedSequentialCanvas = null;
 let frameFlowState = 'idle';
-let renderPending = false;
 
 const FRAMEFLOW_IDLE = 'idle';
 const FRAMEFLOW_SEEKING = 'seeking';
@@ -69,22 +80,39 @@ function clearCanvasIterator() {
 node.onStart = () => {
   framebuffer = new figment.Framebuffer();
   shouldLoad = true;
+  renderPending = false;
+
+  // Accurate mode state
   playbackState = STATE_STOPPED;
   playbackStartFrame = 0;
   playbackStartTime = 0;
   currentFrame = 0;
   lastRenderedFrame = -1;
   clearCanvasIterator();
-  renderPending = false;
   lastRenderedTimestamp = null;
   firstTimestamp = 0;
   frameFlowState = FRAMEFLOW_IDLE;
+
+  // Fast mode state
+  videoReady = false;
+  lastPlayState = playIn.value;
+  renderOnce = true;
+  lastFrameTarget = -1;
 };
+
+function disposeVideo() {
+  if (video) {
+    video.pause();
+    video.remove();
+    video = null;
+  }
+  videoReady = false;
+}
 
 async function loadMovie() {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
 
-  // Dispose previous resources
+  // Dispose previous MediaBunny resources
   if (input) {
     input.dispose();
     input = null;
@@ -93,11 +121,15 @@ async function loadMovie() {
   canvasSink = null;
   clearCanvasIterator();
 
+  // Dispose previous video element
+  disposeVideo();
+
+  const fileUrl = figment.urlForAsset(fileIn.value);
+
   try {
+    // Always use MediaBunny to detect metadata
     const { Input, BlobSource, CanvasSink, MP4, QTFF, WEBM, MATROSKA } = window.mediabunny;
 
-    // Load video file
-    const fileUrl = figment.urlForAsset(fileIn.value);
     const response = await fetch(fileUrl);
     const blob = await response.blob();
 
@@ -118,11 +150,6 @@ async function loadMovie() {
     duration = await videoTrack.computeDuration();
     firstTimestamp = Math.max(0, videoTrack.getFirstTimestamp());
 
-    canvasSink = new CanvasSink(videoTrack, {
-      alpha: false,
-      poolSize: 5,
-    });
-
     framebuffer.setSize(videoTrack.displayWidth, videoTrack.displayHeight);
 
     // Output metadata
@@ -130,7 +157,30 @@ async function loadMovie() {
     fpsOut.set(detectedFps);
     durationOut.set(duration);
 
-    // Reset state
+    // Create CanvasSink for accurate mode
+    canvasSink = new CanvasSink(videoTrack, {
+      alpha: false,
+      poolSize: 5,
+    });
+
+    // Create native video element for fast mode
+    await new Promise((resolve) => {
+      video = document.createElement('video');
+      video.src = fileUrl;
+      video.loop = loopIn.value;
+      video.autoplay = playIn.value;
+      video.muted = true;
+      video.playbackRate = speedIn.value;
+      video.addEventListener('canplay', resolve, { once: true });
+      video.addEventListener('ended', () => {
+        if (!loopIn.value && pauseModeIn.value === 'rewind') {
+          restartVideoFast();
+        }
+      });
+    });
+    videoReady = true;
+
+    // Reset accurate mode state
     playbackState = STATE_STOPPED;
     playbackStartFrame = 0;
     playbackStartTime = 0;
@@ -139,12 +189,49 @@ async function loadMovie() {
     lastRenderedTimestamp = null;
     frameFlowState = FRAMEFLOW_IDLE;
     disposeQueuedSequentialCanvas();
+
+    // Reset fast mode state
+    lastPlayState = playIn.value;
+    renderOnce = true;
+    lastFrameTarget = -1;
   } catch (err) {
     console.error('Error loading movie:', err);
     node.error = err.message;
   }
 }
 
+// Fast mode helper functions
+async function seekAndWait(time) {
+  return new Promise((resolve) => {
+    if (!video || video.currentTime === time) {
+      return resolve();
+    }
+    video.addEventListener('seeked', resolve, { once: true });
+    video.currentTime = time;
+  });
+}
+
+async function seekFrameFast(frameIndex) {
+  if (!video || frameIndex < 0) return;
+  const safeFps = detectedFps > 0 ? detectedFps : 1;
+  const time = frameIndex / safeFps;
+  await seekAndWait(time);
+  renderOnce = true;
+  if (playIn.value) {
+    video.play();
+  }
+  node._markDirty();
+}
+
+async function restartVideoFast() {
+  if (video) {
+    await seekAndWait(0);
+    renderOnce = true;
+    node._markDirty();
+  }
+}
+
+// Accurate mode helper functions
 function calculateTargetFrame() {
   if (!videoTrack) return 0;
 
@@ -377,6 +464,112 @@ async function resetPlayback() {
   await ensureFramePrimed();
 }
 
+async function onRenderFast() {
+  if (!video || !framebuffer || !videoReady) return;
+
+  const isPlaying = playIn.value;
+  const wasPlaying = lastPlayState;
+
+  if (isPlaying && !wasPlaying) {
+    if (pauseModeIn.value === 'restart') {
+      await seekAndWait(0);
+    }
+    video.play();
+  } else if (!isPlaying && wasPlaying) {
+    video.pause();
+    if (pauseModeIn.value === 'rewind') {
+      await seekAndWait(0);
+      renderOnce = true;
+    }
+  }
+  lastPlayState = isPlaying;
+
+  // Handle manual frame input (1-based incoming value)
+  if (!isPlaying) {
+    const requested = Number.isFinite(frameIn.value) ? Math.round(frameIn.value) : 1;
+    const atLeastOne = Math.max(1, requested);
+    const clampedOneBased = frameCount > 0 ? Math.min(atLeastOne, frameCount) : atLeastOne;
+    const desiredFrame = clampedOneBased - 1;
+    if (desiredFrame !== lastFrameTarget) {
+      lastFrameTarget = desiredFrame;
+      await seekFrameFast(lastFrameTarget);
+    }
+  }
+
+  if (video.paused && !renderOnce) return;
+
+  framebuffer.unbind();
+  window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
+  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
+  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  framebuffer._directImageHack = video;
+  imageOut.set(framebuffer);
+
+  const safeFps = detectedFps > 0 ? detectedFps : 1;
+  const currentFrameNum = Math.floor(video.currentTime * safeFps);
+  currentFrameOut.set(currentFrameNum + 1);
+
+  if (video.paused) {
+    renderOnce = false;
+  }
+}
+
+async function onRenderAccurate() {
+  if (!videoTrack || !canvasSink || !framebuffer) return;
+
+  // Update playback state based on inputs
+  const wasPlaying = playbackState === STATE_PLAYING;
+  const shouldPlay = playIn.value;
+
+  if (shouldPlay && !wasPlaying) {
+    // Transition to playing
+    if (pauseModeIn.value === 'restart') {
+      playbackStartFrame = 0;
+      currentFrame = 0;
+    } else {
+      playbackStartFrame = currentFrame;
+    }
+    playbackStartTime = 0;
+    playbackState = STATE_PLAYING;
+  } else if (!shouldPlay && wasPlaying) {
+    // Transition to paused
+    currentFrame = calculateTargetFrame();
+    if (pauseModeIn.value === 'rewind') {
+      currentFrame = 0;
+    }
+    playbackState = STATE_PAUSED;
+  }
+
+  // Handle manual frame input (1-based incoming value)
+  if (!shouldPlay) {
+    const requested = Number.isFinite(frameIn.value) ? Math.round(frameIn.value) : 1;
+    const atLeastOne = Math.max(1, requested);
+    const clampedOneBased = frameCount > 0 ? Math.min(atLeastOne, frameCount) : atLeastOne;
+    const desiredFrame = clampedOneBased - 1;
+    if (desiredFrame !== currentFrame) {
+      currentFrame = desiredFrame;
+      clearCanvasIterator();
+    }
+  }
+
+  // Calculate target frame
+  const targetFrame = calculateTargetFrame();
+
+  // Handle end of video
+  if (!loopIn.value && targetFrame >= frameCount - 1 && playbackState === STATE_PLAYING) {
+    playbackState = STATE_PAUSED;
+    playIn.value = false;
+    if (pauseModeIn.value === 'rewind') {
+      currentFrame = 0;
+    }
+  }
+
+  // Render the frame
+  // We await here to ensure the frame has loaded (can take a while when seeking)
+  await renderFrame(targetFrame);
+  currentFrame = targetFrame;
+}
+
 node.onRender = async () => {
   // Prevent concurrent renders
   if (renderPending) return;
@@ -389,65 +582,18 @@ node.onRender = async () => {
       shouldLoad = false;
     }
 
-    if (!videoTrack || !canvasSink || !framebuffer) return;
-
-    // Update playback state based on inputs
-    const wasPlaying = playbackState === STATE_PLAYING;
-    const shouldPlay = playIn.value;
-
-    if (shouldPlay && !wasPlaying) {
-      // Transition to playing
-      if (pauseModeIn.value === 'restart') {
-        playbackStartFrame = 0;
-        currentFrame = 0;
-      } else {
-        playbackStartFrame = currentFrame;
-      }
-      playbackStartTime = 0;
-      playbackState = STATE_PLAYING;
-    } else if (!shouldPlay && wasPlaying) {
-      // Transition to paused
-      currentFrame = calculateTargetFrame();
-      if (pauseModeIn.value === 'rewind') {
-        currentFrame = 0;
-      }
-      playbackState = STATE_PAUSED;
+    if (qualityIn.value === 'fast') {
+      await onRenderFast();
+    } else {
+      await onRenderAccurate();
     }
-
-    // Handle manual frame input (1-based incoming value)
-    if (!shouldPlay) {
-      const requested = Number.isFinite(frameIn.value) ? Math.round(frameIn.value) : 1;
-      const atLeastOne = Math.max(1, requested);
-      const clampedOneBased = frameCount > 0 ? Math.min(atLeastOne, frameCount) : atLeastOne;
-      const desiredFrame = clampedOneBased - 1;
-      if (desiredFrame !== currentFrame) {
-        currentFrame = desiredFrame;
-        clearCanvasIterator();
-      }
-    }
-
-    // Calculate target frame
-    const targetFrame = calculateTargetFrame();
-
-    // Handle end of video
-    if (!loopIn.value && targetFrame >= frameCount - 1 && playbackState === STATE_PLAYING) {
-      playbackState = STATE_PAUSED;
-      playIn.value = false;
-      if (pauseModeIn.value === 'rewind') {
-        currentFrame = 0;
-      }
-    }
-
-    // Render the frame
-    // We await here to ensure the frame has loaded (can take a while when seeking)
-    await renderFrame(targetFrame);
-    currentFrame = targetFrame;
   } finally {
     renderPending = false;
   }
 };
 
 node.onStop = () => {
+  // Clean up MediaBunny resources
   if (input) {
     input.dispose();
     input = null;
@@ -459,24 +605,82 @@ node.onStop = () => {
   renderPending = false;
   lastRenderedTimestamp = null;
   frameFlowState = FRAMEFLOW_IDLE;
+
+  // Clean up video element
+  disposeVideo();
 };
 
-node.onReset = resetPlayback;
+async function resetPlaybackBoth() {
+  if (qualityIn.value === 'fast') {
+    await restartVideoFast();
+  } else {
+    await resetPlayback();
+  }
+}
+
+node.onReset = resetPlaybackBoth;
 
 fileIn.onChange = () => {
   shouldLoad = true;
+  // Reset accurate mode state
   clearCanvasIterator();
   lastRenderedFrame = -1;
   lastRenderedTimestamp = null;
   frameFlowState = FRAMEFLOW_IDLE;
+  // Reset fast mode state
+  lastFrameTarget = -1;
+  renderOnce = true;
 };
 
 speedIn.onChange = () => {
+  // Fast mode: update video playback rate
+  if (video) {
+    video.playbackRate = speedIn.value;
+  }
+  // Accurate mode: adjust timing
   if (playbackState === STATE_PLAYING && playbackStartTime > 0) {
-    // Adjust timing to maintain smooth playback at new speed
     playbackStartFrame = currentFrame;
     playbackStartTime = 0;
   }
 };
 
-restartIn.onTrigger = resetPlayback;
+loopIn.onChange = () => {
+  if (video) {
+    const isAtEnd = video.duration > 0 && video.duration - video.currentTime < 0.1;
+    video.loop = loopIn.value;
+    if (loopIn.value && isAtEnd && playIn.value) {
+      video.play();
+    }
+  }
+};
+
+qualityIn.onChange = () => {
+  // Sync state when switching modes
+  if (qualityIn.value === 'fast') {
+    // Switching to fast mode: sync video element state
+    if (video) {
+      video.loop = loopIn.value;
+      video.playbackRate = speedIn.value;
+      if (playIn.value) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    }
+    lastPlayState = playIn.value;
+    renderOnce = true;
+  } else {
+    // Switching to accurate mode: pause video element, reset accurate state
+    if (video) {
+      video.pause();
+    }
+    playbackState = playIn.value ? STATE_PLAYING : STATE_PAUSED;
+    playbackStartTime = 0;
+    playbackStartFrame = currentFrame;
+    clearCanvasIterator();
+    lastRenderedFrame = -1;
+  }
+  node._markDirty();
+};
+
+restartIn.onTrigger = resetPlaybackBoth;

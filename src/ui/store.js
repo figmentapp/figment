@@ -20,6 +20,7 @@ export const useAppStore = create((set, get) => ({
   activeTabIndex: -1,
   selection: new Set(),
   showNodeDialog: false,
+  pendingConnectionPort: null,
   showForkDialog: false,
   showRenderDialog: false,
   showProjectSettingsDialog: false,
@@ -35,9 +36,15 @@ export const useAppStore = create((set, get) => ({
   oscMessageFrequencies: [],
   oscMessageMap: new Map(),
   midiMessageMap: new Map(),
+  midiProgramChangeMap: new Map(),
+  midiDevices: [],
 
   // Generic setter helper
   set: (partial) => set(partial),
+
+  setMidiDevices(devices) {
+    set({ midiDevices: devices });
+  },
 
   // Helper to set dirty flag and update macOS window state
   setDirty(dirty) {
@@ -286,12 +293,12 @@ export const useAppStore = create((set, get) => ({
   },
 
   // Dialogs + nodes
-  openNodeDialog(pt) {
+  openNodeDialog(pt, pendingPort = null) {
     const p = pt || new Point(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500));
-    set({ showNodeDialog: true, lastNetworkPoint: p });
+    set({ showNodeDialog: true, lastNetworkPoint: p, pendingConnectionPort: pendingPort });
   },
   closeNodeDialog() {
-    set({ showNodeDialog: false });
+    set({ showNodeDialog: false, pendingConnectionPort: null });
   },
   openForkDialog(nodeType) {
     set({ showForkDialog: true, forkDialogNodeType: nodeType });
@@ -327,10 +334,18 @@ export const useAppStore = create((set, get) => ({
     set({ showProjectSettingsDialog: false });
   },
   createNode(nodeType) {
-    const { lastNetworkPoint, network } = get();
-    network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y);
+    const { lastNetworkPoint, network, pendingConnectionPort } = get();
+    const newNode = network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y);
+    // If there's a pending connection (from dragging an output port to empty space),
+    // connect the first compatible input port of the new node
+    if (pendingConnectionPort && newNode) {
+      const compatibleInPort = newNode.inPorts.find((port) => port.type === pendingConnectionPort.type);
+      if (compatibleInPort) {
+        network.connect(pendingConnectionPort, compatibleInPort);
+      }
+    }
     get().setDirty(true);
-    set({ showNodeDialog: false });
+    set({ showNodeDialog: false, pendingConnectionPort: null });
     get().forceRedraw();
   },
   openNodeRenameDialog(node) {
@@ -458,6 +473,10 @@ export const useAppStore = create((set, get) => ({
   handleMidiEvent(data) {
     const { channel, controller, value } = data;
     get().midiMessageMap.set(`${channel}-${controller}`, value);
+  },
+  handleMidiProgramChange(data) {
+    const { channel, program } = data;
+    get().midiProgramChangeMap.set(channel, program);
   },
   handleMenuEvent(name, args) {
     switch (name) {
