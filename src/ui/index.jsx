@@ -23,9 +23,11 @@ window.mediapipe = mediapipe;
 window.drawing_utils = drawing_utils;
 window.mediabunny = mediabunny;
 
-// We need to do this in order for Vite to skip injectQuery.
-const ortBase = new URL('./onnxruntime-web/', window.location.href).href;
-ort.env.wasm.wasmPaths = ortBase;
+// In dev we serve ORT WASM from /onnxruntime-web/ (public assets). In prod, let the bundled URLs resolve.
+if (import.meta.env.DEV) {
+  const ortBase = new URL('/onnxruntime-web/', window.location.href).href;
+  ort.env.wasm.wasmPaths = ortBase;
+}
 
 const params = new URLSearchParams(window.location.search);
 const filePath = params.get('filePath');
