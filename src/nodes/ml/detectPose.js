@@ -74,7 +74,7 @@ function drawResults(pose) {
 
   if (pose.landmarks && pose.landmarks.length > 0) {
     detectedOut.value = true;
-    landmarksOut.value = pose.landmarks;
+    landmarksOut.value = { type: 'pose', landmarks: pose.landmarks };
 
     for (const landmark of pose.landmarks) {
       if (pointsToggleIn.value) {
