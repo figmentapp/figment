@@ -170,6 +170,12 @@ function sanitizeResult(kind, raw, width, height) {
         const u8 = raw.segmentationMasks[0].getAsUint8Array();
         maskBuffer = u8.buffer.slice(0); // copy to detach from wasm memory
       } catch (_) {}
+      // Close all masks to free WASM memory
+      for (const mask of raw.segmentationMasks) {
+        try {
+          mask.close();
+        } catch (_) {}
+      }
     }
     return {
       kind,

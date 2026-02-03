@@ -1,5 +1,45 @@
 # CHANGES
 
+## Version 0.6.3 (2025-12-11)
+
+- Load movie now has a "quality" setting. "fast" videos play well but are not frame-perfect. "Accurate" use MediaBunny and are frame-perfect.
+- Crop node now has a "cropped" and "original" output mode. Original output mode keeps the same size but masks out the area outside the crop.
+
+## Version 0.6.2 (2025-12-11)
+
+- Trail node is now fixed.
+- Fixed a regression where port tooltips wouldn't appear when dragging.
+- Tried fixing the documentEditedBug again.
+
+## Version 0.6.1 (2025-12-09)
+
+- You can "auto-connect" a node by dragging from the output port of an existing node to an empty space.
+- MIDI devices now support "hot swapping" and are shown in the project settings dialog.
+- Send OSC now sends clean OSC data for all "detect" nodes (Detect Pose, Detect Hands, Detect Faces)
+- Trail node has a "mix" and "fade" parameters that gradually.
+- Add more control to the Vignette node and make the vignettes softer.
+- Fix a bug that showed an error on Mac when closing the document too fast.
+- Fix a bug where you could connect a node to itself.
+
+## Version 0.6.0 (2025-10-22)
+
+- Use new Media Pipe Solutions framework that allows tracking of multiple bodies, faces, and hands.
+- Performance improvements in ONNX Image Model node.
+- Audio nodes: add "Audio Spectrum" and "Audio Waveform" nodes that can visualize audio input.
+- Migrate to functional components and Zustand.
+- LoadMovie: output current frame and frame count.
+- Use WebCodecs API for video decoding, giving frame-perfect export.
+- Export dialog now auto-fills the frame count and FPS.
+- Fix issue with sidebar and color picker not aligning.
+- Fix UI bugs with multiple code tabs.
+- Show warning when closing changed files.
+- Save Image node now takes a boolean flag which determines when to save files.
+
+## Version 0.5.8 (2025-09-05)
+
+- Add support for MIDI messages.
+- Receive realtime data from Rokoko Studio and display it in the viewport.
+
 ## Version 0.5.7 (2025-06-18)
 
 - Nodes with errors show red in the network view.

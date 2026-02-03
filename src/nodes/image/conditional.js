@@ -21,6 +21,7 @@ void main() {
 `;
 
 const conditionIn = node.booleanIn('condition');
+conditionIn.display = 0x03;
 const trueImageIn = node.imageIn('true image');
 const falseImageIn = node.imageIn('false image');
 const fadeTimeIn = node.numberIn('fade time', 0.5, { min: 0, max: 10, step: 0.1 });
