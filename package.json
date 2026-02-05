@@ -74,7 +74,6 @@
       "examples/**/*",
       "src/electron/**/*",
       "!**/*.map",
-      "!build/onnxruntime-web/**",
       "!**/node_modules/onnxruntime-web/**",
       "!**/node_modules/@tensorflow/**",
       "!**/node_modules/@mediapipe/**"

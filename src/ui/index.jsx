@@ -5,7 +5,7 @@ import * as figment from '../figment';
 import * as THREE from 'three';
 import * as tf from '@tensorflow/tfjs';
 import * as twgl from 'twgl.js';
-import * as ort from 'onnxruntime-web/webgpu';
+import * as ort from 'onnxruntime-web/all';
 import * as mediapipe from '@mediapipe/tasks-vision';
 import * as drawing_utils from '@mediapipe/drawing_utils';
 import * as mediabunny from 'mediabunny';
@@ -23,11 +23,9 @@ window.mediapipe = mediapipe;
 window.drawing_utils = drawing_utils;
 window.mediabunny = mediabunny;
 
-// In dev we serve ORT WASM from /onnxruntime-web/ (public assets). In prod, let the bundled URLs resolve.
-if (import.meta.env.DEV) {
-  const ortBase = new URL('/onnxruntime-web/', window.location.href).href;
-  ort.env.wasm.wasmPaths = ortBase;
-}
+// Point ONNX to the public assets folder (works in both dev and prod)
+const ortBase = new URL('./onnxruntime-web/', window.location.href).href;
+ort.env.wasm.wasmPaths = ortBase;
 
 const params = new URLSearchParams(window.location.search);
 const filePath = params.get('filePath');
