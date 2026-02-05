@@ -9,8 +9,14 @@ export default defineConfig({
   base: './',
   publicDir: './assets',
   plugins: [tailwindcss(), react()],
+  resolve: {
+    conditions: ['onnxruntime-web-use-extern-wasm'],
+  },
   build: {
     outDir: resolve(__dirname, './build/'),
     chunkSizeWarningLimit: 1_000_000,
+  },
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
   },
 });

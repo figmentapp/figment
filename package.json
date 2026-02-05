@@ -72,7 +72,11 @@
     "files": [
       "build/**/*",
       "examples/**/*",
-      "src/electron/**/*"
+      "src/electron/**/*",
+      "!**/*.map",
+      "!**/node_modules/onnxruntime-web/**",
+      "!**/node_modules/@tensorflow/**",
+      "!**/node_modules/@mediapipe/**"
     ],
     "directories": {
       "buildResources": "res"

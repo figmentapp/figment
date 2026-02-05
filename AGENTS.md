@@ -63,3 +63,13 @@
 - Local-only: `npm start` and `npm run dist*` (require Electron/runtime and codesigning access).
 - Commit atomically: include only the changes you made so other agents' in-progress work stays isolated.
 - Expressions: Nodes support JEXL expressions (`$FRAME`, `$TIME`, `$NOW`). MediaPipe models are cached in `assets/mediapipe*/`.
+
+### Bundle Size Guardrails (ML deps)
+
+- Bundle-size PRs may exclude `onnxruntime-web`, `@tensorflow/*`, and `@mediapipe/*` from `package.json > build.files`, but treat this as runtime-sensitive.
+- If you change ML dependency packaging, also review `src/ui/index.jsx` and Vite asset behavior. Keep ORT `wasmPaths` overrides dev-only; production should resolve bundled asset URLs.
+- After any changes in this area, validate both:
+  - `npm start`: open a project and exercise ML-related flows/nodes.
+  - `npm run fastdist`: launch the packaged app output and re-test the same ML flows.
+- In packaged output, confirm required runtime assets are still present in `build/assets` and `build/mediapipe` (especially ORT wasm and MediaPipe task/wasm files).
+- Do not assume `npm run build` success is enough for this class of changes; packaging can still remove files needed at runtime.
