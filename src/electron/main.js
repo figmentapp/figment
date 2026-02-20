@@ -453,7 +453,20 @@ function createApplicationMenu() {
     ],
   };
 
-  const template = [...(isMac ? [macAppMenu] : []), fileMenu, { role: 'editMenu' }, viewMenu, { role: 'windowMenu' }];
+  const editMenu = {
+    label: 'Edit',
+    submenu: [
+      { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: emit('undo') },
+      { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: emit('redo') },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' },
+    ],
+  };
+
+  const template = [...(isMac ? [macAppMenu] : []), fileMenu, editMenu, viewMenu, { role: 'windowMenu' }];
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }

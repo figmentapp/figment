@@ -358,6 +358,7 @@ export default function NetworkEditor({ offscreenCanvas }) {
           dragModeRef.current = DRAG_MODE_IDLE;
         } else {
           dragModeRef.current = DRAG_MODE_DRAG_NODE;
+          useAppStore.getState().pushSnapshot();
           const currentSelection = useAppStore.getState().selection;
           if (!currentSelection.has(node)) {
             selectNode(node);
@@ -438,6 +439,9 @@ export default function NetworkEditor({ offscreenCanvas }) {
         }
       }
       selectNodes(newSelection);
+    }
+    if (dragModeRef.current === DRAG_MODE_DRAG_NODE) {
+      useAppStore.getState().setDirty(true);
     }
     window.removeEventListener('mousemove', onMouseDrag);
     window.removeEventListener('mouseup', onMouseUp);
