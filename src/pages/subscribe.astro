@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Mailchimp from "../components/Mailchimp.jsx";
+---
+
+<BaseLayout title="Subscribe" description="Join the Figment mailing list">
+  <section class="hero hero--primary">
+    <div class="container text-center">
+      <h1 class="text-2xl">Stay in the loop</h1>
+      <p class="text-lg">Get the latest Figment news, releases, and research updates.</p>
+    </div>
+  </section>
+  <section class="container py-5">
+    <Mailchimp />
+  </section>
+</BaseLayout>

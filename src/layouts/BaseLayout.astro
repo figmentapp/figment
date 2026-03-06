@@ -1,0 +1,63 @@
+---
+import "../styles/site.css";
+
+const { title, description } = Astro.props;
+const pageTitle = title ? `${title} | Figment` : "Figment";
+const pageDescription = description ?? "Visual Coding for Creative AI";
+const year = new Date().getFullYear();
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDescription} />
+    <link rel="icon" href="/img/favicon.ico" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav">
+        <a class="brand" href="/">
+          <img class="brand__logo" src="/img/figment.png" alt="Figment Logo" />
+          <span class="brand__title">Figment</span>
+        </a>
+        <nav class="nav-links">
+          <a href="/download">Download</a>
+          <a href="/docs">Documentation</a>
+          <a href="/docs/nodes">Reference</a>
+          <a href="https://github.com/figmentapp" target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div>
+          <h4>Documentation</h4>
+          <a href="/docs/tutorials">Tutorial</a>
+          <a href="/docs/nodes">Reference</a>
+        </div>
+        <div>
+          <h4>Community</h4>
+          <a href="https://github.com/figmentapp/figment/discussions" target="_blank" rel="noopener noreferrer">
+            Forum
+          </a>
+        </div>
+        <div>
+          <h4>More</h4>
+          <a href="https://github.com/figmentapp" target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>
+        </div>
+      </div>
+      <div class="container footer-meta">Copyright © {year} Figment.</div>
+    </footer>
+  </body>
+</html>
