@@ -1,0 +1,81 @@
+---
+import { getCollection, render } from 'astro:content'
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import '../../styles/docs-page.css'
+
+function normalizeSlugForPath(slug) {
+  if (slug === 'index') return ''
+  if (slug.endsWith('/index')) return slug.slice(0, -'/index'.length)
+  return slug
+}
+
+function toDocPath(slug) {
+  const normalized = normalizeSlugForPath(slug)
+  return normalized ? `/docs/${normalized}` : '/docs'
+}
+
+export async function getStaticPaths() {
+  const normalize = (slug) => {
+    if (slug === 'index') return ''
+    if (slug.endsWith('/index')) return slug.slice(0, -'/index'.length)
+    return slug
+  }
+
+  const entries = await getCollection('docs')
+  return entries.map((entry) => ({
+    params: { slug: normalize(entry.slug) || undefined },
+    props: { entry },
+  }))
+}
+
+const { entry } = Astro.props
+const { Content, headings } = await render(entry)
+
+const currentPath = toDocPath(entry.slug)
+
+const docsTitle = entry.data.title
+---
+
+<BaseLayout title={docsTitle} description={entry.data.description ?? 'Figment documentation'}>
+  <section class="docs-shell container">
+    <aside class="docs-sidebar">
+      <nav>
+        <a class:list={{ active: currentPath === '/docs' }} href="/docs">Welcome</a>
+
+        <h3>Tutorials</h3>
+        <a class:list={{ active: currentPath === '/docs/tutorials/getting-started' }} href="/docs/tutorials/getting-started">Getting Started</a>
+        <a class:list={{ active: currentPath === '/docs/tutorials/pix2pix' }} href="/docs/tutorials/pix2pix">Pix2Pix</a>
+        <a class:list={{ active: currentPath === '/docs/tutorials/custom-nodes' }} href="/docs/tutorials/custom-nodes">Custom Nodes</a>
+
+        <h3>Guides</h3>
+        <a class:list={{ active: currentPath === '/docs/expressions' }} href="/docs/expressions">Expressions</a>
+        <a class:list={{ active: currentPath === '/docs/structuring' }} href="/docs/structuring">Structuring</a>
+        <a class:list={{ active: currentPath === '/docs/export' }} href="/docs/export">Export</a>
+
+        <h3>Reference</h3>
+        <a class:list={{ active: currentPath === '/docs/nodes' }} href="/docs/nodes">Nodes Reference</a>
+      </nav>
+    </aside>
+
+    <article class="docs-content">
+      <Content />
+    </article>
+
+    <aside class="docs-toc">
+      {headings.length > 0 && (
+        <>
+          <h3>On this page</h3>
+          <ul>
+            {headings
+              .filter((heading) => heading.depth === 2)
+              .map((heading) => (
+                <li>
+                  <a href={`#${heading.slug}`}>{heading.text}</a>
+                </li>
+              ))}
+          </ul>
+        </>
+      )}
+    </aside>
+  </section>
+</BaseLayout>
