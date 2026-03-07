@@ -1,7 +1,7 @@
 // WebGL → WebGPU migration utilities
 // Detects old WebGL code in custom node types and communicates with the migration API.
 
-const MIGRATION_API_BASE = 'https://migrate.figmentapp.com';
+const MIGRATION_API_BASE = 'https://migration.figmentapp.com';
 
 const WEBGL_MARKERS = [
   'gl_FragColor',
