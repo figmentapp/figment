@@ -4,15 +4,11 @@
  * @category image
  */
 
-const FRAGMENT_WGSL = `
-struct Uniforms {
-  u_mask_method: i32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_source_texture: texture_2d<f32>;
-@group(0) @binding(3) var u_mask_texture: texture_2d<f32>;
-
+const uniformsMeta = { u_mask_method: 'i32' };
+const textures = ['u_source_texture', 'u_mask_texture'];
+const FRAGMENT_WGSL =
+  figment.generateWgslPreamble({ uniforms: uniformsMeta, textures }) +
+  `
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   let input_color = textureSample(u_source_texture, defaultSampler, in.uv);
@@ -37,8 +33,8 @@ let pipeline, target;
 node.onStart = () => {
   pipeline = figment.createRenderPipeline({
     wgsl: FRAGMENT_WGSL,
-    uniforms: { u_mask_method: 'i32' },
-    textures: ['u_source_texture', 'u_mask_texture'],
+    uniforms: uniformsMeta,
+    textures,
     label: 'maskImage',
   });
   target = new figment.RenderTarget();

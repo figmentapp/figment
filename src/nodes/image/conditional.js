@@ -4,15 +4,11 @@
  * @category image
  */
 
-const FRAGMENT_WGSL = `
-struct Uniforms {
-  u_factor: f32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_true_image: texture_2d<f32>;
-@group(0) @binding(3) var u_false_image: texture_2d<f32>;
-
+const uniformsMeta = { u_factor: 'f32' };
+const textures = ['u_true_image', 'u_false_image'];
+const FRAGMENT_WGSL =
+  figment.generateWgslPreamble({ uniforms: uniformsMeta, textures }) +
+  `
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   let c1 = textureSample(u_true_image, defaultSampler, in.uv);
@@ -40,8 +36,8 @@ let direction = 1;
 node.onStart = () => {
   pipeline = figment.createRenderPipeline({
     wgsl: FRAGMENT_WGSL,
-    uniforms: { u_factor: 'f32' },
-    textures: ['u_true_image', 'u_false_image'],
+    uniforms: uniformsMeta,
+    textures,
     label: 'conditional',
   });
   target = new figment.RenderTarget();

@@ -4,16 +4,13 @@
  * @category image
  */
 
-const FRAGMENT_WGSL_CROP = `
-struct Uniforms {
-  u_resolution: vec2f,
-  u_crop_size: vec2f,
-  u_anchor: vec2f,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
+const uniformsMeta = { u_resolution: 'vec2f', u_crop_size: 'vec2f', u_anchor: 'vec2f' };
+const textures = ['u_input_texture'];
+const preamble = figment.generateWgslPreamble({ uniforms: uniformsMeta, textures });
 
+const FRAGMENT_WGSL_CROP =
+  preamble +
+  `
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   let crop_ratio = u.u_crop_size / u.u_resolution;
@@ -27,16 +24,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 }
 `;
 
-const FRAGMENT_WGSL_ORIGINAL = `
-struct Uniforms {
-  u_resolution: vec2f,
-  u_crop_size: vec2f,
-  u_anchor: vec2f,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
-
+const FRAGMENT_WGSL_ORIGINAL =
+  preamble +
+  `
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   let crop_ratio = u.u_crop_size / u.u_resolution;
@@ -63,21 +53,19 @@ const anchorIn = node.selectIn(
 const modeIn = node.selectIn('output size', ['cropped', 'original'], 'cropped');
 const imageOut = node.imageOut('out');
 
-const uniformsMeta = { u_resolution: 'vec2f', u_crop_size: 'vec2f', u_anchor: 'vec2f' };
-
 let pipelineCrop, pipelineOriginal, target;
 
 node.onStart = () => {
   pipelineCrop = figment.createRenderPipeline({
     wgsl: FRAGMENT_WGSL_CROP,
     uniforms: uniformsMeta,
-    textures: ['u_input_texture'],
+    textures,
     label: 'crop-cropped',
   });
   pipelineOriginal = figment.createRenderPipeline({
     wgsl: FRAGMENT_WGSL_ORIGINAL,
     uniforms: uniformsMeta,
-    textures: ['u_input_texture'],
+    textures,
     label: 'crop-original',
   });
   target = new figment.RenderTarget();

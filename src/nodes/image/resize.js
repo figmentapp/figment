@@ -4,14 +4,12 @@
  * @category image
  */
 
-const FRAGMENT_WGSL = `
-struct Uniforms {
-  u_background_color: vec4f,
-  u_scale: vec2f,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
+const preamble = figment.generateWgslPreamble({
+  uniforms: { u_background_color: 'vec4f', u_scale: 'vec2f' },
+  textures: ['u_input_texture'],
+});
+
+const FRAGMENT_WGSL = `${preamble}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
@@ -75,12 +73,11 @@ node.onRender = () => {
     }
   }
 
-  const color = backgroundIn.value;
   target.setSize(widthIn.value, heightIn.value);
   figment.drawFullscreen(
     pipeline,
     {
-      u_background_color: figment.colorToVec4(color),
+      u_background_color: figment.colorToVec4(backgroundIn.value),
       u_scale: scale,
     },
     { u_input_texture: imageIn.value },

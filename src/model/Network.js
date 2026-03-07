@@ -1,4 +1,5 @@
 import { LATEST_FORMAT_VERSION } from '../file-format';
+import * as figment from '../figment';
 import Node from './Node';
 import Port, {
   PORT_TYPE_TRIGGER,
@@ -165,7 +166,7 @@ export default class Network {
     }
 
     try {
-      const fn = new Function('node', source);
+      const fn = new Function('node', 'figment', source);
       // Give the function a display name to improve readability in call stacks.
       try {
         Object.defineProperty(fn, 'name', { value: nodeType.type, configurable: true });
@@ -173,7 +174,7 @@ export default class Network {
         // Ignore if the environment prevents redefining the name.
       }
 
-      fn.call(window, node);
+      fn.call(window, node, figment);
     } catch (e) {
       console.error(`Error creating ${typeId}: ${e && e.stack}`);
     }

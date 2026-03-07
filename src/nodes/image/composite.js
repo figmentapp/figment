@@ -30,6 +30,9 @@ const operationIn = node.selectIn(
 const fitIn = node.selectIn('fit', ['contain', 'cover', 'stretch'], 'contain');
 const imageOut = node.imageOut('out');
 
+const uniformsMeta = { u_factor: 'f32', u_scale: 'vec2f' };
+const preamble = figment.generateWgslPreamble({ uniforms: uniformsMeta, textures: ['u_image_1', 'u_image_2'] });
+
 function updateShader() {
   let blendFunction;
   if (operationIn.value === 'normal') {
@@ -60,16 +63,9 @@ function updateShader() {
   } else {
     blendFunction = 'factor * c2.rgb + (1.0 - factor) * c1.rgb';
   }
-  const FRAGMENT_WGSL = `
-struct Uniforms {
-  u_factor: f32,
-  u_scale: vec2f,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_image_1: texture_2d<f32>;
-@group(0) @binding(3) var u_image_2: texture_2d<f32>;
-
+  const fragmentWgsl =
+    preamble +
+    `
 fn blendColorBurn(c1: f32, c2: f32) -> f32 {
   if (c2 == 0.0) { return c2; }
   return max((1.0 - ((1.0 - c1) / c2)), 0.0);
@@ -95,8 +91,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 }
 `;
   pipeline = figment.createRenderPipeline({
-    wgsl: FRAGMENT_WGSL,
-    uniforms: { u_factor: 'f32', u_scale: 'vec2f' },
+    wgsl: fragmentWgsl,
+    uniforms: uniformsMeta,
     textures: ['u_image_1', 'u_image_2'],
     label: 'composite',
   });

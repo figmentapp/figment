@@ -29,14 +29,10 @@ function updateShader() {
   } else if (methodIn.value === 'alpha') {
     lookupFunction = 'source.a';
   }
-  const FRAGMENT_WGSL = `
-struct Uniforms {
-  _pad: f32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_source_texture: texture_2d<f32>;
-@group(0) @binding(3) var u_lookup_texture: texture_2d<f32>;
+  const preamble = figment.generateWgslPreamble({
+    textures: ['u_source_texture', 'u_lookup_texture'],
+  });
+  const FRAGMENT_WGSL = `${preamble}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {

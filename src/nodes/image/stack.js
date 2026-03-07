@@ -4,14 +4,12 @@
  * @category image
  */
 
-const FRAGMENT_WGSL = `
-struct Uniforms {
-  u_direction: f32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_input_texture_1: texture_2d<f32>;
-@group(0) @binding(3) var u_input_texture_2: texture_2d<f32>;
+const preamble = figment.generateWgslPreamble({
+  uniforms: { u_direction: 'f32' },
+  textures: ['u_input_texture_1', 'u_input_texture_2'],
+});
+
+const FRAGMENT_WGSL = `${preamble}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {

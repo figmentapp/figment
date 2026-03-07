@@ -4,15 +4,9 @@
  * @category image
  */
 
-const FRAGMENT_WGSL = `
-struct Uniforms {
-  u_amplify: f32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_current_texture: texture_2d<f32>;
-@group(0) @binding(3) var u_previous_texture: texture_2d<f32>;
-
+const FRAGMENT_WGSL =
+  figment.generateWgslPreamble({ uniforms: { u_amplify: 'f32' }, textures: ['u_current_texture', 'u_previous_texture'] }) +
+  `
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   let currentColor = textureSample(u_current_texture, defaultSampler, in.uv).rgb;
@@ -25,14 +19,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 }
 `;
 
-const COPY_WGSL = `
-struct Uniforms {
-  _pad: f32,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_image: texture_2d<f32>;
-
+const COPY_WGSL =
+  figment.generateWgslPreamble({ textures: ['u_image'] }) +
+  `
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   return textureSample(u_image, defaultSampler, in.uv);
