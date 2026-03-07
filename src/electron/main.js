@@ -329,7 +329,11 @@ function createMainWindow(filePath) {
   // Load the index.html of the app.
   if (process.env.NODE_ENV === 'development') {
     gMainWindow.loadURL(`http://localhost:3000/?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
-    gMainWindow.webContents.openDevTools();
+    // Defer DevTools until after page load to avoid freezing the renderer's
+    // event loop during WebGPU initialization (Chromium 140+ regression).
+    gMainWindow.webContents.once('did-finish-load', () => {
+      gMainWindow.webContents.openDevTools();
+    });
   } else {
     const electronDir = __dirname;
     const asarDir = path.join(electronDir, '../../');
@@ -472,6 +476,10 @@ app.on('open-file', (event, filePath) => {
     filePathToOpen = filePath;
   }
 });
+
+// Enable WebGPU in Electron
+app.commandLine.appendSwitch('enable-unsafe-webgpu');
+app.commandLine.appendSwitch('enable-features', 'WebGPU,UseSkiaGraphite');
 
 app.whenReady().then(async () => {
   await gSettings.load();
