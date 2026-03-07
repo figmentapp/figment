@@ -23,7 +23,7 @@
   "dependencies": {
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
-    "@tensorflow/tfjs": "^4.22.0",
+
     "chroma-js": "^3.1.2",
     "clsx": "^2.1.0",
     "codemirror": "^5.65.19",
@@ -41,9 +41,10 @@
     "react-color": "2.19.3",
     "react-dom": "^19.1.0",
     "seedrandom": "3.0.5",
-    "three": "^0.180.0",
+    "stats.js": "^0.17.0",
+
     "tween-functions": "1.2.0",
-    "twgl.js": "^7.0.0",
+
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -75,7 +76,6 @@
       "src/electron/**/*",
       "!**/*.map",
       "!**/node_modules/onnxruntime-web/**",
-      "!**/node_modules/@tensorflow/**",
       "!**/node_modules/@mediapipe/**"
     ],
     "directories": {
