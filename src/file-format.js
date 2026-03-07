@@ -76,9 +76,7 @@ export function upgradeProject(project) {
       return true;
     });
     if (newProject.connections) {
-      newProject.connections = newProject.connections.filter(
-        (conn) => !removedIds.has(conn.sourceNode) && !removedIds.has(conn.targetNode),
-      );
+      newProject.connections = newProject.connections.filter((conn) => !removedIds.has(conn.outNode) && !removedIds.has(conn.inNode));
     }
     return upgradeProject(newProject);
   }

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as figment from '../figment';
 import { useAppStore } from './store';
+import { shouldRedrawViewer } from './viewer-state';
 
 const BLIT_WGSL = `
 struct Uniforms {
@@ -148,10 +149,14 @@ export default function Viewer() {
 
     const initialNetwork = useAppStore.getState().network;
     initialNetwork.addChangeListener(onNetworkChange);
+    shouldDrawRef.current = true;
     animate();
 
     let currentNetwork = initialNetwork;
     const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      if (shouldRedrawViewer(state, prevState)) {
+        shouldDrawRef.current = true;
+      }
       if (state.network !== prevState.network) {
         if (currentNetwork !== state.network) {
           currentNetwork.removeChangeListener(onNetworkChange);

@@ -288,13 +288,25 @@ export class PingPongTarget {
     this.write = new RenderTarget(options);
     this.width = 0;
     this.height = 0;
+    this._initialized = false;
   }
 
   setSize(w, h) {
+    const resized = w !== this.width || h !== this.height;
     this.read.setSize(w, h);
     this.write.setSize(w, h);
     this.width = w;
     this.height = h;
+    if (resized) {
+      this._initialized = false;
+    }
+  }
+
+  ensureInitialized(clearColor = { r: 0, g: 0, b: 0, a: 0 }) {
+    if (this._initialized || !this.read.view || !this.write.view) return;
+    clearRenderTarget(this.read, clearColor);
+    clearRenderTarget(this.write, clearColor);
+    this._initialized = true;
   }
 
   swap() {
@@ -308,6 +320,7 @@ export class PingPongTarget {
     this.write.destroy();
     this.width = 0;
     this.height = 0;
+    this._initialized = false;
   }
 }
 
@@ -623,6 +636,23 @@ export function beginRenderPass(encoder, target, options = {}) {
   });
 }
 
+export function clearRenderTarget(target, clearColor = { r: 0, g: 0, b: 0, a: 0 }) {
+  if (!_device || !target || !target.view) return;
+  const encoder = _device.createCommandEncoder({ label: (target._label || 'target') + ' clear encoder' });
+  const pass = encoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: target.view,
+        loadOp: 'clear',
+        storeOp: 'store',
+        clearValue: clearColor,
+      },
+    ],
+  });
+  pass.end();
+  _queue.submit([encoder.finish()]);
+}
+
 // ─── Readback ───────────────────────────────────────────────────────────────
 
 export async function readbackTexture(target) {
@@ -842,6 +872,7 @@ export function createFeedbackFilter(node, opts) {
     const img = inputPort.value;
     if (!img) return;
     result.pp.setSize(img.width, img.height);
+    result.pp.ensureInitialized();
 
     const uniformValues = getUniforms ? getUniforms() : {};
     const iterCount = typeof iterations === 'function' ? iterations() : iterations;
@@ -849,7 +880,7 @@ export function createFeedbackFilter(node, opts) {
     for (let i = 0; i < iterCount; i++) {
       const texValues = { u_feedback_texture: result.pp.read, u_input_texture: img };
       for (const t of textures) texValues[t] = texValues[t]; // extra textures filled by getUniforms if needed
-      drawFullscreen(result.pipeline, uniformValues, texValues, result.pp.write);
+      drawFullscreen(result.pipeline, uniformValues, texValues, result.pp.write, { clearColor: { r: 0, g: 0, b: 0, a: 0 } });
       result.pp.swap();
     }
 

@@ -57,7 +57,7 @@ export const useAppStore = create((set, get) => ({
   // Frame and runtime
   async doFrame() {
     const { network } = get();
-    if (network) {
+    if (network && network.started) {
       await network.doFrame();
     }
   },
@@ -198,8 +198,13 @@ export const useAppStore = create((set, get) => ({
       if (!m) return; // cancelled
 
       let pollingStop = null;
+      let completionTimeoutId = null;
       const stopFn = () => {
         if (pollingStop) pollingStop();
+        if (completionTimeoutId !== null) {
+          clearTimeout(completionTimeoutId);
+          completionTimeoutId = null;
+        }
       };
       set({ migration: { ...m, phase: 'polling', nodeCount: nodeCount || m.webglTypeCount, nodesCompleted: 0, _stopPolling: stopFn } });
 
@@ -210,14 +215,22 @@ export const useAppStore = create((set, get) => ({
         if (status.status === 'completed' || status.status === 'partial') {
           try {
             const result = await fetchResult(id);
-            set({ migration: { ...get().migration, phase: 'done', nodesCompleted: status.nodesCompleted || cur.nodeCount } });
+            const latest = get().migration;
+            if (!latest || latest._stopPolling !== stopFn) return;
+
+            set({ migration: { ...latest, phase: 'done', nodesCompleted: status.nodesCompleted || cur.nodeCount } });
             // Short pause so the user sees "done", then finish opening
             // Mark dirty: converted content differs from the file on disk.
-            setTimeout(() => {
+            completionTimeoutId = setTimeout(() => {
+              const activeMigration = get().migration;
+              if (!activeMigration || activeMigration._stopPolling !== stopFn) return;
               get()._finishOpenFile(result, cur._pendingFilePath, true);
             }, 800);
           } catch (err) {
-            set({ migration: { ...get().migration, phase: 'error', error: err.message } });
+            const latest = get().migration;
+            if (latest) {
+              set({ migration: { ...latest, phase: 'error', error: err.message } });
+            }
           }
         } else if (status.status === 'failed') {
           set({ migration: { ...cur, phase: 'error', error: status.errors?.[0] || 'Conversion failed on the server.' } });
