@@ -171,7 +171,7 @@ export const useAppStore = create((set, get) => ({
     get()._finishOpenFile(project, filePath);
   },
 
-  async _finishOpenFile(project, filePath) {
+  async _finishOpenFile(project, filePath, dirty = false) {
     const s = get();
     const net = new Network(s.library);
     set({ filePath, network: net, selection: new Set(), migration: null });
@@ -179,6 +179,7 @@ export const useAppStore = create((set, get) => ({
     await net.start();
     net.doFrame();
     get().setFilePath(filePath);
+    if (dirty) get().setDirty(true);
     get().start();
     window.desktop.addToRecentFiles(filePath);
   },
@@ -206,8 +207,9 @@ export const useAppStore = create((set, get) => ({
             const result = await fetchResult(id);
             set({ migration: { ...get().migration, phase: 'done', nodesCompleted: status.nodesCompleted || cur.nodeCount } });
             // Short pause so the user sees "done", then finish opening
+            // Mark dirty: converted content differs from the file on disk.
             setTimeout(() => {
-              get()._finishOpenFile(result, cur._pendingFilePath);
+              get()._finishOpenFile(result, cur._pendingFilePath, true);
             }, 800);
           } catch (err) {
             set({ migration: { ...get().migration, phase: 'error', error: err.message } });
@@ -236,7 +238,8 @@ export const useAppStore = create((set, get) => ({
     if (!migration) return;
     if (migration._stopPolling) migration._stopPolling();
     if (openAnyway && migration._pendingProject) {
-      get()._finishOpenFile(migration._pendingProject, migration._pendingFilePath);
+      // Mark dirty: upgraded version number differs from the file on disk.
+      get()._finishOpenFile(migration._pendingProject, migration._pendingFilePath, true);
     } else {
       set({ migration: null });
     }
