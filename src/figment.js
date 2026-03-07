@@ -69,6 +69,8 @@ export async function initGPU(options = {}) {
       _device = null;
       _queue = null;
       _destroySamplers();
+      _placeholderTexture = null;
+      _placeholderTextureView = null;
       for (const cb of _deviceLostCallbacks) {
         try {
           cb(info);
@@ -517,9 +519,9 @@ export function drawFullscreen(pipelineInfo, uniformValues, textureValues, targe
       // Raw GPUTexture passed
       bgEntries.push({ binding: bindingIndex++, resource: rt.createView() });
     } else {
-      // Null texture — create a 1x1 placeholder
-      const placeholder = _createPlaceholderTexture();
-      bgEntries.push({ binding: bindingIndex++, resource: placeholder.createView() });
+      // Null texture — use cached 1x1 placeholder view
+      _createPlaceholderTexture();
+      bgEntries.push({ binding: bindingIndex++, resource: _placeholderTextureView });
     }
   }
 
@@ -531,7 +533,7 @@ export function drawFullscreen(pipelineInfo, uniformValues, textureValues, targe
 
   const encoder = _device.createCommandEncoder({ label: pipelineInfo.label + ' encoder' });
 
-  const loadOp = clearColor ? 'clear' : 'clear';
+  const loadOp = clearColor ? 'clear' : 'load';
   const colorAttachment = {
     view: target.view,
     loadOp,
@@ -645,6 +647,7 @@ export async function readbackTexture(target) {
 // ─── Placeholder Texture ────────────────────────────────────────────────────
 
 let _placeholderTexture = null;
+let _placeholderTextureView = null;
 
 function _createPlaceholderTexture() {
   if (_placeholderTexture) return _placeholderTexture;
@@ -654,6 +657,7 @@ function _createPlaceholderTexture() {
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     label: 'placeholder 1x1',
   });
+  _placeholderTextureView = _placeholderTexture.createView();
   _queue.writeTexture({ texture: _placeholderTexture }, new Uint8Array([0, 0, 0, 255]), { bytesPerRow: 4 }, [1, 1]);
   return _placeholderTexture;
 }
@@ -748,6 +752,14 @@ export async function loadScripts(scripts) {
 
 export function toCanvasColor(color) {
   return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
+}
+
+export function colorToVec4(color) {
+  return [color[0] / 255, color[1] / 255, color[2] / 255, color[3]];
+}
+
+export function colorToVec3(color) {
+  return [color[0] / 255, color[1] / 255, color[2] / 255];
 }
 
 // ─── MediaPipe Worker Client (preserved) ────────────────────────────────────

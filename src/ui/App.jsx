@@ -112,16 +112,17 @@ export default function App(props) {
 
   // Wire listeners and RAF loop explicitly here
   useEffect(() => {
+    let rafId;
     async function frame() {
       window.stats.begin();
       if (useAppStore.getState().isPlaying) {
         await doFrame();
       }
       window.stats.end();
-      window.requestAnimationFrame(frame);
+      rafId = window.requestAnimationFrame(frame);
     }
     start();
-    window.requestAnimationFrame(frame);
+    rafId = window.requestAnimationFrame(frame);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('resize', forceRedraw);
     window.app = { getState: useAppStore.getState, setState: useAppStore.setState };
@@ -134,6 +135,7 @@ export default function App(props) {
     const initialPath = props.filePath || useAppStore.getState().filePath;
     if (initialPath) openFile(initialPath);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', forceRedraw);
       window.app = undefined;

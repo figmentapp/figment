@@ -114,12 +114,13 @@ export default function Viewer() {
     shouldDrawRef.current = true;
   };
 
+  const rafIdRef = useRef(0);
   const animate = () => {
     if (shouldDrawRef.current) {
       draw();
       shouldDrawRef.current = false;
     }
-    window.requestAnimationFrame(animate);
+    rafIdRef.current = window.requestAnimationFrame(animate);
   };
 
   useEffect(() => {
@@ -161,6 +162,7 @@ export default function Viewer() {
     });
 
     return () => {
+      cancelAnimationFrame(rafIdRef.current);
       currentNetwork.removeChangeListener(onNetworkChange);
       unsubscribe();
     };

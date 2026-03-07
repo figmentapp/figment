@@ -177,6 +177,8 @@ export default function NetworkEditor() {
   const prevXRef = useRef(0);
   const prevYRef = useRef(0);
   const resizeObserverRef = useRef(null);
+  const defaultTextureViewRef = useRef(null);
+  const rafIdRef = useRef(0);
 
   // On component mount
   useEffect(() => {
@@ -266,6 +268,7 @@ export default function NetworkEditor() {
         [2, 2],
       );
       defaultTextureRef.current = defaultTex;
+      defaultTextureViewRef.current = defaultTex.createView();
     }
 
     // Add a resize observer, redrawing the canvas when the size changes
@@ -301,10 +304,12 @@ export default function NetworkEditor() {
     });
 
     return () => {
+      cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('resize', onResize);
       currentNetwork.removeChangeListener(onNetworkChange);
+      if (defaultTextureRef.current) defaultTextureRef.current.destroy();
       if (canvasRef.current && resizeObserverRef.current) {
         resizeObserverRef.current.unobserve(canvasRef.current);
       }
@@ -794,6 +799,7 @@ export default function NetworkEditor() {
     });
 
     pass.setPipeline(pipelineInfo.pipeline);
+    const uniformBuffers = [];
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
@@ -809,7 +815,7 @@ export default function NetworkEditor() {
         textureWidth = outPort.value.width;
         textureHeight = outPort.value.height;
       } else {
-        textureView = defaultTextureRef.current.createView();
+        textureView = defaultTextureViewRef.current;
         textureWidth = NODE_WIDTH;
         textureHeight = NODE_HEIGHT;
       }
@@ -827,6 +833,7 @@ export default function NetworkEditor() {
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
       device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+      uniformBuffers.push(uniformBuffer);
 
       const bindGroup = device.createBindGroup({
         layout: pipelineInfo.bindGroupLayout,
@@ -843,6 +850,7 @@ export default function NetworkEditor() {
 
     pass.end();
     device.queue.submit([encoder.finish()]);
+    for (const buf of uniformBuffers) buf.destroy();
   };
 
   const animate = () => {
@@ -850,7 +858,7 @@ export default function NetworkEditor() {
       drawNodePreviews();
       shouldDrawRef.current = false;
     }
-    window.requestAnimationFrame(animate);
+    rafIdRef.current = window.requestAnimationFrame(animate);
   };
 
   return (
