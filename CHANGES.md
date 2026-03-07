@@ -1,5 +1,11 @@
 # CHANGES
 
+## Version 0.7.0 (2026-03-07)
+
+- Figment now uses WebGPU for all nodes, giving a significant performance boost.
+- Existing projects will be automatically migrated to the new file format through an online AI-driven converter.
+- You can also convert manually using <https://migration.figmentapp.com>.
+
 ## Version 0.6.3 (2025-12-11)
 
 - Load movie now has a "quality" setting. "fast" videos play well but are not frame-perfect. "Accurate" use MediaBunny and are frame-perfect.
