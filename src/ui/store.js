@@ -228,7 +228,6 @@ export const useAppStore = create((set, get) => ({
           set({ migration: { ...cur, nodesCompleted: status.nodesCompleted || 0 } });
         }
       });
-
     } catch (err) {
       const m = get().migration;
       if (m) {
