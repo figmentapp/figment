@@ -4,20 +4,22 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec4 u_background_color;
-uniform vec2 u_scale;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_background_color: vec4f,
+  u_scale: vec2f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-void main() {
-  vec2 uv = u_scale * (v_uv - 0.5) + 0.5;
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = u.u_scale * (in.uv - 0.5) + 0.5;
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-    gl_FragColor = u_background_color;
-  } else {
-    gl_FragColor = texture2D(u_input_texture, uv);
+    return u.u_background_color;
   }
+  return textureSampleLevel(u_input_texture, defaultSampler, uv, 0.0);
 }
 `;
 
@@ -28,11 +30,16 @@ const fitIn = node.selectIn('fit', ['fill', 'contain', 'cover'], 'cover');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_background_color: 'vec4f', u_scale: 'vec2f' },
+    textures: ['u_input_texture'],
+    label: 'resize',
+  });
+  target = new figment.RenderTarget();
 };
 
 const LANDSCAPE = 1;
@@ -53,17 +60,14 @@ node.onRender = () => {
   }
   let scale;
   if (fitIn.value == 'fill') {
-    // We will stretch the image, so just use the input scale.
     scale = [1, 1];
   } else if (fitIn.value == 'contain') {
-    // Either width or height will be smaller, so we need to scale the other one.
     if (orientation === LANDSCAPE) {
       scale = [1, aspect];
     } else {
       scale = [aspect, 1];
     }
   } else if (fitIn.value == 'cover') {
-    // Either width or height will extend outside of the frame.
     if (orientation === LANDSCAPE) {
       scale = [1 / aspect, 1];
     } else {
@@ -72,14 +76,19 @@ node.onRender = () => {
   }
 
   const color = backgroundIn.value;
-  framebuffer.setSize(widthIn.value, heightIn.value);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_scale: scale,
-    u_background_color: [color[0] / 255, color[1] / 255, color[2] / 255, color[3]],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(widthIn.value, heightIn.value);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_background_color: [color[0] / 255, color[1] / 255, color[2] / 255, color[3]],
+      u_scale: scale,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

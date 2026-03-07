@@ -4,23 +4,26 @@
  * @category image
  */
 
-const vertexShader = `
-uniform mat4 u_transform;
-attribute vec3 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_uv;
-  gl_Position = u_transform * vec4(a_position, 1.0);
-}`;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_transform: mat4x4f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_input_texture, v_uv.st);
-}`;
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  // Convert UV to clip space, apply inverse transform, convert back to UV
+  let clipPos = vec4f(in.uv * 2.0 - 1.0, 0.0, 1.0);
+  let transformed = u.u_transform * clipPos;
+  let uv = transformed.xy * 0.5 + 0.5;
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+    return vec4f(0.0, 0.0, 0.0, 0.0);
+  }
+  return textureSampleLevel(u_input_texture, defaultSampler, uv, 0.0);
+}
+`;
 
 const imageIn = node.imageIn('in');
 const translateXIn = node.numberIn('translateX', 0, { min: -2, max: 2, step: 0.01 });
@@ -30,32 +33,57 @@ const scaleYIn = node.numberIn('scaleY', 1, { min: -10, max: 10, step: 0.01 });
 const rotateIn = node.numberIn('rotate', 0.0, { min: -360, max: 360, step: 1 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(vertexShader, fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_transform: 'mat4x4f' },
+    textures: ['u_input_texture'],
+    label: 'transform',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  let transform = m4.identity();
-  let factorX = 1.0 / imageIn.value.width;
-  let factorY = 1.0 / imageIn.value.height;
 
-  transform = m4.translate(transform, [factorX / 2, factorY / 2, 0]);
-  transform = m4.translate(transform, [translateXIn.value, translateYIn.value, 0]);
-  transform = m4.scale(transform, [scaleXIn.value, scaleYIn.value, 1]);
-  transform = m4.rotateZ(transform, (rotateIn.value * Math.PI) / 180);
-  transform = m4.translate(transform, [-factorX / 2, -factorY / 2, 0]);
-  // console.log(transform);
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_transform: transform,
-    u_input_texture: imageIn.value.texture,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  // Build inverse transform in UV space so we can sample the source
+  // The original used a vertex shader transform; here we apply the inverse in the fragment shader.
+  const angle = (-rotateIn.value * Math.PI) / 180;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const sx = 1.0 / scaleXIn.value;
+  const sy = 1.0 / scaleYIn.value;
+  const tx = -translateXIn.value;
+  const ty = -translateYIn.value;
+
+  // Column-major mat4x4: translate(-tx,-ty) * rotate(-angle) * scale(1/sx, 1/sy)
+  // Combined: first translate, then rotate, then scale
+  const transform = [
+    sx * cosA,
+    sx * sinA,
+    0,
+    0,
+    -sy * sinA,
+    sy * cosA,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    tx * sx * cosA - ty * sy * sinA,
+    tx * sx * sinA + ty * sy * cosA,
+    0,
+    1,
+  ];
+
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(pipeline, { u_transform: transform }, { u_input_texture: imageIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

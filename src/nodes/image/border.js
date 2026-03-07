@@ -4,22 +4,23 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec2 u_resolution;
-uniform vec4 u_border_color;
-uniform float u_border_size;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_border_color: vec4f,
+  u_resolution: vec2f,
+  u_border_size: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-void main() {
-  float image_ratio = u_resolution.x / u_resolution.y;
-  float border_frac = u_border_size / u_resolution.x;
-  if (v_uv.x < border_frac || v_uv.x > 1.0 - border_frac || v_uv.y < border_frac || v_uv.y > 1.0 - border_frac) {
-    gl_FragColor = u_border_color;
-  } else {
-    gl_FragColor = texture2D(u_input_texture, v_uv);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let border_frac = u.u_border_size / u.u_resolution.x;
+  if (in.uv.x < border_frac || in.uv.x > 1.0 - border_frac || in.uv.y < border_frac || in.uv.y > 1.0 - border_frac) {
+    return u.u_border_color;
   }
+  return textureSampleLevel(u_input_texture, defaultSampler, in.uv, 0.0);
 }
 `;
 
@@ -28,24 +29,34 @@ const borderSize = node.numberIn('borderSize', 10.0, { min: 1, max: 512, step: 1
 const borderColor = node.colorIn('borderColor', [255, 255, 255, 1.0]);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_border_color: 'vec4f', u_resolution: 'vec2f', u_border_size: 'f32' },
+    textures: ['u_input_texture'],
+    label: 'border',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_resolution: [imageIn.value.width, imageIn.value.height],
-    u_border_size: borderSize.value,
-    u_border_color: [borderColor.value[0] / 255, borderColor.value[1] / 255, borderColor.value[2] / 255, borderColor.value[3]],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_border_color: [borderColor.value[0] / 255, borderColor.value[1] / 255, borderColor.value[2] / 255, borderColor.value[3]],
+      u_resolution: [imageIn.value.width, imageIn.value.height],
+      u_border_size: borderSize.value,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

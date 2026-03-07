@@ -33,7 +33,7 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _framebuffer, _canvas, _ctx;
+let _target, _canvas, _ctx;
 let _currentBody = null;
 
 const ROKOKO_BODY_CONNECTIONS = [
@@ -71,8 +71,8 @@ function resizeOutput() {
 
   _canvas = new OffscreenCanvas(width, height);
   _ctx = _canvas.getContext('2d');
-  if (_framebuffer) {
-    _framebuffer.setSize(width, height);
+  if (_target) {
+    _target.setSize(width, height);
     drawResults();
   }
 }
@@ -83,7 +83,7 @@ heightIn.onChange = resizeOutput;
 node.onStart = async () => {
   await figment.loadScripts(['./mediapipe/drawing_utils.js']);
 
-  _framebuffer = new figment.Framebuffer();
+  _target = new figment.RenderTarget({ label: 'receiveRokoko' });
   resizeOutput();
 
   drawResults(); // initial blank frame
@@ -115,6 +115,7 @@ node.onStart = async () => {
 };
 
 node.onStop = () => {
+  _target?.destroy();
   window.desktop.registerListener('udp', null);
   window.desktop.stopUdpServer(udpPortIn.value);
 };
@@ -164,10 +165,8 @@ function drawResults() {
   }
 
   // upload canvas to texture
-  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
-  window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.set(_framebuffer);
+  _target.uploadExternal(_canvas);
+  imageOut.set(_target);
 }
 
 function _extractLandmarksAndConnections(body, width, height) {

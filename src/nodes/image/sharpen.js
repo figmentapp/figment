@@ -4,30 +4,32 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-varying vec2 v_uv;
-uniform float u_step;
-//#define STEP .005
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_step: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-#define BOT 1.-u_step
-#define TOP 1.+u_step
-#define CEN 1
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
+  let bot = 1.0 - u.u_step;
+  let top = 1.0 + u.u_step;
+  let cen = 1.0;
 
-void main() {
-  vec2 uv = v_uv;
+  let result = textureSample(u_input_texture, defaultSampler, uv) * 2.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(bot, bot)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(cen, bot)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(top, bot)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(bot, cen)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(top, cen)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(bot, top)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(cen, top)) / 8.0
+    - textureSample(u_input_texture, defaultSampler, uv * vec2f(top, top)) / 8.0;
 
-  gl_FragColor = texture2D( u_input_texture, uv) *2.
-  -texture2D(u_input_texture, uv*vec2(BOT, BOT))/8.
-  -texture2D(u_input_texture, uv*vec2(CEN, BOT))/8.
-  -texture2D(u_input_texture, uv*vec2(TOP, BOT))/8.
-  -texture2D(u_input_texture, uv*vec2(BOT, CEN))/8.
-  -texture2D(u_input_texture, uv*vec2(TOP, CEN))/8.
-  -texture2D(u_input_texture, uv*vec2(BOT, TOP))/8.
-  -texture2D(u_input_texture, uv*vec2(CEN, TOP))/8.
-  -texture2D(u_input_texture, uv*vec2(TOP, TOP))/8.;
-
+  return result;
 }
 `;
 
@@ -35,19 +37,25 @@ const imageIn = node.imageIn('in');
 const sharpenIn = node.numberIn('amount', 0.005, { min: 0, max: 0.1, step: 0.001 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_step: 'f32' },
+    textures: ['u_input_texture'],
+    label: 'sharpen',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture, u_step: sharpenIn.value });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(pipeline, { u_step: sharpenIn.value }, { u_input_texture: imageIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

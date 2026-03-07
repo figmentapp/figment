@@ -4,48 +4,50 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform vec2 u_texel_size;
-uniform float u_increase;
-uniform sampler2D u_input_texture;
-uniform float u_threshold;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_texel_size: vec2f,
+  u_increase: f32,
+  u_threshold: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-void main() {
-  vec2 uv = v_uv;
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
 
   // Sample the texture at the current UV coordinate and its neighbors
-  float center = texture2D(u_input_texture, v_uv).r;
-  float top = texture2D(u_input_texture, v_uv + vec2(0.0, u_texel_size.y)).r;
-  float bottom = texture2D(u_input_texture, v_uv - vec2(0.0, u_texel_size.y)).r;
-  float left = texture2D(u_input_texture, v_uv - vec2(u_texel_size.x, 0.0)).r;
-  float right = texture2D(u_input_texture, v_uv + vec2(u_texel_size.x, 0.0)).r;
+  let center = textureSample(u_input_texture, defaultSampler, uv).r;
+  let top = textureSample(u_input_texture, defaultSampler, uv + vec2f(0.0, u.u_texel_size.y)).r;
+  let bottom = textureSample(u_input_texture, defaultSampler, uv - vec2f(0.0, u.u_texel_size.y)).r;
+  let left = textureSample(u_input_texture, defaultSampler, uv - vec2f(u.u_texel_size.x, 0.0)).r;
+  let right = textureSample(u_input_texture, defaultSampler, uv + vec2f(u.u_texel_size.x, 0.0)).r;
 
   // Compute the gradient and its magnitude
-  float gx = (right - left) / (2.0 * u_texel_size.x);
-  float gy = (top - bottom) / (2.0 * u_texel_size.y);
-  float gradientMagnitude = sqrt(gx * gx + gy * gy);
+  let gx = (right - left) / (2.0 * u.u_texel_size.x);
+  let gy = (top - bottom) / (2.0 * u.u_texel_size.y);
+  let gradientMagnitude = sqrt(gx * gx + gy * gy);
 
   // Compute the local gradient direction
-  float gradientDirection = atan(gy, gx);
+  let gradientDirection = atan2(gy, gx);
 
   // Round the direction to one of four cardinal directions
-  float directionSign = sign(gradientDirection);
-  float absDirection = abs(gradientDirection);
-  float mod = mod(absDirection, 0.5 * 3.14159265359);
-  float roundedDirection = directionSign * (absDirection - mod + 0.25 * 3.14159265359);
+  let directionSign = sign(gradientDirection);
+  let absDirection = abs(gradientDirection);
+  let m = absDirection - floor(absDirection / (0.5 * 3.14159265359)) * (0.5 * 3.14159265359);
+  let roundedDirection = directionSign * (absDirection - m + 0.25 * 3.14159265359);
 
   // Compute the magnitudes of the gradients in the two orthogonal directions
-  float magnitude1 = abs(cos(roundedDirection)) * gradientMagnitude * u_increase;
-  float magnitude2 = abs(sin(roundedDirection)) * gradientMagnitude * u_increase;
+  let magnitude1 = abs(cos(roundedDirection)) * gradientMagnitude * u.u_increase;
+  let magnitude2 = abs(sin(roundedDirection)) * gradientMagnitude * u.u_increase;
 
   // Compute the non-maximum suppressed edge intensity
-  float suppressedIntensity = center - 0.5 * (magnitude1 + magnitude2);
+  let suppressedIntensity = center - 0.5 * (magnitude1 + magnitude2);
 
   // Output the edge intensity as grayscale
-  //gl_FragColor = vec4(vec3(suppressedIntensity), 1.0);
-  gl_FragColor = vec4(vec3(step(u_threshold, suppressedIntensity)), 1.0);
+  return vec4f(vec3f(step(u.u_threshold, suppressedIntensity)), 1.0);
 }
 `;
 
@@ -55,24 +57,34 @@ const increaseIn = node.numberIn('increase fx', 0.02, { min: 0.0, max: 0.5, step
 const thresholdIn = node.numberIn('threshold', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_texel_size: 'vec2f', u_increase: 'f32', u_threshold: 'f32' },
+    textures: ['u_input_texture'],
+    label: 'inms',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_texel_size: [blurIn.value / imageIn.value.width, blurIn.value / imageIn.value.height],
-    u_increase: increaseIn.value,
-    u_threshold: thresholdIn.value,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_texel_size: [blurIn.value / imageIn.value.width, blurIn.value / imageIn.value.height],
+      u_increase: increaseIn.value,
+      u_threshold: thresholdIn.value,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

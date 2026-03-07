@@ -4,35 +4,44 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  _pad: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-void main() {
-  vec2 uv = v_uv;
-  vec4 color = texture2D(u_input_texture, uv.st);
-  float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-  gl_FragColor = vec4(gray, gray, gray, 1.0);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let color = textureSample(u_input_texture, defaultSampler, in.uv);
+  let gray = dot(color.rgb, vec3f(0.299, 0.587, 0.114));
+  return vec4f(gray, gray, gray, 1.0);
 }
 `;
 
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: {},
+    textures: ['u_input_texture'],
+    label: 'grayscale',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(pipeline, {}, { u_input_texture: imageIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

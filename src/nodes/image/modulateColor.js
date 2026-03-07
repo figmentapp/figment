@@ -4,21 +4,26 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform float u_red;
-uniform float u_green;
-uniform float u_blue;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_red: f32,
+  u_green: f32,
+  u_blue: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-void main() {
-  vec2 uv = v_uv;
-  vec4 col = texture2D(u_input_texture, uv.st);
-  col.r = clamp(col.r + u_red, 0.0, 1.0);
-  col.g = clamp(col.g + u_green, 0.0, 1.0);
-  col.b = clamp(col.b + u_blue, 0.0, 1.0);
-  gl_FragColor = col;
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  var col = textureSample(u_input_texture, defaultSampler, in.uv);
+  col = vec4f(
+    clamp(col.r + u.u_red, 0.0, 1.0),
+    clamp(col.g + u.u_green, 0.0, 1.0),
+    clamp(col.b + u.u_blue, 0.0, 1.0),
+    col.a,
+  );
+  return col;
 }
 `;
 
@@ -28,24 +33,38 @@ const greenIn = node.numberIn('green', 0, { min: -1, max: 1, step: 0.001 });
 const blueIn = node.numberIn('blue', 0, { min: -1, max: 1, step: 0.001 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: {
+      u_red: 'f32',
+      u_green: 'f32',
+      u_blue: 'f32',
+    },
+    textures: ['u_input_texture'],
+    label: 'modulateColor',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_red: redIn.value,
-    u_green: greenIn.value,
-    u_blue: blueIn.value,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_red: redIn.value,
+      u_green: greenIn.value,
+      u_blue: blueIn.value,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

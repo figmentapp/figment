@@ -4,12 +4,16 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform vec4 u_color;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = u_color;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_color: vec4f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  return u.u_color;
 }
 `;
 
@@ -18,20 +22,29 @@ const widthIn = node.numberIn('width', 1024, { min: 1, max: 4096, step: 1 });
 const heightIn = node.numberIn('height', 512, { min: 1, max: 4096, step: 1 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer(widthIn.value, heightIn.value);
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_color: 'vec4f' },
+    textures: [],
+    label: 'constant',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
-  framebuffer.setSize(widthIn.value, heightIn.value);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255, colorIn.value[3]],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(widthIn.value, heightIn.value);
+  figment.drawFullscreen(
+    pipeline,
+    { u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255, colorIn.value[3]] },
+    {},
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

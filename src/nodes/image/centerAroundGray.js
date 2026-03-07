@@ -4,27 +4,29 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform float u_radius;
-uniform vec2 u_center;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_radius: f32,
+  _pad1: f32,
+  u_center: vec2f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-float grayScale(in vec3 col)
-{
-    return dot(col, vec3(0.3, 0.59, 0.11));
+fn grayScale(col: vec3f) -> f32 {
+  return dot(col, vec3f(0.3, 0.59, 0.11));
 }
 
-void main() {
-  vec2 uv = v_uv;
-  vec3 col = texture2D(u_input_texture, uv).rgb;
-  float dist = distance(uv, u_center);
-  float vignette = smoothstep(u_radius, u_radius - 0.1, dist);
-  vec3 gray = vec3(grayScale(col));
-  col = mix(gray, col, clamp(vignette, 0.0, 1.0));
-  gl_FragColor = vec4(col, 1.0);
-
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
+  let col = textureSample(u_input_texture, defaultSampler, uv).rgb;
+  let dist = distance(uv, u.u_center);
+  let vignette = smoothstep(u.u_radius, u.u_radius - 0.1, dist);
+  let gray = vec3f(grayScale(col));
+  let result = mix(gray, col, clamp(vignette, 0.0, 1.0));
+  return vec4f(result, 1.0);
 }
 `;
 
@@ -34,23 +36,33 @@ const centerXIn = node.numberIn('center x', 0.5, { min: 0.0, max: 1.0, step: 0.0
 const centerYIn = node.numberIn('center y', 0.5, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_radius: 'f32', _pad1: 'f32', u_center: 'vec2f' },
+    textures: ['u_input_texture'],
+    label: 'centerAroundGray',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_radius: radiusIn.value,
-    u_center: [centerXIn.value, centerYIn.value],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_radius: radiusIn.value,
+      u_center: [centerXIn.value, centerYIn.value],
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

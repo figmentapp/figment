@@ -11,7 +11,7 @@ const outputTypeIn = node.selectIn('outputType', ['categoryMask', 'confidenceMas
 const imageOut = node.imageOut('out');
 
 let _vision, _imageSegmenter;
-let _framebuffer, _canvas, _ctx, _imageData;
+let _resultTarget, _canvas, _ctx;
 let _initialising = false;
 
 // Model file mappings - FIXME: Update with actual model filenames
@@ -44,14 +44,14 @@ async function initSegmenter() {
 }
 
 node.onStart = async () => {
-  _framebuffer = new figment.Framebuffer();
+  _resultTarget = new figment.RenderTarget({ label: 'segmentImage-result' });
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _vision = await mediapipe.FilesetResolver.forVisionTasks('./mediapipe');
   await initSegmenter();
 };
 
-node.onRender = () => {
+node.onRender = async () => {
   if (!imageIn.value || _initialising) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
@@ -59,29 +59,24 @@ node.onRender = () => {
   if (width !== _canvas.width || height !== _canvas.height) {
     _canvas.width = width;
     _canvas.height = height;
-    _imageData = new ImageData(width, height);
-    _framebuffer.setSize(width, height);
+    _resultTarget.setSize(width, height);
   }
 
-  imageIn.value.bind();
-  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
-  imageIn.value.unbind();
+  const _imageData = await imageIn.value.readPixels();
 
-  // Create a temporary canvas to convert ImageData to HTMLImageElement
+  // Create a temporary canvas to convert ImageData to a bitmap for MediaPipe
   const tempCanvas = new OffscreenCanvas(width, height);
   const tempCtx = tempCanvas.getContext('2d');
-  tempCanvas.width = width;
-  tempCanvas.height = height;
   tempCtx.putImageData(_imageData, 0, 0);
 
   // Convert canvas to image element for MediaPipe
   const imageElement = tempCanvas.transferToImageBitmap();
 
   const result = _imageSegmenter.segment(imageElement);
-  drawResults(result);
+  await drawResults(result, _imageData);
 };
 
-function drawResults(result) {
+async function drawResults(result, imageData) {
   if (!imageIn.value || !result) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
@@ -100,13 +95,16 @@ function drawResults(result) {
   }
 
   if (mask) {
+    // Create a bitmap from the source ImageData for canvas compositing
+    const sourceBitmap = await createImageBitmap(imageData);
+
     if (operationIn.value === 'background') {
       // Draw the segmentation mask
       _ctx.drawImage(mask, 0, 0);
 
       // Only overwrite existing pixels (i.e. the mask) with the image
       _ctx.globalCompositeOperation = 'source-in';
-      _ctx.drawImage(_imageData, 0, 0);
+      _ctx.drawImage(sourceBitmap, 0, 0);
     } else {
       // Fill the destination
       _ctx.fillRect(0, 0, _canvas.width, _canvas.height);
@@ -117,15 +115,18 @@ function drawResults(result) {
 
       // Overwrite the existing pixels (i.e. the background) with the image
       _ctx.globalCompositeOperation = 'source-in';
-      _ctx.drawImage(_imageData, 0, 0);
+      _ctx.drawImage(sourceBitmap, 0, 0);
     }
+
+    sourceBitmap.close();
   }
 
   _ctx.restore();
-  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
-  window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.value = _framebuffer;
+
+  const resultBitmap = _canvas.transferToImageBitmap();
+  _resultTarget.uploadExternal(resultBitmap);
+  resultBitmap.close();
+  imageOut.set(_resultTarget);
 }
 
 modelIn.onChange = initSegmenter;

@@ -10,11 +10,9 @@ const imageOut = node.imageOut('out');
 let oldModelFile,
   session,
   device,
-  canvas,
-  framebuffer,
+  target,
   isRunning = false;
 const BUFFER_SIZE = 3 * 512 * 512 * 4;
-const imageData = new Uint8Array(4 * 512 * 512);
 const textureBuffer = new Uint8Array(4 * 512 * 512);
 let inputBuffer, outputBuffer, stagingBuffer, inputTensor, outputTensor;
 let rgbaBuffer, rgbaStagingBuffer, convertInputPipeline, convertOutputPipeline, convertInputBindGroup, convertOutputBindGroup;
@@ -92,8 +90,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 `;
 
 node.onStart = async () => {
-  canvas = new OffscreenCanvas(512, 512);
-  framebuffer = new figment.Framebuffer(512, 512);
+  target = new figment.RenderTarget({ label: 'onnxImageModel' });
+  target.setSize(512, 512);
 };
 
 node.onStop = () => {
@@ -104,6 +102,7 @@ node.onStop = () => {
   if (outputBuffer) outputBuffer.destroy();
   if (stagingBuffer) stagingBuffer.destroy();
   if (session) session.release();
+  if (target) target.destroy();
 };
 
 async function loadModel() {
@@ -191,10 +190,9 @@ node.onRender = async () => {
   isRunning = true;
 
   try {
-    // Read framebuffer pixels
-    imageIn.value.bind();
-    window.gl.readPixels(0, 0, 512, 512, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
-    imageIn.value.unbind();
+    // Read input pixels
+    const pixelData = await imageIn.value.readPixels();
+    const imageData = new Uint8Array(pixelData.data.buffer);
 
     // Upload RGBA data to GPU and convert to NCHW
     device.queue.writeBuffer(rgbaBuffer, 0, imageData);
@@ -230,11 +228,12 @@ node.onRender = async () => {
     textureBuffer.set(new Uint8Array(rgbaArrayBuffer));
     rgbaStagingBuffer.unmap();
 
-    // Upload the RGBA data directly to the framebuffer's texture
-    gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.UNSIGNED_BYTE, textureBuffer);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    imageOut.set(framebuffer);
+    // Upload the RGBA data to the render target
+    const outImageData = new ImageData(new Uint8ClampedArray(textureBuffer.buffer), 512, 512);
+    const outBitmap = await createImageBitmap(outImageData);
+    target.uploadExternal(outBitmap);
+    outBitmap.close();
+    imageOut.set(target);
   } finally {
     isRunning = false;
   }

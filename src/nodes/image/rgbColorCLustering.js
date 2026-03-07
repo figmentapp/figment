@@ -4,55 +4,63 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  _pad: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-void main() {
-    vec2 uv = v_uv;
-    vec4 color = texture2D(u_input_texture, uv);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
+  let color = textureSample(u_input_texture, defaultSampler, uv);
 
-    // Determine the closest color cluster
-    vec3 cluster1 = vec3(1.0, 0.0, 0.0); // Red cluster
-    vec3 cluster2 = vec3(0.0, 1.0, 0.0); // Green cluster
-    vec3 cluster3 = vec3(0.0, 0.0, 1.0); // Blue cluster
+  // Determine the closest color cluster
+  let cluster1 = vec3f(1.0, 0.0, 0.0); // Red cluster
+  let cluster2 = vec3f(0.0, 1.0, 0.0); // Green cluster
+  let cluster3 = vec3f(0.0, 0.0, 1.0); // Blue cluster
 
-    float dist1 = distance(color.rgb, cluster1);
-    float dist2 = distance(color.rgb, cluster2);
-    float dist3 = distance(color.rgb, cluster3);
+  let dist1 = distance(color.rgb, cluster1);
+  let dist2 = distance(color.rgb, cluster2);
+  let dist3 = distance(color.rgb, cluster3);
 
-    vec3 closestCluster;
-    if (dist1 < dist2 && dist1 < dist3) {
-      closestCluster = cluster1;
-    } else if (dist2 < dist3) {
-      closestCluster = cluster2;
-    } else {
-      closestCluster = cluster3;
-    }
+  var closestCluster: vec3f;
+  if (dist1 < dist2 && dist1 < dist3) {
+    closestCluster = cluster1;
+  } else if (dist2 < dist3) {
+    closestCluster = cluster2;
+  } else {
+    closestCluster = cluster3;
+  }
 
-    // Set the output color to the closest cluster color
-    gl_FragColor = vec4(closestCluster, color.a);
-
+  return vec4f(closestCluster, color.a);
 }
 `;
 
 const imageIn = node.imageIn('in');
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: {},
+    textures: ['u_input_texture'],
+    label: 'rgbColorClustering',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, { u_input_texture: imageIn.value.texture });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(pipeline, {}, { u_input_texture: imageIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

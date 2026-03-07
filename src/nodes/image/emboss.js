@@ -4,66 +4,52 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec2 u_emboss;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_emboss: vec2f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-
-vec4 sample_pixel(in vec2 uv, in float dx, in float dy)
-{
-    return texture2D(u_input_texture, uv + vec2(dx, dy));
+fn sample_pixel(uv: vec2f, dx: f32, dy: f32) -> vec4f {
+  return textureSample(u_input_texture, defaultSampler, uv + vec2f(dx, dy));
 }
 
-float convolve(in float[9] kernel, in vec4[9] color_matrix)
-{
-   float res = 0.0;
-   for (int i=0; i<9; i++)
-   {
-      res += kernel[i] * color_matrix[i].a;
-   }
-   return clamp(res + 0.5, 0.0 ,1.0);
-}
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
+  let dx = u.u_emboss.x;
+  let dy = u.u_emboss.y;
 
-void build_color_matrix(in vec2 uv, out vec4[9] color_matrix)
-{
-  float dx = u_emboss.x;
-  float dy = u_emboss.y;
-  color_matrix[0].rgb = sample_pixel(uv, -dx, -dy).rgb;
-  color_matrix[1].rgb = sample_pixel(uv, -dx, 0.0).rgb;
-  color_matrix[2].rgb = sample_pixel(uv, -dx,  dy).rgb;
-  color_matrix[3].rgb = sample_pixel(uv, 0.0, -dy).rgb;
-  color_matrix[4].rgb = sample_pixel(uv, 0.0, 0.0).rgb;
-  color_matrix[5].rgb = sample_pixel(uv, 0.0,  dy).rgb;
-  color_matrix[6].rgb = sample_pixel(uv,  dx, -dy).rgb;
-  color_matrix[7].rgb = sample_pixel(uv,  dx, 0.0).rgb;
-  color_matrix[8].rgb = sample_pixel(uv,  dx,  dy).rgb;
-}
+  // Build color matrix
+  var cm: array<vec4f, 9>;
+  cm[0] = vec4f(sample_pixel(uv, -dx, -dy).rgb, 0.0);
+  cm[1] = vec4f(sample_pixel(uv, -dx, 0.0).rgb, 0.0);
+  cm[2] = vec4f(sample_pixel(uv, -dx,  dy).rgb, 0.0);
+  cm[3] = vec4f(sample_pixel(uv, 0.0, -dy).rgb, 0.0);
+  cm[4] = vec4f(sample_pixel(uv, 0.0, 0.0).rgb, 0.0);
+  cm[5] = vec4f(sample_pixel(uv, 0.0,  dy).rgb, 0.0);
+  cm[6] = vec4f(sample_pixel(uv,  dx, -dy).rgb, 0.0);
+  cm[7] = vec4f(sample_pixel(uv,  dx, 0.0).rgb, 0.0);
+  cm[8] = vec4f(sample_pixel(uv,  dx,  dy).rgb, 0.0);
 
-void build_mean_matrix(inout vec4[9] color_matrix)
-{
-   for (int i = 0; i < 9; i++)
-   {
-      color_matrix[i].a = (color_matrix[i].r + color_matrix[i].g + color_matrix[i].b) / 3.;
-   }
-}
+  // Build mean matrix (store mean in w component)
+  for (var i = 0; i < 9; i = i + 1) {
+    cm[i] = vec4f(cm[i].rgb, (cm[i].r + cm[i].g + cm[i].b) / 3.0);
+  }
 
-void main() {
-  vec2 uv = v_uv;
+  // Emboss kernel
+  let kernel = array<f32, 9>(2.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0);
 
-  float kernel[9];
-  kernel[0] = 2.0; kernel[1] = 0.0; kernel[2] = 0.0;
-  kernel[3] = 0.0; kernel[4] = -1.; kernel[5] = 0.0;
-  kernel[6] = 0.0; kernel[7] = 0.0; kernel[8] = -1.;
+  // Convolve
+  var res: f32 = 0.0;
+  for (var i = 0; i < 9; i = i + 1) {
+    res = res + kernel[i] * cm[i].w;
+  }
+  let convolved = clamp(res + 0.5, 0.0, 1.0);
 
-  vec4 pixel_matrix[9];
-
-  build_color_matrix(uv, pixel_matrix);
-  build_mean_matrix(pixel_matrix);
-
-  float convolved = convolve(kernel, pixel_matrix);
-  gl_FragColor = vec4(vec3(convolved), 1.0);
+  return vec4f(vec3f(convolved), 1.0);
 }
 `;
 
@@ -72,22 +58,25 @@ const embossWidthIn = node.numberIn('emboss width', 0.0015, { min: 0.0, max: 0.1
 const embossHeightIn = node.numberIn('emboss height', 0.0015, { min: 0.0, max: 0.1, step: 0.0001 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_emboss: 'vec2f' },
+    textures: ['u_input_texture'],
+    label: 'emboss',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_emboss: [embossWidthIn.value, embossHeightIn.value],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(pipeline, { u_emboss: [embossWidthIn.value, embossHeightIn.value] }, { u_input_texture: imageIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

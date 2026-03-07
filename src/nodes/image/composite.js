@@ -35,24 +35,24 @@ function updateShader() {
   if (operationIn.value === 'normal') {
     blendFunction = 'factor * c2.rgb + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'darken') {
-    blendFunction = 'factor * vec3(min(c1.r, c2.r), min(c1.g, c2.g), min(c1.b, c2.b)) + (1.0 - factor) * c1.rgb';
+    blendFunction = 'factor * vec3f(min(c1.r, c2.r), min(c1.g, c2.g), min(c1.b, c2.b)) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'multiply') {
     blendFunction = 'factor * (c1.rgb * c2.rgb) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'color burn') {
     blendFunction =
-      'factor * vec3(blendColorBurn(c1.r,c2.r),blendColorBurn(c1.g,c2.g),blendColorBurn(c1.b,c2.b)) + (1.0 - factor) * c1.rgb';
+      'factor * vec3f(blendColorBurn(c1.r,c2.r),blendColorBurn(c1.g,c2.g),blendColorBurn(c1.b,c2.b)) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'lighten') {
-    blendFunction = 'factor * vec3(max(c1.r, c2.r), max(c1.g, c2.g), max(c1.b, c2.b)) + (1.0 - factor) * c1.rgb';
+    blendFunction = 'factor * vec3f(max(c1.r, c2.r), max(c1.g, c2.g), max(c1.b, c2.b)) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'screen') {
-    blendFunction = 'factor * vec3(blendScreen(c1.r, c2.r), blendScreen(c1.g, c2.g), blendScreen(c1.b, c2.b))';
+    blendFunction = 'factor * vec3f(blendScreen(c1.r, c2.r), blendScreen(c1.g, c2.g), blendScreen(c1.b, c2.b))';
   } else if (operationIn.value === 'color dodge') {
-    blendFunction = 'factor * vec3(blendColorDodge(c1.r, c2.r), blendColorDodge(c1.g, c2.g), blendColorDodge(c1.b, c2.b))';
+    blendFunction = 'factor * vec3f(blendColorDodge(c1.r, c2.r), blendColorDodge(c1.g, c2.g), blendColorDodge(c1.b, c2.b))';
   } else if (operationIn.value === 'hardmix') {
     blendFunction = 'factor * floor(c1.rgb + c2.rgb)';
   } else if (operationIn.value === 'difference') {
     blendFunction = 'factor * abs(c1.rgb - c2.rgb) + (1.0 - factor) * c1.rgb';
   } else if (operationIn.value === 'exclusion') {
-    blendFunction = 'factor * c1.rgb + c2.rgb - 2.0 * c1.rgb *c2.rgb';
+    blendFunction = 'factor * c1.rgb + c2.rgb - 2.0 * c1.rgb * c2.rgb';
   } else if (operationIn.value === 'subtract') {
     blendFunction = 'factor * c1.rgb - c2.rgb';
   } else if (operationIn.value === 'divide') {
@@ -60,37 +60,53 @@ function updateShader() {
   } else {
     blendFunction = 'factor * c2.rgb + (1.0 - factor) * c1.rgb';
   }
-  const fragmentShader = `
-  precision mediump float;
-  uniform sampler2D u_image_1;
-  uniform sampler2D u_image_2;
-  uniform float u_factor;
-  uniform vec2 u_scale;
-  varying vec2 v_uv;
-  float blendColorBurn(float c1, float c2) { return (c2==0.0)?c2:max((1.0-((1.0-c1)/c2)),0.0); }
-  float blendScreen(float c1, float c2) { return 1.0-((1.0-c1)*(1.0-c2)); }
-  float blendColorDodge(float c1, float c2) { return (c2==1.0)?c2:min(c1/(1.0-c2),1.0); }
-  void main() {
-    vec4 c1 = texture2D(u_image_1, v_uv);
-    vec2 uv2 = u_scale * (v_uv - 0.5) + 0.5;
-    vec4 c2 = vec4(0.0);
-    if (uv2.x >= 0.0 && uv2.x <= 1.0 && uv2.y >= 0.0 && uv2.y <= 1.0) {
-      c2 = texture2D(u_image_2, uv2);
-    }
-    float factor = u_factor * c2.a;
-    vec3 color = ${blendFunction};
-    float alpha = min(c1.a + c2.a, 1.0);
-    gl_FragColor = vec4(color, alpha);
-  }
-  `;
-  program = figment.createShaderProgram(fragmentShader);
+  const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_factor: f32,
+  u_scale: vec2f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_image_1: texture_2d<f32>;
+@group(0) @binding(3) var u_image_2: texture_2d<f32>;
+
+fn blendColorBurn(c1: f32, c2: f32) -> f32 {
+  if (c2 == 0.0) { return c2; }
+  return max((1.0 - ((1.0 - c1) / c2)), 0.0);
+}
+fn blendScreen(c1: f32, c2: f32) -> f32 { return 1.0 - ((1.0 - c1) * (1.0 - c2)); }
+fn blendColorDodge(c1: f32, c2: f32) -> f32 {
+  if (c2 == 1.0) { return c2; }
+  return min(c1 / (1.0 - c2), 1.0);
 }
 
-let program, framebuffer;
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let c1 = textureSample(u_image_1, defaultSampler, in.uv);
+  let uv2 = u.u_scale * (in.uv - 0.5) + 0.5;
+  var c2 = vec4f(0.0);
+  if (uv2.x >= 0.0 && uv2.x <= 1.0 && uv2.y >= 0.0 && uv2.y <= 1.0) {
+    c2 = textureSampleLevel(u_image_2, defaultSampler, uv2, 0.0);
+  }
+  let factor = u.u_factor * c2.a;
+  let color = ${blendFunction};
+  let alpha = min(c1.a + c2.a, 1.0);
+  return vec4f(color, alpha);
+}
+`;
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_factor: 'f32', u_scale: 'vec2f' },
+    textures: ['u_image_1', 'u_image_2'],
+    label: 'composite',
+  });
+}
 
-node.onStart = (props) => {
+let pipeline, target;
+
+node.onStart = () => {
   updateShader();
-  framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
@@ -121,17 +137,18 @@ node.onRender = () => {
     }
   }
 
-  framebuffer.setSize(image1In.value.width, image1In.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_image_1: image1In.value.texture,
-    u_image_2: image2In.value.texture,
-    u_factor: factorIn.value,
-    u_scale: scale,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(w1, h1);
+  figment.drawFullscreen(
+    pipeline,
+    { u_factor: factorIn.value, u_scale: scale },
+    { u_image_1: image1In.value, u_image_2: image2In.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };
 
 operationIn.onChange = updateShader;

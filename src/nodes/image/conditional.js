@@ -4,19 +4,22 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_true_image;
-uniform sampler2D u_false_image;
-uniform float u_factor;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_factor: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_true_image: texture_2d<f32>;
+@group(0) @binding(3) var u_false_image: texture_2d<f32>;
 
-void main() {
-  vec4 c1 = texture2D(u_true_image, v_uv);
-  vec4 c2 = texture2D(u_false_image, v_uv);
-  vec3 color = (1.0 - u_factor) * c1.rgb + u_factor * c2.rgb;
-  float alpha = (1.0 - u_factor) * c1.a + u_factor * c2.a;
-  gl_FragColor = vec4(color, alpha);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let c1 = textureSample(u_true_image, defaultSampler, in.uv);
+  let c2 = textureSample(u_false_image, defaultSampler, in.uv);
+  let color = (1.0 - u.u_factor) * c1.rgb + u.u_factor * c2.rgb;
+  let alpha = (1.0 - u.u_factor) * c1.a + u.u_factor * c2.a;
+  return vec4f(color, alpha);
 }
 `;
 
@@ -28,15 +31,20 @@ const fadeTimeIn = node.numberIn('fade time', 0.5, { min: 0, max: 10, step: 0.1 
 const biasIn = node.numberIn('fade bias', 0.5, { min: 0, max: 1, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
 let prevTime;
 let factor = 0;
 let direction = 1;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_factor: 'f32' },
+    textures: ['u_true_image', 'u_false_image'],
+    label: 'conditional',
+  });
+  target = new figment.RenderTarget();
   prevTime = Date.now();
 };
 
@@ -53,14 +61,11 @@ node.onRender = () => {
   factor = factor + (direction * dt) / adjustedFadeTime;
   factor = Math.min(Math.max(factor, 0), 1);
 
-  framebuffer.setSize(trueImageIn.value.width, trueImageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_true_image: trueImageIn.value.texture,
-    u_false_image: falseImageIn.value.texture,
-    u_factor: factor,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(trueImageIn.value.width, trueImageIn.value.height);
+  figment.drawFullscreen(pipeline, { u_factor: factor }, { u_true_image: trueImageIn.value, u_false_image: falseImageIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

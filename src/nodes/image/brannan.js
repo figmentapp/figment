@@ -6,84 +6,77 @@
 
 //https://www.shadertoy.com/view/4lSyDK
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform float u_gray;
-uniform float u_saturation;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_gray: f32,
+  u_saturation: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-// Overlay function to blend two values using the overlay blend mode
-float overlay(in float s, in float d )
-{
-	return (d < 0.5) ? 2.0 * s * d : 1.0 - 2.0 * (1.0 - s) * (1.0 - d);
+fn overlay_f(s: f32, d: f32) -> f32 {
+  if (d < 0.5) {
+    return 2.0 * s * d;
+  }
+  return 1.0 - 2.0 * (1.0 - s) * (1.0 - d);
 }
 
-// Overload overlay function to apply it to each RGB component separately
-vec3 overlay(in vec3 s, in vec3 d )
-{
-	vec3 c;
-	c.x = overlay(s.x,d.x);
-	c.y = overlay(s.y,d.y);
-	c.z = overlay(s.z,d.z);
-	return c;
+fn overlay_v(s: vec3f, d: vec3f) -> vec3f {
+  return vec3f(overlay_f(s.x, d.x), overlay_f(s.y, d.y), overlay_f(s.z, d.z));
 }
 
-// Function to convert RGB color to grayscale
-float grayScale(in vec3 col)
-{
-    return dot(col, vec3(0.3, 0.59, 0.11));
+fn grayScale(col: vec3f) -> f32 {
+  return dot(col, vec3f(0.3, 0.59, 0.11));
 }
 
-// Function to create a saturation matrix based on a given saturation value
-mat3 saturationMatrix( float saturation ) {
-    vec3 luminance = vec3( 0.3086, 0.6094, 0.0820 );
-    float oneMinusSat = 1.0 - saturation;
-    vec3 red = vec3( luminance.x * oneMinusSat );
-    red.r += saturation;
-    vec3 green = vec3( luminance.y * oneMinusSat );
-    green.g += saturation;
-    vec3 blue = vec3( luminance.z * oneMinusSat );
-    blue.b += saturation;
-
-    return mat3(red, green, blue);
+fn saturationMatrix(saturation: f32) -> mat3x3f {
+  let luminance = vec3f(0.3086, 0.6094, 0.0820);
+  let oneMinusSat = 1.0 - saturation;
+  var red = vec3f(luminance.x * oneMinusSat);
+  red.x = red.x + saturation;
+  var green = vec3f(luminance.y * oneMinusSat);
+  green.y = green.y + saturation;
+  var blue = vec3f(luminance.z * oneMinusSat);
+  blue.z = blue.z + saturation;
+  return mat3x3f(red, green, blue);
 }
 
-void levels(inout vec3 col, in vec3 inleft, in vec3 inright, in vec3 outleft, in vec3 outright) {
-    col = clamp(col, inleft, inright);
-    col = (col - inleft) / (inright - inleft);
-    col = outleft + col * (outright - outleft);
+fn levels(col_in: vec3f, inleft: vec3f, inright: vec3f, outleft: vec3f, outright: vec3f) -> vec3f {
+  var col = clamp(col_in, inleft, inright);
+  col = (col - inleft) / (inright - inleft);
+  col = outleft + col * (outright - outleft);
+  return col;
 }
 
-void brightnessAdjust( inout vec3 color, in float b) {
-    color += b;
+fn brightnessAdjust(color: vec3f, b: f32) -> vec3f {
+  return color + b;
 }
 
-void contrastAdjust( inout vec3 color, in float c) {
-    float t = 0.5 - c * 0.5;
-    color = color * c + t;
+fn contrastAdjust(color: vec3f, c: f32) -> vec3f {
+  let t = 0.5 - c * 0.5;
+  return color * c + t;
 }
 
-void main()
-{
-	vec2 uv = v_uv;
-    vec3 col = texture2D(u_input_texture, uv).rgb;
-    vec3 gray = vec3(grayScale(col));
-    col = saturationMatrix(u_saturation) * col;
-    gray = overlay(gray, col);
-    col = mix(gray, col, u_gray);
-    levels(col, vec3(0., 0., 0.) / 255., vec3(228., 255., 239.) / 255.,
-                vec3(23., 3., 12.) / 255., vec3(255.) / 255.);
-    brightnessAdjust(col, -0.1);
-    contrastAdjust(col, 1.05);
-    vec3 tint = vec3(255., 248., 242.) / 255.;
-    levels(col, vec3(0., 0., 0.) / 255., vec3(255., 224., 255.) / 255.,
-                 vec3(9., 20., 18.) / 255., vec3(255.) / 255.);
-    col = pow(col, vec3(0.91, 0.91, 0.91*0.94));
-    brightnessAdjust(col, -0.04);
-    contrastAdjust(col, 1.14);
-    col = tint * col;
-	gl_FragColor = vec4(col, 1.0);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  var col = textureSample(u_input_texture, defaultSampler, in.uv).rgb;
+  var gray = vec3f(grayScale(col));
+  col = saturationMatrix(u.u_saturation) * col;
+  gray = overlay_v(gray, col);
+  col = mix(gray, col, vec3f(u.u_gray));
+  col = levels(col, vec3f(0.0, 0.0, 0.0) / 255.0, vec3f(228.0, 255.0, 239.0) / 255.0,
+               vec3f(23.0, 3.0, 12.0) / 255.0, vec3f(255.0) / 255.0);
+  col = brightnessAdjust(col, -0.1);
+  col = contrastAdjust(col, 1.05);
+  let tint = vec3f(255.0, 248.0, 242.0) / 255.0;
+  col = levels(col, vec3f(0.0, 0.0, 0.0) / 255.0, vec3f(255.0, 224.0, 255.0) / 255.0,
+               vec3f(9.0, 20.0, 18.0) / 255.0, vec3f(255.0) / 255.0);
+  col = pow(col, vec3f(0.91, 0.91, 0.91 * 0.94));
+  col = brightnessAdjust(col, -0.04);
+  col = contrastAdjust(col, 1.14);
+  col = tint * col;
+  return vec4f(col, 1.0);
 }
 `;
 
@@ -92,23 +85,36 @@ const grayRatio = node.numberIn('grayscale ratio', 0.6, { min: 0, max: 1.0, step
 const satRatio = node.numberIn('saturation ratio', 0.7, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: {
+      u_gray: 'f32',
+      u_saturation: 'f32',
+    },
+    textures: ['u_input_texture'],
+    label: 'brannan',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_gray: grayRatio.value,
-    u_saturation: satRatio.value,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_gray: grayRatio.value,
+      u_saturation: satRatio.value,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

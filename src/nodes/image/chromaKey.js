@@ -4,26 +4,28 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec3 u_keyColor;
-uniform float u_threshold;
-varying vec2 v_uv;
-void main() {
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_keyColor: vec3f,
+  u_threshold: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-  vec2 uv = v_uv;
-  vec4 color = texture2D(u_input_texture, uv.st);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  var color = textureSample(u_input_texture, defaultSampler, in.uv);
 
   // calculate the color difference between the current pixel and the key color
-  float difference = length(color.rgb - u_keyColor);
+  let difference = length(color.rgb - u.u_keyColor);
 
   // if the difference is less than the threshold, set the alpha to 0
-  if (difference < u_threshold) {
+  if (difference < u.u_threshold) {
     color.a = 0.0;
   }
 
-  gl_FragColor = color;
+  return color;
 }
 `;
 
@@ -32,23 +34,33 @@ const colorIn = node.colorIn('key color', [0, 255, 0]);
 const thresholdIn = node.numberIn('threshold', 0.4, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_keyColor: 'vec3f', u_threshold: 'f32' },
+    textures: ['u_input_texture'],
+    label: 'chromaKey',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_keyColor: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
-    u_threshold: thresholdIn.value,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_keyColor: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
+      u_threshold: thresholdIn.value,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

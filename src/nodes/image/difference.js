@@ -4,33 +4,61 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_current_texture;
-uniform sampler2D u_previous_texture;
-uniform float u_amplify;
-varying vec2 v_uv;
-void main() {
-  vec3 currentColor = texture2D(u_current_texture, v_uv).rgb;
-  vec3 previousColor = texture2D(u_previous_texture, v_uv).rgb;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_amplify: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_current_texture: texture_2d<f32>;
+@group(0) @binding(3) var u_previous_texture: texture_2d<f32>;
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let currentColor = textureSample(u_current_texture, defaultSampler, in.uv).rgb;
+  let previousColor = textureSample(u_previous_texture, defaultSampler, in.uv).rgb;
 
   // Calculate absolute difference between current and previous color
-  vec3 diff = abs(previousColor - currentColor) * u_amplify;
+  let diff = abs(previousColor - currentColor) * u.u_amplify;
 
-  gl_FragColor = vec4(diff, 1.0);
+  return vec4f(diff, 1.0);
+}
+`;
+
+const COPY_WGSL = `
+struct Uniforms {
+  _pad: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_image: texture_2d<f32>;
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  return textureSample(u_image, defaultSampler, in.uv);
 }
 `;
 
 const imageIn = node.imageIn('in');
 const amplifyIn = node.numberIn('amplify', 1.0, { min: 0.0, max: 100.0, step: 0.01 });
 const imageOut = node.imageOut('out');
-let program, copyProgram, inputBuffer, outputBuffer;
+let pipeline, copyPipeline, inputBuffer, outputBuffer;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  copyProgram = figment.createShaderProgram();
-  inputBuffer = new figment.Framebuffer();
-  outputBuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_amplify: 'f32' },
+    textures: ['u_current_texture', 'u_previous_texture'],
+    label: 'difference',
+  });
+  copyPipeline = figment.createRenderPipeline({
+    wgsl: COPY_WGSL,
+    uniforms: {},
+    textures: ['u_image'],
+    label: 'difference-copy',
+  });
+  inputBuffer = new figment.RenderTarget();
+  outputBuffer = new figment.RenderTarget();
 };
 
 node.onRender = () => {
@@ -39,19 +67,19 @@ node.onRender = () => {
   inputBuffer.setSize(imageIn.value.width, imageIn.value.height);
   outputBuffer.setSize(imageIn.value.width, imageIn.value.height);
 
-  outputBuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_current_texture: imageIn.value.texture,
-    u_previous_texture: inputBuffer.texture,
-    u_amplify: amplifyIn.value,
-  });
-  outputBuffer.unbind();
+  figment.drawFullscreen(
+    pipeline,
+    { u_amplify: amplifyIn.value },
+    { u_current_texture: imageIn.value, u_previous_texture: inputBuffer },
+    outputBuffer,
+  );
 
-  inputBuffer.bind();
-  figment.clear();
-  figment.drawQuad(copyProgram, { u_image: imageIn.value.texture });
-  inputBuffer.unbind();
+  figment.drawFullscreen(copyPipeline, {}, { u_image: imageIn.value }, inputBuffer);
 
   imageOut.set(outputBuffer);
+};
+
+node.onStop = () => {
+  inputBuffer?.destroy();
+  outputBuffer?.destroy();
 };

@@ -4,90 +4,88 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec2 u_resolution;
-uniform float u_thickness;
-uniform float u_factor;
-varying vec2 v_uv;
+const FRAGMENT_WGSL = `
+struct Uniforms {
+  u_resolution: vec2f,
+  u_thickness: f32,
+  u_factor: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
 
-float getAve(vec2 uv){
-    vec3 rgb = texture2D(u_input_texture, uv).rgb;
-    vec3 lum = vec3(1.,1.,1.);
+fn getAve(uv: vec2f) -> f32 {
+    let rgb = textureSample(u_input_texture, defaultSampler, uv).rgb;
+    let lum = vec3f(1.0, 1.0, 1.0);
     return dot(lum, rgb);
 }
 
-vec4 sobel(vec2 fragCoord, vec2 dir){
-    vec2 uv2 = v_uv.xy;
-    vec2 texel = 1./u_resolution.xy;
-    float np = getAve(uv2 + (vec2(-1,+1) + dir ) * texel * u_thickness);
-    float zp = getAve(uv2 + (vec2( 0,+1) + dir ) * texel * u_thickness);
-    float pp = getAve(uv2 + (vec2(+1,+1) + dir ) * texel * u_thickness);
+fn sobel(fragCoord: vec2f, dir: vec2f, base_uv: vec2f) -> vec4f {
+    let uv2 = base_uv;
+    let texel = 1.0 / u.u_resolution;
+    let np = getAve(uv2 + (vec2f(-1.0, 1.0) + dir) * texel * u.u_thickness);
+    let zp = getAve(uv2 + (vec2f(0.0, 1.0) + dir) * texel * u.u_thickness);
+    let pp = getAve(uv2 + (vec2f(1.0, 1.0) + dir) * texel * u.u_thickness);
 
-    float nz = getAve(uv2 + (vec2(-1, 0) + dir ) * texel * u_thickness);
-    // zz = 0
-    float pz = getAve(uv2 + (vec2(+1, 0) + dir ) * texel * u_thickness);
+    let nz = getAve(uv2 + (vec2f(-1.0, 0.0) + dir) * texel * u.u_thickness);
+    let pz = getAve(uv2 + (vec2f(1.0, 0.0) + dir) * texel * u.u_thickness);
 
-    float nn = getAve(uv2 + (vec2(-1,-1) + dir ) * texel * u_thickness);
-    float zn = getAve(uv2 + (vec2( 0,-1) + dir ) * texel * u_thickness);
-    float pn = getAve(uv2 + (vec2(+1,-1) + dir ) * texel * u_thickness);
+    let nn = getAve(uv2 + (vec2f(-1.0, -1.0) + dir) * texel * u.u_thickness);
+    let zn = getAve(uv2 + (vec2f(0.0, -1.0) + dir) * texel * u.u_thickness);
+    let pn = getAve(uv2 + (vec2f(1.0, -1.0) + dir) * texel * u.u_thickness);
 
-    #if 0
-    float gx = (np*-1. + nz*-2. + nn*-1. + pp*1. + pz*2. + pn*1.);
-    float gy = (np*-1. + zp*-2. + pp*-1. + nn*1. + zn*2. + pn*1.);
-    #else
-    // https://www.shadertoy.com/view/Wds3Rl
-    float gx = (np*-3. + nz*-10. + nn*-3. + pp*3. + pz*10. + pn*3.);
-    float gy = (np*-3. + zp*-10. + pp*-3. + nn*3. + zn*10. + pn*3.);
-    #endif
+    // Scharr operator
+    let gx = (np * -3.0 + nz * -10.0 + nn * -3.0 + pp * 3.0 + pz * 10.0 + pn * 3.0);
+    let gy = (np * -3.0 + zp * -10.0 + pp * -3.0 + nn * 3.0 + zn * 10.0 + pn * 3.0);
 
-    vec2 G = vec2(gx,gy);
-    float grad = length(G);
-    float angle = atan(G.y, G.x);
+    let G = vec2f(gx, gy);
+    let grad = length(G);
+    let angle = atan2(G.y, G.x);
 
-    return vec4(G, grad, angle);
+    return vec4f(G, grad, angle);
 }
 
-vec2 hysteresisThr(vec2 fragCoord, float mn, float mx){
+fn hysteresisThr(fragCoord: vec2f, mn: f32, mx: f32, base_uv: vec2f) -> vec2f {
+    let edge = sobel(fragCoord, vec2f(0.0), base_uv);
 
-    vec4 edge = sobel(fragCoord, vec2(0.0));
+    var dir = vec2f(cos(edge.w), sin(edge.w));
+    dir = dir * vec2f(-1.0, 1.0); // rotate 90 degrees
 
-    vec2 dir = vec2(cos(edge.w), sin(edge.w));
-    dir *= vec2(-1,1); // rotate 90 degrees.
+    let edgep = sobel(fragCoord, dir, base_uv);
+    let edgen = sobel(fragCoord, -dir, base_uv);
 
-    vec4 edgep = sobel(fragCoord, dir);
-    vec4 edgen = sobel(fragCoord, -dir);
+    var edge_z = edge.z;
+    if (edge_z < edgep.z || edge_z < edgen.z) {
+        edge_z = 0.0;
+    }
 
-    if(edge.z < edgep.z || edge.z < edgen.z ) edge.z = 0.;
-
-    return vec2(
-        (edge.z > mn) ? edge.z : 0.,
-        (edge.z > mx) ? edge.z : 0.
+    return vec2f(
+        select(0.0, edge_z, edge_z > mn),
+        select(0.0, edge_z, edge_z > mx)
     );
 }
 
-float cannyEdge(vec2 fragCoord, float mn, float mx){
+fn cannyEdge(fragCoord: vec2f, mn: f32, mx: f32) -> f32 {
+    let np = hysteresisThr(fragCoord + vec2f(-1.0, 1.0), mn, mx, fragCoord);
+    let zp = hysteresisThr(fragCoord + vec2f(0.0, 1.0), mn, mx, fragCoord);
+    let pp = hysteresisThr(fragCoord + vec2f(1.0, 1.0), mn, mx, fragCoord);
 
-    vec2 np = hysteresisThr(fragCoord + vec2(-1.,+1.), mn, mx);
-    vec2 zp = hysteresisThr(fragCoord + vec2( 0.,+1.), mn, mx);
-    vec2 pp = hysteresisThr(fragCoord + vec2(+1.,+1.), mn, mx);
+    let nz = hysteresisThr(fragCoord + vec2f(-1.0, 0.0), mn, mx, fragCoord);
+    let zz = hysteresisThr(fragCoord + vec2f(0.0, 0.0), mn, mx, fragCoord);
+    let pz = hysteresisThr(fragCoord + vec2f(1.0, 0.0), mn, mx, fragCoord);
 
-    vec2 nz = hysteresisThr(fragCoord + vec2(-1., 0.), mn, mx);
-    vec2 zz = hysteresisThr(fragCoord + vec2( 0., 0.), mn, mx);
-    vec2 pz = hysteresisThr(fragCoord + vec2(+1., 0.), mn, mx);
+    let nn = hysteresisThr(fragCoord + vec2f(-1.0, -1.0), mn, mx, fragCoord);
+    let zn = hysteresisThr(fragCoord + vec2f(0.0, -1.0), mn, mx, fragCoord);
+    let pn = hysteresisThr(fragCoord + vec2f(1.0, -1.0), mn, mx, fragCoord);
 
-    vec2 nn = hysteresisThr(fragCoord + vec2(-1.,-1.), mn, mx);
-    vec2 zn = hysteresisThr(fragCoord + vec2( 0.,-1.), mn, mx);
-    vec2 pn = hysteresisThr(fragCoord + vec2(+1.,-1.), mn, mx);
-
-    return min(1., step(1e-3, zz.x) * (zp.y + nz.y + pz.y + zn.y)*8.);
+    return min(1.0, step(1e-3, zz.x) * (zp.y + nz.y + pz.y + zn.y) * 8.0);
 }
 
-void main(){
-    vec2 uv = v_uv;
-    float edge = cannyEdge(uv.xy, u_factor, u_factor);
-    gl_FragColor = vec4(vec3(1.-edge),1.0);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    let uv = in.uv;
+    let edge = cannyEdge(uv, u.u_factor, u.u_factor);
+    return vec4f(vec3f(1.0 - edge), 1.0);
 }
 `;
 
@@ -96,24 +94,34 @@ const thicknessIn = node.numberIn('thickness', 1.5, { min: 0.0, max: 10.0, step:
 const factorIn = node.numberIn('factor', 3, { min: 0.0, max: 10.0, step: 0.1 });
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
 node.onStart = () => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_resolution: 'vec2f', u_thickness: 'f32', u_factor: 'f32' },
+    textures: ['u_input_texture'],
+    label: 'canny',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
   if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_resolution: [imageIn.value.width, imageIn.value.height],
-    u_thickness: thicknessIn.value,
-    u_factor: factorIn.value,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(imageIn.value.width, imageIn.value.height);
+  figment.drawFullscreen(
+    pipeline,
+    {
+      u_resolution: [imageIn.value.width, imageIn.value.height],
+      u_thickness: thicknessIn.value,
+      u_factor: factorIn.value,
+    },
+    { u_input_texture: imageIn.value },
+    target,
+  );
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

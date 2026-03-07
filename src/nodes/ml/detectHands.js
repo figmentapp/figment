@@ -24,12 +24,12 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _framebuffer, _canvas, _ctx, _imageData;
+let _target, _canvas, _ctx;
 let _drawingUtils;
 let _mpClient = null;
 
 node.onStart = async () => {
-  _framebuffer = new figment.Framebuffer();
+  _target = new figment.RenderTarget({ label: 'detectHands' });
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
@@ -53,13 +53,10 @@ node.onRender = async () => {
   if (width !== _canvas.width || height !== _canvas.height) {
     _canvas.width = width;
     _canvas.height = height;
-    _imageData = new ImageData(width, height);
-    _framebuffer.setSize(width, height);
+    _target.setSize(width, height);
   }
 
-  imageIn.value.bind();
-  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
-  imageIn.value.unbind();
+  const _imageData = await imageIn.value.readPixels();
   const bitmap = await createImageBitmap(_imageData);
   try {
     const r = await _mpClient.inferBitmap(bitmap, width, height);
@@ -109,10 +106,8 @@ function drawResults(handResult) {
     landmarksOut.value = null;
   }
 
-  window.gl.bindTexture(gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _canvas);
-  window.gl.bindTexture(gl.TEXTURE_2D, null);
-  imageOut.value = _framebuffer;
+  _target.uploadExternal(_canvas);
+  imageOut.set(_target);
 }
 
 function updateOptions() {
@@ -132,4 +127,5 @@ confidenceIn.onChange = updateOptions;
 node.onStop = () => {
   if (_mpClient) _mpClient.terminate();
   _mpClient = null;
+  _target?.destroy();
 };
