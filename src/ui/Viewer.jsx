@@ -1,64 +1,51 @@
 import React, { useEffect, useRef } from 'react';
-import * as twgl from 'twgl.js';
+import * as figment from '../figment';
 import { useAppStore } from './store';
 
-const NODE_WIDTH = 100;
-const NODE_HEIGHT = 56;
+const BLIT_WGSL = `
+struct Uniforms {
+  scale: vec2f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_texture: texture_2d<f32>;
 
-const VERTEX_SHADER = `
-uniform vec2 u_scale;
-attribute vec2 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_uv;
-  vec2 pos = a_position;
-  // Convert position from 0.0-1.0 to -1.0-1.0
-  pos = pos * 2.0 - 1.0;
-  pos.y = -pos.y;
-  pos *= u_scale;
-  gl_Position = vec4(pos, 0.0, 1.0);
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  // Scale UVs around center to maintain aspect ratio
+  let centered = (in.uv - 0.5) * u.scale + 0.5;
+  if (centered.x < 0.0 || centered.x > 1.0 || centered.y < 0.0 || centered.y > 1.0) {
+    return vec4f(0.0, 0.0, 0.0, 1.0);
+  }
+  let color = textureSample(u_texture, defaultSampler, centered);
+  // Premultiply alpha for canvas display
+  return vec4f(color.rgb * color.a, color.a);
 }
 `;
 
-const FRAGMENT_SHADER = `
-precision mediump float;
-uniform sampler2D u_texture;
-uniform vec4 u_color;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = u_color * texture2D(u_texture, v_uv);
-}
-`;
-
-export default function Viewer({ offscreenCanvas }) {
+export default function Viewer() {
   const network = useAppStore((s) => s.network);
-
-  const previewCanvasRef = useRef(null);
-  const glRef = useRef(null);
-  const programInfoRef = useRef(null);
-  const defaultTextureRef = useRef(null);
-  const nodeRectBufferInfoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const gpuContextRef = useRef(null);
+  const blitPipelineRef = useRef(null);
   const shouldDrawRef = useRef(false);
 
   const draw = () => {
-    const gl = glRef.current;
-    const canvas = offscreenCanvas;
-    const previewCanvas = previewCanvasRef.current;
-    if (!gl || !previewCanvas) return;
+    const device = figment.getDevice();
+    const canvas = canvasRef.current;
+    const gpuContext = gpuContextRef.current;
+    if (!device || !canvas || !gpuContext || !blitPipelineRef.current) return;
 
-    const parent = previewCanvas.parentElement;
+    const parent = canvas.parentElement;
     if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
       canvas.width = parent.clientWidth;
       canvas.height = parent.clientHeight;
-      previewCanvas.width = parent.clientWidth;
-      previewCanvas.height = parent.clientHeight;
     }
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0, 0, 0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     const outNode = network.nodes.find((n) => n.type === 'core.out');
     let outPort;
@@ -68,49 +55,59 @@ export default function Viewer({ offscreenCanvas }) {
       outPort = {};
     }
 
-    let nodeColor = [1, 0, 1, 1];
-    let texture, textureWidth, textureHeight;
-    if (outPort.value && outPort.value._fbo) {
-      nodeColor = [1, 1, 1, 1];
-      texture = outPort.value._fbo.attachments[0];
-      textureWidth = outPort.value.width;
-      textureHeight = outPort.value.height;
-    } else {
-      texture = defaultTextureRef.current;
-      textureWidth = NODE_WIDTH;
-      textureHeight = NODE_HEIGHT;
-    }
+    if (!outPort.value || !outPort.value.texture) return;
 
+    const textureWidth = outPort.value.width;
+    const textureHeight = outPort.value.height;
     const textureRatio = textureWidth / textureHeight;
     const canvasRatio = canvas.width / canvas.height;
-    let u_scale;
 
+    let scale;
     if (textureRatio > canvasRatio) {
-      // The texture is wider than the canvas
-      const scaleFactor = canvasRatio / textureRatio;
-      u_scale = [1.0, scaleFactor];
+      scale = [1.0, canvasRatio / textureRatio];
     } else {
-      // The texture is taller than the canvas
-      const scaleFactor = textureRatio / canvasRatio;
-      u_scale = [scaleFactor, 1.0];
+      scale = [textureRatio / canvasRatio, 1.0];
     }
 
-    twgl.bindFramebufferInfo(gl, null);
-    gl.useProgram(programInfoRef.current.program);
-    twgl.setBuffersAndAttributes(gl, programInfoRef.current, nodeRectBufferInfoRef.current);
-    twgl.setUniforms(programInfoRef.current, {
-      u_texture: texture,
-      u_color: nodeColor,
-      u_viewport: [canvas.width, canvas.height],
-      u_resolution: [textureWidth, textureHeight],
-      u_scale: u_scale,
-    });
-    twgl.drawBufferInfo(gl, nodeRectBufferInfoRef.current);
+    // Render to the canvas texture
+    const canvasTexture = gpuContext.getCurrentTexture();
+    const canvasView = canvasTexture.createView();
 
-    // Draw the offscreen canvas on the preview canvas.
-    const previewContext = previewCanvas.getContext('bitmaprenderer');
-    const bitmap = canvas.transferToImageBitmap();
-    previewContext.transferFromImageBitmap(bitmap);
+    const pipelineInfo = blitPipelineRef.current;
+    const uniformData = figment.packUniforms(pipelineInfo.uniformLayout, { scale });
+    const uniformBuffer = device.createBuffer({
+      size: uniformData.byteLength || 16,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+    const bindGroup = device.createBindGroup({
+      layout: pipelineInfo.bindGroupLayout,
+      entries: [
+        { binding: 0, resource: { buffer: uniformBuffer } },
+        { binding: 1, resource: figment.samplers.linearClamp },
+        { binding: 2, resource: outPort.value.view },
+      ],
+    });
+
+    const encoder = device.createCommandEncoder({ label: 'viewer encoder' });
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: canvasView,
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        },
+      ],
+    });
+    pass.setPipeline(pipelineInfo.pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.draw(3);
+    pass.end();
+
+    device.queue.submit([encoder.finish()]);
+    uniformBuffer.destroy();
   };
 
   const onNetworkChange = () => {
@@ -126,36 +123,32 @@ export default function Viewer({ offscreenCanvas }) {
   };
 
   useEffect(() => {
-    const gl = offscreenCanvas.getContext('webgl');
-    glRef.current = gl;
-    programInfoRef.current = twgl.createProgramInfo(gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+    const device = figment.getDevice();
+    if (!device || !canvasRef.current) return;
 
-    // Create a default checkerboard texture.
-    const checkerTexture = {
-      mag: gl.NEAREST,
-      min: gl.LINEAR,
-      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
-    };
-    defaultTextureRef.current = twgl.createTexture(gl, checkerTexture);
+    const canvas = canvasRef.current;
+    const gpuContext = canvas.getContext('webgpu');
+    gpuContext.configure({
+      device,
+      format: navigator.gpu.getPreferredCanvasFormat(),
+      alphaMode: 'premultiplied',
+    });
+    gpuContextRef.current = gpuContext;
 
-    // Create a buffer for a node rectangle.
-    let x0 = 0;
-    let x1 = 1;
-    let y0 = 0;
-    let y1 = 1;
-    const arrays = {
-      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
-      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-      indices: [0, 1, 2, 0, 2, 3],
-    };
-    nodeRectBufferInfoRef.current = twgl.createBufferInfoFromArrays(gl, arrays);
+    // Create blit pipeline targeting the canvas format
+    const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    blitPipelineRef.current = figment.createRenderPipeline({
+      wgsl: BLIT_WGSL,
+      uniforms: { scale: 'vec2f' },
+      textures: ['u_texture'],
+      targetFormat: canvasFormat,
+      label: 'viewer blit',
+    });
 
-    // Listen for network changes.
     const initialNetwork = useAppStore.getState().network;
     initialNetwork.addChangeListener(onNetworkChange);
     animate();
 
-    // Subscribe to network changes from Zustand
     let currentNetwork = initialNetwork;
     const unsubscribe = useAppStore.subscribe((state, prevState) => {
       if (state.network !== prevState.network) {
@@ -171,11 +164,11 @@ export default function Viewer({ offscreenCanvas }) {
       currentNetwork.removeChangeListener(onNetworkChange);
       unsubscribe();
     };
-  }, [offscreenCanvas]);
+  }, []);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
-      <canvas ref={previewCanvasRef}></canvas>
+      <canvas ref={canvasRef}></canvas>
     </div>
   );
 }

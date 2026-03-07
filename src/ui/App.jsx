@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import Stats from 'three/examples/jsm/libs/stats.module';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Stats from 'stats.js';
+import * as figment from '../figment';
 import Editor from './Editor';
 import Viewer from './Viewer';
 import ParamsEditor from './ParamsEditor';
@@ -18,7 +19,7 @@ window.stats.dom.style.bottom = '0';
 
 export default function App(props) {
   const mainRef = useRef(null);
-  const offscreenCanvasRef = useRef(new OffscreenCanvas(256, 256));
+  const [gpuStatus, setGpuStatus] = useState('uninitialized');
 
   // Selectively subscribe to only the state we need
   const fullscreen = useAppStore((state) => state.fullscreen);
@@ -42,7 +43,36 @@ export default function App(props) {
   const setEditorSplitterWidth = useAppStore((state) => state.setEditorSplitterWidth);
 
   useEffect(() => {
-    window.gl = offscreenCanvasRef.current.getContext('webgl');
+    function doInit() {
+      figment
+        .initGPU({ powerPreference: 'high-performance' })
+        .then(() => {
+          setGpuStatus('ready');
+        })
+        .catch((err) => {
+          console.error('WebGPU init failed:', err);
+          setGpuStatus(figment.getGPUStatus());
+        });
+    }
+
+    // Chromium defers requestAdapter() for hidden/backgrounded pages.
+    // Since Electron creates the window with show:false, we must wait
+    // until the page is visible before requesting the GPU adapter.
+    if (document.visibilityState === 'visible') {
+      doInit();
+    } else {
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') {
+          document.removeEventListener('visibilitychange', onVisible);
+          doInit();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisible);
+    }
+
+    figment.onDeviceLost(() => {
+      setGpuStatus('lost');
+    });
   }, []);
 
   // Initialize editor splitter width from actual DOM dimensions
@@ -66,10 +96,12 @@ export default function App(props) {
     initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap, _midipc: midiProgramChangeMap });
   }, []);
 
-  // Ensure network has started
+  // Start the network only after the GPU device is ready
   useEffect(() => {
-    startNetwork();
-  }, [startNetwork]);
+    if (gpuStatus === 'ready') {
+      startNetwork();
+    }
+  }, [gpuStatus, startNetwork]);
 
   const onKeyDown = useCallback(
     (e) => {
@@ -119,10 +151,38 @@ export default function App(props) {
     props.filePath,
   ]);
 
+  if (gpuStatus !== 'ready') {
+    return (
+      <div className="app flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-center">
+          {gpuStatus === 'uninitialized' && <p>Initializing GPU...</p>}
+          {gpuStatus === 'unavailable' && <p>WebGPU is not available in this environment.</p>}
+          {gpuStatus === 'error' && <p>GPU initialization failed. Please check your GPU drivers.</p>}
+          {gpuStatus === 'lost' && (
+            <div>
+              <p>GPU device lost.</p>
+              <button
+                className="mt-2 px-4 py-2 bg-blue-600 rounded"
+                onClick={() => {
+                  figment
+                    .initGPU({ powerPreference: 'high-performance' })
+                    .then(() => setGpuStatus('ready'))
+                    .catch(() => setGpuStatus(figment.getGPUStatus()));
+                }}
+              >
+                Reinitialize GPU
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (fullscreen) {
     return (
       <div className="app">
-        <Viewer offscreenCanvas={offscreenCanvasRef.current} />
+        <Viewer />
       </div>
     );
   }
@@ -130,7 +190,7 @@ export default function App(props) {
   return (
     <>
       <main ref={mainRef}>
-        <Editor offscreenCanvas={offscreenCanvasRef.current} />
+        <Editor />
         <Splitter className="splitter" parentRef={mainRef} direction="horizontal" />
         <ParamsEditor />
       </main>

@@ -1,4 +1,4 @@
-export const LATEST_FORMAT_VERSION = 5;
+export const LATEST_FORMAT_VERSION = 6;
 
 export function upgradeProject(project) {
   if (typeof project.version !== 'number') {
@@ -59,6 +59,26 @@ export function upgradeProject(project) {
         node.values.save = node.values.enable;
         delete node.values.enable;
       }
+    }
+    return upgradeProject(newProject);
+  } else if (project.version === 5) {
+    // Version 6 migrates from WebGL to WebGPU.
+    // Remove nodes that depended on TF.js (detectObjects, imageToImageModel).
+    const newProject = structuredClone(project);
+    newProject.version = 6;
+    const removedTypes = new Set(['ml.detectObjects', 'ml.imageToImageModel']);
+    const removedIds = new Set();
+    newProject.nodes = newProject.nodes.filter((node) => {
+      if (node && removedTypes.has(node.type)) {
+        removedIds.add(node.id);
+        return false;
+      }
+      return true;
+    });
+    if (newProject.connections) {
+      newProject.connections = newProject.connections.filter(
+        (conn) => !removedIds.has(conn.sourceNode) && !removedIds.has(conn.targetNode),
+      );
     }
     return upgradeProject(newProject);
   }

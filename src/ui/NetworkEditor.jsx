@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { COLORS } from '../colors';
 import { Point } from '../g';
-import * as twgl from 'twgl.js';
+import * as figment from '../figment';
 import { useAppStore } from './store';
 
 import {
@@ -54,65 +54,76 @@ const PORT_COLORS = {
   [PORT_TYPE_BOOLEAN]: COLORS.gray100,
 };
 
-const VERTEX_SHADER = `
-uniform vec2 u_viewport;
-uniform vec2 u_position;
-uniform vec3 u_camera;
-attribute vec2 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_uv;
-  vec2 pos = a_position / u_viewport;
-  pos.x += u_position.x / u_viewport.x;
-  pos.y += u_position.y / u_viewport.y;
-  pos.x *= u_camera.z;
-  pos.y *= u_camera.z;
-  pos.x += u_camera.x / u_viewport.x;
-  pos.y += u_camera.y / u_viewport.y;
-  // Convert position from 0.0-1.0 to -1.0-1.0
+const PREVIEW_WGSL = `
+struct Uniforms {
+  viewport: vec2f,
+  position: vec2f,
+  camera: vec4f,
+  resolution: vec2f,
+  color: vec4f,
+};
+
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_texture: texture_2d<f32>;
+
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
+  var positions = array<vec2f, 6>(
+    vec2f(0.0, 0.0), vec2f(0.0, ${NODE_HEIGHT}.0), vec2f(${NODE_WIDTH}.0, ${NODE_HEIGHT}.0),
+    vec2f(0.0, 0.0), vec2f(${NODE_WIDTH}.0, ${NODE_HEIGHT}.0), vec2f(${NODE_WIDTH}.0, 0.0),
+  );
+  var uvs = array<vec2f, 6>(
+    vec2f(0.0, 0.0), vec2f(0.0, 1.0), vec2f(1.0, 1.0),
+    vec2f(0.0, 0.0), vec2f(1.0, 1.0), vec2f(1.0, 0.0),
+  );
+
+  var pos = positions[vi] / u.viewport;
+  pos.x += u.position.x / u.viewport.x;
+  pos.y += u.position.y / u.viewport.y;
+  pos *= u.camera.z;
+  pos.x += u.camera.x / u.viewport.x;
+  pos.y += u.camera.y / u.viewport.y;
   pos.x = pos.x * 2.0 - 1.0;
   pos.y = (1.0 - pos.y) * 2.0 - 1.0;
-  gl_Position = vec4(pos, 0.0, 1.0);
-}
-`;
 
-const FRAGMENT_SHADER = `
-precision mediump float;
-uniform sampler2D u_texture;
-uniform vec2 u_resolution;
-uniform vec4 u_color;
-varying vec2 v_uv;
-void main() {
-  // The ratio of the image (width / height)
-  float image_ratio = u_resolution.x / u_resolution.y;
-  // The ratio of the preview node box (width / height)
-  float box_width = ${PREVIEW_GEO_WIDTH}.0;
-  float box_height = ${PREVIEW_GEO_HEIGHT}.0;
-  float box_ratio = ${PREVIEW_GEO_RATIO};
-  float delta_ratio = box_ratio / image_ratio;
-  if (image_ratio >  box_ratio) {
-    // The image is wider than the box
-    float scale_factor = box_width / u_resolution.x;
-    float height_diff = (box_height - u_resolution.y * scale_factor) / box_height;
-    float half_height_diff = height_diff / 2.0;
-    if (v_uv.y < half_height_diff || v_uv.y > 1.0 - half_height_diff) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec2 uv = vec2(v_uv.x, (v_uv.y - half_height_diff) / delta_ratio);
-      gl_FragColor = u_color * texture2D(u_texture, uv);
+  var out: VertexOutput;
+  out.position = vec4f(pos, 0.0, 1.0);
+  out.uv = uvs[vi];
+  return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let image_ratio = u.resolution.x / u.resolution.y;
+  let box_width = ${PREVIEW_GEO_WIDTH}.0;
+  let box_height = ${PREVIEW_GEO_HEIGHT}.0;
+  let box_ratio = f32(${PREVIEW_GEO_RATIO});
+  let delta_ratio = box_ratio / image_ratio;
+
+  if (image_ratio > box_ratio) {
+    let scale_factor = box_width / u.resolution.x;
+    let height_diff = (box_height - u.resolution.y * scale_factor) / box_height;
+    let half_height_diff = height_diff / 2.0;
+    if (in.uv.y < half_height_diff || in.uv.y > 1.0 - half_height_diff) {
+      return vec4f(0.0, 0.0, 0.0, 1.0);
     }
+    let uv = vec2f(in.uv.x, (in.uv.y - half_height_diff) / delta_ratio);
+    return u.color * textureSampleLevel(u_texture, defaultSampler, uv, 0.0);
   } else {
-    // The image is taller than the box
-    float scale_factor = box_height / u_resolution.y;
-    float width_diff = (box_width - u_resolution.x * scale_factor) / box_width;
-    float half_width_diff = width_diff / 2.0;
-    if (v_uv.x < half_width_diff || v_uv.x > 1.0 - half_width_diff) {
-      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
-      vec2 uv = vec2((v_uv.x - half_width_diff) * delta_ratio, v_uv.y);
-      gl_FragColor = u_color * texture2D(u_texture, uv);
+    let scale_factor = box_height / u.resolution.y;
+    let width_diff = (box_width - u.resolution.x * scale_factor) / box_width;
+    let half_width_diff = width_diff / 2.0;
+    if (in.uv.x < half_width_diff || in.uv.x > 1.0 - half_width_diff) {
+      return vec4f(0.0, 0.0, 0.0, 1.0);
     }
+    let uv = vec2f((in.uv.x - half_width_diff) * delta_ratio, in.uv.y);
+    return u.color * textureSampleLevel(u_texture, defaultSampler, uv, 0.0);
   }
 }
 `;
@@ -127,7 +138,7 @@ function clamp(v, min, max) {
 //   return portCount * NODE_PORT_WIDTH;
 // }
 
-export default function NetworkEditor({ offscreenCanvas }) {
+export default function NetworkEditor() {
   // In order to avoid stale closures, all data (network, selection) states are retrieved
   // from Zustand when needed. Action functions (e.g. selectNode) are stable in Zustand,
   // so it's safe to capture in closures.
@@ -160,11 +171,9 @@ export default function NetworkEditor({ offscreenCanvas }) {
   const canvasRef = useRef(null);
   const previewCanvasRef = useRef(null);
   const ctxRef = useRef(null);
-  const glRef = useRef(null);
-  const programInfoRef = useRef(null);
+  const previewGpuContextRef = useRef(null);
+  const previewPipelineRef = useRef(null);
   const defaultTextureRef = useRef(null);
-  const nodeRectBufferInfoRef = useRef(null);
-  const offscreenCanvasRef = useRef(null);
   const prevXRef = useRef(0);
   const prevYRef = useRef(0);
   const resizeObserverRef = useRef(null);
@@ -185,30 +194,79 @@ export default function NetworkEditor({ offscreenCanvas }) {
       previewCanvasRef.current.height = parent.clientHeight;
     }
 
-    offscreenCanvasRef.current = offscreenCanvas;
-    const gl = offscreenCanvas.getContext('webgl');
-    glRef.current = gl;
-    programInfoRef.current = twgl.createProgramInfo(gl, [VERTEX_SHADER, FRAGMENT_SHADER]);
+    // Set up WebGPU preview rendering
+    const device = figment.getDevice();
+    if (device && previewCanvasRef.current) {
+      const gpuContext = previewCanvasRef.current.getContext('webgpu');
+      const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+      gpuContext.configure({
+        device,
+        format: canvasFormat,
+        alphaMode: 'premultiplied',
+      });
+      previewGpuContextRef.current = gpuContext;
 
-    // Create a default checkerboard texture.
-    const checkerTexture = {
-      mag: gl.NEAREST,
-      min: gl.LINEAR,
-      src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
-    };
-    defaultTextureRef.current = twgl.createTexture(gl, checkerTexture);
+      // Build the preview pipeline with a custom vertex shader (not fullscreen triangle)
+      const shaderModule = device.createShaderModule({ code: PREVIEW_WGSL, label: 'preview shader' });
+      const uniformLayout = figment.computeUniformLayout({
+        viewport: 'vec2f',
+        position: 'vec2f',
+        camera: 'vec4f',
+        resolution: 'vec2f',
+        color: 'vec4f',
+      });
 
-    // Create a buffer for a node rectangle.
-    let x0 = 0;
-    let x1 = NODE_WIDTH;
-    let y0 = 0;
-    let y1 = NODE_HEIGHT;
-    const arrays = {
-      a_position: { numComponents: 2, data: [x0, y0, x0, y1, x1, y1, x1, y0] },
-      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-      indices: [0, 1, 2, 0, 2, 3],
-    };
-    nodeRectBufferInfoRef.current = twgl.createBufferInfoFromArrays(gl, arrays);
+      const bindGroupLayout = device.createBindGroupLayout({
+        entries: [
+          { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+          { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+          { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
+        ],
+        label: 'preview bind group layout',
+      });
+
+      const pipelineLayout = device.createPipelineLayout({
+        bindGroupLayouts: [bindGroupLayout],
+        label: 'preview pipeline layout',
+      });
+
+      const pipeline = device.createRenderPipeline({
+        layout: pipelineLayout,
+        vertex: { module: shaderModule, entryPoint: 'vs_main' },
+        fragment: {
+          module: shaderModule,
+          entryPoint: 'fs_main',
+          targets: [
+            {
+              format: canvasFormat,
+              blend: {
+                color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+                alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+              },
+            },
+          ],
+        },
+        primitive: { topology: 'triangle-list' },
+        label: 'preview pipeline',
+      });
+
+      previewPipelineRef.current = { pipeline, bindGroupLayout, uniformLayout };
+
+      // Create a 1x1 checkerboard default texture
+      const defaultTex = device.createTexture({
+        size: [2, 2],
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+        label: 'default checker',
+      });
+      device.queue.writeTexture(
+        { texture: defaultTex },
+        new Uint8Array([255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255]),
+        { bytesPerRow: 8 },
+        [2, 2],
+      );
+      defaultTextureRef.current = defaultTex;
+    }
 
     // Add a resize observer, redrawing the canvas when the size changes
     resizeObserverRef.current = new ResizeObserver(onResize);
@@ -706,25 +764,36 @@ export default function NetworkEditor({ offscreenCanvas }) {
   };
 
   const drawNodePreviews = () => {
-    const gl = glRef.current;
-    const canvas = offscreenCanvasRef.current;
+    const device = figment.getDevice();
     const previewCanvas = previewCanvasRef.current;
-    if (!gl || !canvas || !previewCanvas) return;
+    const gpuContext = previewGpuContextRef.current;
+    const pipelineInfo = previewPipelineRef.current;
+    if (!device || !previewCanvas || !gpuContext || !pipelineInfo) return;
 
     const state = stateRef.current;
     const network = useAppStore.getState().network;
     const parent = previewCanvas.parentElement;
-    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
+    if (previewCanvas.width !== parent.clientWidth || previewCanvas.height !== parent.clientHeight) {
       previewCanvas.width = parent.clientWidth;
       previewCanvas.height = parent.clientHeight;
     }
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.05, 0.06, 0.09, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    const canvasTexture = gpuContext.getCurrentTexture();
+    const canvasView = canvasTexture.createView();
+
+    const encoder = device.createCommandEncoder({ label: 'preview encoder' });
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: canvasView,
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0.05, g: 0.06, b: 0.09, a: 1.0 },
+        },
+      ],
+    });
+
+    pass.setPipeline(pipelineInfo.pipeline);
 
     for (const node of network.nodes) {
       const outPort = node.outPorts[0];
@@ -733,35 +802,47 @@ export default function NetworkEditor({ offscreenCanvas }) {
       }
 
       let nodeColor = [1, 0, 1, 1];
-      let texture, textureWidth, textureHeight;
-      if (outPort.value && outPort.value._fbo) {
+      let textureView, textureWidth, textureHeight;
+      if (outPort.value && outPort.value.texture) {
         nodeColor = [1, 1, 1, 1];
-        texture = outPort.value._fbo.attachments[0];
+        textureView = outPort.value.view;
         textureWidth = outPort.value.width;
         textureHeight = outPort.value.height;
       } else {
-        texture = defaultTextureRef.current;
+        textureView = defaultTextureRef.current.createView();
         textureWidth = NODE_WIDTH;
         textureHeight = NODE_HEIGHT;
       }
 
-      twgl.bindFramebufferInfo(gl, null);
-      gl.useProgram(programInfoRef.current.program);
-      twgl.setBuffersAndAttributes(gl, programInfoRef.current, nodeRectBufferInfoRef.current);
-      twgl.setUniforms(programInfoRef.current, {
-        u_texture: texture,
-        u_color: nodeColor,
-        u_viewport: [canvas.width, canvas.height],
-        u_position: [node.x, node.y],
-        u_resolution: [textureWidth, textureHeight],
-        u_camera: [state.x, state.y, state.scale],
+      const uniformData = figment.packUniforms(pipelineInfo.uniformLayout, {
+        viewport: [previewCanvas.width, previewCanvas.height],
+        position: [node.x, node.y],
+        camera: [state.x, state.y, state.scale, 0],
+        resolution: [textureWidth, textureHeight],
+        color: nodeColor,
       });
-      twgl.drawBufferInfo(gl, nodeRectBufferInfoRef.current);
+
+      const uniformBuffer = device.createBuffer({
+        size: uniformData.byteLength,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
+      device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+      const bindGroup = device.createBindGroup({
+        layout: pipelineInfo.bindGroupLayout,
+        entries: [
+          { binding: 0, resource: { buffer: uniformBuffer } },
+          { binding: 1, resource: figment.samplers.linearClamp },
+          { binding: 2, resource: textureView },
+        ],
+      });
+
+      pass.setBindGroup(0, bindGroup);
+      pass.draw(6); // 2 triangles = 6 vertices
     }
 
-    const previewContext = previewCanvas.getContext('bitmaprenderer');
-    const bitmap = canvas.transferToImageBitmap();
-    previewContext.transferFromImageBitmap(bitmap);
+    pass.end();
+    device.queue.submit([encoder.finish()]);
   };
 
   const animate = () => {

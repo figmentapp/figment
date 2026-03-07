@@ -379,12 +379,9 @@ export const useAppStore = create((set, get) => ({
   async exportImage(node, filePath, imageType = 'image/png', imageQuality = 1.0) {
     const outPort = node.outPorts[0];
     if (outPort.type !== PORT_TYPE_IMAGE) return;
-    const framebuffer = outPort.value;
-    const imageData = new ImageData(framebuffer.width, framebuffer.height);
-    framebuffer.bind();
-    window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
-    framebuffer.unbind();
-    const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
+    const target = outPort.value;
+    const imageData = await target.readPixels();
+    const canvas = new OffscreenCanvas(target.width, target.height);
     const ctx = canvas.getContext('2d');
     ctx.putImageData(imageData, 0, 0);
     const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });
