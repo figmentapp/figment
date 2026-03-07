@@ -96,12 +96,14 @@ export default function App(props) {
     initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap, _midipc: midiProgramChangeMap });
   }, []);
 
-  // Start the network only after the GPU device is ready
+  // Start the network and open initial file only after the GPU device is ready
   useEffect(() => {
     if (gpuStatus === 'ready') {
       startNetwork();
+      const initialPath = props.filePath || useAppStore.getState().filePath;
+      if (initialPath) openFile(initialPath);
     }
-  }, [gpuStatus, startNetwork]);
+  }, [gpuStatus, startNetwork, props.filePath, openFile]);
 
   const onKeyDown = useCallback(
     (e) => {
@@ -115,9 +117,14 @@ export default function App(props) {
     let rafId;
     async function frame() {
       window.stats.begin();
+      performance.mark('frame-start');
       if (useAppStore.getState().isPlaying) {
         await doFrame();
       }
+      performance.mark('frame-end');
+      try {
+        performance.measure('frame', 'frame-start', 'frame-end');
+      } catch (_) {}
       window.stats.end();
       rafId = window.requestAnimationFrame(frame);
     }
@@ -132,8 +139,7 @@ export default function App(props) {
     window.desktop.registerListener('midiProgramChange', handleMidiProgramChange);
     window.desktop.registerListener('midiDevices', (devices) => useAppStore.getState().setMidiDevices(devices));
     window.desktop.getMidiDevices().then((devices) => useAppStore.getState().setMidiDevices(devices));
-    const initialPath = props.filePath || useAppStore.getState().filePath;
-    if (initialPath) openFile(initialPath);
+    // File opening is deferred to the gpuStatus==='ready' effect above.
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener('keydown', onKeyDown);
