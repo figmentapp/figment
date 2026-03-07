@@ -193,12 +193,17 @@ export const useAppStore = create((set, get) => ({
 
     try {
       const { id, nodeCount } = await submitMigration(project);
+      if (!id) throw new Error('Migration server did not return a task ID.');
       const m = get().migration;
       if (!m) return; // cancelled
 
-      set({ migration: { ...m, phase: 'polling', nodeCount: nodeCount || m.webglTypeCount, nodesCompleted: 0 } });
+      let pollingStop = null;
+      const stopFn = () => {
+        if (pollingStop) pollingStop();
+      };
+      set({ migration: { ...m, phase: 'polling', nodeCount: nodeCount || m.webglTypeCount, nodesCompleted: 0, _stopPolling: stopFn } });
 
-      const stopPolling = startPolling(id, async (status) => {
+      pollingStop = startPolling(id, async (status) => {
         const cur = get().migration;
         if (!cur) return;
 
@@ -224,7 +229,6 @@ export const useAppStore = create((set, get) => ({
         }
       });
 
-      set({ migration: { ...get().migration, _stopPolling: stopPolling } });
     } catch (err) {
       const m = get().migration;
       if (m) {
@@ -245,6 +249,7 @@ export const useAppStore = create((set, get) => ({
     }
   },
   closeProject() {
+    get().cancelMigration();
     const { network } = get();
     if (network) network.stop();
     get().setDirty(false);
