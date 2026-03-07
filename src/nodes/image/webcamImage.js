@@ -4,13 +4,19 @@
  * @category image
  */
 
-const mirrorFragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_input_texture, vec2(1.0 - v_uv.x, v_uv.y));
-}`;
+const MIRROR_WGSL = `
+struct Uniforms {
+  _pad: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_input_texture: texture_2d<f32>;
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  return textureSample(u_input_texture, defaultSampler, vec2f(1.0 - in.uv.x, in.uv.y));
+}
+`;
 
 node.timeDependent = true;
 const frameRate = node.numberIn('frameRate', 30);
@@ -21,9 +27,9 @@ const imageOut = node.imageOut('image');
 let _video,
   _stream,
   _timer,
-  _framebuffer,
-  _mirrorFramebuffer,
-  _mirrorProgram,
+  _target,
+  _mirrorTarget,
+  _mirrorPipeline,
   shouldLoad,
   videoDevices,
   deviceMap = {};
@@ -40,9 +46,15 @@ node.onStart = async () => {
     });
     const firstDeviceId = videoDevices[0].deviceId;
     await startStream(firstDeviceId);
-    _framebuffer = new figment.Framebuffer(_video.width, _video.height);
-    _mirrorFramebuffer = new figment.Framebuffer(_video.width, _video.height);
-    _mirrorProgram = figment.createShaderProgram(mirrorFragmentShader);
+    _target = new figment.RenderTarget({ label: 'webcam' });
+    _target.setSize(_video.width, _video.height);
+    _mirrorTarget = new figment.RenderTarget({ label: 'webcam mirror' });
+    _mirrorPipeline = figment.createRenderPipeline({
+      wgsl: MIRROR_WGSL,
+      uniforms: {},
+      textures: ['u_input_texture'],
+      label: 'webcam mirror',
+    });
     _timer = setInterval(setShouldLoad, 1000 / frameRate.value);
     shouldLoad = true;
   } catch (err) {
@@ -67,29 +79,23 @@ async function startStream(deviceId) {
     _video.srcObject = stream;
     _video.play();
     _stream = stream;
-    console.log('Stream started:', stream);
   } catch (err) {
     console.error('Failed to start camera input:', err.name);
   }
 }
 
 node.onRender = () => {
-  if (!_video || !_framebuffer || _video.readyState !== _video.HAVE_ENOUGH_DATA || !shouldLoad) return;
+  if (!_video || !_target || _video.readyState !== _video.HAVE_ENOUGH_DATA || !shouldLoad) return;
 
-  _framebuffer.unbind();
-  window.gl.bindTexture(window.gl.TEXTURE_2D, _framebuffer.texture);
-  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, _video);
-  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+  _target.setSize(_video.videoWidth || _video.width, _video.videoHeight || _video.height);
+  _target.uploadExternal(_video);
 
   if (mirrorIn.value) {
-    _mirrorFramebuffer.setSize(_framebuffer.width, _framebuffer.height);
-    _mirrorFramebuffer.bind();
-    figment.clear();
-    figment.drawQuad(_mirrorProgram, { u_input_texture: _framebuffer.texture });
-    _mirrorFramebuffer.unbind();
-    imageOut.set(_mirrorFramebuffer);
+    _mirrorTarget.setSize(_target.width, _target.height);
+    figment.drawFullscreen(_mirrorPipeline, {}, { u_input_texture: _target }, _mirrorTarget);
+    imageOut.set(_mirrorTarget);
   } else {
-    imageOut.set(_framebuffer);
+    imageOut.set(_target);
   }
 
   shouldLoad = false;
@@ -101,6 +107,8 @@ node.onStop = () => {
     _stream.getTracks().forEach((track) => track.stop());
     _video = null;
   }
+  _target?.destroy();
+  _mirrorTarget?.destroy();
 };
 
 function setShouldLoad() {
@@ -111,10 +119,9 @@ async function updateSource() {
   const selectedLabel = operationIn.value;
   const selectedDeviceId = deviceMap[selectedLabel];
   if (selectedDeviceId) {
-    console.log('Switching video source to:', selectedLabel, selectedDeviceId);
     await startStream(selectedDeviceId);
-    if (_framebuffer) _framebuffer.setSize(_video.width, _video.height);
-    if (_mirrorFramebuffer) _mirrorFramebuffer.setSize(_video.width, _video.height);
+    if (_target) _target.setSize(_video.width, _video.height);
+    if (_mirrorTarget) _mirrorTarget.setSize(_video.width, _video.height);
   } else {
     console.error('Invalid device selection');
   }

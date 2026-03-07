@@ -17,11 +17,10 @@ const LOAD_STATE_NONE = 0;
 const LOAD_STATE_LOADING = 1;
 const LOAD_STATE_LOADED = 2;
 
-let _loadState, _files, _fileIndex, _texture, _image, _framebuffer, _program, _lastTime;
+let _loadState, _files, _fileIndex, target, _lastTime;
 
 node.onStart = () => {
-  _program = figment.createShaderProgram();
-  _framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget({ label: 'loadImageFolder' });
   _fileIndex = 0;
   _lastTime = Date.now();
   _loadState = LOAD_STATE_NONE;
@@ -48,13 +47,8 @@ node.onRender = async () => {
     }
   }
 
-  if (_image && _texture) {
-    _framebuffer.setSize(_image.naturalWidth, _image.naturalHeight);
-    _framebuffer.bind();
-    figment.clear();
-    figment.drawQuad(_program, { u_image: _texture });
-    _framebuffer.unbind();
-    imageOut.set(_framebuffer);
+  if (target.texture) {
+    imageOut.set(target);
   }
 };
 
@@ -76,32 +70,13 @@ async function loadDirectory() {
       order: orderIn.value,
     });
   } catch (err) {
-    onLoadError();
+    _files = [];
+    _loadState = LOAD_STATE_LOADED;
+    return;
   }
   _fileIndex = -1;
   _loadState = LOAD_STATE_LOADED;
   nextImage();
-}
-
-function onLoadError() {
-  _files = [];
-  _image = null;
-  _texture = null;
-  const texture = figment.createErrorTexture();
-  _framebuffer.setSize(100, 56);
-  _framebuffer.bind();
-  figment.drawQuad(_program, { u_image: texture });
-  _framebuffer.unbind();
-  imageOut.set(_framebuffer);
-  _loadState = LOAD_STATE_LOADED;
-}
-
-function onLoadImage(err, texture, image) {
-  if (err) {
-    throw new Error(`Image load error: ${err}`);
-  }
-  _texture = texture;
-  _image = image;
 }
 
 async function nextImage() {
@@ -114,16 +89,23 @@ async function nextImage() {
 }
 
 async function loadImage() {
-  if (_texture) {
-    window.gl.deleteTexture(_texture);
-    _texture = null;
-  }
-
   const file = _files[_fileIndex];
   const imageUrl = figment.urlForAsset(file);
-  const { texture, image } = await figment.createTextureFromUrlAsync(imageUrl.toString());
-  onLoadImage(null, texture, image);
+  try {
+    const response = await fetch(imageUrl.toString());
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+    target.setSize(bitmap.width, bitmap.height);
+    target.uploadExternal(bitmap);
+    bitmap.close();
+  } catch (err) {
+    console.error('Image load error:', err);
+  }
 }
+
+node.onStop = () => {
+  target?.destroy();
+};
 
 folderIn.onChange = changeDirectory;
 filterIn.onChange = changeDirectory;

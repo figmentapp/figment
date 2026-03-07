@@ -4,6 +4,7 @@ import Network, { getDefaultNetwork } from '../model/Network';
 import { Point } from '../g';
 import { upgradeProject } from '../file-format';
 import { PORT_TYPE_IMAGE } from '../model/Port';
+import { findWebGLTypes, submitMigration, startPolling, fetchResult } from '../migration';
 
 // Centralized app UI state using Zustand
 const initialLibrary = new Library();
@@ -38,6 +39,7 @@ export const useAppStore = create((set, get) => ({
   midiMessageMap: new Map(),
   midiProgramChangeMap: new Map(),
   midiDevices: [],
+  migration: null, // { phase, webglTypeCount, nodeCount, nodesCompleted, error, _pendingProject, _pendingFilePath, _stopPolling }
 
   // Generic setter helper
   set: (partial) => set(partial),
@@ -135,7 +137,6 @@ export const useAppStore = create((set, get) => ({
     await get().openFile(filePath);
   },
   async openFile(filePath) {
-    const s = get();
     get().closeProject();
     set({ isPlaying: false });
     const contents = await window.desktop.readProjectFile(filePath);
@@ -146,17 +147,108 @@ export const useAppStore = create((set, get) => ({
       alert(
         `This file is created with a newer version of Figment. Please download the latest version at figmentapp.com. (${error.message})`,
       );
+      return;
     }
+
+    // Check for custom types that still have WebGL code
+    const webglTypes = findWebGLTypes(project);
+    if (webglTypes.length > 0) {
+      set({
+        migration: {
+          phase: 'prompt',
+          webglTypeCount: webglTypes.length,
+          nodeCount: 0,
+          nodesCompleted: 0,
+          error: null,
+          _pendingProject: project,
+          _pendingFilePath: filePath,
+          _stopPolling: null,
+        },
+      });
+      return;
+    }
+
+    get()._finishOpenFile(project, filePath);
+  },
+
+  async _finishOpenFile(project, filePath, dirty = false) {
+    const s = get();
     const net = new Network(s.library);
-    set({ filePath, network: net, selection: new Set() });
+    set({ filePath, network: net, selection: new Set(), migration: null });
     net.parse(project);
     await net.start();
     net.doFrame();
     get().setFilePath(filePath);
+    if (dirty) get().setDirty(true);
     get().start();
     window.desktop.addToRecentFiles(filePath);
   },
+
+  async startMigration() {
+    const { migration } = get();
+    if (!migration) return;
+    const project = migration._pendingProject;
+
+    set({ migration: { ...migration, phase: 'submitting', error: null } });
+
+    try {
+      const { id, nodeCount } = await submitMigration(project);
+      if (!id) throw new Error('Migration server did not return a task ID.');
+      const m = get().migration;
+      if (!m) return; // cancelled
+
+      let pollingStop = null;
+      const stopFn = () => {
+        if (pollingStop) pollingStop();
+      };
+      set({ migration: { ...m, phase: 'polling', nodeCount: nodeCount || m.webglTypeCount, nodesCompleted: 0, _stopPolling: stopFn } });
+
+      pollingStop = startPolling(id, async (status) => {
+        const cur = get().migration;
+        if (!cur) return;
+
+        if (status.status === 'completed' || status.status === 'partial') {
+          try {
+            const result = await fetchResult(id);
+            set({ migration: { ...get().migration, phase: 'done', nodesCompleted: status.nodesCompleted || cur.nodeCount } });
+            // Short pause so the user sees "done", then finish opening
+            // Mark dirty: converted content differs from the file on disk.
+            setTimeout(() => {
+              get()._finishOpenFile(result, cur._pendingFilePath, true);
+            }, 800);
+          } catch (err) {
+            set({ migration: { ...get().migration, phase: 'error', error: err.message } });
+          }
+        } else if (status.status === 'failed') {
+          set({ migration: { ...cur, phase: 'error', error: status.errors?.[0] || 'Conversion failed on the server.' } });
+        } else if (status.status === 'error') {
+          set({ migration: { ...cur, phase: 'error', error: status.error } });
+        } else {
+          // still processing
+          set({ migration: { ...cur, nodesCompleted: status.nodesCompleted || 0 } });
+        }
+      });
+    } catch (err) {
+      const m = get().migration;
+      if (m) {
+        set({ migration: { ...m, phase: 'error', error: err.message } });
+      }
+    }
+  },
+
+  cancelMigration(openAnyway = false) {
+    const { migration } = get();
+    if (!migration) return;
+    if (migration._stopPolling) migration._stopPolling();
+    if (openAnyway && migration._pendingProject) {
+      // Mark dirty: upgraded version number differs from the file on disk.
+      get()._finishOpenFile(migration._pendingProject, migration._pendingFilePath, true);
+    } else {
+      set({ migration: null });
+    }
+  },
   closeProject() {
+    get().cancelMigration();
     const { network } = get();
     if (network) network.stop();
     get().setDirty(false);
@@ -379,12 +471,9 @@ export const useAppStore = create((set, get) => ({
   async exportImage(node, filePath, imageType = 'image/png', imageQuality = 1.0) {
     const outPort = node.outPorts[0];
     if (outPort.type !== PORT_TYPE_IMAGE) return;
-    const framebuffer = outPort.value;
-    const imageData = new ImageData(framebuffer.width, framebuffer.height);
-    framebuffer.bind();
-    window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
-    framebuffer.unbind();
-    const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
+    const target = outPort.value;
+    const imageData = await target.readPixels();
+    const canvas = new OffscreenCanvas(target.width, target.height);
     const ctx = canvas.getContext('2d');
     ctx.putImageData(imageData, 0, 0);
     const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });

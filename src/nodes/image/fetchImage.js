@@ -11,13 +11,10 @@ const refreshTimeIn = node.numberIn('refresh time', 60.0, { min: 0, max: 9999, s
 const imageOut = node.imageOut('out');
 
 let _lastTime = 0,
-  _texture,
-  _framebuffer,
-  _program;
+  target;
 
 node.onStart = () => {
-  _program = figment.createShaderProgram();
-  _framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget({ label: 'fetchImage' });
 };
 
 node.onRender = async () => {
@@ -28,17 +25,20 @@ node.onRender = async () => {
   try {
     const url = new URL(urlIn.value);
     url.searchParams.set('__cache', Date.now());
-    const { texture, image } = await figment.createTextureFromUrlAsync(url.toString());
-    _texture = texture;
-    _framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-    _framebuffer.bind();
-    figment.clear();
-    figment.drawQuad(_program, { u_image: _texture });
-    _framebuffer.unbind();
-    imageOut.set(_framebuffer);
+    const response = await fetch(url.toString());
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+    target.setSize(bitmap.width, bitmap.height);
+    target.uploadExternal(bitmap);
+    bitmap.close();
+    imageOut.set(target);
   } catch (err) {
     throw new Error(`Image load error: ${err}`);
   }
+};
+
+node.onStop = () => {
+  target?.destroy();
 };
 
 urlIn.onChange = () => {

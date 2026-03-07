@@ -9,17 +9,17 @@ const lookupIn = node.imageIn('lookup');
 const methodIn = node.selectIn('method', ['luminance', 'red', 'green', 'blue', 'alpha']);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer;
+let pipeline, target;
 
-node.onStart = (props) => {
+node.onStart = () => {
   updateShader();
-  framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget();
 };
 
 function updateShader() {
   let lookupFunction;
   if (methodIn.value === 'luminance') {
-    lookupFunction = 'dot(source.rgb, vec3(0.299, 0.587, 0.114))';
+    lookupFunction = 'dot(source.rgb, vec3f(0.299, 0.587, 0.114))';
   } else if (methodIn.value === 'red') {
     lookupFunction = 'source.r';
   } else if (methodIn.value === 'green') {
@@ -29,34 +29,38 @@ function updateShader() {
   } else if (methodIn.value === 'alpha') {
     lookupFunction = 'source.a';
   }
-  const fragmentShader = `
-  precision mediump float;
-  uniform sampler2D u_source_texture;
-  uniform sampler2D u_lookup_texture;
-  varying vec2 v_uv;
-  void main() {
-    vec2 uv = v_uv;
-    vec4 source = texture2D(u_source_texture, uv);
-    float value = ${lookupFunction};
-    vec4 lookup = texture2D(u_lookup_texture, vec2(value, 0.5));
-    gl_FragColor = lookup;
-  }
-  `;
-  program = figment.createShaderProgram(fragmentShader);
+  const preamble = figment.generateWgslPreamble({
+    textures: ['u_source_texture', 'u_lookup_texture'],
+  });
+  const FRAGMENT_WGSL = `${preamble}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
+  let source = textureSample(u_source_texture, defaultSampler, uv);
+  let value = ${lookupFunction};
+  let lookup = textureSample(u_lookup_texture, defaultSampler, vec2f(value, 0.5));
+  return lookup;
+}
+`;
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: {},
+    textures: ['u_source_texture', 'u_lookup_texture'],
+    label: 'lookup',
+  });
 }
 
 node.onRender = () => {
   if (!sourceIn.value) return;
   if (!lookupIn.value) return;
-  framebuffer.setSize(sourceIn.value.width, sourceIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_source_texture: sourceIn.value.texture,
-    u_lookup_texture: lookupIn.value.texture,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(sourceIn.value.width, sourceIn.value.height);
+  figment.drawFullscreen(pipeline, {}, { u_source_texture: sourceIn.value, u_lookup_texture: lookupIn.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };
 
 methodIn.onChange = updateShader;

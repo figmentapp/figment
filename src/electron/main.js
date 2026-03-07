@@ -1,5 +1,5 @@
 import querystring from 'node:querystring';
-import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut } from 'electron';
+import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut, shell } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
@@ -201,6 +201,7 @@ function sendIpcMessage(channel, ...args) {
 }
 
 ipcMain.handle('addToRecentFiles', (_, filePath) => onTouchProject(filePath));
+ipcMain.handle('openExternal', (_, url) => shell.openExternal(url));
 
 ipcMain.handle('oscSendMessage', (_, { ip, port, address, args }) => {
   oscSendMessage(ip, port, address, args);
@@ -329,7 +330,11 @@ function createMainWindow(filePath) {
   // Load the index.html of the app.
   if (process.env.NODE_ENV === 'development') {
     gMainWindow.loadURL(`http://localhost:3000/?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
-    gMainWindow.webContents.openDevTools();
+    // Defer DevTools until after page load to avoid freezing the renderer's
+    // event loop during WebGPU initialization (Chromium 140+ regression).
+    gMainWindow.webContents.once('did-finish-load', () => {
+      gMainWindow.webContents.openDevTools();
+    });
   } else {
     const electronDir = __dirname;
     const asarDir = path.join(electronDir, '../../');
@@ -472,6 +477,10 @@ app.on('open-file', (event, filePath) => {
     filePathToOpen = filePath;
   }
 });
+
+// Enable WebGPU in Electron
+app.commandLine.appendSwitch('enable-unsafe-webgpu');
+app.commandLine.appendSwitch('enable-features', 'WebGPU,UseSkiaGraphite');
 
 app.whenReady().then(async () => {
   await gSettings.load();

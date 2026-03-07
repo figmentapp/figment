@@ -37,17 +37,13 @@ node.onRender = async () => {
   }
   const imageQuality = imageQualityIn.value;
   await figment.ensureDirectory(baseDir);
-  // Read out the pixels of the framebuffer.
-  const framebuffer = imageIn.value;
-  const imageData = new ImageData(framebuffer.width, framebuffer.height);
-  framebuffer.bind();
-  window.gl.readPixels(0, 0, framebuffer.width, framebuffer.height, gl.RGBA, gl.UNSIGNED_BYTE, imageData.data);
-  framebuffer.unbind();
+  // Async readback from GPU texture
+  const imageData = await imageIn.value.readPixels();
   // Put the image data into an offscreen canvas.
-  const canvas = new OffscreenCanvas(framebuffer.width, framebuffer.height);
+  const canvas = new OffscreenCanvas(imageData.width, imageData.height);
   const ctx = canvas.getContext('2d');
   ctx.putImageData(imageData, 0, 0);
-  // Convert the canvas to a PNG blob, then to a buffer.
+  // Convert the canvas to a blob, then to a buffer.
   const blob = await canvas.convertToBlob({ type: imageType, quality: imageQuality });
   const pngBuffer = await blob.arrayBuffer();
   // Write the buffer to the given file path.

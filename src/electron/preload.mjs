@@ -244,6 +244,10 @@ async function setDocumentEdited(edited) {
   await ipcRenderer.invoke('setDocumentEdited', edited);
 }
 
+async function openExternal(url) {
+  await ipcRenderer.invoke('openExternal', url);
+}
+
 async function getMidiDevices() {
   return await ipcRenderer.invoke('getMidiDevices');
 }
@@ -283,4 +287,5 @@ contextBridge.exposeInMainWorld('desktop', {
   setRepresentedFilename,
   setDocumentEdited,
   getMidiDevices,
+  openExternal,
 });

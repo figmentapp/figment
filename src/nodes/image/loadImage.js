@@ -7,29 +7,28 @@
 const fileIn = node.fileIn('file', '', { fileType: 'image' });
 const imageOut = node.imageOut('out');
 
-let _texture, _framebuffer, _program;
+let target;
 
 node.onStart = () => {
-  _program = figment.createShaderProgram();
-  _framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget({ label: 'loadImage' });
 };
 
 node.onRender = async () => {
   if (!fileIn.value || fileIn.value.trim().length === 0) return;
   const imageUrl = figment.urlForAsset(fileIn.value);
-  if (_texture) {
-    gl.deleteTexture(_texture);
-  }
   try {
-    const { texture, image } = await figment.createTextureFromUrlAsync(imageUrl.toString());
-    _texture = texture;
-    _framebuffer.setSize(image.naturalWidth, image.naturalHeight);
-    _framebuffer.bind();
-    figment.clear();
-    figment.drawQuad(_program, { u_image: _texture });
-    _framebuffer.unbind();
-    imageOut.set(_framebuffer);
+    const response = await fetch(imageUrl.toString());
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+    target.setSize(bitmap.width, bitmap.height);
+    target.uploadExternal(bitmap);
+    bitmap.close();
+    imageOut.set(target);
   } catch (err) {
     throw new Error(`Image load error: ${err}`);
   }
+};
+
+node.onStop = () => {
+  target?.destroy();
 };

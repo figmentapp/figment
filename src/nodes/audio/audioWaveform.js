@@ -14,29 +14,25 @@ let sourceNode = null;
 let analyser = null;
 let dataArray = null;
 
-let framebuffer, program, waveformTex;
+let target, pipeline, _waveformTarget;
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_waveform;
-uniform float u_resolution_x;
-varying vec2 v_uv;
+const WAVEFORM_WGSL = `
+struct Uniforms {
+  u_resolution_x: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_waveform: texture_2d<f32>;
 
-void main() {
-  float samples = u_resolution_x;
-  float idx = floor(v_uv.x * samples);
-
-  // sample red channel → waveform value [0..1]
-  float y = texture2D(u_waveform, vec2(idx / samples, 0.0)).r;
-
-  // center waveform at 0.5 (midline), scale ±0.4
-  float lineY = 0.5 + (y - 0.5) * 0.8;
-
-  // distance from current pixel to waveform line
-  float dist = abs(v_uv.y - lineY);
-  float line = smoothstep(0.02, 0.0, dist);
-
-  gl_FragColor = vec4(vec3(line), 1.0);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let samples = u.u_resolution_x;
+  let idx = floor(in.uv.x * samples);
+  let y = textureSample(u_waveform, defaultSampler, vec2f(idx / samples, 0.0)).r;
+  let lineY = 0.5 + (y - 0.5) * 0.8;
+  let dist = abs(in.uv.y - lineY);
+  let line = smoothstep(0.02, 0.0, dist);
+  return vec4f(vec3f(line), 1.0);
 }
 `;
 
@@ -59,16 +55,16 @@ node.onStart = () => {
   sourceNode.connect(analyser);
   analyser.connect(window.audioCtx.destination);
 
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-
-  waveformTex = twgl.createTexture(window.gl, {
-    width: dataArray.length,
-    height: 1,
-    format: window.gl.RGBA,
-    min: window.gl.NEAREST,
-    mag: window.gl.NEAREST,
+  pipeline = figment.createRenderPipeline({
+    wgsl: WAVEFORM_WGSL,
+    uniforms: { u_resolution_x: 'float' },
+    textures: ['u_waveform'],
+    label: 'audioWaveform',
   });
+  target = new figment.RenderTarget({ label: 'audioWaveform' });
+
+  _waveformTarget = new figment.RenderTarget({ label: 'waveform data' });
+  _waveformTarget.setSize(dataArray.length, 1);
 };
 
 async function loadAudio() {
@@ -116,26 +112,21 @@ node.onRender = async () => {
       rgba[i * 4 + 3] = 255;
     }
 
-    twgl.setTextureFromArray(window.gl, waveformTex, rgba, {
-      width: dataArray.length,
-      height: 1,
-      format: window.gl.RGBA,
-    });
+    const waveImageData = new ImageData(new Uint8ClampedArray(rgba.buffer), dataArray.length, 1);
+    const waveBitmap = await createImageBitmap(waveImageData);
+    _waveformTarget.uploadExternal(waveBitmap);
+    waveBitmap.close();
   }
 
-  framebuffer.setSize(512, 256);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_waveform: waveformTex,
-    u_resolution_x: dataArray.length,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(512, 256);
+  figment.drawFullscreen(pipeline, { u_resolution_x: dataArray.length }, { u_waveform: _waveformTarget }, target);
+  imageOut.set(target);
 };
 
 node.onStop = () => {
   if (audioElement) audioElement.pause();
   if (sourceNode) sourceNode.disconnect();
   if (analyser) analyser.disconnect();
+  target?.destroy();
+  _waveformTarget?.destroy();
 };

@@ -1,4 +1,5 @@
 import { LATEST_FORMAT_VERSION } from '../file-format';
+import * as figment from '../figment';
 import Node from './Node';
 import Port, {
   PORT_TYPE_TRIGGER,
@@ -165,7 +166,7 @@ export default class Network {
     }
 
     try {
-      const fn = new Function('node', source);
+      const fn = new Function('node', 'figment', source);
       // Give the function a display name to improve readability in call stacks.
       try {
         Object.defineProperty(fn, 'name', { value: nodeType.type, configurable: true });
@@ -173,7 +174,7 @@ export default class Network {
         // Ignore if the environment prevents redefining the name.
       }
 
-      fn.call(window, node);
+      fn.call(window, node, figment);
     } catch (e) {
       console.error(`Error creating ${typeId}: ${e && e.stack}`);
     }
@@ -332,9 +333,14 @@ export default class Network {
 
   async render() {
     setExpressionContext({ $NOW: Date.now(), $TIME: (Date.now() - this.startTime) / 1000, $FRAME: this.frame });
+    performance.mark('render-all-start');
     for (const node of this._dag.nodeOrder) {
       await this._renderNode(node);
     }
+    performance.mark('render-all-end');
+    try {
+      performance.measure('render-all-nodes', 'render-all-start', 'render-all-end');
+    } catch (_) {}
     this.frame++;
   }
 
@@ -368,7 +374,8 @@ export default class Network {
 
   async _renderNode(node) {
     if (node.isDirty && node.onRender) {
-      // console.log(`render ${node.id} ${node.name}`);
+      const markName = `node-${node.type}-${node.id}`;
+      performance.mark(markName + '-start');
       try {
         await node.onRender();
         node.error = null;
@@ -376,6 +383,10 @@ export default class Network {
         console.error(e && e.stack);
         node.error = e && e.stack ? e.stack : String(e);
       }
+      performance.mark(markName + '-end');
+      try {
+        performance.measure(markName, markName + '-start', markName + '-end');
+      } catch (_) {}
       // Set the value of the connected input ports to the output ports of this node.
       for (const conn of this.connections) {
         if (conn.outNode === node.id) {

@@ -4,104 +4,42 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_prev_texture;
-uniform sampler2D u_new_texture;
-uniform float u_fade;
-uniform float u_seed;
-varying vec2 v_uv;
-
-float random(vec2 st) {
-  return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-}
-
-void main() {
-  vec4 prev = texture2D(u_prev_texture, v_uv);
-  vec4 next = texture2D(u_new_texture, v_uv);
-
-  // Monte Carlo fading: each pixel has probability 'fade' of being cleared
-  // Use pow curve so low values give very slow fades
-  float fade = pow(u_fade, 4.0);
-  float noise = random(v_uv + u_seed);
-
-  if (noise < fade) {
-    prev = vec4(0.0); // Clear this pixel
-  }
-
-  // Standard alpha blending: next over prev
-  float outA = next.a + prev.a * (1.0 - next.a);
-  vec3 outRGB = vec3(0.0);
-  if (outA > 0.0) {
-    outRGB = (next.rgb * next.a + prev.rgb * prev.a * (1.0 - next.a)) / outA;
-  }
-
-  gl_FragColor = vec4(outRGB, outA);
-}
-`;
-
-const imageIn = node.imageIn('in');
 const fadeParam = node.numberIn('fade', 0, { min: 0, max: 1, step: 0.01 });
 const clearButtonIn = node.triggerButtonIn('clear');
-const imageOut = node.imageOut('out');
 
-let program;
-let ping, pong;
-let current;
+const result = figment.createFeedbackFilter(node, {
+  label: 'trail',
+  uniforms: { u_fade: 'f32', u_seed: 'f32' },
+  wgsl: `
+    fn random(st: vec2f) -> f32 {
+      return fract(sin(dot(st, vec2f(12.9898, 78.233))) * 43758.5453123);
+    }
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  ping = new figment.Framebuffer();
-  pong = new figment.Framebuffer();
-  current = ping;
+    @fragment
+    fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+      var prev = textureSample(u_feedback_texture, defaultSampler, in.uv);
+      let next = textureSample(u_input_texture, defaultSampler, in.uv);
+
+      let fade = pow(u.u_fade, 4.0);
+      let noise = random(in.uv + u.u_seed);
+
+      if (noise < fade) {
+        prev = vec4f(0.0);
+      }
+
+      let outA = next.a + prev.a * (1.0 - next.a);
+      var outRGB = vec3f(0.0);
+      if (outA > 0.0) {
+        outRGB = (next.rgb * next.a + prev.rgb * prev.a * (1.0 - next.a)) / outA;
+      }
+
+      return vec4f(outRGB, outA);
+    }
+  `,
+  getUniforms: () => ({ u_fade: fadeParam.value, u_seed: Math.random() }),
+});
+
+clearButtonIn.onTrigger = () => {
+  result.pp.destroy();
+  result.pp = new figment.PingPongTarget();
 };
-
-node.onRender = () => {
-  const input = imageIn.value;
-  if (!input) return;
-
-  const w = input.width;
-  const h = input.height;
-
-  if (ping.width !== w || ping.height !== h) {
-    ping.setSize(w, h);
-    pong.setSize(w, h);
-
-    // Clear buffers on resize
-    ping.bind();
-    figment.clear();
-    ping.unbind();
-    pong.bind();
-    figment.clear();
-    pong.unbind();
-
-    current = ping;
-  }
-
-  const next = current === ping ? pong : ping;
-
-  next.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_prev_texture: current.texture,
-    u_new_texture: input.texture,
-    u_fade: fadeParam.value,
-    u_seed: Math.random(),
-  });
-  next.unbind();
-
-  current = next;
-  imageOut.set(current);
-};
-
-function clear() {
-  ping.bind();
-  figment.clear();
-  ping.unbind();
-  pong.bind();
-  figment.clear();
-  pong.unbind();
-  imageOut.set(current);
-}
-
-clearButtonIn.onTrigger = clear;

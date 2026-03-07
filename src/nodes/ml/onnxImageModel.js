@@ -10,14 +10,13 @@ const imageOut = node.imageOut('out');
 let oldModelFile,
   session,
   device,
-  canvas,
-  framebuffer,
+  target,
   isRunning = false;
 const BUFFER_SIZE = 3 * 512 * 512 * 4;
-const imageData = new Uint8Array(4 * 512 * 512);
-const textureBuffer = new Uint8Array(4 * 512 * 512);
-let inputBuffer, outputBuffer, stagingBuffer, inputTensor, outputTensor;
-let rgbaBuffer, rgbaStagingBuffer, convertInputPipeline, convertOutputPipeline, convertInputBindGroup, convertOutputBindGroup;
+let inputBuffer, outputBuffer, inputTensor, outputTensor;
+let rgbaBuffer, convertInputPipeline, convertOutputPipeline, convertInputBindGroup, convertOutputBindGroup;
+// Bridge resources for zero-copy output (ONNX device → OffscreenCanvas → Figment device)
+let bridgeCanvas, bridgeCtx, bridgeTexture, bridgeRenderPipeline, bridgeSampler, bridgeBindGroupLayout;
 
 // WGSL compute shader: RGBA (uint8) → NCHW (float32) with normalization
 const rgbaToNchwShader = `
@@ -91,19 +90,45 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 `;
 
+// Bridge shader: passthrough fullscreen triangle for OffscreenCanvas bridge
+const bridgeShaderCode = `
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var texInput: texture_2d<f32>;
+
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
+  // Fullscreen triangle
+  var out: VertexOutput;
+  let x = f32((vi << 1u) & 2u);
+  let y = f32(vi & 2u);
+  out.position = vec4f(x * 2.0 - 1.0, 1.0 - y * 2.0, 0.0, 1.0);
+  out.uv = vec2f(x, y);
+  return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  return textureSample(texInput, texSampler, in.uv);
+}
+`;
+
 node.onStart = async () => {
-  canvas = new OffscreenCanvas(512, 512);
-  framebuffer = new figment.Framebuffer(512, 512);
+  target = new figment.RenderTarget({ label: 'onnxImageModel' });
+  target.setSize(512, 512);
 };
 
 node.onStop = () => {
-  // Clean up GPU resources
   if (rgbaBuffer) rgbaBuffer.destroy();
-  if (rgbaStagingBuffer) rgbaStagingBuffer.destroy();
   if (inputBuffer) inputBuffer.destroy();
   if (outputBuffer) outputBuffer.destroy();
-  if (stagingBuffer) stagingBuffer.destroy();
+  if (bridgeTexture) bridgeTexture.destroy();
   if (session) session.release();
+  if (target) target.destroy();
 };
 
 async function loadModel() {
@@ -111,10 +136,9 @@ async function loadModel() {
 
   // Clean up old resources to prevent memory leak
   if (rgbaBuffer) rgbaBuffer.destroy();
-  if (rgbaStagingBuffer) rgbaStagingBuffer.destroy();
   if (inputBuffer) inputBuffer.destroy();
   if (outputBuffer) outputBuffer.destroy();
-  if (stagingBuffer) stagingBuffer.destroy();
+  if (bridgeTexture) bridgeTexture.destroy();
   if (session) await session.release();
 
   const modelUrl = figment.urlForAsset(modelFileIn.value);
@@ -124,15 +148,13 @@ async function loadModel() {
     device = ort.env.webgpu.device;
 
     // Create GPU buffers
-    const RGBA_SIZE = 4 * 512 * 512; // RGBA as u32 array (or bytes)
+    const RGBA_SIZE = 4 * 512 * 512;
     rgbaBuffer = device.createBuffer({
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
       size: RGBA_SIZE,
     });
     inputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, size: BUFFER_SIZE });
     outputBuffer = device.createBuffer({ usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC, size: BUFFER_SIZE });
-    stagingBuffer = device.createBuffer({ usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, size: BUFFER_SIZE });
-    rgbaStagingBuffer = device.createBuffer({ usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, size: RGBA_SIZE });
 
     // Create ONNX tensors
     inputTensor = ort.Tensor.fromGpuBuffer(inputBuffer, { dataType: 'float32', dims: [1, 3, 512, 512] });
@@ -152,7 +174,6 @@ async function loadModel() {
       compute: { module: convertOutputModule, entryPoint: 'main' },
     });
 
-    // Create bind groups for the pipelines
     convertInputBindGroup = device.createBindGroup({
       layout: convertInputPipeline.getBindGroupLayout(0),
       entries: [
@@ -167,6 +188,39 @@ async function loadModel() {
         { binding: 0, resource: { buffer: outputBuffer } },
         { binding: 1, resource: { buffer: rgbaBuffer } },
       ],
+    });
+
+    // Set up OffscreenCanvas bridge for zero-copy output
+    const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    bridgeCanvas = new OffscreenCanvas(512, 512);
+    bridgeCtx = bridgeCanvas.getContext('webgpu');
+    bridgeCtx.configure({ device, format: canvasFormat });
+
+    // Texture on ONNX device to receive rgbaBuffer via copyBufferToTexture
+    bridgeTexture = device.createTexture({
+      size: [512, 512],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING,
+    });
+
+    bridgeSampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+
+    // Render pipeline to draw bridgeTexture → canvas (with R↔B swizzle)
+    const bridgeModule = device.createShaderModule({ code: bridgeShaderCode });
+    bridgeBindGroupLayout = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+      ],
+    });
+    bridgeRenderPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [bridgeBindGroupLayout] }),
+      vertex: { module: bridgeModule, entryPoint: 'vs_main' },
+      fragment: {
+        module: bridgeModule,
+        entryPoint: 'fs_main',
+        targets: [{ format: canvasFormat }],
+      },
     });
 
     oldModelFile = modelFileIn.value;
@@ -191,10 +245,9 @@ node.onRender = async () => {
   isRunning = true;
 
   try {
-    // Read framebuffer pixels
-    imageIn.value.bind();
-    window.gl.readPixels(0, 0, 512, 512, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
-    imageIn.value.unbind();
+    // Read input pixels
+    const pixelData = await imageIn.value.readPixels();
+    const imageData = new Uint8Array(pixelData.data.buffer);
 
     // Upload RGBA data to GPU and convert to NCHW
     device.queue.writeBuffer(rgbaBuffer, 0, imageData);
@@ -210,31 +263,38 @@ node.onRender = async () => {
     // Run inference
     await session.run({ input: inputTensor }, { output: outputTensor });
 
-    // Convert NCHW output to RGBA using compute shader
+    // Convert NCHW output to RGBA, then copy buffer → texture on ONNX device
     const outputEncoder = device.createCommandEncoder();
-
-    // Run NCHW to RGBA conversion
     const convertOutputPass = outputEncoder.beginComputePass();
     convertOutputPass.setPipeline(convertOutputPipeline);
     convertOutputPass.setBindGroup(0, convertOutputBindGroup);
-    convertOutputPass.dispatchWorkgroups(32, 32); // 512/16 = 32 workgroups per dimension
+    convertOutputPass.dispatchWorkgroups(32, 32);
     convertOutputPass.end();
-
-    // Copy RGBA result to staging buffer for CPU readback
-    outputEncoder.copyBufferToBuffer(rgbaBuffer, 0, rgbaStagingBuffer, 0, 4 * 512 * 512);
+    outputEncoder.copyBufferToTexture({ buffer: rgbaBuffer, bytesPerRow: 512 * 4 }, { texture: bridgeTexture }, [512, 512]);
     device.queue.submit([outputEncoder.finish()]);
 
-    // Read back RGBA data
-    await rgbaStagingBuffer.mapAsync(GPUMapMode.READ, 0, 4 * 512 * 512);
-    const rgbaArrayBuffer = rgbaStagingBuffer.getMappedRange(0, 4 * 512 * 512);
-    textureBuffer.set(new Uint8Array(rgbaArrayBuffer));
-    rgbaStagingBuffer.unmap();
+    // Render bridgeTexture → OffscreenCanvas (with R↔B swizzle for bgra canvas format)
+    const bridgeBindGroup = device.createBindGroup({
+      layout: bridgeBindGroupLayout,
+      entries: [
+        { binding: 0, resource: bridgeSampler },
+        { binding: 1, resource: bridgeTexture.createView() },
+      ],
+    });
+    const canvasTexture = bridgeCtx.getCurrentTexture();
+    const renderEncoder = device.createCommandEncoder();
+    const pass = renderEncoder.beginRenderPass({
+      colorAttachments: [{ view: canvasTexture.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }],
+    });
+    pass.setPipeline(bridgeRenderPipeline);
+    pass.setBindGroup(0, bridgeBindGroup);
+    pass.draw(3);
+    pass.end();
+    device.queue.submit([renderEncoder.finish()]);
 
-    // Upload the RGBA data directly to the framebuffer's texture
-    gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.UNSIGNED_BYTE, textureBuffer);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    imageOut.set(framebuffer);
+    // Transfer to Figment device via browser-optimized canvas path (no CPU readback)
+    target.uploadExternal(bridgeCanvas);
+    imageOut.set(target);
   } finally {
     isRunning = false;
   }

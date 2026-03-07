@@ -1,12 +1,872 @@
-// Functions that are available in the "figment" namespace. Related to project files.
-// Look in preload.js for functions that are exposed in this module (e.g. nodePath).
-import * as twgl from 'twgl.js';
-import * as mediabunny from 'mediabunny';
-import MediaPipeWorker from './workers/mediapipeWorker?worker';
+// WebGPU helpers for Figment. Module-level GPU device singleton.
+// Non-GPU utilities (project paths, debounce, etc.) are also exported from here.
+
+// ─── GPU State ──────────────────────────────────────────────────────────────
+
+let _device = null;
+let _queue = null;
+let _adapter = null;
+let _gpuStatus = 'uninitialized'; // 'uninitialized' | 'ready' | 'lost' | 'error' | 'unavailable'
+let _deviceLostCallbacks = [];
+
+export function getDevice() {
+  return _device;
+}
+
+export function getQueue() {
+  return _queue;
+}
+
+export function getGPUStatus() {
+  return _gpuStatus;
+}
+
+export function onDeviceLost(callback) {
+  _deviceLostCallbacks.push(callback);
+}
+
+export function validateFeatureSupport(features) {
+  if (!_adapter) return { supported: [], unsupported: features };
+  const supported = features.filter((f) => _adapter.features.has(f));
+  const unsupported = features.filter((f) => !_adapter.features.has(f));
+  return { supported, unsupported };
+}
+
+export async function initGPU(options = {}) {
+  const { requiredFeatures = [], requiredLimits = {}, powerPreference = 'high-performance' } = options;
+
+  if (!navigator.gpu) {
+    _gpuStatus = 'unavailable';
+    throw new Error('WebGPU is not supported in this environment');
+  }
+
+  try {
+    _adapter = await navigator.gpu.requestAdapter({ powerPreference });
+    if (!_adapter) {
+      _gpuStatus = 'error';
+      throw new Error('No GPU adapter found');
+    }
+
+    if (requiredFeatures.length > 0) {
+      const { unsupported } = validateFeatureSupport(requiredFeatures);
+      if (unsupported.length > 0) {
+        console.warn('Unsupported GPU features:', unsupported);
+      }
+    }
+
+    const supportedFeatures = requiredFeatures.filter((f) => _adapter.features.has(f));
+
+    _device = await _adapter.requestDevice({
+      requiredFeatures: supportedFeatures,
+      requiredLimits,
+    });
+
+    _queue = _device.queue;
+
+    _device.lost.then((info) => {
+      console.error(`GPU device lost: ${info.message} (reason: ${info.reason})`);
+      _gpuStatus = 'lost';
+      _device = null;
+      _queue = null;
+      _destroySamplers();
+      _placeholderTexture = null;
+      _placeholderTextureView = null;
+      for (const cb of _deviceLostCallbacks) {
+        try {
+          cb(info);
+        } catch (e) {
+          console.error('Device lost callback error:', e);
+        }
+      }
+    });
+
+    _device.onuncapturederror = (event) => {
+      console.error('Uncaptured GPU error:', event.error.message);
+    };
+
+    _createSamplers();
+    _gpuStatus = 'ready';
+    return _device;
+  } catch (err) {
+    if (_gpuStatus !== 'unavailable') _gpuStatus = 'error';
+    throw err;
+  }
+}
+
+// ─── Shared Samplers ────────────────────────────────────────────────────────
+
+export const samplers = {
+  linearClamp: null,
+  linearRepeat: null,
+  nearestClamp: null,
+  nearestRepeat: null,
+};
+
+function _createSamplers() {
+  samplers.linearClamp = _device.createSampler({
+    magFilter: 'linear',
+    minFilter: 'linear',
+    addressModeU: 'clamp-to-edge',
+    addressModeV: 'clamp-to-edge',
+  });
+  samplers.linearRepeat = _device.createSampler({
+    magFilter: 'linear',
+    minFilter: 'linear',
+    addressModeU: 'repeat',
+    addressModeV: 'repeat',
+  });
+  samplers.nearestClamp = _device.createSampler({
+    magFilter: 'nearest',
+    minFilter: 'nearest',
+    addressModeU: 'clamp-to-edge',
+    addressModeV: 'clamp-to-edge',
+  });
+  samplers.nearestRepeat = _device.createSampler({
+    magFilter: 'nearest',
+    minFilter: 'nearest',
+    addressModeU: 'repeat',
+    addressModeV: 'repeat',
+  });
+}
+
+function _destroySamplers() {
+  samplers.linearClamp = null;
+  samplers.linearRepeat = null;
+  samplers.nearestClamp = null;
+  samplers.nearestRepeat = null;
+}
+
+// ─── Uniform Packing ────────────────────────────────────────────────────────
+
+// WGSL type → { size, align, components }
+const UNIFORM_TYPE_INFO = {
+  f32: { size: 4, align: 4, components: 1 },
+  i32: { size: 4, align: 4, components: 1 },
+  u32: { size: 4, align: 4, components: 1 },
+  vec2f: { size: 8, align: 8, components: 2 },
+  vec2i: { size: 8, align: 8, components: 2 },
+  vec2u: { size: 8, align: 8, components: 2 },
+  vec3f: { size: 12, align: 16, components: 3 },
+  vec3i: { size: 12, align: 16, components: 3 },
+  vec3u: { size: 12, align: 16, components: 3 },
+  vec4f: { size: 16, align: 16, components: 4 },
+  vec4i: { size: 16, align: 16, components: 4 },
+  vec4u: { size: 16, align: 16, components: 4 },
+  mat3x3f: { size: 48, align: 16, components: 12 },
+  mat4x4f: { size: 64, align: 16, components: 16 },
+  // Aliases for convenience (GLSL-style names)
+  float: { size: 4, align: 4, components: 1 },
+  int: { size: 4, align: 4, components: 1 },
+  uint: { size: 4, align: 4, components: 1 },
+  vec2: { size: 8, align: 8, components: 2 },
+  vec3: { size: 12, align: 16, components: 3 },
+  vec4: { size: 16, align: 16, components: 4 },
+};
+
+function _alignTo(offset, alignment) {
+  return Math.ceil(offset / alignment) * alignment;
+}
+
+// Compute layout for a set of uniform declarations.
+// Returns { totalSize, fields: [{ name, type, offset, info }] }
+export function computeUniformLayout(uniformsMeta) {
+  const fields = [];
+  let offset = 0;
+  for (const [name, type] of Object.entries(uniformsMeta)) {
+    const info = UNIFORM_TYPE_INFO[type];
+    if (!info) throw new Error(`Unknown uniform type: ${type}`);
+    offset = _alignTo(offset, info.align);
+    fields.push({ name, type, offset, info });
+    offset += info.size;
+  }
+  // Total size must be a multiple of 16 (WebGPU minUniformBufferOffsetAlignment)
+  const totalSize = _alignTo(offset, 16);
+  return { totalSize, fields };
+}
+
+// Pack uniform values into an ArrayBuffer according to a precomputed layout.
+export function packUniforms(layout, values) {
+  const buffer = new ArrayBuffer(layout.totalSize);
+  const f32View = new Float32Array(buffer);
+  const i32View = new Int32Array(buffer);
+  const u32View = new Uint32Array(buffer);
+
+  for (const field of layout.fields) {
+    const val = values[field.name];
+    if (val === undefined) continue;
+
+    const byteOffset = field.offset / 4; // offset in 32-bit words
+    const isInt = field.type === 'i32' || field.type === 'int' || field.type.endsWith('i');
+    const isUint = field.type === 'u32' || field.type === 'uint' || field.type.endsWith('u');
+
+    if (field.info.components === 1) {
+      if (isInt) {
+        i32View[byteOffset] = val;
+      } else if (isUint) {
+        u32View[byteOffset] = val;
+      } else {
+        f32View[byteOffset] = val;
+      }
+    } else {
+      const arr = Array.isArray(val) ? val : [val];
+      const view = isInt ? i32View : isUint ? u32View : f32View;
+      for (let i = 0; i < field.info.components && i < arr.length; i++) {
+        view[byteOffset + i] = arr[i];
+      }
+    }
+  }
+
+  return buffer;
+}
+
+// ─── RenderTarget ───────────────────────────────────────────────────────────
+
+const DEFAULT_USAGE =
+  GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST;
+
+export class RenderTarget {
+  constructor(options = {}) {
+    this.format = options.format || 'rgba8unorm';
+    this._usage = options.usage || DEFAULT_USAGE;
+    this._label = options.label || 'RenderTarget';
+    this.texture = null;
+    this.view = null;
+    this.width = 0;
+    this.height = 0;
+  }
+
+  setSize(w, h) {
+    w = Math.max(1, Math.floor(w));
+    h = Math.max(1, Math.floor(h));
+    if (w === this.width && h === this.height && this.texture) return;
+    this._destroy();
+    this.width = w;
+    this.height = h;
+    this.texture = _device.createTexture({
+      size: [w, h],
+      format: this.format,
+      usage: this._usage,
+      label: this._label,
+    });
+    this.view = this.texture.createView();
+  }
+
+  uploadExternal(source) {
+    if (!this.texture) throw new Error('RenderTarget not initialized — call setSize() first');
+    performance.mark('gpu-upload-start');
+    _queue.copyExternalImageToTexture({ source }, { texture: this.texture }, [this.width, this.height]);
+    performance.mark('gpu-upload-end');
+    try {
+      performance.measure('gpu-upload:' + this._label, 'gpu-upload-start', 'gpu-upload-end');
+    } catch (_) {}
+  }
+
+  async readPixels() {
+    return readbackTexture(this);
+  }
+
+  _destroy() {
+    if (this.texture) {
+      this.texture.destroy();
+      this.texture = null;
+      this.view = null;
+    }
+  }
+
+  destroy() {
+    this._destroy();
+    this.width = 0;
+    this.height = 0;
+  }
+}
+
+// ─── PingPongTarget ─────────────────────────────────────────────────────────
+
+export class PingPongTarget {
+  constructor(options = {}) {
+    this.read = new RenderTarget(options);
+    this.write = new RenderTarget(options);
+    this.width = 0;
+    this.height = 0;
+  }
+
+  setSize(w, h) {
+    this.read.setSize(w, h);
+    this.write.setSize(w, h);
+    this.width = w;
+    this.height = h;
+  }
+
+  swap() {
+    const tmp = this.read;
+    this.read = this.write;
+    this.write = tmp;
+  }
+
+  destroy() {
+    this.read.destroy();
+    this.write.destroy();
+    this.width = 0;
+    this.height = 0;
+  }
+}
+
+// ─── Full-Screen Triangle Vertex Shader ─────────────────────────────────────
+
+// UV origin is top-left: (0,0) at top-left, (1,1) at bottom-right.
+const FULLSCREEN_VERTEX_WGSL = `
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
+  // Full-screen triangle: 3 vertices, no index buffer
+  var pos = array<vec2f, 3>(
+    vec2f(-1.0, -1.0),
+    vec2f( 3.0, -1.0),
+    vec2f(-1.0,  3.0),
+  );
+  var out: VertexOutput;
+  out.position = vec4f(pos[vi], 0.0, 1.0);
+  // UV: top-left origin (0,0 at top-left)
+  out.uv = vec2f(
+    (pos[vi].x + 1.0) * 0.5,
+    (1.0 - pos[vi].y) * 0.5,
+  );
+  return out;
+}
+`;
+
+// ─── Pipeline Creation ──────────────────────────────────────────────────────
+
+export function createRenderPipeline({
+  wgsl,
+  uniforms = {},
+  textures = [],
+  entryPoint = 'fs_main',
+  sampler,
+  targetFormat = 'rgba8unorm',
+  label = '',
+}) {
+  const fullWgsl = FULLSCREEN_VERTEX_WGSL + '\n' + wgsl;
+  const layout = computeUniformLayout(uniforms);
+
+  const shaderModule = _device.createShaderModule({
+    code: fullWgsl,
+    label: label + ' shader',
+  });
+
+  // Build bind group layout entries
+  const entries = [];
+  let bindingIndex = 0;
+
+  // Binding 0: Uniform buffer (always present, even if empty)
+  entries.push({
+    binding: bindingIndex++,
+    visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
+    buffer: { type: 'uniform' },
+  });
+
+  // Binding 1: Sampler
+  entries.push({
+    binding: bindingIndex++,
+    visibility: GPUShaderStage.FRAGMENT,
+    sampler: { type: 'filtering' },
+  });
+
+  // Binding 2+: Textures
+  for (let i = 0; i < textures.length; i++) {
+    entries.push({
+      binding: bindingIndex++,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: { sampleType: 'float' },
+    });
+  }
+
+  const bindGroupLayout = _device.createBindGroupLayout({ entries, label: label + ' bind group layout' });
+  const pipelineLayout = _device.createPipelineLayout({
+    bindGroupLayouts: [bindGroupLayout],
+    label: label + ' pipeline layout',
+  });
+
+  const pipeline = _device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: {
+      module: shaderModule,
+      entryPoint: 'vs_main',
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint,
+      targets: [{ format: targetFormat }],
+    },
+    primitive: {
+      topology: 'triangle-list',
+    },
+    label,
+  });
+
+  return {
+    pipeline,
+    bindGroupLayout,
+    uniformLayout: layout,
+    textureNames: textures,
+    defaultSampler: sampler || samplers.linearClamp,
+    targetFormat,
+    label,
+  };
+}
+
+export function createComputePipeline({ wgsl, uniforms = {}, textures = [], storage = [], entryPoint = 'cs_main', label = '' }) {
+  const layout = computeUniformLayout(uniforms);
+
+  const shaderModule = _device.createShaderModule({
+    code: wgsl,
+    label: label + ' compute shader',
+  });
+
+  const entries = [];
+  let bindingIndex = 0;
+
+  // Binding 0: Uniform buffer
+  entries.push({
+    binding: bindingIndex++,
+    visibility: GPUShaderStage.COMPUTE,
+    buffer: { type: 'uniform' },
+  });
+
+  // Textures
+  for (let i = 0; i < textures.length; i++) {
+    entries.push({
+      binding: bindingIndex++,
+      visibility: GPUShaderStage.COMPUTE,
+      texture: { sampleType: 'float' },
+    });
+  }
+
+  // Storage textures / buffers
+  for (const s of storage) {
+    if (s.type.startsWith('texture_storage_2d')) {
+      const formatMatch = s.type.match(/<(\w+),\s*(\w+)>/);
+      entries.push({
+        binding: bindingIndex++,
+        visibility: GPUShaderStage.COMPUTE,
+        storageTexture: {
+          access: formatMatch ? formatMatch[2] : 'write-only',
+          format: formatMatch ? formatMatch[1] : 'rgba8unorm',
+        },
+      });
+    } else {
+      entries.push({
+        binding: bindingIndex++,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: 'storage' },
+      });
+    }
+  }
+
+  const bindGroupLayout = _device.createBindGroupLayout({ entries, label: label + ' compute bind group layout' });
+  const pipelineLayout = _device.createPipelineLayout({
+    bindGroupLayouts: [bindGroupLayout],
+    label: label + ' compute pipeline layout',
+  });
+
+  const pipeline = _device.createComputePipeline({
+    layout: pipelineLayout,
+    compute: {
+      module: shaderModule,
+      entryPoint,
+    },
+    label,
+  });
+
+  return {
+    pipeline,
+    bindGroupLayout,
+    uniformLayout: layout,
+    textureNames: textures,
+    storageNames: storage.map((s) => s.name),
+    label,
+  };
+}
+
+// ─── Drawing ────────────────────────────────────────────────────────────────
+
+export function drawFullscreen(pipelineInfo, uniformValues, textureValues, target, options = {}) {
+  if (!_device || !target || !target.view) return;
+  performance.mark('gpu-draw-start-' + pipelineInfo.label);
+
+  const { sampler: overrideSampler, clearColor } = options;
+  const activeSampler = overrideSampler || pipelineInfo.defaultSampler;
+
+  // Pack uniforms into a GPU buffer
+  const uniformData = packUniforms(pipelineInfo.uniformLayout, uniformValues);
+  const uniformBuffer = _device.createBuffer({
+    size: uniformData.byteLength || 16, // minimum 16 bytes
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    label: pipelineInfo.label + ' uniforms',
+  });
+  _queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+  // Build bind group entries
+  const bgEntries = [
+    { binding: 0, resource: { buffer: uniformBuffer } },
+    { binding: 1, resource: activeSampler },
+  ];
+
+  let bindingIndex = 2;
+  for (const texName of pipelineInfo.textureNames) {
+    const rt = textureValues[texName];
+    if (rt && rt.view) {
+      bgEntries.push({ binding: bindingIndex++, resource: rt.view });
+    } else if (rt && rt.createView) {
+      // Raw GPUTexture passed
+      bgEntries.push({ binding: bindingIndex++, resource: rt.createView() });
+    } else {
+      // Null texture — use cached 1x1 placeholder view
+      _createPlaceholderTexture();
+      bgEntries.push({ binding: bindingIndex++, resource: _placeholderTextureView });
+    }
+  }
+
+  const bindGroup = _device.createBindGroup({
+    layout: pipelineInfo.bindGroupLayout,
+    entries: bgEntries,
+    label: pipelineInfo.label + ' bind group',
+  });
+
+  const encoder = _device.createCommandEncoder({ label: pipelineInfo.label + ' encoder' });
+
+  const loadOp = clearColor ? 'clear' : 'load';
+  const colorAttachment = {
+    view: target.view,
+    loadOp,
+    storeOp: 'store',
+    clearValue: clearColor || { r: 0, g: 0, b: 0, a: 0 },
+  };
+
+  const pass = encoder.beginRenderPass({
+    colorAttachments: [colorAttachment],
+    label: pipelineInfo.label + ' render pass',
+  });
+
+  pass.setPipeline(pipelineInfo.pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.draw(3); // full-screen triangle
+  pass.end();
+
+  _queue.submit([encoder.finish()]);
+  uniformBuffer.destroy();
+  performance.mark('gpu-draw-end-' + pipelineInfo.label);
+  try {
+    performance.measure('gpu-draw:' + pipelineInfo.label, 'gpu-draw-start-' + pipelineInfo.label, 'gpu-draw-end-' + pipelineInfo.label);
+  } catch (_) {}
+}
+
+export function dispatch(pipelineInfo, uniformValues, resources, workgroups) {
+  if (!_device) return;
+
+  const uniformData = packUniforms(pipelineInfo.uniformLayout, uniformValues);
+  const uniformBuffer = _device.createBuffer({
+    size: uniformData.byteLength || 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    label: pipelineInfo.label + ' compute uniforms',
+  });
+  _queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+  const bgEntries = [{ binding: 0, resource: { buffer: uniformBuffer } }];
+
+  let bindingIndex = 1;
+  for (const texName of pipelineInfo.textureNames) {
+    const rt = resources[texName];
+    bgEntries.push({ binding: bindingIndex++, resource: rt.view || rt.createView() });
+  }
+  for (const storageName of pipelineInfo.storageNames) {
+    const res = resources[storageName];
+    if (res.view || res.createView) {
+      bgEntries.push({ binding: bindingIndex++, resource: res.view || res.createView() });
+    } else {
+      bgEntries.push({ binding: bindingIndex++, resource: { buffer: res } });
+    }
+  }
+
+  const bindGroup = _device.createBindGroup({
+    layout: pipelineInfo.bindGroupLayout,
+    entries: bgEntries,
+    label: pipelineInfo.label + ' compute bind group',
+  });
+
+  const encoder = _device.createCommandEncoder({ label: pipelineInfo.label + ' compute encoder' });
+  const pass = encoder.beginComputePass({ label: pipelineInfo.label + ' compute pass' });
+  pass.setPipeline(pipelineInfo.pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.dispatchWorkgroups(...workgroups);
+  pass.end();
+
+  _queue.submit([encoder.finish()]);
+  uniformBuffer.destroy();
+}
+
+export function beginRenderPass(encoder, target, options = {}) {
+  const { clearColor } = options;
+  return encoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: target.view,
+        loadOp: clearColor ? 'clear' : 'load',
+        storeOp: 'store',
+        clearValue: clearColor || { r: 0, g: 0, b: 0, a: 0 },
+      },
+    ],
+  });
+}
+
+// ─── Readback ───────────────────────────────────────────────────────────────
+
+export async function readbackTexture(target) {
+  performance.mark('gpu-readback-start');
+  const { texture, width, height } = target;
+  const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
+  const bufferSize = bytesPerRow * height;
+
+  const stagingBuffer = _device.createBuffer({
+    size: bufferSize,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    label: 'readback staging',
+  });
+
+  const encoder = _device.createCommandEncoder({ label: 'readback encoder' });
+  encoder.copyTextureToBuffer({ texture }, { buffer: stagingBuffer, bytesPerRow }, [width, height]);
+  _queue.submit([encoder.finish()]);
+
+  await stagingBuffer.mapAsync(GPUMapMode.READ);
+  const data = new Uint8Array(stagingBuffer.getMappedRange());
+
+  const imageData = new ImageData(width, height);
+  const rowBytes = width * 4;
+  for (let y = 0; y < height; y++) {
+    imageData.data.set(data.subarray(y * bytesPerRow, y * bytesPerRow + rowBytes), y * rowBytes);
+  }
+
+  stagingBuffer.unmap();
+  stagingBuffer.destroy();
+  performance.mark('gpu-readback-end');
+  try {
+    performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
+  } catch (_) {}
+  return imageData;
+}
+
+// ─── Placeholder Texture ────────────────────────────────────────────────────
+
+let _placeholderTexture = null;
+let _placeholderTextureView = null;
+
+function _createPlaceholderTexture() {
+  if (_placeholderTexture) return _placeholderTexture;
+  _placeholderTexture = _device.createTexture({
+    size: [1, 1],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    label: 'placeholder 1x1',
+  });
+  _placeholderTextureView = _placeholderTexture.createView();
+  _queue.writeTexture({ texture: _placeholderTexture }, new Uint8Array([0, 0, 0, 255]), { bytesPerRow: 4 }, [1, 1]);
+  return _placeholderTexture;
+}
+
+// ─── Utility: Load Image to RenderTarget ────────────────────────────────────
+
+export async function loadImageToTarget(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  const bitmap = await createImageBitmap(blob);
+  const target = new RenderTarget({ label: 'loaded image' });
+  target.setSize(bitmap.width, bitmap.height);
+  target.uploadExternal(bitmap);
+  bitmap.close();
+  return target;
+}
+
+// ─── Node Authoring Helpers ──────────────────────────────────────────────────
+
+const _WGSL_TYPE_ALIASES = {
+  float: 'f32',
+  int: 'i32',
+  uint: 'u32',
+  vec2: 'vec2f',
+  vec3: 'vec3f',
+  vec4: 'vec4f',
+  mat3: 'mat3x3f',
+  mat4: 'mat4x4f',
+};
+
+function _canonicalWgslType(type) {
+  return _WGSL_TYPE_ALIASES[type] || type;
+}
+
+export function generateWgslPreamble({ uniforms = {}, textures = [] }) {
+  // Normalize types
+  const normalized = {};
+  for (const [name, type] of Object.entries(uniforms)) {
+    normalized[name] = _canonicalWgslType(type);
+  }
+
+  const layout = computeUniformLayout(normalized);
+  let structBody = '';
+  let padIndex = 0;
+  let cursor = 0;
+
+  if (layout.fields.length === 0) {
+    structBody = '  _pad0: f32,';
+  } else {
+    for (const field of layout.fields) {
+      // Emit padding for gaps
+      while (cursor < field.offset) {
+        structBody += `  _pad${padIndex}: f32,\n`;
+        padIndex++;
+        cursor += 4;
+      }
+      structBody += `  ${field.name}: ${field.type},\n`;
+      cursor = field.offset + field.info.size;
+    }
+    // Trailing padding to reach totalSize
+    while (cursor < layout.totalSize) {
+      structBody += `  _pad${padIndex}: f32,\n`;
+      padIndex++;
+      cursor += 4;
+    }
+  }
+
+  let wgsl = `struct Uniforms {\n${structBody}};\n`;
+  wgsl += `@group(0) @binding(0) var<uniform> u: Uniforms;\n`;
+  wgsl += `@group(0) @binding(1) var defaultSampler: sampler;\n`;
+  for (let i = 0; i < textures.length; i++) {
+    wgsl += `@group(0) @binding(${2 + i}) var ${textures[i]}: texture_2d<f32>;\n`;
+  }
+  return wgsl;
+}
+
+function _buildFragmentWgsl(preamble, wgsl) {
+  if (wgsl.includes('@fragment')) {
+    return preamble + '\n' + wgsl;
+  }
+  return preamble + '\n@fragment\nfn fs_main(in: VertexOutput) -> @location(0) vec4f {\n' + wgsl + '\n}\n';
+}
+
+export function createImageFilter(node, opts) {
+  const { label, wgsl, uniforms = {}, getUniforms, input = 'in', output = 'out', sampler } = opts;
+
+  const inputPort = node.imageIn(input);
+  const outputPort = node.imageOut(output);
+  const textureNames = ['u_input_texture'];
+
+  const result = { pipeline: null, target: null, inputPort, outputPort };
+
+  node.onStart = () => {
+    const normalized = {};
+    for (const [n, t] of Object.entries(uniforms)) normalized[n] = _canonicalWgslType(t);
+    const preamble = generateWgslPreamble({ uniforms: normalized, textures: textureNames });
+    const fullWgsl = _buildFragmentWgsl(preamble, wgsl);
+    result.pipeline = createRenderPipeline({ wgsl: fullWgsl, uniforms: normalized, textures: textureNames, label, sampler });
+    result.target = new RenderTarget({ label });
+  };
+
+  node.onRender = () => {
+    const img = inputPort.value;
+    if (!img) return;
+    result.target.setSize(img.width, img.height);
+    drawFullscreen(result.pipeline, getUniforms ? getUniforms() : {}, { u_input_texture: img }, result.target);
+    outputPort.set(result.target);
+  };
+
+  node.onStop = () => {
+    result.target?.destroy();
+  };
+
+  return result;
+}
+
+export function createImageGenerator(node, opts) {
+  const { label, wgsl, uniforms = {}, getUniforms, getSize, output = 'out', sampler } = opts;
+
+  const outputPort = node.imageOut(output);
+
+  const result = { pipeline: null, target: null, outputPort };
+
+  node.onStart = () => {
+    const normalized = {};
+    for (const [n, t] of Object.entries(uniforms)) normalized[n] = _canonicalWgslType(t);
+    const preamble = generateWgslPreamble({ uniforms: normalized, textures: [] });
+    const fullWgsl = _buildFragmentWgsl(preamble, wgsl);
+    result.pipeline = createRenderPipeline({ wgsl: fullWgsl, uniforms: normalized, textures: [], label, sampler });
+    result.target = new RenderTarget({ label });
+  };
+
+  node.onRender = () => {
+    const size = getSize();
+    result.target.setSize(size.width, size.height);
+    drawFullscreen(result.pipeline, getUniforms ? getUniforms() : {}, {}, result.target);
+    outputPort.set(result.target);
+  };
+
+  node.onStop = () => {
+    result.target?.destroy();
+  };
+
+  return result;
+}
+
+export function createFeedbackFilter(node, opts) {
+  const { label, wgsl, uniforms = {}, textures = [], getUniforms, iterations = 1, input = 'in', output = 'out', sampler } = opts;
+
+  const inputPort = node.imageIn(input);
+  const outputPort = node.imageOut(output);
+  // Texture order: u_feedback_texture, u_input_texture, ...extra
+  const allTextures = ['u_feedback_texture', 'u_input_texture', ...textures];
+
+  const result = { pipeline: null, pp: null, inputPort, outputPort };
+
+  node.onStart = () => {
+    const normalized = {};
+    for (const [n, t] of Object.entries(uniforms)) normalized[n] = _canonicalWgslType(t);
+    const preamble = generateWgslPreamble({ uniforms: normalized, textures: allTextures });
+    const fullWgsl = _buildFragmentWgsl(preamble, wgsl);
+    result.pipeline = createRenderPipeline({ wgsl: fullWgsl, uniforms: normalized, textures: allTextures, label, sampler });
+    result.pp = new PingPongTarget({ label });
+  };
+
+  node.onRender = () => {
+    const img = inputPort.value;
+    if (!img) return;
+    result.pp.setSize(img.width, img.height);
+
+    const uniformValues = getUniforms ? getUniforms() : {};
+    const iterCount = typeof iterations === 'function' ? iterations() : iterations;
+
+    for (let i = 0; i < iterCount; i++) {
+      const texValues = { u_feedback_texture: result.pp.read, u_input_texture: img };
+      for (const t of textures) texValues[t] = texValues[t]; // extra textures filled by getUniforms if needed
+      drawFullscreen(result.pipeline, uniformValues, texValues, result.pp.write);
+      result.pp.swap();
+    }
+
+    outputPort.set(result.pp.read);
+  };
+
+  node.onStop = () => {
+    result.pp?.destroy();
+  };
+
+  return result;
+}
+
+// ─── Non-GPU Utilities (preserved from original) ────────────────────────────
 
 try {
   window.audioCtx = new AudioContext();
-  console.log('AudioContext created', window.audioCtx);
 } catch (err) {
   console.error('Failed to create AudioContext:', err);
 }
@@ -78,156 +938,20 @@ export async function loadScripts(scripts) {
   }
 }
 
-const DEFAULT_VERTEX_SHADER = `
-attribute vec3 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_uv;
-  gl_Position = vec4(a_position, 1.0);
-}`;
-
-const DEFAULT_FRAGMENT_SHADER = `
-precision mediump float;
-uniform sampler2D u_image;
-varying vec2 v_uv;
-void main() {
-  gl_FragColor = texture2D(u_image, v_uv);
-}
-`;
-
-const _shaderProgramCache = {};
-
-export function createShaderProgram(shader1 = null, shader2 = null) {
-  let vertexShader, fragmentShader;
-  if (shader1 === null && shader2 === null) {
-    vertexShader = DEFAULT_VERTEX_SHADER;
-    fragmentShader = DEFAULT_FRAGMENT_SHADER;
-  } else if (shader2 === null) {
-    vertexShader = DEFAULT_VERTEX_SHADER;
-    fragmentShader = shader1;
-  } else {
-    vertexShader = shader1;
-    fragmentShader = shader2;
-  }
-  const cachedShaderProgram = _shaderProgramCache[vertexShader + fragmentShader];
-  if (cachedShaderProgram) return cachedShaderProgram;
-  const shaderProgram = twgl.createProgramInfo(window.gl, [vertexShader, fragmentShader]);
-  _shaderProgramCache[vertexShader + fragmentShader] = shaderProgram;
-  return shaderProgram;
-}
-
-export function createTextureFromUrl(url, callback) {
-  return twgl.createTexture(window.gl, { src: url, crossOrigin: 'anonymous' }, callback);
-}
-
-export function createTextureFromUrlAsync(url) {
-  return new Promise((resolve, reject) => {
-    return twgl.createTexture(window.gl, { src: url, crossOrigin: 'anonymous' }, (err, texture, image) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve({ texture, image });
-    });
-  });
-}
-
-export function createErrorTexture() {
-  const checkerTexture = {
-    mag: window.gl.NEAREST,
-    min: window.gl.LINEAR,
-    src: [255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255],
-  };
-  return twgl.createTexture(window.gl, checkerTexture);
-}
-
-export class Framebuffer {
-  constructor(width = 0, height = 0) {
-    if (width > 0 && height > 0) {
-      this._create(width, height);
-    }
-  }
-
-  setSize(width, height) {
-    if (width === this.width && height === this.height) return;
-    const gl = window.gl;
-    if (this._fbo) {
-      gl.deleteTexture(this._fbo.attachments[0].texture);
-      gl.deleteFramebuffer(this._fbo.framebuffer);
-    }
-    this._create(width, height);
-  }
-
-  _create(width, height) {
-    this.width = width;
-    this.height = height;
-    this._fbo = twgl.createFramebufferInfo(window.gl, [{ format: window.gl.RGBA }], width, height);
-  }
-
-  bind() {
-    twgl.bindFramebufferInfo(window.gl, this._fbo);
-  }
-
-  unbind() {
-    twgl.bindFramebufferInfo(window.gl, null);
-  }
-
-  get texture() {
-    return this._fbo.attachments[0];
-  }
-}
-
-export function clear() {
-  const gl = window.gl;
-  gl.clearColor(0, 0, 0, 0);
-  gl.clear(gl.COLOR_BUFFER_BIT);
-}
-
-let _quadBufferInfo = null;
-
-export function drawQuad(shaderProgram, uniforms) {
-  const gl = window.gl;
-  if (!_quadBufferInfo) {
-    const arrays = {
-      a_position: { numComponents: 2, data: [-1, -1, -1, 1, 1, 1, 1, -1] },
-      a_uv: { numComponents: 2, data: [0, 0, 0, 1, 1, 1, 1, 0] },
-      indices: [0, 1, 2, 0, 2, 3],
-    };
-    _quadBufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
-  }
-  gl.useProgram(shaderProgram.program);
-  twgl.setBuffersAndAttributes(gl, shaderProgram, _quadBufferInfo);
-  twgl.setUniforms(shaderProgram, uniforms);
-  twgl.drawBufferInfo(gl, _quadBufferInfo);
-}
-
 export function toCanvasColor(color) {
   return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
 }
 
-let _imageData;
-export function framebufferToImageData(framebuffer) {
-  const width = framebuffer.width;
-  const height = framebuffer.height;
-
-  if (!_imageData || framebuffer.width !== _imageData.width || framebuffer.height !== _imageData.height) {
-    _imageData = new ImageData(width, height);
-    framebuffer.setSize(width, height);
-  }
-  framebuffer.bind();
-  window.gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, _imageData.data);
-  framebuffer.unbind();
-  return _imageData;
+export function colorToVec4(color) {
+  return [color[0] / 255, color[1] / 255, color[2] / 255, color[3]];
 }
 
-export function canvasToFramebuffer(canvas, framebuffer) {
-  window.gl.bindTexture(gl.TEXTURE_2D, framebuffer.texture);
-  window.gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-  window.gl.bindTexture(gl.TEXTURE_2D, null);
+export function colorToVec3(color) {
+  return [color[0] / 255, color[1] / 255, color[2] / 255];
 }
 
-// Simple request/response client for the MediaPipe worker with per-call promises.
+// ─── MediaPipe Worker Client (preserved) ────────────────────────────────────
+
 export class MediaPipeWorkerClient {
   constructor(task, { taskFile, taskOptions = {} } = {}) {
     this.task = task;
@@ -249,7 +973,6 @@ export class MediaPipeWorkerClient {
 
   _init() {
     if (this._worker) {
-      // Reject any in-flight requests before killing the worker to avoid hangs.
       this._rejectAllPending('reinit');
       try {
         this._worker.terminate();
@@ -267,7 +990,6 @@ export class MediaPipeWorkerClient {
       }
       if (msg.type === 'optionsUpdated') return;
       if (msg.type === 'error') {
-        // Reject any in-flight requests to unblock callers
         for (const [, { reject }] of this._pending) reject(new Error(msg.error));
         this._pending.clear();
         return;
@@ -281,7 +1003,6 @@ export class MediaPipeWorkerClient {
         return;
       }
     };
-    // Send init with the current configuration
     this._worker.postMessage({
       type: 'init',
       task: this.task,
@@ -307,7 +1028,6 @@ export class MediaPipeWorkerClient {
   async setOptions(options) {
     await this.ready();
     return new Promise((resolve) => {
-      // Rely on optionsUpdated fire-and-forget; resolve immediately for simplicity
       this._worker.postMessage({ type: 'setOptions', options });
       resolve();
     });
@@ -332,21 +1052,4 @@ export class MediaPipeWorkerClient {
     for (const [, { reject }] of this._pending) reject(new Error('terminated'));
     this._pending.clear();
   }
-}
-
-const _modelCache = {};
-export async function loadModel(modelName, modelGlobal, options) {
-  if (_modelCache[modelName]) return _modelCache[modelName];
-
-  await figment.loadScripts([`https://cdn.jsdelivr.net/npm/@tensorflow-models/${modelName}`]);
-  // await tf.ready();
-  // const tfContext = new tf.webgl.GPGPUContext(window.gl);
-  // tf.ENV.registerBackend('custom-webgl', () => {
-  //   return new tf.webgl.MathBackendWebGL(tfContext);
-  // });
-  // tf.setBackend('custom-webgl');
-
-  const model = await window[modelGlobal].load(options);
-  _modelCache[modelName] = model;
-  return model;
 }

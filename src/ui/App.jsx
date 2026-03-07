@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import Stats from 'three/examples/jsm/libs/stats.module';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Stats from 'stats.js';
+import * as figment from '../figment';
 import Editor from './Editor';
 import Viewer from './Viewer';
 import ParamsEditor from './ParamsEditor';
@@ -8,6 +9,7 @@ import Splitter from './Splitter';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
+import MigrationDialog from './MigrationDialog';
 import ProjectSettingsDialog from './ProjectSettingsDialog';
 import { initExpressionContext } from '../expr';
 import { useAppStore } from './store';
@@ -18,7 +20,7 @@ window.stats.dom.style.bottom = '0';
 
 export default function App(props) {
   const mainRef = useRef(null);
-  const offscreenCanvasRef = useRef(new OffscreenCanvas(256, 256));
+  const [gpuStatus, setGpuStatus] = useState('uninitialized');
 
   // Selectively subscribe to only the state we need
   const fullscreen = useAppStore((state) => state.fullscreen);
@@ -27,6 +29,7 @@ export default function App(props) {
   const showRenderDialog = useAppStore((state) => state.showRenderDialog);
   const showProjectSettingsDialog = useAppStore((state) => state.showProjectSettingsDialog);
   const showNodeRenameDialog = useAppStore((state) => state.showNodeRenameDialog);
+  const migration = useAppStore((state) => state.migration);
 
   // Actions
   const startNetwork = useAppStore((state) => state.startNetwork);
@@ -42,7 +45,36 @@ export default function App(props) {
   const setEditorSplitterWidth = useAppStore((state) => state.setEditorSplitterWidth);
 
   useEffect(() => {
-    window.gl = offscreenCanvasRef.current.getContext('webgl');
+    function doInit() {
+      figment
+        .initGPU({ powerPreference: 'high-performance' })
+        .then(() => {
+          setGpuStatus('ready');
+        })
+        .catch((err) => {
+          console.error('WebGPU init failed:', err);
+          setGpuStatus(figment.getGPUStatus());
+        });
+    }
+
+    // Chromium defers requestAdapter() for hidden/backgrounded pages.
+    // Since Electron creates the window with show:false, we must wait
+    // until the page is visible before requesting the GPU adapter.
+    if (document.visibilityState === 'visible') {
+      doInit();
+    } else {
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') {
+          document.removeEventListener('visibilitychange', onVisible);
+          doInit();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisible);
+    }
+
+    figment.onDeviceLost(() => {
+      setGpuStatus('lost');
+    });
   }, []);
 
   // Initialize editor splitter width from actual DOM dimensions
@@ -66,10 +98,14 @@ export default function App(props) {
     initExpressionContext({ _osc: oscMessageMap, _midi: midiMessageMap, _midipc: midiProgramChangeMap });
   }, []);
 
-  // Ensure network has started
+  // Start the network and open initial file only after the GPU device is ready
   useEffect(() => {
-    startNetwork();
-  }, [startNetwork]);
+    if (gpuStatus === 'ready') {
+      startNetwork();
+      const initialPath = props.filePath || useAppStore.getState().filePath;
+      if (initialPath) openFile(initialPath);
+    }
+  }, [gpuStatus, startNetwork, props.filePath, openFile]);
 
   const onKeyDown = useCallback(
     (e) => {
@@ -80,16 +116,22 @@ export default function App(props) {
 
   // Wire listeners and RAF loop explicitly here
   useEffect(() => {
+    let rafId;
     async function frame() {
       window.stats.begin();
+      performance.mark('frame-start');
       if (useAppStore.getState().isPlaying) {
         await doFrame();
       }
+      performance.mark('frame-end');
+      try {
+        performance.measure('frame', 'frame-start', 'frame-end');
+      } catch (_) {}
       window.stats.end();
-      window.requestAnimationFrame(frame);
+      rafId = window.requestAnimationFrame(frame);
     }
     start();
-    window.requestAnimationFrame(frame);
+    rafId = window.requestAnimationFrame(frame);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('resize', forceRedraw);
     window.app = { getState: useAppStore.getState, setState: useAppStore.setState };
@@ -99,9 +141,9 @@ export default function App(props) {
     window.desktop.registerListener('midiProgramChange', handleMidiProgramChange);
     window.desktop.registerListener('midiDevices', (devices) => useAppStore.getState().setMidiDevices(devices));
     window.desktop.getMidiDevices().then((devices) => useAppStore.getState().setMidiDevices(devices));
-    const initialPath = props.filePath || useAppStore.getState().filePath;
-    if (initialPath) openFile(initialPath);
+    // File opening is deferred to the gpuStatus==='ready' effect above.
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', forceRedraw);
       window.app = undefined;
@@ -119,10 +161,38 @@ export default function App(props) {
     props.filePath,
   ]);
 
+  if (gpuStatus !== 'ready') {
+    return (
+      <div className="app flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-center">
+          {gpuStatus === 'uninitialized' && <p>Initializing GPU...</p>}
+          {gpuStatus === 'unavailable' && <p>WebGPU is not available in this environment.</p>}
+          {gpuStatus === 'error' && <p>GPU initialization failed. Please check your GPU drivers.</p>}
+          {gpuStatus === 'lost' && (
+            <div>
+              <p>GPU device lost.</p>
+              <button
+                className="mt-2 px-4 py-2 bg-blue-600 rounded"
+                onClick={() => {
+                  figment
+                    .initGPU({ powerPreference: 'high-performance' })
+                    .then(() => setGpuStatus('ready'))
+                    .catch(() => setGpuStatus(figment.getGPUStatus()));
+                }}
+              >
+                Reinitialize GPU
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (fullscreen) {
     return (
       <div className="app">
-        <Viewer offscreenCanvas={offscreenCanvasRef.current} />
+        <Viewer />
       </div>
     );
   }
@@ -130,7 +200,7 @@ export default function App(props) {
   return (
     <>
       <main ref={mainRef}>
-        <Editor offscreenCanvas={offscreenCanvasRef.current} />
+        <Editor />
         <Splitter className="splitter" parentRef={mainRef} direction="horizontal" />
         <ParamsEditor />
       </main>
@@ -139,6 +209,7 @@ export default function App(props) {
       {showNodeRenameDialog && <NodeRenameDialog />}
       {showRenderDialog && <RenderDialog />}
       {showProjectSettingsDialog && <ProjectSettingsDialog />}
+      {migration && <MigrationDialog />}
     </>
   );
 }

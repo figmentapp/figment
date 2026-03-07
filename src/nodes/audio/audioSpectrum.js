@@ -16,28 +16,28 @@ let sourceNode = null;
 let analyser = null;
 let floatArray = null;
 
-let framebuffer, program, spectrumTex;
+let target, pipeline, _spectrumTarget;
 
 let bandDefs = [];
 let smoothedAmps = [];
 let currentSpacing = null;
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_spectrum;
-uniform float u_bands;
-varying vec2 v_uv;
+const SPECTRUM_WGSL = `
+struct Uniforms {
+  u_bands: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_spectrum: texture_2d<f32>;
 
-void main() {
-  // make sure last band is visible
-  float idx = min(floor(v_uv.x * u_bands), u_bands - 1.0);
-  float amp = texture2D(u_spectrum, vec2(idx / u_bands, 0.0)).r;
-
-  float lineY = amp;
-  float dist = v_uv.y - (1.0 - lineY);
-  float visible = step(0.0, dist);
-
-  gl_FragColor = vec4(vec3(visible), 1.0);
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let idx = min(floor(in.uv.x * u.u_bands), u.u_bands - 1.0);
+  let amp = textureSample(u_spectrum, defaultSampler, vec2f(idx / u.u_bands, 0.0)).r;
+  let lineY = amp;
+  let dist = in.uv.y - (1.0 - lineY);
+  let visible = step(0.0, dist);
+  return vec4f(vec3f(visible), 1.0);
 }
 `;
 
@@ -99,8 +99,13 @@ node.onStart = () => {
 
   updateBands();
 
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+  pipeline = figment.createRenderPipeline({
+    wgsl: SPECTRUM_WGSL,
+    uniforms: { u_bands: 'float' },
+    textures: ['u_spectrum'],
+    label: 'audioSpectrum',
+  });
+  target = new figment.RenderTarget({ label: 'audioSpectrum' });
 };
 
 function updateBands() {
@@ -115,13 +120,10 @@ function updateBands() {
   currentSpacing = spacingIn.value;
   smoothedAmps = new Array(numBands).fill(0);
 
-  spectrumTex = twgl.createTexture(window.gl, {
-    width: numBands,
-    height: 1,
-    format: window.gl.RGBA,
-    min: window.gl.NEAREST,
-    mag: window.gl.NEAREST,
-  });
+  if (!_spectrumTarget) {
+    _spectrumTarget = new figment.RenderTarget({ label: 'spectrum data' });
+  }
+  _spectrumTarget.setSize(numBands, 1);
 }
 
 async function loadAudio() {
@@ -190,25 +192,20 @@ node.onRender = async () => {
     rgba[i * 4 + 3] = 255;
   }
 
-  twgl.setTextureFromArray(window.gl, spectrumTex, rgba, {
-    width: bandsIn.value,
-    height: 1,
-    format: window.gl.RGBA,
-  });
+  const specImageData = new ImageData(new Uint8ClampedArray(rgba.buffer), bandsIn.value, 1);
+  const specBitmap = await createImageBitmap(specImageData);
+  _spectrumTarget.uploadExternal(specBitmap);
+  specBitmap.close();
 
-  framebuffer.setSize(512, 256);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_spectrum: spectrumTex,
-    u_bands: bandsIn.value,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  target.setSize(512, 256);
+  figment.drawFullscreen(pipeline, { u_bands: bandsIn.value }, { u_spectrum: _spectrumTarget }, target);
+  imageOut.set(target);
 };
 
 node.onStop = () => {
   if (audioElement) audioElement.pause();
   if (sourceNode) sourceNode.disconnect();
   if (analyser) analyser.disconnect();
+  target?.destroy();
+  _spectrumTarget?.destroy();
 };

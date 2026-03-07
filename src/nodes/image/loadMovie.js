@@ -23,7 +23,7 @@ const fpsOut = node.numberOut('fps');
 const durationOut = node.numberOut('duration');
 
 // Shared resources
-let framebuffer;
+let target;
 let frameCount = 0;
 let detectedFps = 0;
 let duration = 0;
@@ -78,7 +78,7 @@ function clearCanvasIterator() {
 }
 
 node.onStart = () => {
-  framebuffer = new figment.Framebuffer();
+  target = new figment.RenderTarget({ label: 'loadMovie' });
   shouldLoad = true;
   renderPending = false;
 
@@ -150,7 +150,10 @@ async function loadMovie() {
     duration = await videoTrack.computeDuration();
     firstTimestamp = Math.max(0, videoTrack.getFirstTimestamp());
 
-    framebuffer.setSize(videoTrack.displayWidth, videoTrack.displayHeight);
+    if (!target) {
+      target = new figment.RenderTarget({ label: 'loadMovie' });
+    }
+    target.setSize(videoTrack.displayWidth, videoTrack.displayHeight);
 
     // Output metadata
     frameCountOut.set(frameCount);
@@ -278,16 +281,13 @@ function disposeWrappedCanvas(wrappedCanvas) {
 }
 
 function uploadFrameToTexture(wrappedCanvas, videoFrame) {
-  if (!wrappedCanvas || !framebuffer) return;
+  if (!wrappedCanvas || !target) return;
 
   try {
-    // Copy canvas to WebGL texture
-    framebuffer.unbind();
-    window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
-    window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, wrappedCanvas.canvas);
-    window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+    // Copy canvas to WebGPU texture via copyExternalImageToTexture
+    target.uploadExternal(wrappedCanvas.canvas);
 
-    imageOut.set(framebuffer);
+    imageOut.set(target);
     currentFrameOut.set(videoFrame + 1);
     lastRenderedFrame = videoFrame;
     lastRenderedTimestamp = wrappedCanvas.timestamp ?? lastRenderedTimestamp;
@@ -444,7 +444,7 @@ async function ensureFramePrimed() {
       shouldLoad = false;
     }
 
-    if (!framebuffer || frameCount <= 0) return;
+    if (!target || frameCount <= 0) return;
 
     renderPending = true;
     const success = await renderFrame(0);
@@ -465,7 +465,7 @@ async function resetPlayback() {
 }
 
 async function onRenderFast() {
-  if (!video || !framebuffer || !videoReady) return;
+  if (!video || !target || !videoReady) return;
 
   const isPlaying = playIn.value;
   const wasPlaying = lastPlayState;
@@ -498,12 +498,11 @@ async function onRenderFast() {
 
   if (video.paused && !renderOnce) return;
 
-  framebuffer.unbind();
-  window.gl.bindTexture(window.gl.TEXTURE_2D, framebuffer.texture);
-  window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, video);
-  window.gl.bindTexture(window.gl.TEXTURE_2D, null);
-  framebuffer._directImageHack = video;
-  imageOut.set(framebuffer);
+  // video.readyState >= 2 means the video has enough data to display a frame
+  if (video.readyState < 2) return;
+  target.setSize(video.videoWidth || target.width, video.videoHeight || target.height);
+  target.uploadExternal(video);
+  imageOut.set(target);
 
   const safeFps = detectedFps > 0 ? detectedFps : 1;
   const currentFrameNum = Math.floor(video.currentTime * safeFps);
@@ -515,7 +514,7 @@ async function onRenderFast() {
 }
 
 async function onRenderAccurate() {
-  if (!videoTrack || !canvasSink || !framebuffer) return;
+  if (!videoTrack || !canvasSink || !target) return;
 
   // Update playback state based on inputs
   const wasPlaying = playbackState === STATE_PLAYING;
@@ -608,6 +607,9 @@ node.onStop = () => {
 
   // Clean up video element
   disposeVideo();
+
+  // Clean up GPU resources
+  target?.destroy();
 };
 
 async function resetPlaybackBoth() {

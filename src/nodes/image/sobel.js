@@ -4,61 +4,33 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture;
-uniform vec2 u_resolution;
-varying vec2 v_uv;
+const result = figment.createImageFilter(node, {
+  label: 'sobel',
+  uniforms: { u_resolution: 'vec2f' },
+  wgsl: `
+    let uv = in.uv;
+    let w = 1.0 / u.u_resolution.x;
+    let h = 1.0 / u.u_resolution.y;
 
-void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord)
-{
-  float w = 1.0 / u_resolution.x;
-  float h = 1.0 / u_resolution.y;
+    var n: array<vec4f, 9>;
+    n[0] = textureSample(u_input_texture, defaultSampler, uv + vec2f(-w, -h));
+    n[1] = textureSample(u_input_texture, defaultSampler, uv + vec2f(0.0, -h));
+    n[2] = textureSample(u_input_texture, defaultSampler, uv + vec2f( w, -h));
+    n[3] = textureSample(u_input_texture, defaultSampler, uv + vec2f(-w, 0.0));
+    n[4] = textureSample(u_input_texture, defaultSampler, uv);
+    n[5] = textureSample(u_input_texture, defaultSampler, uv + vec2f( w, 0.0));
+    n[6] = textureSample(u_input_texture, defaultSampler, uv + vec2f(-w,  h));
+    n[7] = textureSample(u_input_texture, defaultSampler, uv + vec2f(0.0, h));
+    n[8] = textureSample(u_input_texture, defaultSampler, uv + vec2f( w,  h));
 
-  n[0] = texture2D(tex, coord + vec2( -w, -h));
-  n[1] = texture2D(tex, coord + vec2(0.0, -h));
-  n[2] = texture2D(tex, coord + vec2(  w, -h));
-  n[3] = texture2D(tex, coord + vec2( -w, 0.0));
-  n[4] = texture2D(tex, coord);
-  n[5] = texture2D(tex, coord + vec2(  w, 0.0));
-  n[6] = texture2D(tex, coord + vec2( -w, h));
-  n[7] = texture2D(tex, coord + vec2(0.0, h));
-  n[8] = texture2D(tex, coord + vec2(  w, h));
-}
+    let sobel_edge_h = n[2] + (2.0 * n[5]) + n[8] - (n[0] + (2.0 * n[3]) + n[6]);
+    let sobel_edge_v = n[0] + (2.0 * n[1]) + n[2] - (n[6] + (2.0 * n[7]) + n[8]);
+    let sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
 
-void main() {
-  vec2 uv = v_uv;
-  vec4 n[9];
-  make_kernel(n, u_input_texture, uv.st);
-
-  vec4 sobel_edge_h = n[2] + (2.0*n[5]) + n[8] - (n[0] + (2.0*n[3]) + n[6]);
-  vec4 sobel_edge_v = n[0] + (2.0*n[1]) + n[2] - (n[6] + (2.0*n[7]) + n[8]);
-  vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
-
-  gl_FragColor = vec4(1.0 - sobel.rgb, 1.0);
-}
-
-`;
-
-const imageIn = node.imageIn('in');
-const imageOut = node.imageOut('out');
-
-let program, framebuffer;
-
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
-};
-
-node.onRender = () => {
-  if (!imageIn.value) return;
-  framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture: imageIn.value.texture,
-    u_resolution: [imageIn.value.width, imageIn.value.height],
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
-};
+    return vec4f(1.0 - sobel.rgb, 1.0);
+  `,
+  getUniforms: () => {
+    const img = result.inputPort.value;
+    return { u_resolution: [img.width, img.height] };
+  },
+});

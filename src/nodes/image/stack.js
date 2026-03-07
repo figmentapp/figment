@@ -4,26 +4,27 @@
  * @category image
  */
 
-const fragmentShader = `
-precision mediump float;
-uniform sampler2D u_input_texture_1;
-uniform sampler2D u_input_texture_2;
-uniform float u_direction;
-varying vec2 v_uv;
+const preamble = figment.generateWgslPreamble({
+  uniforms: { u_direction: 'f32' },
+  textures: ['u_input_texture_1', 'u_input_texture_2'],
+});
 
-void main() {
-  vec2 uv = v_uv;
-  if (u_direction == 0.0) {
+const FRAGMENT_WGSL = `${preamble}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  let uv = in.uv;
+  if (u.u_direction == 0.0) {
     if (uv.x < 0.5) {
-      gl_FragColor = texture2D(u_input_texture_1, vec2(uv.x * 2.0, uv.y));
+      return textureSampleLevel(u_input_texture_1, defaultSampler, vec2f(uv.x * 2.0, uv.y), 0.0);
     } else {
-      gl_FragColor = texture2D(u_input_texture_2, vec2(uv.x * 2.0 - 1.0, uv.y));
+      return textureSampleLevel(u_input_texture_2, defaultSampler, vec2f(uv.x * 2.0 - 1.0, uv.y), 0.0);
     }
   } else {
     if (uv.y < 0.5) {
-      gl_FragColor = texture2D(u_input_texture_1, vec2(uv.x, uv.y * 2.0));
+      return textureSampleLevel(u_input_texture_1, defaultSampler, vec2f(uv.x, uv.y * 2.0), 0.0);
     } else {
-      gl_FragColor = texture2D(u_input_texture_2, vec2(uv.x, uv.y * 2.0 - 1.0));
+      return textureSampleLevel(u_input_texture_2, defaultSampler, vec2f(uv.x, uv.y * 2.0 - 1.0), 0.0);
     }
   }
 }
@@ -34,11 +35,16 @@ const imageIn2 = node.imageIn('image 2');
 const directionIn = node.selectIn('Direction', ['Horizontal', 'Vertical']);
 const imageOut = node.imageOut('out');
 
-let program, framebuffer, m;
+let pipeline, target;
 
-node.onStart = (props) => {
-  program = figment.createShaderProgram(fragmentShader);
-  framebuffer = new figment.Framebuffer();
+node.onStart = () => {
+  pipeline = figment.createRenderPipeline({
+    wgsl: FRAGMENT_WGSL,
+    uniforms: { u_direction: 'f32' },
+    textures: ['u_input_texture_1', 'u_input_texture_2'],
+    label: 'stack',
+  });
+  target = new figment.RenderTarget();
 };
 
 node.onRender = () => {
@@ -46,18 +52,15 @@ node.onRender = () => {
   let u_direction;
   if (directionIn.value === 'Horizontal') {
     u_direction = 0.0;
-    framebuffer.setSize(imageIn1.value.width + imageIn2.value.width, imageIn1.value.height);
+    target.setSize(imageIn1.value.width + imageIn2.value.width, imageIn1.value.height);
   } else {
     u_direction = 1.0;
-    framebuffer.setSize(imageIn1.value.width, imageIn1.value.height + imageIn2.value.height);
+    target.setSize(imageIn1.value.width, imageIn1.value.height + imageIn2.value.height);
   }
-  framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(program, {
-    u_input_texture_1: imageIn1.value.texture,
-    u_input_texture_2: imageIn2.value.texture,
-    u_direction,
-  });
-  framebuffer.unbind();
-  imageOut.set(framebuffer);
+  figment.drawFullscreen(pipeline, { u_direction }, { u_input_texture_1: imageIn1.value, u_input_texture_2: imageIn2.value }, target);
+  imageOut.set(target);
+};
+
+node.onStop = () => {
+  target?.destroy();
 };
