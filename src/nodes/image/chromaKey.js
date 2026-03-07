@@ -52,7 +52,7 @@ node.onRender = () => {
   figment.drawFullscreen(
     pipeline,
     {
-      u_keyColor: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
+      u_keyColor: figment.colorToVec3(colorIn.value),
       u_threshold: thresholdIn.value,
     },
     { u_input_texture: imageIn.value },

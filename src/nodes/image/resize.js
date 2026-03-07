@@ -80,7 +80,7 @@ node.onRender = () => {
   figment.drawFullscreen(
     pipeline,
     {
-      u_background_color: [color[0] / 255, color[1] / 255, color[2] / 255, color[3]],
+      u_background_color: figment.colorToVec4(color),
       u_scale: scale,
     },
     { u_input_texture: imageIn.value },

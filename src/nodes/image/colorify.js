@@ -41,12 +41,7 @@ node.onRender = () => {
   if (!imageIn.value) return;
   const color = colorIn.value;
   target.setSize(imageIn.value.width, imageIn.value.height);
-  figment.drawFullscreen(
-    pipeline,
-    { u_color: [color[0] / 255, color[1] / 255, color[2] / 255, color[3]] },
-    { u_input_texture: imageIn.value },
-    target,
-  );
+  figment.drawFullscreen(pipeline, { u_color: figment.colorToVec4(color) }, { u_input_texture: imageIn.value }, target);
   imageOut.set(target);
 };
 

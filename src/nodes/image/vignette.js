@@ -68,7 +68,7 @@ node.onRender = () => {
       u_center: [centerXIn.value, centerYIn.value],
       u_strength: strengthIn.value,
       u_softness: softnessIn.value,
-      u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255],
+      u_color: figment.colorToVec3(colorIn.value),
     },
     { u_input_texture: imageIn.value },
     target,

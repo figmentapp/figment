@@ -47,7 +47,7 @@ node.onRender = () => {
   figment.drawFullscreen(
     pipeline,
     {
-      u_border_color: [borderColor.value[0] / 255, borderColor.value[1] / 255, borderColor.value[2] / 255, borderColor.value[3]],
+      u_border_color: figment.colorToVec4(borderColor.value),
       u_resolution: [imageIn.value.width, imageIn.value.height],
       u_border_size: borderSize.value,
     },

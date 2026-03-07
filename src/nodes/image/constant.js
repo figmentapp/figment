@@ -36,12 +36,7 @@ node.onStart = () => {
 
 node.onRender = () => {
   target.setSize(widthIn.value, heightIn.value);
-  figment.drawFullscreen(
-    pipeline,
-    { u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255, colorIn.value[3]] },
-    {},
-    target,
-  );
+  figment.drawFullscreen(pipeline, { u_color: figment.colorToVec4(colorIn.value) }, {}, target);
   imageOut.set(target);
 };
 

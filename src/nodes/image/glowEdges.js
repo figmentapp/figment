@@ -75,7 +75,7 @@ node.onRender = () => {
     {
       u_resolution: [imageIn.value.width, imageIn.value.height],
       u_stroke: strokeIn.value,
-      u_color: [colorIn.value[0] / 255, colorIn.value[1] / 255, colorIn.value[2] / 255, colorIn.value[3]],
+      u_color: figment.colorToVec4(colorIn.value),
     },
     { u_input_texture: imageIn.value },
     target,
