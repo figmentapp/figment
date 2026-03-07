@@ -82,7 +82,17 @@ export default function MigrationDialog() {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end items-center gap-3 px-8 py-5">
+        <div className="flex justify-between items-center gap-3 px-8 py-5">
+          <span className="text-gray-600">
+            You can also convert online at{' '}
+            <button
+              className="text-gray-500 underline underline-offset-2 hover:text-gray-300 transition-colors cursor-pointer"
+              onClick={() => window.desktop.openExternal('https://migration.figmentapp.com')}
+            >
+              migration.figmentapp.com
+            </button>
+            .
+          </span>
           {phase === 'prompt' && (
             <button
               className="px-5 py-1.5 border border-gray-600 text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors rounded-sm"

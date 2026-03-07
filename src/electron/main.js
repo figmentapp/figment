@@ -1,5 +1,5 @@
 import querystring from 'node:querystring';
-import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut } from 'electron';
+import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut, shell } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
@@ -201,6 +201,7 @@ function sendIpcMessage(channel, ...args) {
 }
 
 ipcMain.handle('addToRecentFiles', (_, filePath) => onTouchProject(filePath));
+ipcMain.handle('openExternal', (_, url) => shell.openExternal(url));
 
 ipcMain.handle('oscSendMessage', (_, { ip, port, address, args }) => {
   oscSendMessage(ip, port, address, args);
