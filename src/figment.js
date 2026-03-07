@@ -253,7 +253,12 @@ export class RenderTarget {
 
   uploadExternal(source) {
     if (!this.texture) throw new Error('RenderTarget not initialized — call setSize() first');
+    performance.mark('gpu-upload-start');
     _queue.copyExternalImageToTexture({ source }, { texture: this.texture }, [this.width, this.height]);
+    performance.mark('gpu-upload-end');
+    try {
+      performance.measure('gpu-upload:' + this._label, 'gpu-upload-start', 'gpu-upload-end');
+    } catch (_) {}
   }
 
   async readPixels() {
@@ -491,6 +496,7 @@ export function createComputePipeline({ wgsl, uniforms = {}, textures = [], stor
 
 export function drawFullscreen(pipelineInfo, uniformValues, textureValues, target, options = {}) {
   if (!_device || !target || !target.view) return;
+  performance.mark('gpu-draw-start-' + pipelineInfo.label);
 
   const { sampler: overrideSampler, clearColor } = options;
   const activeSampler = overrideSampler || pipelineInfo.defaultSampler;
@@ -553,6 +559,10 @@ export function drawFullscreen(pipelineInfo, uniformValues, textureValues, targe
 
   _queue.submit([encoder.finish()]);
   uniformBuffer.destroy();
+  performance.mark('gpu-draw-end-' + pipelineInfo.label);
+  try {
+    performance.measure('gpu-draw:' + pipelineInfo.label, 'gpu-draw-start-' + pipelineInfo.label, 'gpu-draw-end-' + pipelineInfo.label);
+  } catch (_) {}
 }
 
 export function dispatch(pipelineInfo, uniformValues, resources, workgroups) {
@@ -616,6 +626,7 @@ export function beginRenderPass(encoder, target, options = {}) {
 // ─── Readback ───────────────────────────────────────────────────────────────
 
 export async function readbackTexture(target) {
+  performance.mark('gpu-readback-start');
   const { texture, width, height } = target;
   const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
   const bufferSize = bytesPerRow * height;
@@ -641,6 +652,10 @@ export async function readbackTexture(target) {
 
   stagingBuffer.unmap();
   stagingBuffer.destroy();
+  performance.mark('gpu-readback-end');
+  try {
+    performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
+  } catch (_) {}
   return imageData;
 }
 
