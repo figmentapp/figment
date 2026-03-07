@@ -4,6 +4,7 @@ import Network, { getDefaultNetwork } from '../model/Network';
 import { Point } from '../g';
 import { upgradeProject } from '../file-format';
 import { PORT_TYPE_IMAGE } from '../model/Port';
+import { findWebGLTypes, submitMigration, startPolling, fetchResult } from '../migration';
 
 // Centralized app UI state using Zustand
 const initialLibrary = new Library();
@@ -38,6 +39,7 @@ export const useAppStore = create((set, get) => ({
   midiMessageMap: new Map(),
   midiProgramChangeMap: new Map(),
   midiDevices: [],
+  migration: null, // { phase, webglTypeCount, nodeCount, nodesCompleted, error, _pendingProject, _pendingFilePath, _stopPolling }
 
   // Generic setter helper
   set: (partial) => set(partial),
@@ -135,7 +137,6 @@ export const useAppStore = create((set, get) => ({
     await get().openFile(filePath);
   },
   async openFile(filePath) {
-    const s = get();
     get().closeProject();
     set({ isPlaying: false });
     const contents = await window.desktop.readProjectFile(filePath);
@@ -146,15 +147,99 @@ export const useAppStore = create((set, get) => ({
       alert(
         `This file is created with a newer version of Figment. Please download the latest version at figmentapp.com. (${error.message})`,
       );
+      return;
     }
+
+    // Check for custom types that still have WebGL code
+    const webglTypes = findWebGLTypes(project);
+    if (webglTypes.length > 0) {
+      set({
+        migration: {
+          phase: 'prompt',
+          webglTypeCount: webglTypes.length,
+          nodeCount: 0,
+          nodesCompleted: 0,
+          error: null,
+          _pendingProject: project,
+          _pendingFilePath: filePath,
+          _stopPolling: null,
+        },
+      });
+      return;
+    }
+
+    get()._finishOpenFile(project, filePath);
+  },
+
+  async _finishOpenFile(project, filePath) {
+    const s = get();
     const net = new Network(s.library);
-    set({ filePath, network: net, selection: new Set() });
+    set({ filePath, network: net, selection: new Set(), migration: null });
     net.parse(project);
     await net.start();
     net.doFrame();
     get().setFilePath(filePath);
     get().start();
     window.desktop.addToRecentFiles(filePath);
+  },
+
+  async startMigration() {
+    const { migration } = get();
+    if (!migration) return;
+    const project = migration._pendingProject;
+
+    set({ migration: { ...migration, phase: 'submitting', error: null } });
+
+    try {
+      const { id, nodeCount } = await submitMigration(project);
+      const m = get().migration;
+      if (!m) return; // cancelled
+
+      set({ migration: { ...m, phase: 'polling', nodeCount: nodeCount || m.webglTypeCount, nodesCompleted: 0 } });
+
+      const stopPolling = startPolling(id, async (status) => {
+        const cur = get().migration;
+        if (!cur) return;
+
+        if (status.status === 'completed' || status.status === 'partial') {
+          try {
+            const result = await fetchResult(id);
+            set({ migration: { ...get().migration, phase: 'done', nodesCompleted: status.nodesCompleted || cur.nodeCount } });
+            // Short pause so the user sees "done", then finish opening
+            setTimeout(() => {
+              get()._finishOpenFile(result, cur._pendingFilePath);
+            }, 800);
+          } catch (err) {
+            set({ migration: { ...get().migration, phase: 'error', error: err.message } });
+          }
+        } else if (status.status === 'failed') {
+          set({ migration: { ...cur, phase: 'error', error: status.errors?.[0] || 'Conversion failed on the server.' } });
+        } else if (status.status === 'error') {
+          set({ migration: { ...cur, phase: 'error', error: status.error } });
+        } else {
+          // still processing
+          set({ migration: { ...cur, nodesCompleted: status.nodesCompleted || 0 } });
+        }
+      });
+
+      set({ migration: { ...get().migration, _stopPolling: stopPolling } });
+    } catch (err) {
+      const m = get().migration;
+      if (m) {
+        set({ migration: { ...m, phase: 'error', error: err.message } });
+      }
+    }
+  },
+
+  cancelMigration(openAnyway = false) {
+    const { migration } = get();
+    if (!migration) return;
+    if (migration._stopPolling) migration._stopPolling();
+    if (openAnyway && migration._pendingProject) {
+      get()._finishOpenFile(migration._pendingProject, migration._pendingFilePath);
+    } else {
+      set({ migration: null });
+    }
   },
   closeProject() {
     const { network } = get();

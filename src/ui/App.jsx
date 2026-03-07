@@ -9,6 +9,7 @@ import Splitter from './Splitter';
 import ForkDialog from './ForkDialog';
 import NodeRenameDialog from './NodeRenameDialog';
 import RenderDialog from './RenderDialog';
+import MigrationDialog from './MigrationDialog';
 import ProjectSettingsDialog from './ProjectSettingsDialog';
 import { initExpressionContext } from '../expr';
 import { useAppStore } from './store';
@@ -28,6 +29,7 @@ export default function App(props) {
   const showRenderDialog = useAppStore((state) => state.showRenderDialog);
   const showProjectSettingsDialog = useAppStore((state) => state.showProjectSettingsDialog);
   const showNodeRenameDialog = useAppStore((state) => state.showNodeRenameDialog);
+  const migration = useAppStore((state) => state.migration);
 
   // Actions
   const startNetwork = useAppStore((state) => state.startNetwork);
@@ -207,6 +209,7 @@ export default function App(props) {
       {showNodeRenameDialog && <NodeRenameDialog />}
       {showRenderDialog && <RenderDialog />}
       {showProjectSettingsDialog && <ProjectSettingsDialog />}
+      {migration && <MigrationDialog />}
     </>
   );
 }
