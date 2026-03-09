@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { camelCase } from 'lodash';
+function camelCase(str) {
+  return str.replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase()).replace(/^[A-Z]/, (c) => c.toLowerCase());
+}
 import { useAppStore } from './store';
 
 export default function ForkDialog() {

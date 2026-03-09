@@ -23,7 +23,7 @@
   "dependencies": {
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
-
+    "@uiw/react-color-chrome": "^2.9.6",
     "chroma-js": "^3.1.2",
     "clsx": "^2.1.0",
     "codemirror": "^5.65.19",
@@ -32,19 +32,15 @@
     "jazz-midi-electron": "^2.0.3",
     "jexl": "^2.3.0",
     "jzz": "^1.9.4",
-    "lodash": "4.17.21",
     "mediabunny": "^1.23.0",
     "minimist": "1.2.8",
     "node-osc": "^11.0.0",
     "onnxruntime-web": "^1.23.0",
     "react": "^19.1.0",
-    "react-color": "2.19.3",
     "react-dom": "^19.1.0",
     "seedrandom": "3.0.5",
     "stats.js": "^0.17.0",
-
     "tween-functions": "1.2.0",
-
     "zustand": "^5.0.8"
   },
   "devDependencies": {

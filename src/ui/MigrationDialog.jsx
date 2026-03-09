@@ -71,10 +71,7 @@ export default function MigrationDialog() {
             <>
               <p className="text-gray-200 font-bold mb-3">Converting…</p>
               <div className="w-full h-3 border border-gray-700 rounded-sm overflow-hidden">
-                <div
-                  className="h-full bg-gray-500 transition-all duration-700 ease-out"
-                  style={{ width: `${barPct.toFixed(1)}%` }}
-                />
+                <div className="h-full bg-gray-500 transition-all duration-700 ease-out" style={{ width: `${barPct.toFixed(1)}%` }} />
               </div>
               {nodeCount > 0 && (
                 <p className="text-gray-600 mt-2">

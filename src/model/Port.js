@@ -1,4 +1,9 @@
-import { startCase } from 'lodash';
+function startCase(str) {
+  return str
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 import { evalExpression } from '../expr';
 
 export const PORT_TYPE_TRIGGER = 'trigger';

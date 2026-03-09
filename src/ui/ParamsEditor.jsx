@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import chroma from 'chroma-js';
 import InlineEditor from './InlineEditor';
-import { ChromePicker } from 'react-color';
+import Chrome from '@uiw/react-color-chrome';
+import { rgbaToHsva, hsvaToRgba } from '@uiw/color-convert';
 import { Point } from '../g';
 import Icon from './Icon';
 import * as figment from '../figment';
-import { throttle } from 'lodash';
 import { useAppStore } from './store';
 
 import {
@@ -210,7 +210,25 @@ function ExpressionParam({ port, label, expression, onChange }) {
 }
 
 function StringParam({ port, label, value, disabled, onChange }) {
-  const throttledOnChange = useRef(throttle(onChange, 200)).current;
+  const throttledOnChange = useRef(null);
+  if (!throttledOnChange.current) {
+    let lastCall = 0;
+    let timer = null;
+    throttledOnChange.current = (...args) => {
+      const now = Date.now();
+      const remaining = 200 - (now - lastCall);
+      clearTimeout(timer);
+      if (remaining <= 0) {
+        lastCall = now;
+        onChange(...args);
+      } else {
+        timer = setTimeout(() => {
+          lastCall = Date.now();
+          onChange(...args);
+        }, remaining);
+      }
+    };
+  }
 
   const handleShowMenu = (e) => {
     e.preventDefault();
@@ -221,7 +239,7 @@ function StringParam({ port, label, value, disabled, onChange }) {
   return (
     <>
       <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
-      <InlineEditor value={value} onChange={throttledOnChange} />
+      <InlineEditor value={value} onChange={throttledOnChange.current} />
       <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
     </>
   );
@@ -282,7 +300,7 @@ function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
   };
 
   const handleChange = (color) => {
-    const { r, g, b, a } = color.rgb;
+    const { r, g, b, a } = hsvaToRgba(color.hsva);
     onChange([r, g, b, a]);
   };
 
@@ -294,7 +312,7 @@ function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
 
   const rgbaValue = chroma(value).rgba();
   const [r, g, b, a] = value;
-  const pickerValue = { r, g, b, a };
+  const pickerValue = rgbaToHsva({ r, g, b, a });
   const popover = {
     position: 'absolute',
     zIndex: '2',
@@ -321,7 +339,7 @@ function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
       {pickerVisible && (
         <div style={popover}>
           <div style={cover} onClick={handleToggleColorPicker} />
-          <ChromePicker color={pickerValue} onChange={handleChange} />
+          <Chrome color={pickerValue} showTriangle={false} onChange={handleChange} />
         </div>
       )}
     </>
