@@ -144,8 +144,10 @@ async function loadModel() {
   const modelUrl = figment.urlForAsset(modelFileIn.value);
   try {
     ort.env.webgpu.powerPreference = 'high-performance';
+    ort.env.webgpu.adapter = figment.getAdapter();
+    ort.env.webgpu.device = figment.getDevice();
     session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['webgpu'] });
-    device = ort.env.webgpu.device;
+    device = figment.getDevice();
 
     // Create GPU buffers
     const RGBA_SIZE = 4 * 512 * 512;

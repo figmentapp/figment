@@ -9,6 +9,10 @@ let _adapter = null;
 let _gpuStatus = 'uninitialized'; // 'uninitialized' | 'ready' | 'lost' | 'error' | 'unavailable'
 let _deviceLostCallbacks = [];
 
+export function getAdapter() {
+  return _adapter;
+}
+
 export function getDevice() {
   return _device;
 }
@@ -56,9 +60,22 @@ export async function initGPU(options = {}) {
 
     const supportedFeatures = requiredFeatures.filter((f) => _adapter.features.has(f));
 
+    // Request adapter-max compute limits so that libraries like ONNX Runtime
+    // can reuse this device without hitting limit validation errors.
+    const adapterMaxLimits = {
+      maxComputeWorkgroupStorageSize: _adapter.limits.maxComputeWorkgroupStorageSize,
+      maxComputeWorkgroupsPerDimension: _adapter.limits.maxComputeWorkgroupsPerDimension,
+      maxStorageBufferBindingSize: _adapter.limits.maxStorageBufferBindingSize,
+      maxBufferSize: _adapter.limits.maxBufferSize,
+      maxComputeInvocationsPerWorkgroup: _adapter.limits.maxComputeInvocationsPerWorkgroup,
+      maxComputeWorkgroupSizeX: _adapter.limits.maxComputeWorkgroupSizeX,
+      maxComputeWorkgroupSizeY: _adapter.limits.maxComputeWorkgroupSizeY,
+      maxComputeWorkgroupSizeZ: _adapter.limits.maxComputeWorkgroupSizeZ,
+    };
+
     _device = await _adapter.requestDevice({
       requiredFeatures: supportedFeatures,
-      requiredLimits,
+      requiredLimits: { ...adapterMaxLimits, ...requiredLimits },
     });
 
     _queue = _device.queue;
