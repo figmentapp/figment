@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from './store';
 
 export default function MigrationDialog() {
@@ -6,14 +6,32 @@ export default function MigrationDialog() {
   const startMigration = useAppStore((s) => s.startMigration);
   const cancelMigration = useAppStore((s) => s.cancelMigration);
 
+  const isConverting = migration && (migration.phase === 'submitting' || migration.phase === 'polling');
+  const [animPct, setAnimPct] = useState(0);
+  const startTimeRef = useRef(null);
+
+  useEffect(() => {
+    if (!isConverting) {
+      setAnimPct(0);
+      startTimeRef.current = null;
+      return;
+    }
+    startTimeRef.current = Date.now();
+    const handle = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      setAnimPct(90 * (1 - Math.exp(-elapsed / 15000)));
+    }, 100);
+    return () => clearInterval(handle);
+  }, [isConverting]);
+
   if (!migration) return null;
 
   const { phase, webglTypeCount, nodeCount, nodesCompleted, error } = migration;
 
-  const isConverting = phase === 'submitting' || phase === 'polling';
   const isDone = phase === 'done';
   const isFailed = phase === 'error';
-  const progress = nodeCount > 0 ? nodesCompleted / nodeCount : 0;
+  const realPct = nodeCount > 0 ? (nodesCompleted / nodeCount) * 100 : 0;
+  const barPct = isDone ? 100 : Math.max(animPct, realPct);
 
   return (
     <div className="dialog-wrapper">
@@ -55,7 +73,7 @@ export default function MigrationDialog() {
               <div className="w-full h-3 border border-gray-700 rounded-sm overflow-hidden">
                 <div
                   className="h-full bg-gray-500 transition-all duration-700 ease-out"
-                  style={{ width: `${Math.max(progress * 100, nodesCompleted === 0 ? 8 : 0)}%` }}
+                  style={{ width: `${barPct.toFixed(1)}%` }}
                 />
               </div>
               {nodeCount > 0 && (
