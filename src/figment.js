@@ -655,37 +655,77 @@ export function clearRenderTarget(target, clearColor = { r: 0, g: 0, b: 0, a: 0 
 
 // ─── Readback ───────────────────────────────────────────────────────────────
 
-export async function readbackTexture(target) {
-  performance.mark('gpu-readback-start');
-  const { texture, width, height } = target;
-  const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
-  const bufferSize = bytesPerRow * height;
+export function createTextureReadback() {
+  let stagingBuffer = null;
+  let scratch = null;
+  let bytesPerRow = 0;
+  let bufferSize = 0;
 
-  const stagingBuffer = _device.createBuffer({
-    size: bufferSize,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    label: 'readback staging',
-  });
+  function ensureCapacity(width, height) {
+    const nextBytesPerRow = Math.ceil((width * 4) / 256) * 256;
+    const nextBufferSize = nextBytesPerRow * height;
+    const nextScratchSize = width * height * 4;
 
-  const encoder = _device.createCommandEncoder({ label: 'readback encoder' });
-  encoder.copyTextureToBuffer({ texture }, { buffer: stagingBuffer, bytesPerRow }, [width, height]);
-  _queue.submit([encoder.finish()]);
+    if (!stagingBuffer || nextBufferSize !== bufferSize) {
+      stagingBuffer?.destroy();
+      stagingBuffer = _device.createBuffer({
+        size: nextBufferSize,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        label: 'readback staging',
+      });
+      bytesPerRow = nextBytesPerRow;
+      bufferSize = nextBufferSize;
+    }
 
-  await stagingBuffer.mapAsync(GPUMapMode.READ);
-  const data = new Uint8Array(stagingBuffer.getMappedRange());
-
-  const imageData = new ImageData(width, height);
-  const rowBytes = width * 4;
-  for (let y = 0; y < height; y++) {
-    imageData.data.set(data.subarray(y * bytesPerRow, y * bytesPerRow + rowBytes), y * rowBytes);
+    if (!scratch || scratch.length !== nextScratchSize) {
+      scratch = new Uint8Array(nextScratchSize);
+    }
   }
 
-  stagingBuffer.unmap();
-  stagingBuffer.destroy();
-  performance.mark('gpu-readback-end');
-  try {
-    performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
-  } catch (_) {}
+  return {
+    async read(target) {
+      performance.mark('gpu-readback-start');
+      const { texture, width, height } = target;
+      ensureCapacity(width, height);
+
+      const encoder = _device.createCommandEncoder({ label: 'readback encoder' });
+      encoder.copyTextureToBuffer({ texture }, { buffer: stagingBuffer, bytesPerRow }, [width, height]);
+      _queue.submit([encoder.finish()]);
+
+      await stagingBuffer.mapAsync(GPUMapMode.READ);
+      const data = new Uint8Array(stagingBuffer.getMappedRange());
+
+      const rowBytes = width * 4;
+      for (let y = 0; y < height; y++) {
+        const srcOffset = y * bytesPerRow;
+        const dstOffset = y * rowBytes;
+        scratch.set(data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+      }
+
+      stagingBuffer.unmap();
+      performance.mark('gpu-readback-end');
+      try {
+        performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
+      } catch (_) {}
+      return scratch;
+    },
+    destroy() {
+      stagingBuffer?.destroy();
+      stagingBuffer = null;
+      scratch = null;
+      bytesPerRow = 0;
+      bufferSize = 0;
+    },
+  };
+}
+
+export async function readbackTexture(target) {
+  const readback = createTextureReadback();
+  const { width, height } = target;
+  const data = await readback.read(target);
+  const imageData = new ImageData(width, height);
+  imageData.data.set(data);
+  readback.destroy();
   return imageData;
 }
 
