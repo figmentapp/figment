@@ -1,6 +1,8 @@
 // WebGPU helpers for Figment. Module-level GPU device singleton.
 // Non-GPU utilities (project paths, debounce, etc.) are also exported from here.
 
+export { buildSaveImagePath, encodeWithCanvasFallback, ensureFallbackCanvas, parseSaveImageTemplate } from './saveImageShared.js';
+
 // ─── GPU State ──────────────────────────────────────────────────────────────
 
 let _device = null;
@@ -23,6 +25,12 @@ export function getGPUStatus() {
 
 export function onDeviceLost(callback) {
   _deviceLostCallbacks.push(callback);
+}
+
+export function _setDeviceForTesting(device, queue) {
+  _device = device;
+  _queue = queue;
+  _gpuStatus = device ? 'ready' : 'uninitialized';
 }
 
 export function validateFeatureSupport(features) {
@@ -233,6 +241,8 @@ export class RenderTarget {
     this.view = null;
     this.width = 0;
     this.height = 0;
+    this._readback = null;
+    this._readbackBusy = false;
   }
 
   setSize(w, h) {
@@ -275,10 +285,39 @@ export class RenderTarget {
   }
 
   async readPixels() {
-    return readbackTexture(this);
+    const { width, height, data } = await this.readPixelsRaw();
+    const imageData = new ImageData(width, height);
+    imageData.data.set(data);
+    return imageData;
+  }
+
+  async readPixelsRaw() {
+    let readback;
+    let temporary = false;
+    if (!this._readbackBusy) {
+      if (!this._readback) this._readback = createTextureReadback();
+      readback = this._readback;
+      this._readbackBusy = true;
+    } else {
+      readback = createTextureReadback();
+      temporary = true;
+    }
+    try {
+      const data = await readback.read(this);
+      return { width: this.width, height: this.height, data };
+    } finally {
+      if (temporary) {
+        readback.destroy();
+      } else {
+        this._readbackBusy = false;
+      }
+    }
   }
 
   _destroy() {
+    this._readback?.destroy();
+    this._readback = null;
+    this._readbackBusy = false;
     if (this.texture) {
       this.texture.destroy();
       this.texture = null;
@@ -734,16 +773,6 @@ export function createTextureReadback() {
       bufferSize = 0;
     },
   };
-}
-
-export async function readbackTexture(target) {
-  const readback = createTextureReadback();
-  const { width, height } = target;
-  const data = await readback.read(target);
-  const imageData = new ImageData(width, height);
-  imageData.data.set(data);
-  readback.destroy();
-  return imageData;
 }
 
 // ─── Placeholder Texture ────────────────────────────────────────────────────
