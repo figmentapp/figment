@@ -98,6 +98,13 @@ export default class Network {
     this._id = 0;
     this.listeners = [];
     this._dag = new DependencyGraph(this);
+    this._workQueue = Promise.resolve();
+  }
+
+  _enqueueWork(work) {
+    const queued = this._workQueue.then(() => work());
+    this._workQueue = queued.catch(() => {});
+    return queued;
   }
 
   _rebuildDependencyGraph() {
@@ -331,7 +338,7 @@ export default class Network {
     this.frame = 1;
   }
 
-  async render() {
+  async _renderPass() {
     setExpressionContext({ $NOW: Date.now(), $TIME: (Date.now() - this.startTime) / 1000, $FRAME: this.frame });
     performance.mark('render-all-start');
     for (const node of this._dag.nodeOrder) {
@@ -344,19 +351,27 @@ export default class Network {
     this.frame++;
   }
 
+  async render() {
+    return await this._enqueueWork(async () => {
+      await this._renderPass();
+    });
+  }
+
   async reset() {
-    const orderedNodes = Array.isArray(this._dag.nodeOrder) && this._dag.nodeOrder.length > 0 ? this._dag.nodeOrder : this.nodes;
-    for (const node of orderedNodes) {
-      if (node && typeof node.onReset === 'function') {
-        try {
-          await node.onReset(node);
-        } catch (e) {
-          console.error(e && e.stack);
+    return await this._enqueueWork(async () => {
+      const orderedNodes = Array.isArray(this._dag.nodeOrder) && this._dag.nodeOrder.length > 0 ? this._dag.nodeOrder : this.nodes;
+      for (const node of orderedNodes) {
+        if (node && typeof node.onReset === 'function') {
+          try {
+            await node.onReset(node);
+          } catch (e) {
+            console.error(e && e.stack);
+          }
         }
       }
-    }
-    this.startTime = Date.now();
-    this.frame = 1;
+      this.startTime = Date.now();
+      this.frame = 1;
+    });
   }
 
   async _startNode(node) {
@@ -441,12 +456,14 @@ export default class Network {
   // }
 
   async doFrame() {
-    for (const node of this.nodes) {
-      if (node.timeDependent) {
-        this.markNodeDirty(node);
+    return await this._enqueueWork(async () => {
+      for (const node of this.nodes) {
+        if (node.timeDependent) {
+          this.markNodeDirty(node);
+        }
       }
-    }
-    await this.render();
+      await this._renderPass();
+    });
   }
 
   setNodeTypeSource(nodeType, source) {
@@ -504,7 +521,7 @@ export default class Network {
     if (port.onTrigger) {
       port.onTrigger();
     }
-    this.doFrame();
+    return this.doFrame();
   }
 
   connect(outPort, inPort) {

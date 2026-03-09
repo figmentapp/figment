@@ -25,6 +25,7 @@ vi.mock('../model/Network', () => ({
       });
       this.render = vi.fn(async () => {});
       this.doFrame = vi.fn(async () => {});
+      this.reset = vi.fn(async () => {});
       this.stop = vi.fn();
       this.serialize = vi.fn(() => ({ version: 6, nodes: [], connections: [], settings: {} }));
       this.findNodeType = vi.fn();
@@ -54,12 +55,17 @@ vi.mock('../migration', () => ({
 function createDesktopMocks() {
   return {
     addToRecentFiles: vi.fn(),
+    getCurrentFrame: vi.fn(() => 1),
+    getExportFps: vi.fn(() => 60),
     getPackagedFile: vi.fn(() => '/tmp/example.fgmt'),
     readProjectFile: vi.fn(),
     saveBufferToFile: vi.fn(),
+    setCurrentFrame: vi.fn(),
     setDocumentEdited: vi.fn(),
+    setExportFps: vi.fn(),
     setFullScreen: vi.fn(),
     setRepresentedFilename: vi.fn(),
+    setRuntimeMode: vi.fn(),
     showOpenProjectDialog: vi.fn(),
     showSaveImageDialog: vi.fn(),
     showSaveProjectDialog: vi.fn(),
@@ -148,5 +154,29 @@ describe('useAppStore', () => {
 
     expect(stopPolling).toHaveBeenCalledTimes(1);
     expect(finishOpenFile).not.toHaveBeenCalled();
+  });
+
+  test('renderSequence pauses live playback during export and restores it afterwards', async () => {
+    const { useAppStore, networkModule } = await loadStore();
+    const network = new networkModule.default();
+    network.started = true;
+
+    useAppStore.setState({ network, isPlaying: true });
+
+    const callbackStates = [];
+    await useAppStore.getState().renderSequence(2, 24, (frame) => {
+      callbackStates.push({ frame, isPlaying: useAppStore.getState().isPlaying });
+      return true;
+    });
+
+    expect(network.reset).toHaveBeenCalledTimes(1);
+    expect(network.doFrame).toHaveBeenCalledTimes(2);
+    expect(window.desktop.setRuntimeMode).toHaveBeenNthCalledWith(1, 'export');
+    expect(window.desktop.setRuntimeMode).toHaveBeenLastCalledWith('live');
+    expect(callbackStates).toEqual([
+      { frame: 1, isPlaying: false },
+      { frame: 2, isPlaying: false },
+    ]);
+    expect(useAppStore.getState().isPlaying).toBe(true);
   });
 });
