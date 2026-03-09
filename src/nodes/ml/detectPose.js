@@ -27,12 +27,30 @@ linesWidthIn.label = 'Line Width';
 let _target, _canvas, _ctx;
 let _drawingUtils;
 let _mpClient = null;
+let _readback = null;
+let _profileSequence = 0;
+
+async function measureAsyncPhase(name, fn) {
+  const id = _profileSequence++;
+  const startMark = `${name}:start:${id}`;
+  const endMark = `${name}:end:${id}`;
+  performance.mark(startMark);
+  try {
+    return await fn();
+  } finally {
+    performance.mark(endMark);
+    try {
+      performance.measure(name, startMark, endMark);
+    } catch (_) {}
+  }
+}
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectPose' });
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
+  _readback = figment.createTextureReadback();
   _mpClient = new figment.MediaPipeWorkerClient('pose', {
     taskFile: `pose_landmarker_${modelIn.value}.task`,
     taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value },
@@ -50,10 +68,10 @@ node.onRender = async () => {
     _target.setSize(width, height);
   }
 
-  const _imageData = await imageIn.value.readPixels();
-  const bitmap = await createImageBitmap(_imageData);
   try {
-    const res = await _mpClient.inferBitmap(bitmap, width, height);
+    const frame = _mpClient.borrowFrame(width, height);
+    await measureAsyncPhase('mediapipe:pose:input-readback', () => _readback.read(imageIn.value, frame));
+    const res = await measureAsyncPhase('mediapipe:pose:infer', () => _mpClient.inferRgba(frame, width, height));
     drawResults({ landmarks: res.landmarks });
   } catch (err) {
     // Likely reinit/termination; skip this frame without erroring the node
@@ -119,5 +137,7 @@ modelIn.onChange = async () => {
 node.onStop = () => {
   if (_mpClient) _mpClient.terminate();
   _mpClient = null;
+  _readback?.destroy();
+  _readback = null;
   _target?.destroy();
 };

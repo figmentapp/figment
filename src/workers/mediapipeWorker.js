@@ -210,7 +210,10 @@ self.onmessage = async (ev) => {
       // All nodes here use runningMode: 'IMAGE'. Use .detect(image).
       const raw = _landmarker.detect(imageData);
       const result = sanitizeResult(_taskKind, raw, width, height);
-      self.postMessage({ type: 'result', id, result }, result.mask ? [result.mask] : undefined);
+      const transfer = [];
+      if (result.mask) transfer.push(result.mask);
+      if (buffer) transfer.push(buffer);
+      self.postMessage({ type: 'result', id, result, buffer }, transfer);
       return;
     }
     if (msg.type === 'frameBitmap') {

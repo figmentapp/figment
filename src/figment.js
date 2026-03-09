@@ -261,6 +261,19 @@ export class RenderTarget {
     } catch (_) {}
   }
 
+  uploadBytes(data, { bytesPerRow = this.width * 4 } = {}) {
+    if (!this.texture) throw new Error('RenderTarget not initialized — call setSize() first');
+    if (this.format !== 'rgba8unorm') {
+      throw new Error(`uploadBytes only supports rgba8unorm targets, got ${this.format}`);
+    }
+    performance.mark('gpu-upload-start');
+    _queue.writeTexture({ texture: this.texture }, data, { bytesPerRow }, [this.width, this.height]);
+    performance.mark('gpu-upload-end');
+    try {
+      performance.measure('gpu-upload:' + this._label, 'gpu-upload-start', 'gpu-upload-end');
+    } catch (_) {}
+  }
+
   async readPixels() {
     return readbackTexture(this);
   }
@@ -683,7 +696,7 @@ export function createTextureReadback() {
   }
 
   return {
-    async read(target) {
+    async read(target, destination = null) {
       performance.mark('gpu-readback-start');
       const { texture, width, height } = target;
       ensureCapacity(width, height);
@@ -696,10 +709,14 @@ export function createTextureReadback() {
       const data = new Uint8Array(stagingBuffer.getMappedRange());
 
       const rowBytes = width * 4;
+      let output = destination;
+      if (!output || output.length !== scratch.length) {
+        output = scratch;
+      }
       for (let y = 0; y < height; y++) {
         const srcOffset = y * bytesPerRow;
         const dstOffset = y * rowBytes;
-        scratch.set(data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+        output.set(data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
       }
 
       stagingBuffer.unmap();
@@ -707,7 +724,7 @@ export function createTextureReadback() {
       try {
         performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
       } catch (_) {}
-      return scratch;
+      return output;
     },
     destroy() {
       stagingBuffer?.destroy();
@@ -1033,6 +1050,7 @@ export class MediaPipeWorkerClient {
     this._reqId = 1;
     this._pending = new Map();
     this._onReadyResolvers = [];
+    this._recycledFrameBuffer = null;
     this._init();
   }
 
@@ -1049,6 +1067,7 @@ export class MediaPipeWorkerClient {
         this._worker.terminate();
       } catch (_) {}
     }
+    this._recycledFrameBuffer = null;
     this._ready = false;
     this._worker = new Worker(new URL('./workers/mediapipeWorker.js', import.meta.url), { type: 'module' });
     this._worker.onmessage = (ev) => {
@@ -1069,6 +1088,9 @@ export class MediaPipeWorkerClient {
         const entry = this._pending.get(msg.id);
         if (entry) {
           this._pending.delete(msg.id);
+          if (msg.buffer instanceof ArrayBuffer) {
+            this._recycledFrameBuffer = msg.buffer;
+          }
           entry.resolve(msg.result);
         }
         return;
@@ -1104,6 +1126,26 @@ export class MediaPipeWorkerClient {
     });
   }
 
+  borrowFrame(width, height) {
+    const byteLength = width * height * 4;
+    if (this._recycledFrameBuffer && this._recycledFrameBuffer.byteLength === byteLength) {
+      const frame = new Uint8ClampedArray(this._recycledFrameBuffer);
+      this._recycledFrameBuffer = null;
+      return frame;
+    }
+    return new Uint8ClampedArray(byteLength);
+  }
+
+  async inferRgba(frame, width, height) {
+    await this.ready();
+    const id = this._reqId++;
+    const promise = new Promise((resolve, reject) => {
+      this._pending.set(id, { resolve, reject });
+    });
+    this._worker.postMessage({ type: 'frame', id, buffer: frame.buffer, width, height }, [frame.buffer]);
+    return promise;
+  }
+
   async inferBitmap(bitmap, width, height) {
     await this.ready();
     const id = this._reqId++;
@@ -1120,6 +1162,7 @@ export class MediaPipeWorkerClient {
     } catch (_) {}
     this._worker = null;
     this._ready = false;
+    this._recycledFrameBuffer = null;
     for (const [, { reject }] of this._pending) reject(new Error('terminated'));
     this._pending.clear();
   }
