@@ -512,15 +512,9 @@ export const useAppStore = create((set, get) => ({
       await network.reset();
       for (let currentFrame = 1; currentFrame <= frameCount; currentFrame++) {
         window.desktop.setCurrentFrame(currentFrame);
-        const startTime = Date.now();
         await network.doFrame();
         const continueRendering = callback(currentFrame);
         if (!continueRendering) break;
-        const endTime = Date.now();
-        const frameTime = endTime - startTime;
-        const frameDuration = 1000 / frameRate;
-        const waitTime = Math.max(0, frameDuration - frameTime);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     } finally {
       window.desktop.setRuntimeMode('live');

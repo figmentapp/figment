@@ -35,7 +35,9 @@ node.onRender = async () => {
 
   const runtimeMode = window.desktop.getRuntimeMode();
   if (runtimeMode === 'export') {
-    _fileIndex = (window.desktop.getCurrentFrame() - 1) % _files.length;
+    const exportFps = window.desktop.getExportFps() || 1;
+    const exportTime = (window.desktop.getCurrentFrame() - 1) / exportFps;
+    _fileIndex = Math.floor(exportTime * frameRateIn.value) % _files.length;
     await loadImage();
   } else {
     const deltaTime = Date.now() - _lastTime;

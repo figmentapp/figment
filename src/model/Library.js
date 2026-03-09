@@ -1,7 +1,7 @@
 export default class Library {
   constructor() {
     // Extract raw sources of every node in src/nodes
-    const modules = import.meta.glob('../nodes/**/*.js', { query: '?raw', eager: true });
+    const modules = import.meta.glob(['../nodes/**/*.js', '!../nodes/**/*.test.js'], { query: '?raw', eager: true });
 
     this.nodeTypes = Object.entries(modules).map(([filePath, source]) => {
       // filePath looks like "../nodes/image/blur.js"
