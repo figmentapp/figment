@@ -27,6 +27,12 @@ export function onDeviceLost(callback) {
   _deviceLostCallbacks.push(callback);
 }
 
+export function _setDeviceForTesting(device, queue) {
+  _device = device;
+  _queue = queue;
+  _gpuStatus = device ? 'ready' : 'uninitialized';
+}
+
 export function validateFeatureSupport(features) {
   if (!_adapter) return { supported: [], unsupported: features };
   const supported = features.filter((f) => _adapter.features.has(f));
@@ -235,7 +241,8 @@ export class RenderTarget {
     this.view = null;
     this.width = 0;
     this.height = 0;
-    this._readbackCache = null;
+    this._readback = null;
+    this._readbackBusy = false;
   }
 
   setSize(w, h) {
@@ -264,17 +271,53 @@ export class RenderTarget {
     } catch (_) {}
   }
 
+  uploadBytes(data, { bytesPerRow = this.width * 4 } = {}) {
+    if (!this.texture) throw new Error('RenderTarget not initialized — call setSize() first');
+    if (this.format !== 'rgba8unorm') {
+      throw new Error(`uploadBytes only supports rgba8unorm targets, got ${this.format}`);
+    }
+    performance.mark('gpu-upload-start');
+    _queue.writeTexture({ texture: this.texture }, data, { bytesPerRow }, [this.width, this.height]);
+    performance.mark('gpu-upload-end');
+    try {
+      performance.measure('gpu-upload:' + this._label, 'gpu-upload-start', 'gpu-upload-end');
+    } catch (_) {}
+  }
+
   async readPixels() {
-    return readbackTexture(this);
+    const { width, height, data } = await this.readPixelsRaw();
+    const imageData = new ImageData(width, height);
+    imageData.data.set(data);
+    return imageData;
   }
 
   async readPixelsRaw() {
-    return readbackTextureRaw(this);
+    let readback;
+    let temporary = false;
+    if (!this._readbackBusy) {
+      if (!this._readback) this._readback = createTextureReadback();
+      readback = this._readback;
+      this._readbackBusy = true;
+    } else {
+      readback = createTextureReadback();
+      temporary = true;
+    }
+    try {
+      const data = await readback.read(this);
+      return { width: this.width, height: this.height, data };
+    } finally {
+      if (temporary) {
+        readback.destroy();
+      } else {
+        this._readbackBusy = false;
+      }
+    }
   }
 
   _destroy() {
-    destroyReadbackCache(this._readbackCache);
-    this._readbackCache = null;
+    this._readback?.destroy();
+    this._readback = null;
+    this._readbackBusy = false;
     if (this.texture) {
       this.texture.destroy();
       this.texture = null;
@@ -664,147 +707,72 @@ export function clearRenderTarget(target, clearColor = { r: 0, g: 0, b: 0, a: 0 
 
 // ─── Readback ───────────────────────────────────────────────────────────────
 
-export async function readbackTexture(target) {
-  performance.mark('gpu-readback-start');
-  const { width, height, data } = await readbackTextureRaw(target);
-  const imageData = new ImageData(width, height);
-  imageData.data.set(data);
-  performance.mark('gpu-readback-end');
-  try {
-    performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
-  } catch (_) {}
-  return imageData;
-}
+export function createTextureReadback() {
+  let stagingBuffer = null;
+  let scratch = null;
+  let bytesPerRow = 0;
+  let bufferSize = 0;
 
-export function computeReadbackLayout(width, height) {
-  const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
-  return {
-    bytesPerRow,
-    bufferSize: bytesPerRow * height,
-  };
-}
+  function ensureCapacity(width, height) {
+    const nextBytesPerRow = Math.ceil((width * 4) / 256) * 256;
+    const nextBufferSize = nextBytesPerRow * height;
+    const nextScratchSize = width * height * 4;
 
-export function copyReadbackBufferToRgba(mappedData, width, height, bytesPerRow, targetBuffer) {
-  const rowBytes = width * 4;
-  if (bytesPerRow === rowBytes) {
-    targetBuffer.set(mappedData.subarray(0, rowBytes * height));
-    return targetBuffer;
-  }
+    if (!stagingBuffer || nextBufferSize !== bufferSize) {
+      stagingBuffer?.destroy();
+      stagingBuffer = _device.createBuffer({
+        size: nextBufferSize,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        label: 'readback staging',
+      });
+      bytesPerRow = nextBytesPerRow;
+      bufferSize = nextBufferSize;
+    }
 
-  for (let y = 0; y < height; y++) {
-    const sourceOffset = y * bytesPerRow;
-    const targetOffset = y * rowBytes;
-    targetBuffer.set(mappedData.subarray(sourceOffset, sourceOffset + rowBytes), targetOffset);
-  }
-
-  return targetBuffer;
-}
-
-export function destroyReadbackCache(cache) {
-  if (!cache) return;
-  if (cache.stagingBuffer && typeof cache.stagingBuffer.destroy === 'function') {
-    cache.stagingBuffer.destroy();
-  }
-  cache.stagingBuffer = null;
-  cache.rgbaBuffer = null;
-  cache.busy = false;
-}
-
-export function ensureReadbackCache(target, createBuffer) {
-  const { width, height } = target;
-  const { bytesPerRow, bufferSize } = computeReadbackLayout(width, height);
-  const cache = target._readbackCache;
-
-  if (
-    cache &&
-    cache.width === width &&
-    cache.height === height &&
-    cache.bytesPerRow === bytesPerRow &&
-    cache.bufferSize === bufferSize &&
-    cache.stagingBuffer &&
-    cache.rgbaBuffer
-  ) {
-    return cache;
-  }
-
-  destroyReadbackCache(cache);
-
-  const nextCache = {
-    width,
-    height,
-    bytesPerRow,
-    bufferSize,
-    stagingBuffer: createBuffer(bufferSize),
-    rgbaBuffer: new Uint8Array(width * height * 4),
-    busy: false,
-  };
-  target._readbackCache = nextCache;
-  return nextCache;
-}
-
-export function acquireReadbackSlot(target, createBuffer) {
-  const cache = ensureReadbackCache(target, createBuffer);
-  if (!cache.busy) {
-    cache.busy = true;
-    return {
-      cache,
-      stagingBuffer: cache.stagingBuffer,
-      rgbaBuffer: cache.rgbaBuffer,
-      bytesPerRow: cache.bytesPerRow,
-      temporary: false,
-    };
+    if (!scratch || scratch.length !== nextScratchSize) {
+      scratch = new Uint8Array(nextScratchSize);
+    }
   }
 
   return {
-    cache: null,
-    stagingBuffer: createBuffer(cache.bufferSize),
-    rgbaBuffer: new Uint8Array(target.width * target.height * 4),
-    bytesPerRow: cache.bytesPerRow,
-    temporary: true,
+    async read(target, destination = null) {
+      performance.mark('gpu-readback-start');
+      const { texture, width, height } = target;
+      ensureCapacity(width, height);
+
+      const encoder = _device.createCommandEncoder({ label: 'readback encoder' });
+      encoder.copyTextureToBuffer({ texture }, { buffer: stagingBuffer, bytesPerRow }, [width, height]);
+      _queue.submit([encoder.finish()]);
+
+      await stagingBuffer.mapAsync(GPUMapMode.READ);
+      const data = new Uint8Array(stagingBuffer.getMappedRange());
+
+      const rowBytes = width * 4;
+      let output = destination;
+      if (!output || output.length !== scratch.length) {
+        output = scratch;
+      }
+      for (let y = 0; y < height; y++) {
+        const srcOffset = y * bytesPerRow;
+        const dstOffset = y * rowBytes;
+        output.set(data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+      }
+
+      stagingBuffer.unmap();
+      performance.mark('gpu-readback-end');
+      try {
+        performance.measure('gpu-readback', 'gpu-readback-start', 'gpu-readback-end');
+      } catch (_) {}
+      return output;
+    },
+    destroy() {
+      stagingBuffer?.destroy();
+      stagingBuffer = null;
+      scratch = null;
+      bytesPerRow = 0;
+      bufferSize = 0;
+    },
   };
-}
-
-export function releaseReadbackSlot(slot) {
-  if (!slot) return;
-  if (slot.temporary) {
-    if (slot.stagingBuffer && typeof slot.stagingBuffer.destroy === 'function') {
-      slot.stagingBuffer.destroy();
-    }
-    return;
-  }
-  if (slot.cache) {
-    slot.cache.busy = false;
-  }
-}
-
-export async function readbackTextureRaw(target) {
-  const { texture, width, height } = target;
-  const slot = acquireReadbackSlot(target, (bufferSize) =>
-    _device.createBuffer({
-      size: bufferSize,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      label: 'readback staging',
-    }),
-  );
-
-  let mapped = false;
-  try {
-    const encoder = _device.createCommandEncoder({ label: 'readback encoder' });
-    encoder.copyTextureToBuffer({ texture }, { buffer: slot.stagingBuffer, bytesPerRow: slot.bytesPerRow }, [width, height]);
-    _queue.submit([encoder.finish()]);
-
-    await slot.stagingBuffer.mapAsync(GPUMapMode.READ);
-    mapped = true;
-    const mappedData = new Uint8Array(slot.stagingBuffer.getMappedRange());
-    copyReadbackBufferToRgba(mappedData, width, height, slot.bytesPerRow, slot.rgbaBuffer);
-
-    return { width, height, data: slot.rgbaBuffer };
-  } finally {
-    if (mapped) {
-      slot.stagingBuffer.unmap();
-    }
-    releaseReadbackSlot(slot);
-  }
 }
 
 // ─── Placeholder Texture ────────────────────────────────────────────────────
@@ -1111,6 +1079,7 @@ export class MediaPipeWorkerClient {
     this._reqId = 1;
     this._pending = new Map();
     this._onReadyResolvers = [];
+    this._recycledFrameBuffer = null;
     this._init();
   }
 
@@ -1127,6 +1096,7 @@ export class MediaPipeWorkerClient {
         this._worker.terminate();
       } catch (_) {}
     }
+    this._recycledFrameBuffer = null;
     this._ready = false;
     this._worker = new Worker(new URL('./workers/mediapipeWorker.js', import.meta.url), { type: 'module' });
     this._worker.onmessage = (ev) => {
@@ -1147,6 +1117,9 @@ export class MediaPipeWorkerClient {
         const entry = this._pending.get(msg.id);
         if (entry) {
           this._pending.delete(msg.id);
+          if (msg.buffer instanceof ArrayBuffer) {
+            this._recycledFrameBuffer = msg.buffer;
+          }
           entry.resolve(msg.result);
         }
         return;
@@ -1182,6 +1155,26 @@ export class MediaPipeWorkerClient {
     });
   }
 
+  borrowFrame(width, height) {
+    const byteLength = width * height * 4;
+    if (this._recycledFrameBuffer && this._recycledFrameBuffer.byteLength === byteLength) {
+      const frame = new Uint8ClampedArray(this._recycledFrameBuffer);
+      this._recycledFrameBuffer = null;
+      return frame;
+    }
+    return new Uint8ClampedArray(byteLength);
+  }
+
+  async inferRgba(frame, width, height) {
+    await this.ready();
+    const id = this._reqId++;
+    const promise = new Promise((resolve, reject) => {
+      this._pending.set(id, { resolve, reject });
+    });
+    this._worker.postMessage({ type: 'frame', id, buffer: frame.buffer, width, height }, [frame.buffer]);
+    return promise;
+  }
+
   async inferBitmap(bitmap, width, height) {
     await this.ready();
     const id = this._reqId++;
@@ -1198,6 +1191,7 @@ export class MediaPipeWorkerClient {
     } catch (_) {}
     this._worker = null;
     this._ready = false;
+    this._recycledFrameBuffer = null;
     for (const [, { reject }] of this._pending) reject(new Error('terminated'));
     this._pending.clear();
   }

@@ -38,9 +38,42 @@ const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
 const maskOut = node.imageOut('mask');
 
-let _resultTarget, _maskDisplayTarget, _maskTarget;
+let _resultTarget, _maskTarget;
 let _pipelineInfo;
 let _mpClient = null;
+let _readback = null;
+let _maskRgbaBuffer = null;
+let _profileSequence = 0;
+
+async function measureAsyncPhase(name, fn) {
+  const id = _profileSequence++;
+  const startMark = `${name}:start:${id}`;
+  const endMark = `${name}:end:${id}`;
+  performance.mark(startMark);
+  try {
+    return await fn();
+  } finally {
+    performance.mark(endMark);
+    try {
+      performance.measure(name, startMark, endMark);
+    } catch (_) {}
+  }
+}
+
+function measurePhase(name, fn) {
+  const id = _profileSequence++;
+  const startMark = `${name}:start:${id}`;
+  const endMark = `${name}:end:${id}`;
+  performance.mark(startMark);
+  try {
+    return fn();
+  } finally {
+    performance.mark(endMark);
+    try {
+      performance.measure(name, startMark, endMark);
+    } catch (_) {}
+  }
+}
 
 node.onStart = async () => {
   _pipelineInfo = figment.createRenderPipeline({
@@ -50,8 +83,8 @@ node.onStart = async () => {
     label: 'segmentPose',
   });
   _resultTarget = new figment.RenderTarget({ label: 'segmentPose-result' });
-  _maskDisplayTarget = new figment.RenderTarget({ label: 'segmentPose-maskDisplay' });
   _maskTarget = new figment.RenderTarget({ label: 'segmentPose-mask' });
+  _readback = figment.createTextureReadback();
   _mpClient = new figment.MediaPipeWorkerClient('segmentPose', {
     taskFile: `pose_landmarker_${modelIn.value}.task`,
     taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
@@ -64,12 +97,10 @@ node.onRender = async () => {
   const height = imageIn.value.height;
 
   _resultTarget.setSize(width, height);
-  _maskDisplayTarget.setSize(width, height);
-
-  const _imageData = await imageIn.value.readPixels();
-  const bitmap = await createImageBitmap(_imageData);
   try {
-    const res = await _mpClient.inferBitmap(bitmap, width, height);
+    const frame = _mpClient.borrowFrame(width, height);
+    await measureAsyncPhase('mediapipe:segmentPose:input-readback', () => _readback.read(imageIn.value, frame));
+    const res = await measureAsyncPhase('mediapipe:segmentPose:infer', () => _mpClient.inferRgba(frame, width, height));
     await drawWorkerResult(res);
   } catch (_) {
     // reinit/terminate during rapid param changes; ignore frame
@@ -96,25 +127,25 @@ async function drawWorkerResult(result) {
 
     if (result.mask) {
       const maskData = new Uint8Array(result.mask);
-      const rgbaData = new Uint8ClampedArray(width * height * 4);
+      const maskByteLength = width * height * 4;
+      if (!_maskRgbaBuffer || _maskRgbaBuffer.length !== maskByteLength) {
+        _maskRgbaBuffer = new Uint8ClampedArray(maskByteLength);
+      }
+
       for (let i = 0; i < maskData.length; i++) {
         const p = i * 4;
         const v = maskData[i];
-        rgbaData[p] = v;
-        rgbaData[p + 1] = v;
-        rgbaData[p + 2] = v;
-        rgbaData[p + 3] = 255;
+        _maskRgbaBuffer[p] = v;
+        _maskRgbaBuffer[p + 1] = v;
+        _maskRgbaBuffer[p + 2] = v;
+        _maskRgbaBuffer[p + 3] = 255;
       }
 
-      const maskImageData = new ImageData(rgbaData, width, height);
-      const maskBitmap = await createImageBitmap(maskImageData);
-
       _maskTarget.setSize(width, height);
-      _maskTarget.uploadExternal(maskBitmap);
-
-      _maskDisplayTarget.setSize(width, height);
-      _maskDisplayTarget.uploadExternal(maskBitmap);
-      maskOut.set(_maskDisplayTarget);
+      measurePhase('mediapipe:segmentPose:mask-upload', () => {
+        _maskTarget.uploadBytes(_maskRgbaBuffer, { bytesPerRow: width * 4 });
+      });
+      maskOut.set(_maskTarget);
 
       _resultTarget.setSize(width, height);
       figment.drawFullscreen(
@@ -155,7 +186,9 @@ modelIn.onChange = async () => {
 node.onStop = () => {
   if (_mpClient) _mpClient.terminate();
   _mpClient = null;
+  _readback?.destroy();
+  _readback = null;
+  _maskRgbaBuffer = null;
   if (_resultTarget) _resultTarget.destroy();
-  if (_maskDisplayTarget) _maskDisplayTarget.destroy();
   if (_maskTarget) _maskTarget.destroy();
 };
