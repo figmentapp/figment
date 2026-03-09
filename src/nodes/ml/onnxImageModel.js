@@ -12,6 +12,7 @@ let oldModelFile,
   device,
   target,
   inputReadback,
+  inputReadbackBytes,
   isRunning = false;
 const IMAGE_WIDTH = 512;
 const IMAGE_HEIGHT = 512;
@@ -179,12 +180,14 @@ node.onStart = async () => {
   target = new figment.RenderTarget({ label: 'onnxImageModel' });
   target.setSize(IMAGE_WIDTH, IMAGE_HEIGHT);
   inputReadback = figment.createTextureReadback();
+  inputReadbackBytes = new Uint8Array(RGBA_SIZE);
 };
 
 node.onStop = () => {
   destroyGpuResources();
   inputReadback?.destroy();
   inputReadback = null;
+  inputReadbackBytes = null;
   if (session) {
     void session.release();
     session = null;
@@ -316,7 +319,7 @@ node.onRender = async () => {
   isRunning = true;
 
   try {
-    const inputBytes = await measureAsyncPhase('input-readback', () => inputReadback.read(imageIn.value));
+    const inputBytes = await measureAsyncPhase('input-readback', () => inputReadback.read(imageIn.value, inputReadbackBytes));
 
     measurePhase('input-upload', () => {
       device.queue.writeBuffer(rgbaBuffer, 0, inputBytes);
