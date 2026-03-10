@@ -6,6 +6,25 @@ layout: ../layouts/ContentLayout.astro
 
 # Release Notes
 
+## Version 0.7.1 (2026-03-10)
+
+- ONNX Image Model now reads image dimensions from the model instead of assuming 512×512.
+- ONNX inference is now non-blocking, keeping the UI responsive during model processing.
+- Async ONNX errors now surface to the node error display.
+- Export performance improved: image encoding runs in a parallel Web Worker with frame overlap.
+- Fixed export not looping shorter videos in Load Movie node.
+- Fixed export readback reentrancy issue.
+- Optimized GPU data path for ONNX and MediaPipe nodes.
+- Migration dialog now offers Close/Open Anyway options and saves converted files with a `_converted` suffix.
+- Replaced react-color and lodash with lighter alternatives, reducing bundle size.
+- Fixed port validation and connection bugs.
+
+## Version 0.7.0 (2026-03-07)
+
+- Figment now uses WebGPU for all nodes, giving a significant performance boost.
+- Existing projects will be automatically migrated to the new file format through an online AI-driven converter.
+- You can also convert manually using <https://migration.figmentapp.com>.
+
 ## Version 0.6.3 (2025-12-11)
 
 - Load movie now has a "quality" setting. "fast" videos play well but are not frame-perfect. "Accurate" use MediaBunny and are frame-perfect.
