@@ -13,6 +13,7 @@ const imageQualityIn = node.numberIn('quality', 0.9, { min: 0.0, max: 1.0, step:
 const imageOut = node.imageOut('out');
 
 let _pendingSave = null;
+const _encoder = figment.createImageEncoder();
 
 const state = {
   folder: null,
@@ -77,31 +78,28 @@ node.onRender = async () => {
   // Copy pixel data since the readback buffer is reused
   const pixelsCopy = new Uint8Array(rawPixels.data);
 
-  _pendingSave = (async () => {
-    try {
-      const didSave = await window.desktop.encodeAndSaveImage({
-        rgbaBuffer: pixelsCopy,
-        width: rawPixels.width,
-        height: rawPixels.height,
-        filePath,
-        imageType: parsedTemplate.imageType,
-        imageQuality,
-      });
-      if (didSave) return;
-    } catch (err) {
-      console.warn('Falling back to canvas image encoding:', err);
-    }
-    await figment.encodeWithCanvasFallback({
-      state,
-      rgba: pixelsCopy,
+  _pendingSave = _encoder
+    .encodeAndSave({
+      rgbaBuffer: pixelsCopy,
       width: rawPixels.width,
       height: rawPixels.height,
       filePath,
       imageType: parsedTemplate.imageType,
       imageQuality,
-      saveBufferToFile: window.desktop.saveBufferToFile,
+    })
+    .catch(async (err) => {
+      console.warn('Worker encoding failed, falling back to canvas:', err);
+      await figment.encodeWithCanvasFallback({
+        state,
+        rgba: pixelsCopy,
+        width: rawPixels.width,
+        height: rawPixels.height,
+        filePath,
+        imageType: parsedTemplate.imageType,
+        imageQuality,
+        saveBufferToFile: window.desktop.saveBufferToFile,
+      });
     });
-  })();
 };
 
 node.onBeforeExport = () => {
