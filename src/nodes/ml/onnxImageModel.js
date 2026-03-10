@@ -310,9 +310,13 @@ node.onRender = () => {
   if (oldModelFile !== modelFileIn.value) {
     oldModelFile = modelFileIn.value;
     isRunning = true;
-    loadModel().finally(() => {
-      isRunning = false;
-    });
+    loadModel()
+      .catch((e) => {
+        node.error = e && e.stack ? e.stack : String(e);
+      })
+      .finally(() => {
+        isRunning = false;
+      });
     return;
   }
   if (!session || !imageIn.value) return;
@@ -325,6 +329,8 @@ node.onRender = () => {
 
   // Kick off new inference if not already running
   if (!isRunning) {
-    runInference();
+    runInference().catch((e) => {
+      node.error = e && e.stack ? e.stack : String(e);
+    });
   }
 };
