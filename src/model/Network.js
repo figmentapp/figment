@@ -256,7 +256,7 @@ export default class Network {
         continue;
       }
       const inPort = inNode.inPorts.find((port) => port.name === connObj.inPort);
-      if (!outPort) {
+      if (!inPort) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: input port does not exist.`);
         continue;
       }
