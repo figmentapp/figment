@@ -1,10 +1,8 @@
-import { contextBridge, ipcRenderer, nativeImage } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import url from 'url';
 import { glob } from 'glob';
-import { createNativeImageEncoder } from './imageEncoding.js';
-
 const listeners = {
   menu: null,
   osc: null,
@@ -13,10 +11,6 @@ const listeners = {
   midi: null,
   midiDevices: null,
 };
-const nativeImageEncoder = createNativeImageEncoder({
-  nativeImage,
-  writeFile: fs.writeFile.bind(fs),
-});
 
 const windowParams = new URLSearchParams(document.location.search.substring(1));
 const appPath = windowParams.get('appPath');
@@ -160,10 +154,6 @@ async function saveBufferToFile(buffer, filePath) {
   await fs.writeFile(filePath, Buffer.from(buffer));
 }
 
-async function encodeAndSaveImage({ rgbaBuffer, width, height, filePath, imageType, imageQuality }) {
-  return await nativeImageEncoder.encodeAndSaveImage({ rgbaBuffer, width, height, filePath, imageType, imageQuality });
-}
-
 const pathToFileURL = (filename) => url.pathToFileURL(filename).toString();
 
 ipcRenderer.on('menu', (_, name, args) => {
@@ -283,7 +273,6 @@ contextBridge.exposeInMainWorld('desktop', {
   ensureDirectory,
   globFiles,
   saveBufferToFile,
-  encodeAndSaveImage,
   pathToFileURL,
   registerListener,
   oscSendMessage,

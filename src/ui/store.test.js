@@ -26,6 +26,8 @@ vi.mock('../model/Network', () => ({
       this.render = vi.fn(async () => {});
       this.doFrame = vi.fn(async () => {});
       this.reset = vi.fn(async () => {});
+      this.beginExport = vi.fn(async () => {});
+      this.endExport = vi.fn(async () => {});
       this.stop = vi.fn();
       this.serialize = vi.fn(() => ({ version: 6, nodes: [], connections: [], settings: {} }));
       this.findNodeType = vi.fn();
@@ -156,6 +158,46 @@ describe('useAppStore', () => {
     expect(finishOpenFile).not.toHaveBeenCalled();
   });
 
+  test('renderSequence runs without wall-clock pacing', async () => {
+    vi.useFakeTimers();
+    const { useAppStore, networkModule } = await loadStore();
+    const network = new networkModule.default();
+    network.started = true;
+    useAppStore.setState({ network });
+
+    const frames = [];
+    await useAppStore.getState().renderSequence(5, 30, (frame) => {
+      frames.push(frame);
+      return true;
+    });
+
+    // Completes without advancing timers — no setTimeout pacing
+    expect(frames).toEqual([1, 2, 3, 4, 5]);
+    expect(network.doFrame).toHaveBeenCalledTimes(5);
+    expect(window.desktop.setCurrentFrame).toHaveBeenCalledTimes(5);
+    for (let i = 1; i <= 5; i++) {
+      expect(window.desktop.setCurrentFrame).toHaveBeenNthCalledWith(i, i);
+    }
+    expect(window.desktop.setExportFps).toHaveBeenCalledWith(30);
+    expect(window.desktop.setRuntimeMode).toHaveBeenNthCalledWith(1, 'export');
+    expect(window.desktop.setRuntimeMode).toHaveBeenLastCalledWith('live');
+    expect(network.beginExport).toHaveBeenCalledTimes(1);
+    expect(network.endExport).toHaveBeenCalledTimes(1);
+  });
+
+  test('renderSequence respects callback cancellation', async () => {
+    const { useAppStore, networkModule } = await loadStore();
+    const network = new networkModule.default();
+    network.started = true;
+    useAppStore.setState({ network });
+
+    await useAppStore.getState().renderSequence(10, 24, (frame) => {
+      return frame < 2; // returns false on frame 2
+    });
+
+    expect(network.doFrame).toHaveBeenCalledTimes(2);
+  });
+
   test('renderSequence pauses live playback during export and restores it afterwards', async () => {
     const { useAppStore, networkModule } = await loadStore();
     const network = new networkModule.default();
@@ -178,5 +220,7 @@ describe('useAppStore', () => {
       { frame: 2, isPlaying: false },
     ]);
     expect(useAppStore.getState().isPlaying).toBe(true);
+    expect(network.beginExport).toHaveBeenCalledTimes(1);
+    expect(network.endExport).toHaveBeenCalledTimes(1);
   });
 });

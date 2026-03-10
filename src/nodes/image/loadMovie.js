@@ -247,6 +247,9 @@ function calculateTargetFrame() {
     const exportFrameIndex = Math.max(0, window.desktop.getCurrentFrame() - 1);
     const exportFps = window.desktop.getExportFps() || safeFps;
     const videoFrame = Math.floor((exportFrameIndex / exportFps) * safeFps * effectiveSpeed);
+    if (loopIn.value && frameCount > 0) {
+      return videoFrame % frameCount;
+    }
     return Math.min(videoFrame, frameCount - 1);
   }
 

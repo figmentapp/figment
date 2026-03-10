@@ -12,6 +12,9 @@ const templateIn = node.stringIn('template', 'image-#####.png');
 const imageQualityIn = node.numberIn('quality', 0.9, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
+let _pendingSave = null;
+const _encoder = figment.createImageEncoder();
+
 const state = {
   folder: null,
   baseDir: null,
@@ -65,37 +68,61 @@ node.onRender = async () => {
   const baseDir = await ensureBaseDirectory(folder);
   const currentFrame = window.desktop.getCurrentFrame();
   const filePath = figment.buildSaveImagePath(baseDir, parsedTemplate.template, currentFrame, parsedTemplate.digits);
+  if (_pendingSave) {
+    await _pendingSave;
+    _pendingSave = null;
+  }
+
   const rawPixels = await imageIn.value.readPixelsRaw();
 
-  try {
-    const didSave = await window.desktop.encodeAndSaveImage({
-      rgbaBuffer: rawPixels.data,
+  // Copy pixel data since the readback buffer is reused
+  const pixelsCopy = new Uint8Array(rawPixels.data);
+
+  _pendingSave = _encoder
+    .encodeAndSave({
+      rgbaBuffer: pixelsCopy,
       width: rawPixels.width,
       height: rawPixels.height,
       filePath,
       imageType: parsedTemplate.imageType,
       imageQuality,
+    })
+    .catch(async (err) => {
+      console.warn('Worker encoding failed, falling back to canvas:', err);
+      try {
+        await figment.encodeWithCanvasFallback({
+          state,
+          rgba: pixelsCopy,
+          width: rawPixels.width,
+          height: rawPixels.height,
+          filePath,
+          imageType: parsedTemplate.imageType,
+          imageQuality,
+          saveBufferToFile: window.desktop.saveBufferToFile,
+        });
+      } catch (fallbackErr) {
+        console.error('All image encoding failed for', filePath, fallbackErr);
+      }
     });
-    if (didSave) {
-      return;
-    }
-  } catch (err) {
-    console.warn('Falling back to canvas image encoding:', err);
-  }
-
-  await figment.encodeWithCanvasFallback({
-    state,
-    rgba: rawPixels.data,
-    width: rawPixels.width,
-    height: rawPixels.height,
-    filePath,
-    imageType: parsedTemplate.imageType,
-    imageQuality,
-    saveBufferToFile: window.desktop.saveBufferToFile,
-  });
 };
 
-node.onStop = () => {
+node.onBeforeExport = () => {
+  _pendingSave = null;
+};
+
+node.onAfterExport = async () => {
+  if (_pendingSave) {
+    await _pendingSave;
+    _pendingSave = null;
+  }
+};
+
+node.onStop = async () => {
+  if (_pendingSave) {
+    await _pendingSave;
+    _pendingSave = null;
+  }
+  _encoder.terminate();
   state.ensureDirectoryPromise = null;
   state.fallbackCanvas = null;
   state.fallbackCtx = null;

@@ -2,6 +2,7 @@
 // Non-GPU utilities (project paths, debounce, etc.) are also exported from here.
 
 export { buildSaveImagePath, encodeWithCanvasFallback, ensureFallbackCanvas, parseSaveImageTemplate } from './saveImageShared.js';
+export { createImageEncoder } from './imageEncoder.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 
