@@ -6,7 +6,7 @@ title: "ONNX Image Model"
 
 Run a PIX2PIX image to image model developed in ONNX. This is similar to [Image to Image](image-to-image.md) but uses an ONNX model instead of a TensorFlow.js model.
 
-This currently only runs 512x512 image models.
+The node automatically reads the required input and output dimensions from the ONNX model metadata. Input images must match the model's expected size.
 
 To work well, it needs an input that is similar to what it has seen in training; e.g. if you trained it on a hand model, you need to feed it hand models with the same color and line thickness.
 
