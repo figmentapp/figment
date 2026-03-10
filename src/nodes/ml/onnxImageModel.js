@@ -308,6 +308,7 @@ async function runInference() {
 
 node.onRender = () => {
   if (oldModelFile !== modelFileIn.value) {
+    oldModelFile = modelFileIn.value;
     isRunning = true;
     loadModel().finally(() => {
       isRunning = false;
