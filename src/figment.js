@@ -1021,7 +1021,7 @@ export function projectDirectory() {
 
 export function ensureDirectory(dir) {
   if (!window.app) return;
-  window.desktop.ensureDirectory(dir);
+  return window.desktop.ensureDirectory(dir);
 }
 
 export function filePathForAsset(filename) {
