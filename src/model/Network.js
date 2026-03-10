@@ -374,6 +374,30 @@ export default class Network {
     });
   }
 
+  async beginExport() {
+    for (const node of this.nodes) {
+      if (node.onBeforeExport) {
+        try {
+          await node.onBeforeExport();
+        } catch (e) {
+          console.error(e && e.stack);
+        }
+      }
+    }
+  }
+
+  async endExport() {
+    for (const node of this.nodes) {
+      if (node.onAfterExport) {
+        try {
+          await node.onAfterExport();
+        } catch (e) {
+          console.error(e && e.stack);
+        }
+      }
+    }
+  }
+
   async _startNode(node) {
     if (node.onStart) {
       try {

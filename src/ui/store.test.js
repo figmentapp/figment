@@ -26,6 +26,8 @@ vi.mock('../model/Network', () => ({
       this.render = vi.fn(async () => {});
       this.doFrame = vi.fn(async () => {});
       this.reset = vi.fn(async () => {});
+      this.beginExport = vi.fn(async () => {});
+      this.endExport = vi.fn(async () => {});
       this.stop = vi.fn();
       this.serialize = vi.fn(() => ({ version: 6, nodes: [], connections: [], settings: {} }));
       this.findNodeType = vi.fn();
@@ -179,6 +181,8 @@ describe('useAppStore', () => {
     expect(window.desktop.setExportFps).toHaveBeenCalledWith(30);
     expect(window.desktop.setRuntimeMode).toHaveBeenNthCalledWith(1, 'export');
     expect(window.desktop.setRuntimeMode).toHaveBeenLastCalledWith('live');
+    expect(network.beginExport).toHaveBeenCalledTimes(1);
+    expect(network.endExport).toHaveBeenCalledTimes(1);
   });
 
   test('renderSequence respects callback cancellation', async () => {
@@ -216,5 +220,7 @@ describe('useAppStore', () => {
       { frame: 2, isPlaying: false },
     ]);
     expect(useAppStore.getState().isPlaying).toBe(true);
+    expect(network.beginExport).toHaveBeenCalledTimes(1);
+    expect(network.endExport).toHaveBeenCalledTimes(1);
   });
 });

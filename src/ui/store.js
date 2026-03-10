@@ -510,6 +510,7 @@ export const useAppStore = create((set, get) => ({
     window.desktop.setExportFps(frameRate);
     try {
       await network.reset();
+      await network.beginExport();
       for (let currentFrame = 1; currentFrame <= frameCount; currentFrame++) {
         window.desktop.setCurrentFrame(currentFrame);
         await network.doFrame();
@@ -517,6 +518,7 @@ export const useAppStore = create((set, get) => ({
         if (!continueRendering) break;
       }
     } finally {
+      await network.endExport();
       window.desktop.setRuntimeMode('live');
       set({ isPlaying: wasPlaying });
     }

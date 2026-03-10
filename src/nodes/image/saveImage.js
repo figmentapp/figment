@@ -104,6 +104,17 @@ node.onRender = async () => {
   })();
 };
 
+node.onBeforeExport = () => {
+  _pendingSave = null;
+};
+
+node.onAfterExport = async () => {
+  if (_pendingSave) {
+    await _pendingSave;
+    _pendingSave = null;
+  }
+};
+
 node.onStop = async () => {
   if (_pendingSave) {
     await _pendingSave;
