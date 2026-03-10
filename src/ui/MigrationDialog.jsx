@@ -5,6 +5,12 @@ export default function MigrationDialog() {
   const migration = useAppStore((s) => s.migration);
   const startMigration = useAppStore((s) => s.startMigration);
   const cancelMigration = useAppStore((s) => s.cancelMigration);
+  const newProject = useAppStore((s) => s.newProject);
+
+  const handleClose = () => {
+    cancelMigration(false);
+    newProject();
+  };
 
   const isConverting = migration && (migration.phase === 'submitting' || migration.phase === 'polling');
   const [animPct, setAnimPct] = useState(0);
@@ -43,7 +49,7 @@ export default function MigrationDialog() {
         {/* Header band */}
         <div className="bg-gray-800 py-5 px-8 text-center">
           <span className="text-gray-300" style={{ fontSize: '15px' }}>
-            Your project is out of date and needs to be converted.
+            This project has custom nodes that need updating
           </span>
         </div>
 
@@ -109,15 +115,26 @@ export default function MigrationDialog() {
             .
           </span>
           {phase === 'prompt' && (
-            <button
-              className="px-5 py-1.5 border border-gray-600 text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors rounded-sm"
-              onClick={startMigration}
-            >
-              Convert
-            </button>
+            <>
+              <button className="px-5 py-1.5 text-gray-500 hover:text-gray-300 transition-colors" onClick={handleClose}>
+                Close
+              </button>
+              <button className="px-5 py-1.5 text-gray-500 hover:text-gray-300 transition-colors" onClick={() => cancelMigration(true)}>
+                Open Anyway
+              </button>
+              <button
+                className="px-5 py-1.5 border border-gray-600 text-gray-300 hover:bg-gray-800 hover:border-gray-500 transition-colors rounded-sm"
+                onClick={startMigration}
+              >
+                Convert
+              </button>
+            </>
           )}
           {isFailed && (
             <>
+              <button className="px-5 py-1.5 text-gray-500 hover:text-gray-300 transition-colors" onClick={handleClose}>
+                Close
+              </button>
               <button className="px-5 py-1.5 text-gray-500 hover:text-gray-300 transition-colors" onClick={() => cancelMigration(true)}>
                 Open Without Converting
               </button>

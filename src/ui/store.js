@@ -180,8 +180,8 @@ export const useAppStore = create((set, get) => ({
     await net.doFrame();
     get().setFilePath(filePath);
     if (dirty) get().setDirty(true);
+    else window.desktop.addToRecentFiles(filePath);
     get().start();
-    window.desktop.addToRecentFiles(filePath);
   },
 
   async startMigration() {
@@ -224,7 +224,8 @@ export const useAppStore = create((set, get) => ({
             completionTimeoutId = setTimeout(() => {
               const activeMigration = get().migration;
               if (!activeMigration || activeMigration._stopPolling !== stopFn) return;
-              get()._finishOpenFile(result, cur._pendingFilePath, true);
+              const convertedPath = cur._pendingFilePath.replace(/\.fgmt$/, '_converted.fgmt');
+              get()._finishOpenFile(result, convertedPath, true);
             }, 800);
           } catch (err) {
             const latest = get().migration;
