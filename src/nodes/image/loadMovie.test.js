@@ -48,4 +48,19 @@ describe('loadMovie calculateTargetFrame export formula', () => {
     // With 10 frames, even a large index should clamp
     expect(calculateTargetFrame(100, 30, 30, 1, 10)).toBe(9);
   });
+
+  test('sequential export frames produce monotonically increasing video frames', () => {
+    const results = [];
+    for (let frame = 1; frame <= 60; frame++) {
+      results.push(calculateTargetFrame(frame - 1, 30, 30, 1, 100));
+    }
+    // Each frame should be >= previous (monotonically non-decreasing)
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i]).toBeGreaterThanOrEqual(results[i - 1]);
+    }
+    // And specifically for matching FPS, each frame should be exactly previous + 1
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i]).toBe(results[i - 1] + 1);
+    }
+  });
 });
