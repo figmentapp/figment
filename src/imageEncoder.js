@@ -29,15 +29,13 @@ export function createImageEncoder() {
       ensureWorker();
       const id = _nextId++;
 
-      // Transfer the buffer to the worker (zero-copy)
-      const transferable =
-        rgbaBuffer.buffer.byteLength === rgbaBuffer.byteLength
-          ? rgbaBuffer.buffer
-          : rgbaBuffer.buffer.slice(rgbaBuffer.byteOffset, rgbaBuffer.byteOffset + rgbaBuffer.byteLength);
-
+      // Transfer the buffer to the worker (zero-copy).
+      // The caller always passes a standalone Uint8Array copy, so
+      // rgbaBuffer.buffer is the entire ArrayBuffer we can transfer directly.
+      const buffer = rgbaBuffer.buffer;
       const encodedBuffer = await new Promise((resolve, reject) => {
         _pending.set(id, { resolve, reject });
-        _worker.postMessage({ id, rgbaBuffer: transferable, width, height, imageType, imageQuality }, [transferable]);
+        _worker.postMessage({ id, rgbaBuffer: buffer, width, height, imageType, imageQuality }, [buffer]);
       });
 
       await window.desktop.saveBufferToFile(new Uint8Array(encodedBuffer), filePath);

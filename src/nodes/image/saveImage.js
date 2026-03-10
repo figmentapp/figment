@@ -89,16 +89,20 @@ node.onRender = async () => {
     })
     .catch(async (err) => {
       console.warn('Worker encoding failed, falling back to canvas:', err);
-      await figment.encodeWithCanvasFallback({
-        state,
-        rgba: pixelsCopy,
-        width: rawPixels.width,
-        height: rawPixels.height,
-        filePath,
-        imageType: parsedTemplate.imageType,
-        imageQuality,
-        saveBufferToFile: window.desktop.saveBufferToFile,
-      });
+      try {
+        await figment.encodeWithCanvasFallback({
+          state,
+          rgba: pixelsCopy,
+          width: rawPixels.width,
+          height: rawPixels.height,
+          filePath,
+          imageType: parsedTemplate.imageType,
+          imageQuality,
+          saveBufferToFile: window.desktop.saveBufferToFile,
+        });
+      } catch (fallbackErr) {
+        console.error('All image encoding failed for', filePath, fallbackErr);
+      }
     });
 };
 
@@ -118,6 +122,7 @@ node.onStop = async () => {
     await _pendingSave;
     _pendingSave = null;
   }
+  _encoder.terminate();
   state.ensureDirectoryPromise = null;
   state.fallbackCanvas = null;
   state.fallbackCtx = null;
