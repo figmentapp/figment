@@ -35,7 +35,7 @@
     "mediabunny": "^1.23.0",
     "minimist": "1.2.8",
     "node-osc": "^11.0.0",
-    "onnxruntime-web": "^1.23.0",
+    "onnxruntime-web": "https://github.com/fdb/onnxruntime/releases/download/shared-device-v1.25.0-patch2/onnxruntime-web-1.25.0.tgz",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "seedrandom": "3.0.5",
