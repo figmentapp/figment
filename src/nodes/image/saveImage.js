@@ -12,6 +12,8 @@ const templateIn = node.stringIn('template', 'image-#####.png');
 const imageQualityIn = node.numberIn('quality', 0.9, { min: 0.0, max: 1.0, step: 0.01 });
 const imageOut = node.imageOut('out');
 
+let _pendingSave = null;
+
 const state = {
   folder: null,
   baseDir: null,
@@ -65,37 +67,48 @@ node.onRender = async () => {
   const baseDir = await ensureBaseDirectory(folder);
   const currentFrame = window.desktop.getCurrentFrame();
   const filePath = figment.buildSaveImagePath(baseDir, parsedTemplate.template, currentFrame, parsedTemplate.digits);
+  if (_pendingSave) {
+    await _pendingSave;
+    _pendingSave = null;
+  }
+
   const rawPixels = await imageIn.value.readPixelsRaw();
 
-  try {
-    const didSave = await window.desktop.encodeAndSaveImage({
-      rgbaBuffer: rawPixels.data,
+  // Copy pixel data since the readback buffer is reused
+  const pixelsCopy = new Uint8Array(rawPixels.data);
+
+  _pendingSave = (async () => {
+    try {
+      const didSave = await window.desktop.encodeAndSaveImage({
+        rgbaBuffer: pixelsCopy,
+        width: rawPixels.width,
+        height: rawPixels.height,
+        filePath,
+        imageType: parsedTemplate.imageType,
+        imageQuality,
+      });
+      if (didSave) return;
+    } catch (err) {
+      console.warn('Falling back to canvas image encoding:', err);
+    }
+    await figment.encodeWithCanvasFallback({
+      state,
+      rgba: pixelsCopy,
       width: rawPixels.width,
       height: rawPixels.height,
       filePath,
       imageType: parsedTemplate.imageType,
       imageQuality,
+      saveBufferToFile: window.desktop.saveBufferToFile,
     });
-    if (didSave) {
-      return;
-    }
-  } catch (err) {
-    console.warn('Falling back to canvas image encoding:', err);
-  }
-
-  await figment.encodeWithCanvasFallback({
-    state,
-    rgba: rawPixels.data,
-    width: rawPixels.width,
-    height: rawPixels.height,
-    filePath,
-    imageType: parsedTemplate.imageType,
-    imageQuality,
-    saveBufferToFile: window.desktop.saveBufferToFile,
-  });
+  })();
 };
 
-node.onStop = () => {
+node.onStop = async () => {
+  if (_pendingSave) {
+    await _pendingSave;
+    _pendingSave = null;
+  }
   state.ensureDirectoryPromise = null;
   state.fallbackCanvas = null;
   state.fallbackCtx = null;
