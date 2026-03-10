@@ -1192,16 +1192,6 @@ export class MediaPipeWorkerClient {
     return promise;
   }
 
-  async inferBitmap(bitmap, width, height) {
-    await this.ready();
-    const id = this._reqId++;
-    const promise = new Promise((resolve, reject) => {
-      this._pending.set(id, { resolve, reject });
-    });
-    this._worker.postMessage({ type: 'frameBitmap', id, bitmap, width, height }, [bitmap]);
-    return promise;
-  }
-
   terminate() {
     try {
       if (this._worker) this._worker.terminate();
