@@ -256,7 +256,7 @@ export default class Network {
         continue;
       }
       const inPort = inNode.inPorts.find((port) => port.name === connObj.inPort);
-      if (!outPort) {
+      if (!inPort) {
         warnings.push(`Connection ${JSON.stringify(connObj)}: input port does not exist.`);
         continue;
       }
@@ -325,7 +325,7 @@ export default class Network {
     if (port.direction === PORT_IN) {
       return !!this.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
     } else {
-      return !!this.connections.find((conn) => conn.inNode === port.node.id && conn.inPort === port.name);
+      return !!this.connections.find((conn) => conn.outNode === port.node.id && conn.outPort === port.name);
     }
   }
 

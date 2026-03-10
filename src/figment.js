@@ -1022,7 +1022,7 @@ export function projectDirectory() {
 
 export function ensureDirectory(dir) {
   if (!window.app) return;
-  window.desktop.ensureDirectory(dir);
+  return window.desktop.ensureDirectory(dir);
 }
 
 export function filePathForAsset(filename) {
@@ -1190,16 +1190,6 @@ export class MediaPipeWorkerClient {
       this._pending.set(id, { resolve, reject });
     });
     this._worker.postMessage({ type: 'frame', id, buffer: frame.buffer, width, height }, [frame.buffer]);
-    return promise;
-  }
-
-  async inferBitmap(bitmap, width, height) {
-    await this.ready();
-    const id = this._reqId++;
-    const promise = new Promise((resolve, reject) => {
-      this._pending.set(id, { resolve, reject });
-    });
-    this._worker.postMessage({ type: 'frameBitmap', id, bitmap, width, height }, [bitmap]);
     return promise;
   }
 

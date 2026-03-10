@@ -3,7 +3,6 @@
 // Messages:
 // - { type: 'init', task: 'face'|'hands'|'pose'|'segmentPose', options: { taskFile, taskOptions } }
 // - { type: 'frame', width, height, buffer }
-// - { type: 'frameBitmap', bitmap, width, height }
 // - { type: 'setOptions', options }
 
 import { FilesetResolver, FaceLandmarker, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
@@ -214,17 +213,6 @@ self.onmessage = async (ev) => {
       if (result.mask) transfer.push(result.mask);
       if (buffer) transfer.push(buffer);
       self.postMessage({ type: 'result', id, result, buffer }, transfer);
-      return;
-    }
-    if (msg.type === 'frameBitmap') {
-      if (!_ready || !_landmarker) return;
-      const { id, width, height, bitmap } = msg;
-      const raw = _landmarker.detect(bitmap);
-      try {
-        if (bitmap && bitmap.close) bitmap.close();
-      } catch (_) {}
-      const result = sanitizeResult(_taskKind, raw, width, height);
-      self.postMessage({ type: 'result', id, result }, result.mask ? [result.mask] : undefined);
       return;
     }
   } catch (err) {
