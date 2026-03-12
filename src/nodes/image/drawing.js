@@ -47,7 +47,7 @@ function makeHtml(width, height) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  let brushSize = 4;
+  let brushSize = 2;
   let brushColor = '#ffffff';
   let drawing = false;
 
