@@ -113,12 +113,7 @@ export default class Port {
   }
 
   setDefaultValue() {
-    if (
-      this.type === PORT_TYPE_TRIGGER ||
-      this.type === PORT_TYPE_IMAGE ||
-      this.type === PORT_TYPE_OBJECT ||
-      this.type === PORT_TYPE_BOOLEAN
-    ) {
+    if (this.type === PORT_TYPE_TRIGGER || this.type === PORT_TYPE_IMAGE || this.type === PORT_TYPE_OBJECT) {
       this.value = undefined;
       return;
     }
