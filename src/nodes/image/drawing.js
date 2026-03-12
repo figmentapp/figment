@@ -184,6 +184,12 @@ function makeHtml(width, height) {
         if (msg.type === 'clear') {
           ctx.fillStyle = '#000';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else if (msg.type === 'resize') {
+          canvas.width = msg.width;
+          canvas.height = msg.height;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          sendCanvas();
         }
       }
     };
@@ -222,23 +228,22 @@ function resizeCanvas() {
 
 widthIn.onChange = () => {
   resizeCanvas();
-  restartServer();
+  sendResizeToBrowser();
 };
 heightIn.onChange = () => {
   resizeCanvas();
-  restartServer();
+  sendResizeToBrowser();
 };
 
-async function restartServer() {
-  window.desktop.stopNodeServer(node.id);
-  const { port } = await window.desktop.startNodeServer(node.id, makeHtml(widthIn.value, heightIn.value));
-  _serverPort = port;
+function sendResizeToBrowser() {
+  if (_serverPort !== null) {
+    window.desktop.sendToNodeServer(node.id, JSON.stringify({ type: 'resize', width: widthIn.value, height: heightIn.value }));
+  }
 }
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'drawing' });
   resizeCanvas();
-  await restartServer();
 
   window.desktop.registerNodeServerListener(node.id, (data) => {
     if (typeof data === 'string') {
@@ -266,6 +271,10 @@ node.onStart = async () => {
       node.network.markNodeDirty(node);
     }
   });
+
+  // Start server after output is set so downstream nodes get the initial black frame
+  const { port } = await window.desktop.startNodeServer(node.id, makeHtml(widthIn.value, heightIn.value));
+  _serverPort = port;
 };
 
 openIn.onTrigger = () => {
