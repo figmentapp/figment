@@ -222,24 +222,23 @@ function resizeCanvas() {
 
 widthIn.onChange = () => {
   resizeCanvas();
-  restartServerIfRunning();
+  restartServer();
 };
 heightIn.onChange = () => {
   resizeCanvas();
-  restartServerIfRunning();
+  restartServer();
 };
 
-async function restartServerIfRunning() {
-  if (_serverPort !== null) {
-    window.desktop.stopNodeServer(node.id);
-    const { port } = await window.desktop.startNodeServer(node.id, makeHtml(widthIn.value, heightIn.value));
-    _serverPort = port;
-  }
+async function restartServer() {
+  window.desktop.stopNodeServer(node.id);
+  const { port } = await window.desktop.startNodeServer(node.id, makeHtml(widthIn.value, heightIn.value));
+  _serverPort = port;
 }
 
-node.onStart = () => {
+node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'drawing' });
   resizeCanvas();
+  await restartServer();
 
   window.desktop.registerNodeServerListener(node.id, (data) => {
     if (typeof data === 'string') {
@@ -269,9 +268,7 @@ node.onStart = () => {
   });
 };
 
-openIn.onTrigger = async () => {
-  const { port } = await window.desktop.startNodeServer(node.id, makeHtml(widthIn.value, heightIn.value));
-  _serverPort = port;
+openIn.onTrigger = () => {
   window.desktop.openExternal(`http://localhost:${_serverPort}`);
 };
 
@@ -291,10 +288,8 @@ clearIn.onTrigger = () => {
 };
 
 node.onStop = () => {
-  if (_serverPort !== null) {
-    window.desktop.stopNodeServer(node.id);
-    _serverPort = null;
-  }
+  window.desktop.stopNodeServer(node.id);
+  _serverPort = null;
   _target?.destroy();
   _target = null;
   window.desktop.unregisterNodeServerListener(node.id);
