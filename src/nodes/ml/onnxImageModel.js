@@ -316,6 +316,7 @@ node.onRender = () => {
       })
       .finally(() => {
         isRunning = false;
+        node._markDirty();
       });
     return;
   }
@@ -329,8 +330,12 @@ node.onRender = () => {
 
   // Kick off new inference if not already running
   if (!isRunning) {
-    runInference().catch((e) => {
-      node.error = e && e.stack ? e.stack : String(e);
-    });
+    runInference()
+      .catch((e) => {
+        node.error = e && e.stack ? e.stack : String(e);
+      })
+      .finally(() => {
+        node.network.markDownstreamDirty(node);
+      });
   }
 };
