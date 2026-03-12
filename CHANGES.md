@@ -1,5 +1,15 @@
 # CHANGES
 
+## Version 0.7.2 (2026-03-13)
+
+- Added Drawing node with external browser canvas for freehand drawing.
+- Fixed boolean ports getting stuck after disconnection.
+- Defaulted to PNG extension in save image dialog.
+- ONNX node now properly re-processes after async model loading and inference.
+- Fixed full-screen viewer WGSL shader errors and aspect ratio issues.
+- Fixed npm audit vulnerabilities.
+- Updated logo from WebGL to WebGPU.
+
 ## Version 0.7.1 (2026-03-10)
 
 - ONNX Image Model now reads image dimensions from the model instead of assuming 512×512.
