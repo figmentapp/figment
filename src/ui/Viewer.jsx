@@ -11,19 +11,15 @@ struct Uniforms {
 @group(0) @binding(1) var defaultSampler: sampler;
 @group(0) @binding(2) var u_texture: texture_2d<f32>;
 
-struct VertexOutput {
-  @builtin(position) position: vec4f,
-  @location(0) uv: vec2f,
-};
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   // Scale UVs around center to maintain aspect ratio
-  let centered = (in.uv - 0.5) * u.scale + 0.5;
+  let centered = (in.uv - 0.5) / u.scale + 0.5;
+  // Use textureSampleLevel to avoid uniform-control-flow requirement
+  let color = textureSampleLevel(u_texture, defaultSampler, centered, 0.0);
   if (centered.x < 0.0 || centered.x > 1.0 || centered.y < 0.0 || centered.y > 1.0) {
     return vec4f(0.0, 0.0, 0.0, 1.0);
   }
-  let color = textureSample(u_texture, defaultSampler, centered);
   // Premultiply alpha for canvas display
   return vec4f(color.rgb * color.a, color.a);
 }
