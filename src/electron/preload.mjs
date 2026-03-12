@@ -198,6 +198,13 @@ ipcRenderer.on('midi-devices', (_, data) => {
   }
 });
 
+// Per-node server listeners (drawing, etc.)
+const nodeServerListeners = new Map();
+ipcRenderer.on('node-server', (_, nodeId, data) => {
+  const fn = nodeServerListeners.get(nodeId);
+  if (fn) fn(data);
+});
+
 function registerListener(name, fn) {
   listeners[name] = fn;
 }
@@ -247,6 +254,26 @@ async function openExternal(url) {
   await ipcRenderer.invoke('openExternal', url);
 }
 
+async function startNodeServer(nodeId, html) {
+  return await ipcRenderer.invoke('nodeServerStart', { nodeId, html });
+}
+
+function stopNodeServer(nodeId) {
+  ipcRenderer.invoke('nodeServerStop', { nodeId });
+}
+
+function sendToNodeServer(nodeId, data) {
+  ipcRenderer.invoke('nodeServerSend', { nodeId, data });
+}
+
+function registerNodeServerListener(nodeId, fn) {
+  nodeServerListeners.set(nodeId, fn);
+}
+
+function unregisterNodeServerListener(nodeId) {
+  nodeServerListeners.delete(nodeId);
+}
+
 async function getMidiDevices() {
   return await ipcRenderer.invoke('getMidiDevices');
 }
@@ -287,4 +314,9 @@ contextBridge.exposeInMainWorld('desktop', {
   setDocumentEdited,
   getMidiDevices,
   openExternal,
+  startNodeServer,
+  stopNodeServer,
+  sendToNodeServer,
+  registerNodeServerListener,
+  unregisterNodeServerListener,
 });

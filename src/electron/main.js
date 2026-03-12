@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
 import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
 import { midiStartServer, midiStopServer, midiEmitter, getMidiDevices } from './midi.js';
+import { nodeServerStart, nodeServerStop, nodeServerSend, nodeServerStopAll } from './node-server.js';
 import minimist from 'minimist';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -235,6 +236,18 @@ ipcMain.handle('udpStartServer', (_, { port }) => {
 
 ipcMain.handle('udpStopServer', (_, { port }) => {
   udpStopServer(port);
+});
+
+ipcMain.handle('nodeServerStart', async (_, { nodeId, html }) => {
+  return await nodeServerStart(nodeId, html, sendIpcMessage);
+});
+
+ipcMain.handle('nodeServerStop', (_, { nodeId }) => {
+  nodeServerStop(nodeId);
+});
+
+ipcMain.handle('nodeServerSend', (_, { nodeId, data }) => {
+  nodeServerSend(nodeId, data);
 });
 
 // Register a system-wide shortcut. Returns true if successful.
@@ -518,6 +531,8 @@ app.on('will-quit', async (event) => {
   }
   // Clean up MIDI
   midiStopServer();
+  // Clean up node servers (drawing, etc.)
+  nodeServerStopAll();
   // Clean up any global shortcuts we registered.
   globalShortcut.unregisterAll();
 });
