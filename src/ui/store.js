@@ -44,7 +44,7 @@ export const useAppStore = create((set, get) => ({
   migration: null, // { phase, webglTypeCount, nodeCount, nodesCompleted, error, _pendingProject, _pendingFilePath, _stopPolling }
   undoStack: [],
   redoStack: [],
-  _lastPortValueSnapshotTime: 0,
+  _undoInProgress: false,
 
   // Generic setter helper
   set: (partial) => set(partial),
@@ -73,66 +73,97 @@ export const useAppStore = create((set, get) => ({
     set({ undoStack: newStack, redoStack: [] });
   },
   async undo() {
+    if (get()._undoInProgress) return;
     const { undoStack, redoStack, network, selection, library } = get();
     if (undoStack.length === 0) return;
-    const currentSnapshot = {
-      network: network.serialize(),
-      selectedNodeIds: Array.from(selection).map((n) => n.id),
-    };
-    const newRedoStack = [...redoStack, currentSnapshot];
-    const newUndoStack = [...undoStack];
-    const snapshot = newUndoStack.pop();
-    network.stop();
-    const newNetwork = new Network(library);
-    newNetwork.parse(snapshot.network);
-    await newNetwork.start();
-    newNetwork.doFrame();
-    const newSelection = new Set();
-    for (const id of snapshot.selectedNodeIds) {
-      const node = newNetwork.nodes.find((n) => n.id === id);
-      if (node) newSelection.add(node);
+    set({ _undoInProgress: true });
+    try {
+      const currentSnapshot = {
+        network: network.serialize(),
+        selectedNodeIds: Array.from(selection).map((n) => n.id),
+      };
+      const newRedoStack = [...redoStack, currentSnapshot];
+      const newUndoStack = [...undoStack];
+      const snapshot = newUndoStack.pop();
+      network.stop();
+      const newNetwork = new Network(library);
+      newNetwork.parse(snapshot.network);
+      await newNetwork.start();
+      newNetwork.doFrame();
+      const newSelection = new Set();
+      for (const id of snapshot.selectedNodeIds) {
+        const node = newNetwork.nodes.find((n) => n.id === id);
+        if (node) newSelection.add(node);
+      }
+      const currentTabs = get().tabs;
+      const newTabs = [];
+      for (const tab of currentTabs) {
+        const newNodeType = newNetwork.findNodeType(tab.nodeType.type);
+        if (newNodeType) {
+          newTabs.push({ ...tab, nodeType: newNodeType, modified: false, uncommittedSource: null });
+        }
+      }
+      set({
+        network: newNetwork,
+        undoStack: newUndoStack,
+        redoStack: newRedoStack,
+        selection: newSelection,
+        tabs: newTabs,
+        activeTabIndex: newTabs.length > 0 ? Math.min(get().activeTabIndex, newTabs.length - 1) : -1,
+      });
+      get().setDirty(true);
+      get().forceRedraw();
+    } finally {
+      set({ _undoInProgress: false });
     }
-    set({
-      network: newNetwork,
-      undoStack: newUndoStack,
-      redoStack: newRedoStack,
-      selection: newSelection,
-      tabs: [],
-      activeTabIndex: -1,
-    });
-    get().setDirty(true);
-    get().forceRedraw();
   },
   async redo() {
+    if (get()._undoInProgress) return;
     const { undoStack, redoStack, network, selection, library } = get();
     if (redoStack.length === 0) return;
-    const currentSnapshot = {
-      network: network.serialize(),
-      selectedNodeIds: Array.from(selection).map((n) => n.id),
-    };
-    const newUndoStack = [...undoStack, currentSnapshot];
-    const newRedoStack = [...redoStack];
-    const snapshot = newRedoStack.pop();
-    network.stop();
-    const newNetwork = new Network(library);
-    newNetwork.parse(snapshot.network);
-    await newNetwork.start();
-    newNetwork.doFrame();
-    const newSelection = new Set();
-    for (const id of snapshot.selectedNodeIds) {
-      const node = newNetwork.nodes.find((n) => n.id === id);
-      if (node) newSelection.add(node);
+    set({ _undoInProgress: true });
+    try {
+      const currentSnapshot = {
+        network: network.serialize(),
+        selectedNodeIds: Array.from(selection).map((n) => n.id),
+      };
+      const newUndoStack = [...undoStack, currentSnapshot];
+      if (newUndoStack.length > HISTORY_LIMIT) {
+        newUndoStack.shift();
+      }
+      const newRedoStack = [...redoStack];
+      const snapshot = newRedoStack.pop();
+      network.stop();
+      const newNetwork = new Network(library);
+      newNetwork.parse(snapshot.network);
+      await newNetwork.start();
+      newNetwork.doFrame();
+      const newSelection = new Set();
+      for (const id of snapshot.selectedNodeIds) {
+        const node = newNetwork.nodes.find((n) => n.id === id);
+        if (node) newSelection.add(node);
+      }
+      const currentTabs = get().tabs;
+      const newTabs = [];
+      for (const tab of currentTabs) {
+        const newNodeType = newNetwork.findNodeType(tab.nodeType.type);
+        if (newNodeType) {
+          newTabs.push({ ...tab, nodeType: newNodeType, modified: false, uncommittedSource: null });
+        }
+      }
+      set({
+        network: newNetwork,
+        undoStack: newUndoStack,
+        redoStack: newRedoStack,
+        selection: newSelection,
+        tabs: newTabs,
+        activeTabIndex: newTabs.length > 0 ? Math.min(get().activeTabIndex, newTabs.length - 1) : -1,
+      });
+      get().setDirty(true);
+      get().forceRedraw();
+    } finally {
+      set({ _undoInProgress: false });
     }
-    set({
-      network: newNetwork,
-      undoStack: newUndoStack,
-      redoStack: newRedoStack,
-      selection: newSelection,
-      tabs: [],
-      activeTabIndex: -1,
-    });
-    get().setDirty(true);
-    get().forceRedraw();
   },
 
   // Frame and runtime
@@ -442,11 +473,6 @@ export const useAppStore = create((set, get) => ({
 
   // Ports
   changePortValue(node, portName, value) {
-    const now = Date.now();
-    if (now - get()._lastPortValueSnapshotTime > 500) {
-      get().pushSnapshot();
-      set({ _lastPortValueSnapshotTime: now });
-    }
     const { network } = get();
     network.setPortValue(node, portName, value);
     get().setDirty(true);
@@ -654,6 +680,7 @@ export const useAppStore = create((set, get) => ({
         window.desktop.startOscServer(port);
       }
     }
+    get().setDirty(true);
     get().forceRedraw();
   },
 
@@ -684,14 +711,14 @@ export const useAppStore = create((set, get) => ({
   handleMenuEvent(name, args) {
     switch (name) {
       case 'undo': {
-        const tag = document.activeElement?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        const el = document.activeElement;
+        if (el?.tagName === 'TEXTAREA' || (el?.tagName === 'INPUT' && el.type !== 'checkbox')) return;
         get().undo();
         break;
       }
       case 'redo': {
-        const tag = document.activeElement?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        const el = document.activeElement;
+        if (el?.tagName === 'TEXTAREA' || (el?.tagName === 'INPUT' && el.type !== 'checkbox')) return;
         get().redo();
         break;
       }

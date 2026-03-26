@@ -179,6 +179,7 @@ export default function NetworkEditor() {
   const resizeObserverRef = useRef(null);
   const defaultTextureViewRef = useRef(null);
   const rafIdRef = useRef(0);
+  const dragSnapshotTakenRef = useRef(false);
 
   // On component mount
   useEffect(() => {
@@ -421,7 +422,7 @@ export default function NetworkEditor() {
           dragModeRef.current = DRAG_MODE_IDLE;
         } else {
           dragModeRef.current = DRAG_MODE_DRAG_NODE;
-          useAppStore.getState().pushSnapshot();
+          dragSnapshotTakenRef.current = false;
           const currentSelection = useAppStore.getState().selection;
           if (!currentSelection.has(node)) {
             selectNode(node);
@@ -453,6 +454,10 @@ export default function NetworkEditor() {
     } else if (dragModeRef.current === DRAG_MODE_SELECTING) {
       // Box selections: nothing is needed here
     } else if (dragModeRef.current === DRAG_MODE_DRAG_NODE) {
+      if (!dragSnapshotTakenRef.current) {
+        useAppStore.getState().pushSnapshot();
+        dragSnapshotTakenRef.current = true;
+      }
       const currentSelection = useAppStore.getState().selection;
       currentSelection.forEach((node) => {
         node.x += dx / stateRef.current.scale;
@@ -503,7 +508,7 @@ export default function NetworkEditor() {
       }
       selectNodes(newSelection);
     }
-    if (dragModeRef.current === DRAG_MODE_DRAG_NODE) {
+    if (dragModeRef.current === DRAG_MODE_DRAG_NODE && dragSnapshotTakenRef.current) {
       useAppStore.getState().setDirty(true);
     }
     window.removeEventListener('mousemove', onMouseDrag);

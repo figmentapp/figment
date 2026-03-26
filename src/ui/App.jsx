@@ -107,27 +107,11 @@ export default function App(props) {
     }
   }, [gpuStatus, startNetwork, props.filePath, openFile]);
 
-  const undo = useAppStore((state) => state.undo);
-  const redo = useAppStore((state) => state.redo);
-
   const onKeyDown = useCallback(
     (e) => {
       if (e.keyCode === 27 && useAppStore.getState().fullscreen) toggleFullscreen();
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
-        e.preventDefault();
-        undo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') {
-        e.preventDefault();
-        redo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        redo();
-      }
     },
-    [toggleFullscreen, undo, redo],
+    [toggleFullscreen],
   );
 
   // Wire listeners and RAF loop explicitly here

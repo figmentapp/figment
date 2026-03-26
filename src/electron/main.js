@@ -476,6 +476,7 @@ function createApplicationMenu() {
     submenu: [
       { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: emit('undo') },
       { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: emit('redo') },
+      { label: 'Redo', accelerator: 'CmdOrCtrl+Y', click: emit('redo'), visible: false },
       { type: 'separator' },
       { role: 'cut' },
       { role: 'copy' },
