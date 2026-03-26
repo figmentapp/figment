@@ -33,7 +33,7 @@ function roundToMaxPlaces(v, places = 4) {
   return (Math.round(v * Math.pow(10, places)) / Math.pow(10, places)).toString();
 }
 
-function NumberDrag({ label, value, min, max, step, disabled, direction, onChange }) {
+function NumberDrag({ label, value, min, max, step, disabled, direction, onChange, onBeforeChange }) {
   const [inputState, setInputState] = useState(NUMBER_DRAG_IDLE);
   const [tempValue, setTempValue] = useState('');
   const inputRef = useRef(null);
@@ -41,6 +41,23 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
   const dyRef = useRef(0);
   const startValueRef = useRef(null);
   const inputStateRef = useRef(NUMBER_DRAG_IDLE);
+  const beforeChangeCalledRef = useRef(false);
+
+  // Keep latest props accessible to stable event handler refs
+  const onChangeRef = useRef(onChange);
+  const onBeforeChangeRef = useRef(onBeforeChange);
+  const stepRef = useRef(step);
+  const minRef = useRef(min);
+  const maxRef = useRef(max);
+  const directionRef = useRef(direction);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onBeforeChangeRef.current = onBeforeChange;
+    stepRef.current = step;
+    minRef.current = min;
+    maxRef.current = max;
+    directionRef.current = direction;
+  });
 
   useEffect(() => {
     inputStateRef.current = inputState;
@@ -55,16 +72,20 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
     dyRef.current += e.movementY;
     const totalDistance = Math.abs(dxRef.current) + Math.abs(dyRef.current);
     if (totalDistance <= 2) return;
+    if (!beforeChangeCalledRef.current) {
+      onBeforeChangeRef.current?.();
+      beforeChangeCalledRef.current = true;
+    }
     setInputState(NUMBER_DRAG_DRAGGING);
-    if (direction === 'xy') {
-      const newX = startValueRef.current.x + dxRef.current * step;
-      const newY = startValueRef.current.y + dyRef.current * step;
-      onChange(new Point(newX, newY));
+    if (directionRef.current === 'xy') {
+      const newX = startValueRef.current.x + dxRef.current * stepRef.current;
+      const newY = startValueRef.current.y + dyRef.current * stepRef.current;
+      onChangeRef.current(new Point(newX, newY));
     } else {
-      let newValue = startValueRef.current + dxRef.current * step;
-      if (min !== undefined && newValue < min) newValue = min;
-      if (max !== undefined && newValue > max) newValue = max;
-      onChange(newValue);
+      let newValue = startValueRef.current + dxRef.current * stepRef.current;
+      if (minRef.current !== undefined && newValue < minRef.current) newValue = minRef.current;
+      if (maxRef.current !== undefined && newValue > maxRef.current) newValue = maxRef.current;
+      onChangeRef.current(newValue);
     }
   }).current;
 
@@ -73,6 +94,7 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
     document.exitPointerLock();
+    beforeChangeCalledRef.current = false;
     if (inputStateRef.current === NUMBER_DRAG_IDLE) {
       setInputState(NUMBER_DRAG_INPUT);
       setTempValue(roundToMaxPlaces(startValueRef.current));
@@ -88,6 +110,7 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
     e.preventDefault();
     if (disabled) return;
     startValueRef.current = value;
+    beforeChangeCalledRef.current = false;
     e.target.requestPointerLock();
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
@@ -110,6 +133,7 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
     if (isNaN(newValue)) return;
     if (min !== undefined && newValue < min) newValue = min;
     if (max !== undefined && newValue > max) newValue = max;
+    onBeforeChange?.();
     onChange(newValue);
     setInputState(NUMBER_DRAG_IDLE);
   };
@@ -158,7 +182,7 @@ function NumberDrag({ label, value, min, max, step, disabled, direction, onChang
   }
 }
 
-function FloatParam({ port, label, value, min, max, step, disabled, onChange }) {
+function FloatParam({ port, label, value, min, max, step, disabled, onChange, onBeforeChange }) {
   const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -168,7 +192,16 @@ function FloatParam({ port, label, value, min, max, step, disabled, onChange }) 
   return (
     <>
       <label className="text-right text-gray-500 whitespace-nowrap">{label}</label>
-      <NumberDrag label={label} value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} />
+      <NumberDrag
+        label={label}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        onChange={onChange}
+        onBeforeChange={onBeforeChange}
+      />
       <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
     </>
   );
@@ -209,22 +242,39 @@ function ExpressionParam({ port, label, expression, onChange }) {
   );
 }
 
-function StringParam({ port, label, value, disabled, onChange }) {
+function StringParam({ port, label, value, disabled, onChange, onBeforeChange }) {
+  const onChangeRef = useRef(onChange);
+  const onBeforeChangeRef = useRef(onBeforeChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onBeforeChangeRef.current = onBeforeChange;
+  });
+
+  const hasPushedSnapshotRef = useRef(false);
+  const prevValueRef = useRef(value);
+  if (prevValueRef.current !== value) {
+    hasPushedSnapshotRef.current = false;
+    prevValueRef.current = value;
+  }
   const throttledOnChange = useRef(null);
   if (!throttledOnChange.current) {
     let lastCall = 0;
     let timer = null;
     throttledOnChange.current = (...args) => {
+      if (!hasPushedSnapshotRef.current) {
+        onBeforeChangeRef.current?.();
+        hasPushedSnapshotRef.current = true;
+      }
       const now = Date.now();
       const remaining = 200 - (now - lastCall);
       clearTimeout(timer);
       if (remaining <= 0) {
         lastCall = now;
-        onChange(...args);
+        onChangeRef.current(...args);
       } else {
         timer = setTimeout(() => {
           lastCall = Date.now();
-          onChange(...args);
+          onChangeRef.current(...args);
         }, remaining);
       }
     };
@@ -296,6 +346,7 @@ function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const handleToggleColorPicker = () => {
+    if (!pickerVisible) useAppStore.getState().pushSnapshot();
     setPickerVisible(!pickerVisible);
   };
 
@@ -346,7 +397,7 @@ function ColorParam({ port, label, value, editorSplitterWidth, onChange }) {
   );
 }
 
-function PointParam({ port, label, value, onChange }) {
+function PointParam({ port, label, value, onChange, onBeforeChange }) {
   const handleShowMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -357,8 +408,20 @@ function PointParam({ port, label, value, onChange }) {
     <>
       <label className="text-right text-gray-500 py-2 whitespace-nowrap">{label}</label>
       <span className="flex gap-2">
-        <NumberDrag label={label} value={value.x} step={0.1} onChange={(v) => onChange(new Point(v, value.y))} />
-        <NumberDrag label={label} value={value.y} step={0.1} onChange={(v) => onChange(new Point(value.x, v))} />
+        <NumberDrag
+          label={label}
+          value={value.x}
+          step={0.1}
+          onChange={(v) => onChange(new Point(v, value.y))}
+          onBeforeChange={onBeforeChange}
+        />
+        <NumberDrag
+          label={label}
+          value={value.y}
+          step={0.1}
+          onChange={(v) => onChange(new Point(value.x, v))}
+          onBeforeChange={onBeforeChange}
+        />
       </span>
       <Icon className="params__more" name="dots-vertical-rounded" fill="white" size="16" onClick={handleShowMenu} />
     </>
@@ -521,19 +584,28 @@ export default function ParamsEditor() {
   }, []);
 
   const handleChangePortValue = (portName, value) => {
-    selection.forEach((node) => {
+    useAppStore.getState().selection.forEach((node) => {
       changePortValue(node, portName, value);
     });
   };
 
+  const handleChangePortValueWithSnapshot = (portName, value) => {
+    useAppStore.getState().pushSnapshot();
+    handleChangePortValue(portName, value);
+  };
+
+  const handlePushSnapshot = () => {
+    useAppStore.getState().pushSnapshot();
+  };
+
   const handleChangePortExpression = (portName, expression) => {
-    selection.forEach((node) => {
+    useAppStore.getState().selection.forEach((node) => {
       changePortExpression(node, portName, expression);
     });
   };
 
   const handleTriggerButton = (port) => {
-    selection.forEach((node) => {
+    useAppStore.getState().selection.forEach((node) => {
       triggerButton(node, port);
     });
   };
@@ -578,7 +650,7 @@ export default function ParamsEditor() {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => handleChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValueWithSnapshot(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_NUMBER) {
@@ -593,6 +665,7 @@ export default function ParamsEditor() {
           step={port.step}
           disabled={network.isConnected(port)}
           onChange={(value) => handleChangePortValue(port.name, value)}
+          onBeforeChange={handlePushSnapshot}
         />
       );
     } else if (port.type === PORT_TYPE_STRING) {
@@ -604,6 +677,7 @@ export default function ParamsEditor() {
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={(value) => handleChangePortValue(port.name, value)}
+          onBeforeChange={handlePushSnapshot}
         />
       );
     } else if (port.type === PORT_TYPE_SELECT) {
@@ -615,7 +689,7 @@ export default function ParamsEditor() {
           value={port.value}
           options={port.options}
           disabled={network.isConnected(port)}
-          onChange={(value) => handleChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValueWithSnapshot(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_POINT) {
@@ -627,6 +701,7 @@ export default function ParamsEditor() {
           value={port.value}
           disabled={network.isConnected(port)}
           onChange={(value) => handleChangePortValue(port.name, value)}
+          onBeforeChange={handlePushSnapshot}
         />
       );
     } else if (port.type === PORT_TYPE_COLOR) {
@@ -650,7 +725,7 @@ export default function ParamsEditor() {
           value={port.value}
           fileType={port.fileType}
           disabled={network.isConnected(port)}
-          onChange={(value) => handleChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValueWithSnapshot(port.name, value)}
         />
       );
     } else if (port.type === PORT_TYPE_DIRECTORY) {
@@ -661,7 +736,7 @@ export default function ParamsEditor() {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => handleChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortValueWithSnapshot(port.name, value)}
         />
       );
     }

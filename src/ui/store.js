@@ -7,6 +7,8 @@ import { PORT_TYPE_IMAGE } from '../model/Port';
 import { findWebGLTypes, submitMigration, startPolling, fetchResult } from '../migration';
 
 // Centralized app UI state using Zustand
+const HISTORY_LIMIT = 50;
+
 const initialLibrary = new Library();
 const initialNetwork = new Network(initialLibrary);
 initialNetwork.parse(getDefaultNetwork());
@@ -40,6 +42,9 @@ export const useAppStore = create((set, get) => ({
   midiProgramChangeMap: new Map(),
   midiDevices: [],
   migration: null, // { phase, webglTypeCount, nodeCount, nodesCompleted, error, _pendingProject, _pendingFilePath, _stopPolling }
+  undoStack: [],
+  redoStack: [],
+  _undoInProgress: false,
 
   // Generic setter helper
   set: (partial) => set(partial),
@@ -52,6 +57,113 @@ export const useAppStore = create((set, get) => ({
   setDirty(dirty) {
     window.desktop.setDocumentEdited(dirty);
     set({ dirty });
+  },
+
+  // Undo/Redo
+  pushSnapshot() {
+    const { network, selection, undoStack } = get();
+    const snapshot = {
+      network: network.serialize(),
+      selectedNodeIds: Array.from(selection).map((n) => n.id),
+    };
+    const newStack = [...undoStack, snapshot];
+    if (newStack.length > HISTORY_LIMIT) {
+      newStack.shift();
+    }
+    set({ undoStack: newStack, redoStack: [] });
+  },
+  async undo() {
+    if (get()._undoInProgress) return;
+    const { undoStack, redoStack, network, selection, library } = get();
+    if (undoStack.length === 0) return;
+    set({ _undoInProgress: true });
+    try {
+      const currentSnapshot = {
+        network: network.serialize(),
+        selectedNodeIds: Array.from(selection).map((n) => n.id),
+      };
+      const newRedoStack = [...redoStack, currentSnapshot];
+      const newUndoStack = [...undoStack];
+      const snapshot = newUndoStack.pop();
+      network.stop();
+      const newNetwork = new Network(library);
+      newNetwork.parse(snapshot.network);
+      await newNetwork.start();
+      newNetwork.doFrame();
+      const newSelection = new Set();
+      for (const id of snapshot.selectedNodeIds) {
+        const node = newNetwork.nodes.find((n) => n.id === id);
+        if (node) newSelection.add(node);
+      }
+      const currentTabs = get().tabs;
+      const newTabs = [];
+      for (const tab of currentTabs) {
+        const newNodeType = newNetwork.findNodeType(tab.nodeType.type);
+        if (newNodeType) {
+          newTabs.push({ ...tab, nodeType: newNodeType, modified: false, uncommittedSource: null });
+        }
+      }
+      set({
+        network: newNetwork,
+        undoStack: newUndoStack,
+        redoStack: newRedoStack,
+        selection: newSelection,
+        tabs: newTabs,
+        activeTabIndex: newTabs.length > 0 ? Math.min(get().activeTabIndex, newTabs.length - 1) : -1,
+      });
+      get().setDirty(true);
+      get().forceRedraw();
+    } finally {
+      set({ _undoInProgress: false });
+    }
+  },
+  async redo() {
+    if (get()._undoInProgress) return;
+    const { undoStack, redoStack, network, selection, library } = get();
+    if (redoStack.length === 0) return;
+    set({ _undoInProgress: true });
+    try {
+      const currentSnapshot = {
+        network: network.serialize(),
+        selectedNodeIds: Array.from(selection).map((n) => n.id),
+      };
+      const newUndoStack = [...undoStack, currentSnapshot];
+      if (newUndoStack.length > HISTORY_LIMIT) {
+        newUndoStack.shift();
+      }
+      const newRedoStack = [...redoStack];
+      const snapshot = newRedoStack.pop();
+      network.stop();
+      const newNetwork = new Network(library);
+      newNetwork.parse(snapshot.network);
+      await newNetwork.start();
+      newNetwork.doFrame();
+      const newSelection = new Set();
+      for (const id of snapshot.selectedNodeIds) {
+        const node = newNetwork.nodes.find((n) => n.id === id);
+        if (node) newSelection.add(node);
+      }
+      const currentTabs = get().tabs;
+      const newTabs = [];
+      for (const tab of currentTabs) {
+        const newNodeType = newNetwork.findNodeType(tab.nodeType.type);
+        if (newNodeType) {
+          newTabs.push({ ...tab, nodeType: newNodeType, modified: false, uncommittedSource: null });
+        }
+      }
+      set({
+        network: newNetwork,
+        undoStack: newUndoStack,
+        redoStack: newRedoStack,
+        selection: newSelection,
+        tabs: newTabs,
+        activeTabIndex: newTabs.length > 0 ? Math.min(get().activeTabIndex, newTabs.length - 1) : -1,
+      });
+      get().setDirty(true);
+      get().forceRedraw();
+    } finally {
+      set({ _undoInProgress: false });
+    }
   },
 
   // Frame and runtime
@@ -266,7 +378,7 @@ export const useAppStore = create((set, get) => ({
     const { network } = get();
     if (network) network.stop();
     get().setDirty(false);
-    set({ filePath: undefined, tabs: [], activeTabIndex: -1, selection: new Set() });
+    set({ filePath: undefined, tabs: [], activeTabIndex: -1, selection: new Set(), undoStack: [], redoStack: [] });
     window.desktop.stopOscServer();
   },
   async newProject() {
@@ -330,6 +442,7 @@ export const useAppStore = create((set, get) => ({
     set({ selection: new Set() });
   },
   deleteSelection() {
+    get().pushSnapshot();
     const { selection, network } = get();
     network.deleteNodes(Array.from(selection));
     get().setDirty(true);
@@ -350,6 +463,7 @@ export const useAppStore = create((set, get) => ({
     }
   },
   buildSource(nodeType, source) {
+    get().pushSnapshot();
     const { network } = get();
     network.setNodeTypeSource(nodeType, source);
     get().sourceModified(nodeType, null, false);
@@ -365,12 +479,14 @@ export const useAppStore = create((set, get) => ({
     get().forceRedraw();
   },
   changePortExpression(node, portName, expression) {
+    get().pushSnapshot();
     const { network } = get();
     network.setPortExpression(node, portName, expression);
     get().setDirty(true);
     get().forceRedraw();
   },
   revertPortValue(node, portName) {
+    get().pushSnapshot();
     const port = node.inPorts.find((p) => p.name === portName);
     const defaultValue = JSON.parse(JSON.stringify(port.defaultValue));
     const { network } = get();
@@ -379,6 +495,7 @@ export const useAppStore = create((set, get) => ({
     get().forceRedraw();
   },
   togglePortExpression(node, portName) {
+    get().pushSnapshot();
     const port = node.inPorts.find((p) => p.name === portName);
     const expression = JSON.stringify(port.value);
     const { network } = get();
@@ -387,6 +504,7 @@ export const useAppStore = create((set, get) => ({
     get().forceRedraw();
   },
   deletePortExpression(node, portName) {
+    get().pushSnapshot();
     const { network } = get();
     network.deletePortExpression(node, portName);
     get().setDirty(true);
@@ -413,6 +531,7 @@ export const useAppStore = create((set, get) => ({
     set({ showForkDialog: false });
   },
   forkNodeType(nodeType, newName, newTypeName, nodes = []) {
+    get().pushSnapshot();
     const { network, tabs } = get();
     const newNodeType = network.forkNodeType(nodeType, newName, newTypeName);
     for (const node of nodes) network.changeNodeType(node, newNodeType);
@@ -440,6 +559,7 @@ export const useAppStore = create((set, get) => ({
     set({ showProjectSettingsDialog: false });
   },
   createNode(nodeType) {
+    get().pushSnapshot();
     const { lastNetworkPoint, network, pendingConnectionPort } = get();
     const newNode = network.createNode(nodeType.type, lastNetworkPoint.x, lastNetworkPoint.y);
     // If there's a pending connection (from dragging an output port to empty space),
@@ -462,6 +582,7 @@ export const useAppStore = create((set, get) => ({
   },
   renameNode(node, newName) {
     if (newName.trim().length === 0) return;
+    get().pushSnapshot();
     const { network } = get();
     network.renameNode(node, newName);
     get().setDirty(true);
@@ -469,12 +590,14 @@ export const useAppStore = create((set, get) => ({
     get().forceRedraw();
   },
   connect(outPort, inPort) {
+    get().pushSnapshot();
     const { network } = get();
     network.connect(outPort, inPort);
     get().setDirty(true);
     get().forceRedraw();
   },
   disconnect(inPort) {
+    get().pushSnapshot();
     const { network } = get();
     network.disconnect(inPort);
     get().setDirty(true);
@@ -533,6 +656,7 @@ export const useAppStore = create((set, get) => ({
   },
 
   changeProjectSetting(setting, value) {
+    get().pushSnapshot();
     const { network } = get();
     network.setSetting(setting, value);
     if (setting === 'oscEnabled') {
@@ -556,6 +680,7 @@ export const useAppStore = create((set, get) => ({
         window.desktop.startOscServer(port);
       }
     }
+    get().setDirty(true);
     get().forceRedraw();
   },
 
@@ -585,6 +710,18 @@ export const useAppStore = create((set, get) => ({
   },
   handleMenuEvent(name, args) {
     switch (name) {
+      case 'undo': {
+        const el = document.activeElement;
+        if (el?.tagName === 'TEXTAREA' || (el?.tagName === 'INPUT' && el.type !== 'checkbox')) return;
+        get().undo();
+        break;
+      }
+      case 'redo': {
+        const el = document.activeElement;
+        if (el?.tagName === 'TEXTAREA' || (el?.tagName === 'INPUT' && el.type !== 'checkbox')) return;
+        get().redo();
+        break;
+      }
       case 'new':
         get().newProject();
         break;
