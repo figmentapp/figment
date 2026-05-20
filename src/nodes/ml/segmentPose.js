@@ -163,7 +163,13 @@ async function drawWorkerResult(result) {
     detectedOut.value = false;
     landmarksOut.value = null;
     maskOut.set(null);
-    imageOut.set(imageIn.value);
+    if (operationIn.value === 'background') {
+      _resultTarget.setSize(width, height);
+      figment.clearRenderTarget(_resultTarget);
+      imageOut.set(_resultTarget);
+    } else {
+      imageOut.set(imageIn.value);
+    }
   }
 }
 
