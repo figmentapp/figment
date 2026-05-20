@@ -36,6 +36,12 @@ body {
   cursor: none !important;
 }
 
+/* Projection-quad calibration handles need a visible cursor even in fullscreen. */
+.hide-cursor .projection-quad-overlay,
+.hide-cursor .projection-quad-overlay * {
+  cursor: crosshair !important;
+}
+
 .is-selectable,
 pre,
 code {
