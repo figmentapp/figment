@@ -41,6 +41,7 @@ export const useAppStore = create((set, get) => ({
   midiMessageMap: new Map(),
   midiProgramChangeMap: new Map(),
   midiDevices: [],
+  showPerformanceOverlay: false,
   migration: null, // { phase, webglTypeCount, nodeCount, nodesCompleted, error, _pendingProject, _pendingFilePath, _stopPolling }
   undoStack: [],
   redoStack: [],
@@ -768,6 +769,9 @@ export const useAppStore = create((set, get) => ({
         if (node) get().deletePortExpression(node, portName);
         break;
       }
+      case 'toggle-performance-overlay':
+        set({ showPerformanceOverlay: !get().showPerformanceOverlay });
+        break;
       default:
         console.error('Unknown menu event:', name);
     }

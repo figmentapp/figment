@@ -7,6 +7,7 @@ import { Point } from '../g';
 import Icon from './Icon';
 import * as figment from '../figment';
 import { useAppStore } from './store';
+import ProjectionQuadEditor from './ProjectionQuadEditor';
 
 import {
   PORT_TYPE_TRIGGER,
@@ -791,6 +792,11 @@ export default function ParamsEditor() {
             <pre className="whitespace-pre-wrap flex-1 mb-2">{errorTitle}</pre>
             <pre className="whitespace-pre-wrap">{errorStack}</pre>
           </div>
+        </div>
+      )}
+      {node.type === 'image.projectionQuad' && (
+        <div className="p-2">
+          <ProjectionQuadEditor node={node} width={editorSplitterWidth - 16} height={Math.round((editorSplitterWidth - 16) * 0.6)} />
         </div>
       )}
       <div className="params__grid grid ">{node.inPorts.map((port) => renderPort(network, node, port))}</div>

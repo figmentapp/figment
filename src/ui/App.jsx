@@ -12,7 +12,9 @@ import RenderDialog from './RenderDialog';
 import MigrationDialog from './MigrationDialog';
 import ProjectSettingsDialog from './ProjectSettingsDialog';
 import { initExpressionContext } from '../expr';
+import PerformanceOverlay from './PerformanceOverlay';
 import { useAppStore } from './store';
+import { dumpPerformance, clearPerformance } from '../profiling';
 
 window.stats = new Stats();
 window.stats.dom.style.top = '';
@@ -30,6 +32,7 @@ export default function App(props) {
   const showProjectSettingsDialog = useAppStore((state) => state.showProjectSettingsDialog);
   const showNodeRenameDialog = useAppStore((state) => state.showNodeRenameDialog);
   const migration = useAppStore((state) => state.migration);
+  const showPerformanceOverlay = useAppStore((state) => state.showPerformanceOverlay);
 
   // Actions
   const startNetwork = useAppStore((state) => state.startNetwork);
@@ -110,6 +113,12 @@ export default function App(props) {
   const onKeyDown = useCallback(
     (e) => {
       if (e.keyCode === 27 && useAppStore.getState().fullscreen) toggleFullscreen();
+      // Ctrl/Cmd+Shift+P toggles performance overlay
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyP') {
+        e.preventDefault();
+        const s = useAppStore.getState();
+        useAppStore.setState({ showPerformanceOverlay: !s.showPerformanceOverlay });
+      }
     },
     [toggleFullscreen],
   );
@@ -193,6 +202,7 @@ export default function App(props) {
     return (
       <div className="app">
         <Viewer />
+        {showPerformanceOverlay && <PerformanceOverlay />}
       </div>
     );
   }
@@ -210,6 +220,7 @@ export default function App(props) {
       {showRenderDialog && <RenderDialog />}
       {showProjectSettingsDialog && <ProjectSettingsDialog />}
       {migration && <MigrationDialog />}
+      {showPerformanceOverlay && <PerformanceOverlay />}
     </>
   );
 }

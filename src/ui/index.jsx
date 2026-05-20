@@ -9,8 +9,11 @@ import * as mediabunny from 'mediabunny';
 
 import App from './App';
 
+import { dumpPerformance, clearPerformance } from '../profiling';
+
 window.g = g;
 window.figment = figment;
+window.profiling = { dumpPerformance, clearPerformance };
 window.ort = ort;
 window.mediapipe = mediapipe;
 window.drawing_utils = drawing_utils;

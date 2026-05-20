@@ -19,6 +19,7 @@ import Port, {
 } from './Port';
 import DependencyGraph from './DependencyGraph';
 import { setExpressionContext } from '../expr';
+import { Point } from '../g';
 
 export const getDefaultNetwork = () => ({
   nodes: [
@@ -226,7 +227,13 @@ export default class Network {
           } else if (port.type === PORT_TYPE_SELECT) {
             port._value = value;
           } else if (port.type === PORT_TYPE_POINT) {
-            port._value = new g.Point(value[0], value[1]);
+            if (value.type === 'expression') {
+              port._value = value;
+            } else {
+              // Saved as { type:'value', value:[x,y] }; rehydrate the Point and keep the wrapper.
+              const [px, py] = value.value;
+              port._value = { type: 'value', value: new Point(px, py) };
+            }
           } else if (port.type === PORT_TYPE_COLOR) {
             port._value = structuredClone(value);
           } else if (port.type === PORT_TYPE_FILE) {

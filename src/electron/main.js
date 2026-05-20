@@ -463,6 +463,7 @@ function createApplicationMenu() {
     label: 'View',
     submenu: [
       { label: 'Enter Full Screen', accelerator: 'CmdOrCtrl+Shift+F', click: emit('enter-full-screen') },
+      { label: 'Toggle Performance Overlay', accelerator: 'CmdOrCtrl+Shift+P', click: emit('toggle-performance-overlay') },
       { type: 'separator' },
       { role: 'reload' },
       { role: 'forcereload' },
