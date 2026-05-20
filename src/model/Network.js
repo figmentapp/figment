@@ -284,13 +284,13 @@ export default class Network {
     for (const node of this.nodes) {
       const values = {};
       for (const port of node.inPorts) {
-        if (port.type === PORT_TYPE_IMAGE || (port.type === PORT_TYPE_BOOLEAN && port._value.type !== 'expression')) continue;
+        if (port.type === PORT_TYPE_IMAGE) continue;
         if (this.isConnected(port)) continue;
         if (port._value.type === 'expression') {
           values[port.name] = structuredClone(port._value);
         } else if (JSON.stringify(port.value) !== JSON.stringify(port.defaultValue)) {
           let value;
-          if (port.type === PORT_TYPE_TOGGLE) {
+          if (port.type === PORT_TYPE_TOGGLE || port.type === PORT_TYPE_BOOLEAN) {
             value = port.value;
           } else if (port.type === PORT_TYPE_NUMBER) {
             value = port.value;
