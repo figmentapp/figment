@@ -82,6 +82,18 @@ export function clearPerformance() {
   console.log('Performance measurements cleared.');
 }
 
+/**
+ * Reset all overlay/profiling state. Call when the active project changes —
+ * ring buffers are keyed by `node-${type}-${id}`, which is stable inside one
+ * project load but meaningless across loads, so stale entries from the
+ * previous project would otherwise linger in the overlay forever.
+ */
+export function resetProfiling() {
+  ringBuffers.clear();
+  performance.clearMarks();
+  performance.clearMeasures();
+}
+
 // ── Real-time collection via PerformanceObserver ────────────────────
 
 const RING_SIZE = 120; // frames worth of data
@@ -135,7 +147,10 @@ export function startObserver() {
   if (observerStarted) return;
   observerStarted = true;
 
-  const patterns = ['frame', 'render-all-nodes', 'onnx-image:', 'node-'];
+  // 'onnx-' (not 'onnx-image:') so user-defined ONNX nodes that emit measures
+  // under different sub-prefixes (e.g. 'onnx-latent:', 'onnx-detection:') are
+  // captured too. The overlay aggregates phases by suffix across all prefixes.
+  const patterns = ['frame', 'render-all-nodes', 'onnx-', 'node-'];
 
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {

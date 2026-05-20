@@ -1,13 +1,40 @@
 import React, { useEffect, useRef } from 'react';
 import { getRollingAvg, getLatest, getTrackedNames, startObserver } from '../profiling';
 
+// A phase row either references a single measure name (`key`) or aggregates
+// all `onnx-*:<onnxSuffix>` rings. Aggregation lets the overlay work for any
+// ONNX node — built-in `onnxImageModel` (prefix `onnx-image:`), custom
+// `onnxLatentModel` (prefix `onnx-latent:`), or future variants — without
+// hard-coding each one. Multiple ONNX nodes active at once sum together.
 const PHASES = [
   { key: 'frame', label: 'Frame', color: '#888' },
   { key: 'render-all-nodes', label: 'Render All', color: '#6cf' },
-  { key: 'onnx-image:preprocess-dispatch', label: 'Pre (GPU→NCHW)', color: '#f90' },
-  { key: 'onnx-image:session-run', label: 'ONNX Inference', color: '#f44' },
-  { key: 'onnx-image:postprocess-dispatch', label: 'Post (NCHW→GPU)', color: '#4c4' },
+  { onnxSuffix: 'preprocess-dispatch', label: 'Pre (GPU→NCHW)', color: '#f90' },
+  { onnxSuffix: 'session-run', label: 'ONNX Inference', color: '#f44' },
+  { onnxSuffix: 'postprocess-dispatch', label: 'Post (NCHW→GPU)', color: '#4c4' },
 ];
+
+function phaseAvg(phase) {
+  if (phase.key) return getRollingAvg(phase.key, 60);
+  let total = 0;
+  for (const name of getTrackedNames()) {
+    if (name.startsWith('onnx-') && name.endsWith(':' + phase.onnxSuffix)) {
+      total += getRollingAvg(name, 60);
+    }
+  }
+  return total;
+}
+
+function phaseLatest(phase) {
+  if (phase.key) return getLatest(phase.key);
+  let total = 0;
+  for (const name of getTrackedNames()) {
+    if (name.startsWith('onnx-') && name.endsWith(':' + phase.onnxSuffix)) {
+      total += getLatest(name);
+    }
+  }
+  return total;
+}
 
 const MAX_NODE_ROWS = 5;
 const WIDTH = 260;
@@ -39,11 +66,13 @@ export default function PerformanceOverlay() {
     }
 
     function draw() {
-      // Collect per-node entries, sort by avg duration descending, take top N
+      // Collect per-node entries, sort by avg duration descending, take top N.
+      // Node measures use the `node-` prefix; ONNX phase measures (which use
+      // `onnx-*:`) are surfaced separately by PHASES, so we don't need to
+      // exclude them here — `startsWith('node-')` is sufficient.
       const allNames = getTrackedNames();
-      const phaseKeys = new Set(PHASES.map((p) => p.key));
       const nodeEntries = allNames
-        .filter((n) => n.startsWith('node-') && !phaseKeys.has(n))
+        .filter((n) => n.startsWith('node-'))
         .map((name) => ({ key: name, label: name.replace('node-', ''), avg: getRollingAvg(name, 60) }))
         .sort((a, b) => b.avg - a.avg)
         .slice(0, MAX_NODE_ROWS);
@@ -69,14 +98,16 @@ export default function PerformanceOverlay() {
 
       // Draw phase rows
       for (let i = 0; i < PHASES.length; i++) {
-        drawRow(ctx, PHASES[i].key, PHASES[i].label, PHASES[i].color, HEADER_H + i * ROW_H, ceil);
+        const phase = PHASES[i];
+        drawRow(ctx, phaseAvg(phase), phaseLatest(phase), phase.label, phase.color, HEADER_H + i * ROW_H, ceil);
       }
 
       // Draw top-N node rows
       if (hasNodes) {
         const nodeStartY = HEADER_H + PHASES.length * ROW_H + SECTION_GAP;
         for (let i = 0; i < nodeEntries.length; i++) {
-          drawRow(ctx, nodeEntries[i].key, nodeEntries[i].label, '#da0', nodeStartY + i * ROW_H, ceil);
+          const entry = nodeEntries[i];
+          drawRow(ctx, entry.avg, getLatest(entry.key), entry.label, '#da0', nodeStartY + i * ROW_H, ceil);
         }
       }
 
@@ -101,10 +132,7 @@ export default function PerformanceOverlay() {
   );
 }
 
-function drawRow(ctx, key, label, color, y, ceil) {
-  const avg = getRollingAvg(key, 60);
-  const latest = getLatest(key);
-
+function drawRow(ctx, avg, latest, label, color, y, ceil) {
   // Bar
   const barW = ceil > 0 ? Math.min((avg / ceil) * BAR_MAX_W, BAR_MAX_W) : 0;
   ctx.fillStyle = color;
