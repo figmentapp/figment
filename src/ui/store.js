@@ -5,6 +5,7 @@ import { Point } from '../g';
 import { upgradeProject } from '../file-format';
 import { PORT_TYPE_IMAGE } from '../model/Port';
 import { findWebGLTypes, submitMigration, startPolling, fetchResult } from '../migration';
+import { resetProfiling } from '../profiling';
 
 // Centralized app UI state using Zustand
 const HISTORY_LIMIT = 50;
@@ -381,6 +382,8 @@ export const useAppStore = create((set, get) => ({
     get().setDirty(false);
     set({ filePath: undefined, tabs: [], activeTabIndex: -1, selection: new Set(), undoStack: [], redoStack: [] });
     window.desktop.stopOscServer();
+    // Ring buffers are keyed by node id; identities don't carry across projects.
+    resetProfiling();
   },
   async newProject() {
     get().closeProject();
