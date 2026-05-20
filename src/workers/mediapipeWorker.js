@@ -162,14 +162,20 @@ function sanitizeResult(kind, raw, width, height) {
       landmarks: raw.landmarks || [],
     };
   } else if (kind === 'segmentPose') {
-    // Extract a compact Uint8Array mask (single-channel) if available.
+    // Union per-person masks (pixel-wise max) into a single compact Uint8Array.
     let maskBuffer = null;
     if (raw.segmentationMasks && raw.segmentationMasks.length > 0) {
       try {
-        const u8 = raw.segmentationMasks[0].getAsUint8Array();
-        maskBuffer = u8.buffer.slice(0); // copy to detach from wasm memory
+        const first = raw.segmentationMasks[0].getAsUint8Array();
+        const merged = new Uint8Array(first); // copy detaches from WASM memory
+        for (let i = 1; i < raw.segmentationMasks.length; i++) {
+          const next = raw.segmentationMasks[i].getAsUint8Array();
+          for (let p = 0; p < merged.length; p++) {
+            if (next[p] > merged[p]) merged[p] = next[p];
+          }
+        }
+        maskBuffer = merged.buffer;
       } catch (_) {}
-      // Close all masks to free WASM memory
       for (const mask of raw.segmentationMasks) {
         try {
           mask.close();
