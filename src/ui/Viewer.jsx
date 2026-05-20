@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as figment from '../figment';
+import { computeAspectFit } from '../g';
 import { useAppStore } from './store';
 import { shouldRedrawViewer } from './viewer-state';
+import ProjectionQuadEditor from './ProjectionQuadEditor';
 
 const BLIT_WGSL = `
 struct Uniforms {
@@ -27,10 +29,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
 export default function Viewer() {
   const network = useAppStore((s) => s.network);
+  const fullscreen = useAppStore((s) => s.fullscreen);
+  useAppStore((s) => s.version); // re-render overlays on port changes
   const canvasRef = useRef(null);
   const gpuContextRef = useRef(null);
   const blitPipelineRef = useRef(null);
   const shouldDrawRef = useRef(false);
+  const [letterbox, setLetterbox] = useState(null);
 
   const draw = () => {
     const device = figment.getDevice();
@@ -54,17 +59,15 @@ export default function Viewer() {
 
     if (!outPort.value || !outPort.value.texture) return;
 
-    const textureWidth = outPort.value.width;
-    const textureHeight = outPort.value.height;
-    const textureRatio = textureWidth / textureHeight;
-    const canvasRatio = canvas.width / canvas.height;
+    const fit = computeAspectFit(canvas.width, canvas.height, outPort.value.width, outPort.value.height);
+    const scale = [fit.width / canvas.width, fit.height / canvas.height];
 
-    let scale;
-    if (textureRatio > canvasRatio) {
-      scale = [1.0, canvasRatio / textureRatio];
-    } else {
-      scale = [textureRatio / canvasRatio, 1.0];
-    }
+    setLetterbox((prev) => {
+      if (prev && prev.offsetX === fit.offsetX && prev.offsetY === fit.offsetY && prev.width === fit.width && prev.height === fit.height) {
+        return prev;
+      }
+      return { offsetX: fit.offsetX, offsetY: fit.offsetY, width: fit.width, height: fit.height };
+    });
 
     // Render to the canvas texture
     const canvasTexture = gpuContext.getCurrentTexture();
@@ -169,9 +172,34 @@ export default function Viewer() {
     };
   }, []);
 
+  const projectionNodes = fullscreen
+    ? network.nodes.filter((n) => {
+        if (n.type !== 'image.projectionQuad') return false;
+        const showUIPort = n.inPorts.find((p) => p.name === 'showUI');
+        return showUIPort ? showUIPort.value : true;
+      })
+    : [];
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
       <canvas ref={canvasRef}></canvas>
+      {letterbox &&
+        projectionNodes.map((node) => (
+          <div
+            key={node.id}
+            className="projection-quad-overlay"
+            style={{
+              position: 'absolute',
+              left: letterbox.offsetX,
+              top: letterbox.offsetY,
+              width: letterbox.width,
+              height: letterbox.height,
+              pointerEvents: 'auto',
+            }}
+          >
+            <ProjectionQuadEditor node={node} width={letterbox.width} height={letterbox.height} variant="overlay" />
+          </div>
+        ))}
     </div>
   );
 }
