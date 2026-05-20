@@ -40,3 +40,17 @@ React-based interface (`src/ui/`) using functional components and Zustand for st
 ### Development Notes
 
 - Make sure code is formatted correctly with `npm run format` and tested with `npm test` before committing/handoff to user.
+
+### Pre-handoff & post-ship verification
+
+Local checks before handoff (in order):
+
+1. `npm run format` — Prettier writes any changes.
+2. `npm test` — must be all-green.
+3. `npm run build` — production build must succeed.
+
+After pushing a PR, do not declare "shipped" until CI is checked:
+
+1. Wait ~30s, then run `gh pr checks <PR#>` (or `gh pr view <PR#> --json statusCheckRollup`).
+2. If any required check failed, fetch the log with `gh run view <runId> --log-failed` and surface the failure to the user *with the relevant snippet* — do not just say "CI failed."
+3. Distinguish PR-caused failures from CI-infra failures (e.g. node/npm upgrade steps, dependabot, Netlify quota). For infra failures, name the failing step and note that recent PRs hit the same thing — don't try to silently patch the workflow unless asked.
