@@ -10,6 +10,9 @@ import { resetProfiling } from '../profiling';
 // Centralized app UI state using Zustand
 const HISTORY_LIMIT = 50;
 
+// Below this width the params panel starts clipping its kebab menu icons. Keep in sync with --splitter-min in main.css.
+export const MIN_PARAMS_WIDTH = 350;
+
 const initialLibrary = new Library();
 const initialNetwork = new Network(initialLibrary);
 initialNetwork.parse(getDefaultNetwork());
@@ -206,7 +209,9 @@ export const useAppStore = create((set, get) => ({
     else document.documentElement.classList.remove('hide-cursor');
   },
   setEditorSplitterWidth(width) {
-    set({ editorSplitterWidth: width });
+    const clamped = Math.max(MIN_PARAMS_WIDTH, width);
+    if (get().editorSplitterWidth === clamped) return;
+    set({ editorSplitterWidth: clamped });
   },
 
   // File ops
