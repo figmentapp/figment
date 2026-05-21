@@ -2,11 +2,10 @@
 
 ## Version 0.7.3 (2026-05-21)
 
-- Added Smooth node for temporal smoothing of images. `amount` controls the smoothing (0 = passthrough, 1 = freeze) and `mode` selects how previous frames combine with the current one: `average` (classic temporal blur), `max` (bright trails), or `min` (dark trails). Smooths all four channels including alpha.
 - Added Projection Quad node for projection mapping.
-- Segment Pose now tracks up to 4 people, with their masks combined into a single output.
-- Segment Pose in background removal mode now outputs a fully transparent frame when no one is detected (previously the last detection lingered).
-- Added undo/redo for all network-mutating actions (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z).
+- Added Smooth node for temporal smoothing of images.
+- Segment Pose now tracks up to 4 people, and outputs a fully transparent frame when no one is detected.
+- Added undo/redo for all network-mutating actions.
 - Added a performance overlay showing rolling averages of tracked timings (toggle with Cmd/Ctrl+Shift+P).
 
 ## Version 0.7.2 (2026-03-13)
