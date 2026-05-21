@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const version = "0.7.2";
+const version = "0.7.3";
 
 const downloadOptions = [
   {
