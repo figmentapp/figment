@@ -97,7 +97,7 @@ Before committing, show the user a synopsis:
 
 After user approval:
 
-1. Stage the 5 files explicitly: `git add package.json package-lock.json CHANGES.md docs/src/pages/release-notes.md docs/src/components/DownloadPage.jsx`
+1. Stage the 4 files explicitly: `git add package.json package-lock.json CHANGES.md docs/src/pages/release-notes.md`
 2. Commit with message: `Version X.Y.Z`
 3. Create tag: `git tag vX.Y.Z`
 4. Push: `git push && git push --tags`
