@@ -10,10 +10,9 @@ export default function Splitter({ className, parentRef, direction }) {
     parent.style.cursor = direction === 'horizontal' ? 'ew-resize' : 'ns-resize';
     const mouseMoveHandler = (e) => {
       if (direction === 'horizontal') {
-        // Calculate params panel width (from splitter to right edge)
-        const paramsWidth = parent.clientWidth - e.clientX;
-        setEditorSplitterWidth(paramsWidth);
-        document.documentElement.style.setProperty(`--${className}`, `${paramsWidth}px`);
+        setEditorSplitterWidth(parent.clientWidth - e.clientX);
+        const clamped = useAppStore.getState().editorSplitterWidth;
+        document.documentElement.style.setProperty(`--${className}`, `${clamped}px`);
       } else {
         const sizePct = ((e.clientY - 40) / parent.clientHeight) * 100;
         document.documentElement.style.setProperty(`--${className}`, `${sizePct}%`);
