@@ -9,6 +9,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
 
@@ -57,3 +58,40 @@ jobs:
               -c.publish.bucket=figmentapp \
               -c.publish.acl=public-read \
               -c.publish.path=$PUBLISH_PATH
+
+  verify-release:
+    name: Verify release binaries are live
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: HEAD-check S3 binaries
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          mac_url="https://figmentapp.s3.amazonaws.com/releases/Figment-${version}-arm64.dmg"
+          win_url="https://figmentapp.s3.amazonaws.com/releases/Figment%20Setup%20${version}.exe"
+          mac_manifest="https://figmentapp.s3.amazonaws.com/releases/latest-mac.yml"
+          win_manifest="https://figmentapp.s3.amazonaws.com/releases/latest.yml"
+
+          echo "Verifying $mac_url"
+          curl -fsSI "$mac_url" >/dev/null
+
+          echo "Verifying $win_url"
+          curl -fsSI "$win_url" >/dev/null
+
+          echo "Verifying $mac_manifest reports v${version}"
+          mac_version=$(curl -fsS "$mac_manifest" | awk '/^version:/ {print $2; exit}')
+          if [ "$mac_version" != "$version" ]; then
+            echo "::error::latest-mac.yml reports version '$mac_version', expected '$version'"
+            exit 1
+          fi
+
+          echo "Verifying $win_manifest reports v${version}"
+          win_version=$(curl -fsS "$win_manifest" | awk '/^version:/ {print $2; exit}')
+          if [ "$win_version" != "$version" ]; then
+            echo "::error::latest.yml reports version '$win_version', expected '$version'"
+            exit 1
+          fi
+
+          echo "All binaries live and manifests in sync for v${version}."

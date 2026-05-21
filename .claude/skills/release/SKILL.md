@@ -48,7 +48,7 @@ Verify that the **previous version's** entry exists in `CHANGES.md`. If the prev
 
 ## Update Files
 
-Update exactly these 5 files:
+Update exactly these 4 files:
 
 ### 1. `package.json`
 Change the `"version"` field to the new version.
@@ -72,11 +72,7 @@ Add a matching section **after the YAML frontmatter and `# Release Notes` headin
 - Same changelog bullet points
 ```
 
-### 5. `docs/src/components/DownloadPage.jsx`
-Update the version constant:
-```js
-const version = "X.Y.Z";
-```
+> The download page (`docs/src/components/DownloadPage.jsx`) reads the current version dynamically from S3 manifests (`latest.yml` / `latest-mac.yml`) at runtime. It only advertises a version once that version's binary is actually live on S3, so no manual bump here is needed.
 
 ## Pre-commit Verification
 
@@ -101,7 +97,7 @@ Before committing, show the user a synopsis:
 
 After user approval:
 
-1. Stage the 5 files explicitly: `git add package.json package-lock.json CHANGES.md docs/src/pages/release-notes.md docs/src/components/DownloadPage.jsx`
+1. Stage the 4 files explicitly: `git add package.json package-lock.json CHANGES.md docs/src/pages/release-notes.md`
 2. Commit with message: `Version X.Y.Z`
 3. Create tag: `git tag vX.Y.Z`
 4. Push: `git push && git push --tags`
