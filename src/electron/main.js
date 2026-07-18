@@ -1,5 +1,5 @@
 import querystring from 'node:querystring';
-import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut, shell } from 'electron';
+import { app, Menu, BrowserWindow, session, ipcMain, dialog, systemPreferences, globalShortcut, shell, screen } from 'electron';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs/promises';
@@ -272,6 +272,75 @@ ipcMain.handle('unregisterGlobalShortcut', async (_, { accel }) => {
   }
 });
 
+// ─── Multi-monitor output windows ───────────────────────────────────────────
+//
+// Screen Out nodes open output windows from the renderer with window.open()
+// so the window's document lives in the same renderer process as the editor
+// and the shared WebGPU device can render straight into its canvas (no pixel
+// copies). The main process only tracks these windows (by frameName) and
+// positions them fullscreen on the requested display.
+
+const OUTPUT_WINDOW_PREFIX = 'figment-output-';
+const gOutputWindows = new Map(); // frameName -> BrowserWindow
+const gPendingOutputConfigs = new Map(); // frameName -> config (arrived before did-create-window)
+
+function serializeDisplays() {
+  const primaryId = screen.getPrimaryDisplay().id;
+  const displays = screen.getAllDisplays().map((d) => ({
+    id: d.id,
+    label: d.label,
+    bounds: d.bounds,
+    workArea: d.workArea,
+    scaleFactor: d.scaleFactor,
+    internal: d.internal,
+    primary: d.id === primaryId,
+  }));
+  // Stable, predictable ordering: primary first, then left-to-right, top-to-bottom.
+  displays.sort((a, b) => Number(b.primary) - Number(a.primary) || a.bounds.x - b.bounds.x || a.bounds.y - b.bounds.y);
+  return displays;
+}
+
+ipcMain.handle('getDisplays', () => serializeDisplays());
+
+function applyOutputWindowConfig(win, { displayId, alwaysOnTop }) {
+  if (!win || win.isDestroyed()) return;
+  const display = screen.getAllDisplays().find((d) => d.id === displayId) || screen.getPrimaryDisplay();
+  // Leave fullscreen before moving between displays; re-enter afterwards.
+  if (isMac) {
+    if (win.isSimpleFullScreen()) win.setSimpleFullScreen(false);
+  } else if (win.isFullScreen()) {
+    win.setFullScreen(false);
+  }
+  win.setBounds(display.bounds);
+  win.setAlwaysOnTop(!!alwaysOnTop, 'screen-saver');
+  if (!win.isVisible()) win.showInactive();
+  // Simple fullscreen on macOS avoids the Spaces animation and covers the
+  // menu bar; regular fullscreen works fine on Windows/Linux.
+  if (isMac) {
+    win.setSimpleFullScreen(true);
+  } else {
+    win.setFullScreen(true);
+  }
+}
+
+ipcMain.handle('configureOutputWindow', (_, { frameName, displayId, alwaysOnTop }) => {
+  const win = gOutputWindows.get(frameName);
+  if (!win || win.isDestroyed()) {
+    // window.open() just happened; did-create-window hasn't fired yet.
+    gPendingOutputConfigs.set(frameName, { displayId, alwaysOnTop });
+    return;
+  }
+  applyOutputWindowConfig(win, { displayId, alwaysOnTop });
+});
+
+function closeAllOutputWindows() {
+  for (const win of gOutputWindows.values()) {
+    if (!win.isDestroyed()) win.destroy();
+  }
+  gOutputWindows.clear();
+  gPendingOutputConfigs.clear();
+}
+
 ipcMain.handle('setRepresentedFilename', (_, filePath) => {
   // Guard against destroyed window
   if (!gMainWindow || gMainWindow.isDestroyed()) {
@@ -354,6 +423,54 @@ function createMainWindow(filePath) {
     const uiDir = path.join(asarDir, 'build');
     gMainWindow.loadURL(`file:///${uiDir}/index.html?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
   }
+
+  // Output windows opened by Screen Out nodes: keep them in the same renderer
+  // process (native window.open) but strip the frame and menu bar.
+  gMainWindow.webContents.setWindowOpenHandler(({ frameName }) => {
+    if (frameName.startsWith(OUTPUT_WINDOW_PREFIX)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          frame: false,
+          show: false,
+          backgroundColor: '#000000',
+          autoHideMenuBar: true,
+          webPreferences: {
+            backgroundThrottling: false,
+          },
+        },
+      };
+    }
+    return { action: 'allow' };
+  });
+
+  gMainWindow.webContents.on('did-create-window', (win, details) => {
+    const frameName = details.frameName;
+    if (!frameName || !frameName.startsWith(OUTPUT_WINDOW_PREFIX)) return;
+    gOutputWindows.set(frameName, win);
+    win.setMenuBarVisibility(false);
+    win.on('closed', () => {
+      gOutputWindows.delete(frameName);
+      // Let the owning Screen Out node know (e.g. window closed via Cmd+W).
+      sendIpcMessage('output-window-closed', frameName);
+    });
+    const pending = gPendingOutputConfigs.get(frameName);
+    if (pending) {
+      gPendingOutputConfigs.delete(frameName);
+      applyOutputWindowConfig(win, pending);
+    }
+  });
+
+  // A reload (or any main-frame navigation) destroys the renderer context that
+  // drives the output windows, so close the orphans along with it.
+  gMainWindow.webContents.on('did-start-navigation', (eventOrDetails, _url, isInPlace, isMainFrameLegacy) => {
+    const isMainFrame = typeof eventOrDetails?.isMainFrame === 'boolean' ? eventOrDetails.isMainFrame : isMainFrameLegacy;
+    const isSameDocument = typeof eventOrDetails?.isSameDocument === 'boolean' ? eventOrDetails.isSameDocument : isInPlace;
+    if (isMainFrame && !isSameDocument) closeAllOutputWindows();
+  });
+
+  gMainWindow.webContents.on('render-process-gone', () => closeAllOutputWindows());
+  gMainWindow.on('closed', () => closeAllOutputWindows());
 
   // Handle window close with unsaved changes
   gMainWindow.on('close', (event) => {
@@ -518,6 +635,13 @@ app.whenReady().then(async () => {
   //   await systemPreferences.askForMediaAccess('camera');
   // }
   createApplicationMenu();
+
+  // Notify the renderer when displays are (dis)connected or change resolution
+  // so Screen Out nodes can update their options and re-place their windows.
+  const sendDisplaysChanged = () => sendIpcMessage('displays-changed', serializeDisplays());
+  screen.on('display-added', sendDisplaysChanged);
+  screen.on('display-removed', sendDisplaysChanged);
+  screen.on('display-metrics-changed', sendDisplaysChanged);
 
   // For macOS, use the filePathToOpen if it's been set by the 'open-file' event
   // For Windows/Linux, process command-line arguments to find a .fgmt file to open

@@ -10,6 +10,7 @@ This is a list of all the nodes in Figment:
 
 - [Null](/docs/nodes/null): Does nothing.
 - [Out](/docs/nodes/out): Signifies that this is the output of the network.
+- [Screen Out](/docs/nodes/screen-out): Show an image full screen on a connected display.
 
 ## Image Operations
 

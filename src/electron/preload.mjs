@@ -198,6 +198,49 @@ ipcRenderer.on('midi-devices', (_, data) => {
   }
 });
 
+// Display and output-window events can have several subscribers (one per
+// Screen Out node), so they use listener sets instead of the single-listener
+// registry above.
+const displaysChangedListeners = new Set();
+ipcRenderer.on('displays-changed', (_, displays) => {
+  for (const fn of displaysChangedListeners) {
+    try {
+      fn(displays);
+    } catch (e) {
+      console.error('displays-changed listener error:', e);
+    }
+  }
+});
+
+const outputWindowClosedListeners = new Set();
+ipcRenderer.on('output-window-closed', (_, frameName) => {
+  for (const fn of outputWindowClosedListeners) {
+    try {
+      fn(frameName);
+    } catch (e) {
+      console.error('output-window-closed listener error:', e);
+    }
+  }
+});
+
+function onDisplaysChanged(fn) {
+  displaysChangedListeners.add(fn);
+  return () => displaysChangedListeners.delete(fn);
+}
+
+function onOutputWindowClosed(fn) {
+  outputWindowClosedListeners.add(fn);
+  return () => outputWindowClosedListeners.delete(fn);
+}
+
+async function getDisplays() {
+  return await ipcRenderer.invoke('getDisplays');
+}
+
+async function configureOutputWindow(frameName, { displayId, alwaysOnTop } = {}) {
+  await ipcRenderer.invoke('configureOutputWindow', { frameName, displayId, alwaysOnTop });
+}
+
 // Per-node server listeners (drawing, etc.)
 const nodeServerListeners = new Map();
 ipcRenderer.on('node-server', (_, nodeId, data) => {
@@ -319,4 +362,8 @@ contextBridge.exposeInMainWorld('desktop', {
   sendToNodeServer,
   registerNodeServerListener,
   unregisterNodeServerListener,
+  getDisplays,
+  configureOutputWindow,
+  onDisplaysChanged,
+  onOutputWindowClosed,
 });

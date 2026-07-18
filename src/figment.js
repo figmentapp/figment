@@ -3,6 +3,8 @@
 
 export { buildSaveImagePath, encodeWithCanvasFallback, ensureFallbackCanvas, parseSaveImageTemplate } from './saveImageShared.js';
 export { createImageEncoder } from './imageEncoder.js';
+export { computeFitScale, displayOptionLabels, resolveDisplayIndex, FIT_MODES } from './displayUtils.js';
+import { computeFitScale } from './displayUtils.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 
@@ -721,6 +723,125 @@ export function clearRenderTarget(target, clearColor = { r: 0, g: 0, b: 0, a: 0 
   });
   pass.end();
   _queue.submit([encoder.finish()]);
+}
+
+// ─── Canvas Blitting ────────────────────────────────────────────────────────
+
+// Aspect-fitting blit shader shared by the Viewer and Screen Out windows.
+// UVs are scaled around the center; anything outside [0,1] renders black.
+const CANVAS_BLIT_WGSL = `
+struct Uniforms {
+  scale: vec2f,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_texture: texture_2d<f32>;
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  // Scale UVs around center to maintain aspect ratio
+  let centered = (in.uv - 0.5) / u.scale + 0.5;
+  // Use textureSampleLevel to avoid uniform-control-flow requirement
+  let color = textureSampleLevel(u_texture, defaultSampler, centered, 0.0);
+  if (centered.x < 0.0 || centered.x > 1.0 || centered.y < 0.0 || centered.y > 1.0) {
+    return vec4f(0.0, 0.0, 0.0, 1.0);
+  }
+  // Premultiply alpha for canvas display
+  return vec4f(color.rgb * color.a, color.a);
+}
+`;
+
+// Configure a canvas (possibly living in another same-process window) for
+// WebGPU presentation with the shared device, and return a blitter that can
+// draw any RenderTarget-like source ({view, width, height}) into it with a
+// single fullscreen-triangle pass. This is the zero-copy path used for
+// multi-monitor output: the source texture never leaves the GPU.
+export function createCanvasBlitter(canvas, { label = 'canvas blit' } = {}) {
+  if (!_device) throw new Error('GPU device not initialized — call initGPU() first');
+  const context = canvas.getContext('webgpu');
+  if (!context) throw new Error('Could not create WebGPU canvas context');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  context.configure({
+    device: _device,
+    format,
+    alphaMode: 'premultiplied',
+  });
+  const pipelineInfo = createRenderPipeline({
+    wgsl: CANVAS_BLIT_WGSL,
+    uniforms: { scale: 'vec2f' },
+    textures: ['u_texture'],
+    targetFormat: format,
+    label,
+  });
+
+  return {
+    canvas,
+    context,
+    // Draw the source into the canvas using the given fit mode.
+    // Returns the fit rect (in canvas pixels) or null if nothing was drawn.
+    draw(source, fitMode = 'contain') {
+      if (!_device || !source || !source.view) return null;
+      const fit = computeFitScale(fitMode, canvas.width, canvas.height, source.width, source.height);
+      const uniformData = packUniforms(pipelineInfo.uniformLayout, { scale: fit.scale });
+      const uniformBuffer = _device.createBuffer({
+        size: uniformData.byteLength || 16,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        label: label + ' uniforms',
+      });
+      _queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+      const bindGroup = _device.createBindGroup({
+        layout: pipelineInfo.bindGroupLayout,
+        entries: [
+          { binding: 0, resource: { buffer: uniformBuffer } },
+          { binding: 1, resource: samplers.linearClamp },
+          { binding: 2, resource: source.view },
+        ],
+        label: label + ' bind group',
+      });
+
+      const encoder = _device.createCommandEncoder({ label: label + ' encoder' });
+      const pass = encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view: context.getCurrentTexture().createView(),
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+          },
+        ],
+      });
+      pass.setPipeline(pipelineInfo.pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.draw(3);
+      pass.end();
+      _queue.submit([encoder.finish()]);
+      uniformBuffer.destroy();
+      return fit;
+    },
+    // Clear the canvas (used when the input image goes away).
+    clear(clearColor = { r: 0, g: 0, b: 0, a: 1 }) {
+      if (!_device) return;
+      const encoder = _device.createCommandEncoder({ label: label + ' clear encoder' });
+      const pass = encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view: context.getCurrentTexture().createView(),
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: clearColor,
+          },
+        ],
+      });
+      pass.end();
+      _queue.submit([encoder.finish()]);
+    },
+    destroy() {
+      try {
+        context.unconfigure();
+      } catch (_) {}
+    },
+  };
 }
 
 // ─── Readback ───────────────────────────────────────────────────────────────

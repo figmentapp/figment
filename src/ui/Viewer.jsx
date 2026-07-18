@@ -1,47 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as figment from '../figment';
-import { computeAspectFit } from '../g';
 import { useAppStore } from './store';
 import { shouldRedrawViewer } from './viewer-state';
 import ProjectionQuadEditor from './ProjectionQuadEditor';
-
-const BLIT_WGSL = `
-struct Uniforms {
-  scale: vec2f,
-};
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_texture: texture_2d<f32>;
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-  // Scale UVs around center to maintain aspect ratio
-  let centered = (in.uv - 0.5) / u.scale + 0.5;
-  // Use textureSampleLevel to avoid uniform-control-flow requirement
-  let color = textureSampleLevel(u_texture, defaultSampler, centered, 0.0);
-  if (centered.x < 0.0 || centered.x > 1.0 || centered.y < 0.0 || centered.y > 1.0) {
-    return vec4f(0.0, 0.0, 0.0, 1.0);
-  }
-  // Premultiply alpha for canvas display
-  return vec4f(color.rgb * color.a, color.a);
-}
-`;
 
 export default function Viewer() {
   const network = useAppStore((s) => s.network);
   const fullscreen = useAppStore((s) => s.fullscreen);
   useAppStore((s) => s.version); // re-render overlays on port changes
   const canvasRef = useRef(null);
-  const gpuContextRef = useRef(null);
-  const blitPipelineRef = useRef(null);
+  const blitterRef = useRef(null);
   const shouldDrawRef = useRef(false);
   const [letterbox, setLetterbox] = useState(null);
 
   const draw = () => {
-    const device = figment.getDevice();
     const canvas = canvasRef.current;
-    const gpuContext = gpuContextRef.current;
-    if (!device || !canvas || !gpuContext || !blitPipelineRef.current) return;
+    const blitter = blitterRef.current;
+    if (!figment.getDevice() || !canvas || !blitter) return;
 
     const parent = canvas.parentElement;
     if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
@@ -59,8 +34,8 @@ export default function Viewer() {
 
     if (!outPort.value || !outPort.value.texture) return;
 
-    const fit = computeAspectFit(canvas.width, canvas.height, outPort.value.width, outPort.value.height);
-    const scale = [fit.width / canvas.width, fit.height / canvas.height];
+    const fit = blitter.draw(outPort.value, 'contain');
+    if (!fit) return;
 
     setLetterbox((prev) => {
       if (prev && prev.offsetX === fit.offsetX && prev.offsetY === fit.offsetY && prev.width === fit.width && prev.height === fit.height) {
@@ -68,46 +43,6 @@ export default function Viewer() {
       }
       return { offsetX: fit.offsetX, offsetY: fit.offsetY, width: fit.width, height: fit.height };
     });
-
-    // Render to the canvas texture
-    const canvasTexture = gpuContext.getCurrentTexture();
-    const canvasView = canvasTexture.createView();
-
-    const pipelineInfo = blitPipelineRef.current;
-    const uniformData = figment.packUniforms(pipelineInfo.uniformLayout, { scale });
-    const uniformBuffer = device.createBuffer({
-      size: uniformData.byteLength || 16,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
-
-    const bindGroup = device.createBindGroup({
-      layout: pipelineInfo.bindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: uniformBuffer } },
-        { binding: 1, resource: figment.samplers.linearClamp },
-        { binding: 2, resource: outPort.value.view },
-      ],
-    });
-
-    const encoder = device.createCommandEncoder({ label: 'viewer encoder' });
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: canvasView,
-          loadOp: 'clear',
-          storeOp: 'store',
-          clearValue: { r: 0, g: 0, b: 0, a: 1 },
-        },
-      ],
-    });
-    pass.setPipeline(pipelineInfo.pipeline);
-    pass.setBindGroup(0, bindGroup);
-    pass.draw(3);
-    pass.end();
-
-    device.queue.submit([encoder.finish()]);
-    uniformBuffer.destroy();
   };
 
   const onNetworkChange = () => {
@@ -127,24 +62,7 @@ export default function Viewer() {
     const device = figment.getDevice();
     if (!device || !canvasRef.current) return;
 
-    const canvas = canvasRef.current;
-    const gpuContext = canvas.getContext('webgpu');
-    gpuContext.configure({
-      device,
-      format: navigator.gpu.getPreferredCanvasFormat(),
-      alphaMode: 'premultiplied',
-    });
-    gpuContextRef.current = gpuContext;
-
-    // Create blit pipeline targeting the canvas format
-    const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-    blitPipelineRef.current = figment.createRenderPipeline({
-      wgsl: BLIT_WGSL,
-      uniforms: { scale: 'vec2f' },
-      textures: ['u_texture'],
-      targetFormat: canvasFormat,
-      label: 'viewer blit',
-    });
+    blitterRef.current = figment.createCanvasBlitter(canvasRef.current, { label: 'viewer blit' });
 
     const initialNetwork = useAppStore.getState().network;
     initialNetwork.addChangeListener(onNetworkChange);
@@ -169,6 +87,8 @@ export default function Viewer() {
       cancelAnimationFrame(rafIdRef.current);
       currentNetwork.removeChangeListener(onNetworkChange);
       unsubscribe();
+      blitterRef.current?.destroy();
+      blitterRef.current = null;
     };
   }, []);
 
