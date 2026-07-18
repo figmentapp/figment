@@ -3,6 +3,7 @@
 
 export { buildSaveImagePath, encodeWithCanvasFallback, ensureFallbackCanvas, parseSaveImageTemplate } from './saveImageShared.js';
 export { createImageEncoder } from './imageEncoder.js';
+export { PoseGpuPipeline } from './mediapipe-gpu.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 

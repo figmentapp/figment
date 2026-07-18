@@ -1,12 +1,168 @@
-# Integrating MediaPipe with an Existing WebGPU Node Pipeline
+# Running MediaPipe Models Natively on WebGPU
 
-## Context
+## The problem
 
-This document describes how to integrate MediaPipe (pose detection with landmarks + segmentation masks) into a web app that uses a node-based WebGPU processing system. The goal is to minimize CPU roundtrips by keeping data GPU-resident where possible.
+Figment's strategy is to keep all image data GPU-resident. MediaPipe breaks
+that: its web runtime (`@mediapipe/tasks-vision`) only accepts CPU-side
+images (`ImageData`, canvas) and runs internally on WebGL. Every frame
+through a MediaPipe node costs:
 
-MediaPipe's web API currently uses WebGL for texture I/O, not WebGPU. The `webgpu_external_texture_buffer.h` (a proper zero-copy solution) is declared in the MediaPipe BUILD file but is not present in the open-source repo. Therefore, canvas-based bridges are needed on both the input and output sides.
+1. a full-frame GPU→CPU readback (e.g. 8.3 MB at 1080p) to feed the model,
+2. WASM/WebGL inference in a worker,
+3. for segmentation, a full-frame CPU→GPU upload of the mask on the way back.
+
+MediaPipe's proper zero-copy WebGPU path (`webgpu_external_texture_buffer`)
+exists in their BUILD files but has never shipped in the open-source repo,
+and the JS API has no WebGPU texture input either.
+
+## The insight
+
+A `.task` file is just a ZIP archive (with uncompressed entries) containing
+ordinary TFLite neural networks plus MediaPipe's pre/post-processing
+recipe implemented in C++ "calculators":
+
+```
+pose_landmarker_lite.task
+├── pose_detector.tflite            224×224 → 2254 candidate boxes + keypoints
+└── pose_landmarks_detector.tflite  256×256 → 39 landmarks, mask, world landmarks
+```
+
+The neural networks are the expensive part, and *those* can run on WebGPU:
+Figment already ships a patched onnxruntime-web whose WebGPU execution
+provider shares Figment's own `GPUDevice` (`ort.env.webgpu.device`) and does
+zero-copy tensor I/O via `ort.Tensor.fromGpuBuffer` (see the ONNX Image
+Model node). What MediaPipe's runtime adds around the models — resizing,
+letterboxing, anchor decoding, non-max suppression, ROI cropping, landmark
+projection, mask warping — is all straightforward math and texture work
+that Figment can do itself in WGSL and a few hundred lines of JS.
+
+So instead of bridging into MediaPipe's runtime, we bypass it entirely:
+
+1. **Extract** the TFLite models from the `.task` files.
+2. **Convert** them to ONNX (`scripts/convert-mediapipe-to-onnx.py`).
+3. **Run** them with onnxruntime-web's WebGPU EP on Figment's device.
+4. **Reimplement** the calculator graph as WGSL passes + small JS.
+
+This is implemented for pose in `src/mediapipe-gpu.js` and exposed as the
+**Pose GPU** node (`src/nodes/ml/poseGpu.js`).
+
+## Step 1+2: model conversion
+
+`scripts/convert-mediapipe-to-onnx.py` (dev-time only; requires
+`pip install tensorflow-cpu tf2onnx onnxruntime`) extracts the TFLite
+models and converts them with tf2onnx. Two wrinkles worth knowing about:
+
+- **Sparse weights.** `pose_detector.tflite` stores its conv weights in
+  TFLite's sparse CSR format behind `DENSIFY` ops, which tf2onnx cannot
+  parse (`ValueError: cannot reshape array of size 96 into shape ...`).
+  The script decodes the sparsity metadata (traversal order, block map,
+  CSR segments/indices) itself, materializes dense buffers, strips the
+  `DENSIFY` ops from the flatbuffer, and re-serializes the model. All other
+  models (hands, face, pose landmarks) convert without this.
+- **Validation.** Each ONNX model is compared against the original TFLite
+  model (run by the TFLite interpreter) on random input. Differences are
+  relative to output magnitude because the fp16 weights make exact
+  equality impossible: worst case observed is ~3e-5 relative — for the
+  segmentation logits (range ±550) the absolute diff of ~0.1 becomes
+  <1e-3 after sigmoid.
+
+The converted models live in `assets/mediapipe/onnx/` and ship with the
+app. tf2onnx upcasts the fp16 weights to fp32, so they are ~2× the TFLite
+size; `pose_landmarks_heavy` (55 MB) is therefore not committed — run the
+script if you need it, or see "Future work" for the fp16 route.
+
+## Step 3+4: the GPU pipeline (`src/mediapipe-gpu.js`)
+
+```
+frame texture ──letterbox──▶ 224×224 ──pack──▶ NHWC f32 buffer
+     │                                          │ ONNX pose_detector (WebGPU EP)
+     │                    decode + weighted NMS (~108 KB readback,
+     │                    only when tracking is lost)
+     │                                          ▼
+     └──rotated ROI crop──▶ 256×256 ──pack──▶ NHWC f32 buffer
+                                                │ ONNX pose_landmarks (WebGPU EP)
+                     landmarks (~1.3 KB readback) ◀┤
+                                                ▼ mask logits (stay on GPU)
+                     frame-size mask ◀──warp── 256×256 sigmoid mask texture
+```
+
+Each MediaPipe calculator maps to a small piece of the module:
+
+| MediaPipe calculator | Our implementation |
+| --- | --- |
+| `ImageToTensorCalculator` (letterbox) | fragment shader + compute pack pass |
+| `SsdAnchorsCalculator` | `generateAnchors()` — 2254 anchor centers in JS |
+| `TensorsToDetectionsCalculator` | `_decodeDetections()` — sigmoid, ÷224, +anchor |
+| `NonMaxSuppressionCalculator` (weighted) | score-weighted blend of overlapping boxes |
+| `AlignmentPointsRectsCalculator` + `RectTransformationCalculator` | `roiFromKeypoints()` — rotated square ROI, ×1.25 |
+| `ImageToTensorCalculator` (ROI) | rotated-crop fragment shader |
+| `TensorsToLandmarksCalculator` + `LandmarkProjectionCalculator` | JS projection ROI→frame, sigmoid on visibility |
+| `TensorsToSegmentationCalculator` + `WarpAffineCalculator` | compute sigmoid pass + inverse-warp fragment shader |
+
+Details that matter if you extend this:
+
+- **Value ranges.** The detector wants `[-1, 1]`, the landmark model
+  `[0, 1]`. The shared pack shader takes scale/offset uniforms.
+- **NHWC, not NCHW.** tf2onnx keeps TFLite's NHWC input layout, so the
+  pack shader writes interleaved RGB — simpler than the ONNX Image Model
+  node's NCHW planes.
+- **Tracking.** The landmark model outputs 39 landmarks; indices 33/34 are
+  auxiliary points that exist purely to compute the *next* frame's ROI.
+  While the pose presence score stays ≥ 0.5 the detector is skipped
+  entirely — this mirrors MediaPipe's VIDEO mode and means the per-frame
+  hot path runs a single model.
+- **Partial fetches.** `session.run(feeds, fetches)` gets a preallocated
+  GPU-buffer tensor for the mask output (stays on GPU) and `null` for the
+  small outputs (downloaded to CPU). The 64×64×39 heatmap output is not
+  fetched at all.
+- **Geometry is done in pixel space.** ROI size/rotation use pixel
+  coordinates so non-square frames behave correctly; this matches
+  MediaPipe's GPU crop path exactly (their normalized-space projection
+  formula is algebraically identical because the ROI is square).
+
+Per-frame CPU↔GPU traffic drops from ~10 MB (frame down + mask up at
+1080p) to ~1.3 KB of landmarks, plus ~108 KB of detector output only on
+frames where tracking is (re)acquired.
+
+## What's implemented, what's not
+
+- ✅ Pose: detector + lite/full landmarks + segmentation mask + world
+  landmarks, single pose, with temporal ROI tracking (**Pose GPU** node).
+- ⏳ Multi-pose (the CPU Segment Pose node tracks up to 4 people).
+- ⏳ Heatmap-based landmark refinement (MediaPipe applies it when the
+  heatmap output is present; we skip it — landmarks are slightly less
+  stable in exchange for not touching the 64×64×39 tensor).
+- ⏳ Landmark smoothing (One-Euro filter) — MediaPipe only smooths in
+  VIDEO mode; the existing Figment nodes run IMAGE mode, so parity holds.
+- ⏳ Hands and face: same recipe applies; their models already convert
+  cleanly (`--all` flag on the conversion script). The work is writing
+  their (simpler) decode/ROI logic — palm detection uses 2016 anchors at
+  192×192, face detection 896 at 128×128.
+
+## Future work
+
+- **fp16 models.** Converting the ONNX weights to fp16
+  (`onnxconverter-common`) would halve the asset size and likely speed up
+  inference, but requires requesting the `shader-f16` feature on the
+  shared device and a fallback for GPUs without it.
+- **GPU detector decode.** The 108 KB detector readback could become a
+  compute-shader argmax + ~100 B readback. Only worth it if re-detection
+  happens often.
+- **LiteRT.js** (Google's 2025 TFLite-on-WebGPU runtime) could run the
+  `.tflite` files directly and would inherit new models automatically, but
+  device sharing with Figment's pipeline needs investigating, and the
+  pre/post-processing reimplementation is needed either way.
 
 ---
+
+# Appendix: the canvas-bridge approach (not used)
+
+The earlier plan below keeps MediaPipe's own runtime and smuggles textures
+across the WebGPU/WebGL boundary via canvases. It is retained for
+reference: it is less invasive (no model conversion, exact MediaPipe
+behavior) but keeps the WebGL context, is at the mercy of the browser's
+compositor for zero-copy behavior, and still can't accept a `GPUTexture`
+directly.
 
 ## Architecture Overview
 
@@ -29,225 +185,16 @@ Your WebGPU Nodes                    MediaPipe                         Your WebG
                                                                    +--------------+
 ```
 
----
+Key points (see git history for the full original document):
 
-## Step 1: Initialization -- Shared GPUDevice Setup
-
-Create one GPUDevice and share it with MediaPipe. Both your pipeline and MediaPipe will use the same device.
-
-```typescript
-// Your existing device creation (add any features MediaPipe needs)
-const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
-const device = await adapter.requestDevice({
-  requiredFeatures: ['shader-f16'], // needed if using LLM inference
-});
-
-// Initialize MediaPipe with YOUR device
-const poseLandmarker = await PoseLandmarker.createFromOptions(fileset, {
-  baseOptions: {
-    modelAssetPath: 'pose_landmarker.task',
-    delegate: 'GPU',
-    gpuOptions: { device },  // <-- pass your device here
-  },
-  runningMode: 'VIDEO',
-  outputSegmentationMasks: true,
-});
-```
-
-### How it works internally
-
-When you pass `gpuOptions.device`, MediaPipe calls `graphRunner.initializeForWebGpu(device, canvas)` which sets `wasmModule.preinitializedWebGPUDevice = device`. The C++ side picks this up via `emscripten_webgpu_get_device()`. This is the JS/WASM bridge for sharing a single GPUDevice.
-
-**Key files:**
-- `mediapipe/web/graph_runner/graph_runner_webgpu.ts:125-145` -- `initializeForWebGpu()`
-- `mediapipe/tasks/web/genai/llm_inference/llm_inference.ts` -- example of device passing pattern
-
----
-
-## Step 2: Input Bridge -- WebGPU Texture -> MediaPipe
-
-**Strategy:** Render the WebGPU texture to a canvas, pass the canvas as `TexImageSource`.
-
-MediaPipe's `addGpuBufferToStream()` accepts any `TexImageSource` (which includes `HTMLCanvasElement` and `OffscreenCanvas`). The browser's compositor can optimize canvas-to-WebGL texture transfers to stay GPU-side.
-
-```typescript
-// One-time setup: create a bridge canvas with WebGPU context
-const bridgeCanvas = new OffscreenCanvas(width, height);
-const bridgeCtx = bridgeCanvas.getContext('webgpu') as GPUCanvasContext;
-bridgeCtx.configure({ device, format: navigator.gpu.getPreferredCanvasFormat() });
-
-// Per-frame: blit your WebGPU texture to the bridge canvas
-const encoder = device.createCommandEncoder();
-encoder.copyTextureToTexture(
-  { texture: yourProcessedTexture },
-  { texture: bridgeCtx.getCurrentTexture() },
-  [width, height]
-);
-device.queue.submit([encoder.finish()]);
-
-// Pass canvas to MediaPipe (high-level task API)
-poseLandmarker.detectForVideo(bridgeCanvas, timestamp);
-
-// OR for lower-level graph runner:
-graphRunner.addGpuBufferToStream(bridgeCanvas, 'input_video', timestamp);
-```
-
-### Why this works
-
-`copyTextureToTexture` is a GPU-side blit. When `gl.texImage2D()` inside MediaPipe receives the canvas, Chrome can often keep this GPU-resident via compositor texture sharing. The transfer path is: your WebGPU texture -> GPU blit -> canvas -> compositor -> WebGL texture (all potentially GPU-side).
-
-### Format compatibility note
-
-Ensure your WebGPU texture format is compatible with `navigator.gpu.getPreferredCanvasFormat()` (typically `bgra8unorm` or `rgba8unorm`). If your processing uses a different format, you may need a format-conversion render pass before the blit.
-
-**Key files:**
-- `mediapipe/web/graph_runner/graph_runner.ts:189-229` -- `bindTextureToStream()` calls `gl.texImage2D()`
-- `mediapipe/web/graph_runner/graph_runner.ts:414-423` -- `addGpuBufferToStream()`
-
----
-
-## Step 3: Output -- Landmarks -> GPUBuffer
-
-**Strategy:** Upload the small landmark arrays to a GPUBuffer for shader consumption.
-
-Pose landmarks are ~33 points x 5 values (x, y, z, visibility, presence) = ~660 bytes. This is trivially small -- CPU transfer is negligible.
-
-```typescript
-// Create a GPUBuffer for landmarks (one-time)
-const landmarkBuffer = device.createBuffer({
-  size: 33 * 5 * 4, // 33 landmarks, 5 floats each, 4 bytes per float
-  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-});
-
-// Per-frame: upload landmarks after detection
-poseLandmarker.detectForVideo(bridgeCanvas, timestamp, (result) => {
-  if (result.landmarks.length > 0) {
-    const data = new Float32Array(33 * 5);
-    for (let i = 0; i < result.landmarks[0].length; i++) {
-      const lm = result.landmarks[0][i];
-      data[i * 5 + 0] = lm.x;
-      data[i * 5 + 1] = lm.y;
-      data[i * 5 + 2] = lm.z;
-      data[i * 5 + 3] = lm.visibility ?? 0;
-      data[i * 5 + 4] = lm.presence ?? 0;
-    }
-    device.queue.writeBuffer(landmarkBuffer, 0, data);
-  }
-});
-```
-
-### Consuming in WGSL
-
-```wgsl
-struct Landmark {
-  x: f32, y: f32, z: f32,
-  visibility: f32, presence: f32,
-};
-
-@group(0) @binding(0) var<storage, read> landmarks: array<Landmark, 33>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) idx: u32) -> @builtin(position) vec4f {
-  let lm = landmarks[idx];
-  // lm.x and lm.y are normalized [0,1] -- convert to clip space
-  return vec4f(lm.x * 2.0 - 1.0, -(lm.y * 2.0 - 1.0), 0.0, 1.0);
-}
-```
-
-**Key files:**
-- `mediapipe/tasks/web/vision/pose_landmarker/pose_landmarker.ts` -- pose task API
-- `mediapipe/tasks/web/components/processors/landmark_result.ts` -- landmark conversion
-
----
-
-## Step 4: Output -- Segmentation Masks -> GPUTexture
-
-**Strategy:** Two options depending on reliability needs.
-
-Masks come back as `MPMask` objects which can contain `WebGLTexture`, `Float32Array`, or `Uint8Array`.
-
-### Option A: Canvas bridge (potentially GPU-side)
-
-Render the WebGLTexture to a canvas, then use `copyExternalImageToTexture()` to get it into WebGPU.
-
-```typescript
-poseLandmarker.detectForVideo(bridgeCanvas, timestamp, (result) => {
-  if (result.segmentationMasks?.length) {
-    const mask = result.segmentationMasks[0];
-
-    if (mask.hasWebGLTexture()) {
-      // mask.canvas is the canvas bound to MediaPipe's WebGL context
-      // Render WebGLTexture to canvas via MediaPipe's drawing utils
-      drawingUtils.drawConfidenceMask(mask);
-
-      // Copy canvas -> WebGPU texture
-      device.queue.copyExternalImageToTexture(
-        { source: mask.canvas },
-        { texture: yourMaskGpuTexture },
-        [mask.width, mask.height]
-      );
-    }
-  }
-});
-```
-
-### Option B: Float32Array transfer (reliable, involves CPU roundtrip)
-
-```typescript
-poseLandmarker.detectForVideo(bridgeCanvas, timestamp, (result) => {
-  if (result.segmentationMasks?.length) {
-    const mask = result.segmentationMasks[0];
-    const maskData = mask.getAsFloat32Array();
-
-    device.queue.writeTexture(
-      { texture: yourMaskGpuTexture },
-      maskData,
-      { bytesPerRow: mask.width * 4 },  // 4 bytes per float32
-      [mask.width, mask.height]
-    );
-  }
-});
-```
-
-### Trade-offs
-
-| Approach | Transfer | Reliability | Notes |
-|----------|----------|-------------|-------|
-| Option A (canvas) | Potentially GPU-side | Browser-dependent | Requires drawing mask to canvas first |
-| Option B (Float32Array) | GPU->CPU->GPU | Reliable everywhere | Full frame roundtrip, ~2-8ms at 1080p |
-
-**Key files:**
-- `mediapipe/tasks/web/vision/core/mask.ts` -- MPMask class, `getAsWebGLTexture()`, `getAsFloat32Array()`
-- `mediapipe/tasks/web/vision/core/drawing_utils.ts` -- rendering masks to canvas
-- `mediapipe/tasks/web/vision/core/image_shader_context.ts` -- WebGL shader context for mask rendering
-
----
-
-## Performance Summary
-
-| Path | Transfer Type | Estimated Cost |
-|------|--------------|----------------|
-| Input: WebGPU tex -> canvas -> MediaPipe | GPU blit + compositor | Low (~0.5ms) |
-| Output: Landmarks -> GPUBuffer | CPU upload, 660 bytes | Negligible (<0.1ms) |
-| Output: Mask -> Float32Array -> GPUTexture | GPU->CPU->GPU | Moderate (2-8ms at 1080p) |
-| Output: Mask -> canvas -> `copyExternalImageToTexture` | Potentially GPU-side | Low (browser-dependent) |
-
----
-
-## Limitations and Future
-
-- **No direct WebGPU texture pass-through.** The `webgpu_external_texture_buffer` (BUILD target in `mediapipe/gpu/webgpu/BUILD:182-195`) is not yet in the open-source repo. When it ships, the canvas bridge for input becomes unnecessary.
-- **Async close required.** When closing a WebGPU-backed graph, use `closeGraphAsync()` (ASYNCIFY-based) for proper synchronization. See `mediapipe/web/graph_runner/graph_runner_webgpu.ts:152-160`.
-- **Canvas ID coupling.** `initializeForWebGpu()` hardcodes `canvas.id = 'canvas_webgpu'` for HTMLCanvasElement. If using multiple canvases, use OffscreenCanvas instead.
-- **WebGPU device features.** If your pipeline needs specific features, request them when creating the device since MediaPipe shares it. Check MediaPipe's requirements (e.g., `shader-f16` for LLM inference, storage buffer limits).
-
----
-
-## Verification Checklist
-
-1. Create a minimal test page that captures webcam to a WebGPU texture
-2. Pass the texture through the canvas bridge to MediaPipe PoseLandmarker
-3. Upload returned landmarks to a GPUBuffer and render points in a WGSL shader
-4. Get segmentation mask back as a GPUTexture via one of the two options
-5. Profile with Chrome DevTools GPU timeline to verify the canvas bridge stays GPU-side
-6. Compare frame times with vs. without the canvas bridge to measure overhead
+- Pass Figment's device via `baseOptions.gpuOptions.device`; MediaPipe
+  sets `wasmModule.preinitializedWebGPUDevice` and the C++ side picks it
+  up through `emscripten_webgpu_get_device()` — but this path is only
+  actually exercised by the LLM inference tasks today, not vision.
+- Input: blit the WebGPU texture to an `OffscreenCanvas` with a `webgpu`
+  context and hand the canvas to `detectForVideo()`. Chrome *may* keep
+  this GPU-side via compositor texture sharing; it is not guaranteed.
+- Landmarks out: trivial (~660 bytes), upload to a `GPUBuffer`.
+- Mask out: either draw the `MPMask`'s WebGL texture to a canvas and
+  `copyExternalImageToTexture` (browser-dependent zero-copy), or
+  `getAsFloat32Array()` + `writeTexture` (reliable, 2–8 ms at 1080p).
