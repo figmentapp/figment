@@ -43,8 +43,10 @@ So instead of bridging into MediaPipe's runtime, we bypass it entirely:
 3. **Run** them with onnxruntime-web's WebGPU EP on Figment's device.
 4. **Reimplement** the calculator graph as WGSL passes + small JS.
 
-This is implemented for pose in `src/mediapipe-gpu.js` and exposed as the
-**Pose GPU** node (`src/nodes/ml/poseGpu.js`).
+This is implemented in `src/mediapipe-gpu.js` for all three task families —
+pose, hands, and face — and powers the existing **Detect Pose**, **Segment
+Pose**, **Detect Hands**, and **Detect Faces** nodes, whose parameter and
+output surfaces are unchanged.
 
 ## Step 1+2: model conversion
 
@@ -67,77 +69,106 @@ models and converts them with tf2onnx. Two wrinkles worth knowing about:
   <1e-3 after sigmoid.
 
 The converted models live in `assets/mediapipe/onnx/` and ship with the
-app. tf2onnx upcasts the fp16 weights to fp32, so they are ~2× the TFLite
-size; `pose_landmarks_heavy` (55 MB) is therefore not committed — run the
-script if you need it, or see "Future work" for the fp16 route.
+app: pose (detector + lite/full/heavy landmarks), hands (palm detector +
+landmarks), and face (detector + landmarks). tf2onnx upcasts the fp16
+weights to fp32, so they are ~2× the TFLite size (~100 MB total); see
+"Future work" for the fp16 route to halve that.
+
+Two per-model facts the runtime depends on, and where they come from:
+
+- **Input value ranges** are read from each TFLite model's embedded
+  metadata (`NormalizationOptions` mean/std): pose and face detectors want
+  `[-1, 1]`, everything else `[0, 1]`.
+- **Output semantics** (which tensor is landmarks/score/handedness/world,
+  and their activations) come from MediaPipe's task graph sources
+  (`mediapipe/tasks/cc/vision/*/**_graph.cc`). Notably: pose and hand
+  presence scores are already probabilities, the face presence score needs
+  a sigmoid, and hand handedness is a binary classification with labels
+  0 = Right / 1 = Left.
 
 ## Step 3+4: the GPU pipeline (`src/mediapipe-gpu.js`)
 
 ```
-frame texture ──letterbox──▶ 224×224 ──pack──▶ NHWC f32 buffer
-     │                                          │ ONNX pose_detector (WebGPU EP)
-     │                    decode + weighted NMS (~108 KB readback,
-     │                    only when tracking is lost)
-     │                                          ▼
-     └──rotated ROI crop──▶ 256×256 ──pack──▶ NHWC f32 buffer
-                                                │ ONNX pose_landmarks (WebGPU EP)
-                     landmarks (~1.3 KB readback) ◀┤
-                                                ▼ mask logits (stay on GPU)
-                     frame-size mask ◀──warp── 256×256 sigmoid mask texture
+frame texture ──letterbox──▶ NxN ──pack──▶ NHWC f32 buffer
+     │                                      │ ONNX detector (WebGPU EP)
+     │                  decode + weighted NMS (small readback)
+     │                                      ▼ up to 4 ROIs
+     └──rotated ROI crop──▶ MxM ──pack──▶ NHWC f32 buffer   (per instance)
+                                            │ ONNX landmark model (WebGPU EP)
+                 landmarks (~1 KB readback) ◀┤
+                                            ▼ pose only: mask logits (stay on GPU)
+                 frame-size mask ◀──warp+union── 256×256 mask textures
 ```
 
-Each MediaPipe calculator maps to a small piece of the module:
+`TwoStageGpuPipeline` is the shared engine; `PoseGpuPipeline`,
+`HandGpuPipeline`, and `FaceGpuPipeline` configure it. Each MediaPipe
+calculator maps to a small piece of the module:
 
 | MediaPipe calculator | Our implementation |
 | --- | --- |
 | `ImageToTensorCalculator` (letterbox) | fragment shader + compute pack pass |
-| `SsdAnchorsCalculator` | `generateAnchors()` — 2254 anchor centers in JS |
-| `TensorsToDetectionsCalculator` | `_decodeDetections()` — sigmoid, ÷224, +anchor |
-| `NonMaxSuppressionCalculator` (weighted) | score-weighted blend of overlapping boxes |
-| `AlignmentPointsRectsCalculator` + `RectTransformationCalculator` | `roiFromKeypoints()` — rotated square ROI, ×1.25 |
-| `ImageToTensorCalculator` (ROI) | rotated-crop fragment shader |
-| `TensorsToLandmarksCalculator` + `LandmarkProjectionCalculator` | JS projection ROI→frame, sigmoid on visibility |
-| `TensorsToSegmentationCalculator` + `WarpAffineCalculator` | compute sigmoid pass + inverse-warp fragment shader |
+| `SsdAnchorsCalculator` | `generateSsdAnchors()` — anchor centers in JS (2254 pose / 2016 hand / 896 face) |
+| `TensorsToDetectionsCalculator` | `decodeDetections()` — sigmoid, ÷input size, +anchor |
+| `NonMaxSuppressionCalculator` (weighted) | score-weighted blend of overlapping boxes, up to 4 results |
+| `AlignmentPointsRectsCalculator` (pose) | `roiFromAlignmentPoints()` — hip→body point, ×1.25 |
+| `DetectionsToRectsCalculator` + `RectTransformationCalculator` (hands, face) | `roiFromDetectionBox()` — box + keypoint rotation, shift, scale, square_long |
+| `AssociationNormRect` (multi-instance tracking) | ROI IoU > 0.5 dedup when topping up tracked ROIs from the detector |
+| `ImageToTensorCalculator` (ROI) | rotated-crop fragment shader, run per instance |
+| `TensorsToLandmarksCalculator` + `LandmarkProjectionCalculator` | `_projectLandmarks()` ROI→frame, sigmoid on visibility, z divisors |
+| `WorldLandmarkProjectionCalculator` | `_projectWorldLandmarks()` — rotate world x/y by ROI rotation |
+| `TensorsToClassificationCalculator` (handedness) | binary classification, labels 0 = Right / 1 = Left |
+| `TensorsToSegmentationCalculator` + `WarpAffineCalculator` (pose) | compute sigmoid pass per instance + one inverse-warp pass that unions up to 4 masks (pixel-wise max) |
 
 Details that matter if you extend this:
 
-- **Value ranges.** The detector wants `[-1, 1]`, the landmark model
-  `[0, 1]`. The shared pack shader takes scale/offset uniforms.
 - **NHWC, not NCHW.** tf2onnx keeps TFLite's NHWC input layout, so the
   pack shader writes interleaved RGB — simpler than the ONNX Image Model
   node's NCHW planes.
-- **Tracking.** The landmark model outputs 39 landmarks; indices 33/34 are
-  auxiliary points that exist purely to compute the *next* frame's ROI.
-  While the pose presence score stays ≥ 0.5 the detector is skipped
-  entirely — this mirrors MediaPipe's VIDEO mode and means the per-frame
-  hot path runs a single model.
+- **Tracking.** Pose tracks via auxiliary landmarks 33/34, face via the
+  landmark bounding box (rotation from landmarks 33→263); while enough
+  instances are tracked the detector is skipped, and a same-frame
+  re-detection covers scene cuts. Hands run the detector every frame
+  (MediaPipe's hand-landmarks→ROI calculator is custom; the 192×192 palm
+  detector is cheap), which matches the CPU node's IMAGE-mode behavior.
+  Note that "enough" means the configured count: with `number of poses` at
+  4 and one person in frame, the detector still runs every frame looking
+  for the other three — the same rule MediaPipe's tracking graphs use. Set
+  the count to the number you actually expect.
+- **Multi-instance.** The detector's weighted NMS yields up to 4
+  detections; tracked ROIs are topped up with non-overlapping detections
+  (IoU > 0.5 dedup). The landmark model is batch-1, so instances run
+  sequentially; each pose instance's mask is baked into its own slot
+  texture before the next run reuses the output buffer.
 - **Partial fetches.** `session.run(feeds, fetches)` gets a preallocated
-  GPU-buffer tensor for the mask output (stays on GPU) and `null` for the
-  small outputs (downloaded to CPU). The 64×64×39 heatmap output is not
-  fetched at all.
+  GPU-buffer tensor for the pose mask (stays on GPU) and `null` for the
+  small outputs (downloaded to CPU). The 64×64×39 pose heatmap is never
+  fetched, and Detect Pose doesn't fetch the mask at all.
 - **Geometry is done in pixel space.** ROI size/rotation use pixel
   coordinates so non-square frames behave correctly; this matches
   MediaPipe's GPU crop path exactly (their normalized-space projection
   formula is algebraically identical because the ROI is square).
 
 Per-frame CPU↔GPU traffic drops from ~10 MB (frame down + mask up at
-1080p) to ~1.3 KB of landmarks, plus ~108 KB of detector output only on
-frames where tracking is (re)acquired.
+1080p) to ~1 KB of landmarks per instance (~6 KB for a face), plus the
+detector output (108 KB pose / 145 KB hand / 61 KB face) on frames where
+the detector actually runs.
 
 ## What's implemented, what's not
 
-- ✅ Pose: detector + lite/full landmarks + segmentation mask + world
-  landmarks, single pose, with temporal ROI tracking (**Pose GPU** node).
-- ⏳ Multi-pose (the CPU Segment Pose node tracks up to 4 people).
-- ⏳ Heatmap-based landmark refinement (MediaPipe applies it when the
-  heatmap output is present; we skip it — landmarks are slightly less
-  stable in exchange for not touching the 64×64×39 tensor).
+- ✅ Pose: detector + lite/full/heavy landmarks + segmentation mask +
+  world landmarks, up to 4 poses with ROI tracking and mask union
+  (**Detect Pose**, **Segment Pose**).
+- ✅ Hands: palm detector + landmarks + handedness + world landmarks, up
+  to 4 hands (**Detect Hands**).
+- ✅ Face: detector + 478-point landmarks, up to 4 faces with ROI tracking
+  (**Detect Faces**).
+- ⏳ Heatmap-based landmark refinement (MediaPipe applies it to pose; we
+  skip it — landmarks are slightly less stable in exchange for not
+  touching the 64×64×39 tensor).
 - ⏳ Landmark smoothing (One-Euro filter) — MediaPipe only smooths in
-  VIDEO mode; the existing Figment nodes run IMAGE mode, so parity holds.
-- ⏳ Hands and face: same recipe applies; their models already convert
-  cleanly (`--all` flag on the conversion script). The work is writing
-  their (simpler) decode/ROI logic — palm detection uses 2016 anchors at
-  192×192, face detection 896 at 128×128.
+  VIDEO mode; the CPU nodes ran IMAGE mode, so parity holds.
+- ⏳ Face blendshapes (the nodes never exposed them; the model is in the
+  .task file if ever needed).
 
 ## Future work
 

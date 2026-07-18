@@ -1,78 +1,59 @@
-// GPU-resident MediaPipe pose pipeline.
+// GPU-resident MediaPipe pipelines (pose, hands, face).
 //
 // MediaPipe's own web runtime (tasks-vision) runs its models through WebGL
 // and only accepts CPU-side images, which forces a full-frame GPU→CPU
 // readback on input and a CPU upload for the mask on output. This module
-// reimplements the pose landmarker graph natively on Figment's WebGPU
-// device instead:
+// reimplements the two-stage landmarker graphs natively on Figment's
+// WebGPU device instead:
 //
-//   frame texture ──letterbox──▶ 224×224 ──pack──▶ NHWC buffer
-//        │                                          │ (ONNX pose_detector, WebGPU EP)
-//        │                       anchors decode + weighted NMS (tiny readback, ~108 KB,
-//        │                       only on frames where tracking was lost)
-//        │                                          ▼
-//        └───rotated ROI crop──▶ 256×256 ──pack──▶ NHWC buffer
-//                                                   │ (ONNX pose_landmarks, WebGPU EP)
-//                       landmarks (~1 KB readback) ◀┤
-//                                                   ▼ segmentation mask (stays on GPU)
-//                        frame-size mask ◀──warp── 256×256 mask texture
+//   frame texture ──letterbox──▶ NxN ──pack──▶ NHWC buffer
+//        │                                      │ ONNX detector (WebGPU EP)
+//        │                     anchors decode + weighted NMS (small readback)
+//        │                                      ▼ up to 4 ROIs
+//        └──rotated ROI crop──▶ MxM ──pack──▶ NHWC buffer   (per instance)
+//                                               │ ONNX landmark model (WebGPU EP)
+//                    landmarks (~1 KB readback) ◀┤
+//                                               ▼ pose only: segmentation mask
+//                    frame-size mask ◀──warp── 256×256 mask textures (stay on GPU)
 //
 // The models are the exact TFLite networks extracted from the .task files,
 // converted to ONNX with scripts/convert-mediapipe-to-onnx.py and executed
 // by onnxruntime-web's WebGPU execution provider on Figment's own
 // GPUDevice, so image data never leaves the GPU. The pre/post-processing
-// logic (SSD anchors, decoding, ROI geometry, landmark projection) mirrors
-// MediaPipe's calculators:
-//   - SsdAnchorsCalculator / TensorsToDetectionsCalculator (pose_detection)
-//   - AlignmentPointsRectsCalculator + RectTransformationCalculator (ROI)
-//   - ImageToTensorCalculator (letterbox / rotated crop)
-//   - TensorsToLandmarksCalculator + LandmarkProjectionCalculator
-//   - TensorsToSegmentationCalculator + WarpAffineCalculator (mask)
+// mirrors MediaPipe's task graphs (mediapipe/tasks/cc/vision/*): SSD anchor
+// generation and decoding, weighted non-max suppression, detection→ROI
+// rects, ImageToTensor letterbox/crop, landmark/world-landmark projection,
+// and segmentation mask warping. Input value ranges come from each model's
+// embedded TFLite metadata (mean/std), thresholds and ROI parameters from
+// the corresponding *_graph.cc files.
 
-import {
-  getAdapter,
-  getDevice,
-  createRenderPipeline,
-  createComputePipeline,
-  drawFullscreen,
-  dispatch,
-  RenderTarget,
-  samplers,
-} from './figment';
+import { getAdapter, getDevice, createRenderPipeline, createComputePipeline, drawFullscreen, dispatch, RenderTarget } from './figment';
 
-const DETECT_SIZE = 224;
-const LANDMARK_SIZE = 256;
-const NUM_ANCHORS = 2254;
-const NUM_LANDMARKS = 39; // 33 public + 2 auxiliary (ROI tracking) + 4 unused
-const NUM_PUBLIC_LANDMARKS = 33;
-const DETECTION_SCORE_THRESHOLD = 0.5;
-const NMS_IOU_THRESHOLD = 0.3;
-const PRESENCE_THRESHOLD = 0.5;
-const ROI_SCALE = 1.25;
+const MAX_INSTANCES = 4;
+const NMS_IOU_THRESHOLD = 0.3; // min_suppression_threshold in all three detector graphs
+const TRACKING_IOU_THRESHOLD = 0.5; // AssociationNormRect min_similarity_threshold
 
-// ─── SSD anchors (SsdAnchorsCalculator, pose_detection config) ──────────────
+// ─── SSD anchors (SsdAnchorsCalculator) ─────────────────────────────────────
 //
-// num_layers: 5, strides: [8,16,32,32,32], aspect_ratios: [1.0],
-// interpolated_scale_aspect_ratio: 1.0, fixed_anchor_size: true. With
-// fixed anchor size (w = h = 1) and square aspect, the configured scales
-// never influence the result and an anchor is fully described by its
-// center: 28²·2 + 14²·2 + 7²·6 = 2254.
+// All three detectors use aspect_ratios [1.0], interpolated_scale_aspect_ratio
+// 1.0 and fixed_anchor_size, so every anchor has w = h = 1, the configured
+// scales cancel out, and an anchor is fully described by its center. Layers
+// sharing a stride collapse into one feature-map loop with 2 anchors per
+// layer per cell.
 
-export function generateAnchors() {
-  const strides = [8, 16, 32, 32, 32];
+export function generateSsdAnchors({ inputSize, strides }) {
   const numLayers = strides.length;
   const anchors = [];
 
   let layerId = 0;
   while (layerId < numLayers) {
-    // Layers with the same stride share one feature map loop.
     let anchorCount = 0;
     let lastSameStride = layerId;
     while (lastSameStride < numLayers && strides[lastSameStride] === strides[layerId]) {
       anchorCount += 2; // aspect 1.0 + interpolated scale anchor
       lastSameStride++;
     }
-    const featureMapSize = Math.ceil(DETECT_SIZE / strides[layerId]);
+    const featureMapSize = Math.ceil(inputSize / strides[layerId]);
     for (let y = 0; y < featureMapSize; y++) {
       for (let x = 0; x < featureMapSize; x++) {
         for (let a = 0; a < anchorCount; a++) {
@@ -81,9 +62,6 @@ export function generateAnchors() {
       }
     }
     layerId = lastSameStride;
-  }
-  if (anchors.length !== NUM_ANCHORS * 2) {
-    throw new Error(`anchor generation produced ${anchors.length / 2}, expected ${NUM_ANCHORS}`);
   }
   return new Float32Array(anchors);
 }
@@ -98,17 +76,128 @@ export function normalizeRadians(angle) {
   return angle - 2 * Math.PI * Math.floor((angle + Math.PI) / (2 * Math.PI));
 }
 
-// AlignmentPointsRectsCalculator + RectTransformationCalculator: build a
-// rotated square ROI (in frame pixels) from a center keypoint and an
-// alignment keypoint, target angle 90°, scaled by ROI_SCALE.
-export function roiFromKeypoints(center, alignment, frameWidth, frameHeight) {
+function rotationFromPoints(p0, p1, targetAngle, frameWidth, frameHeight) {
+  const dx = (p1.x - p0.x) * frameWidth;
+  const dy = (p1.y - p0.y) * frameHeight;
+  return normalizeRadians(targetAngle - Math.atan2(-dy, dx));
+}
+
+// AlignmentPointsRectsCalculator: square rect centered on `center`, sized by
+// twice the distance to `alignment` (used by the pose graphs).
+export function roiFromAlignmentPoints(center, alignment, frameWidth, frameHeight, scale, targetAngle = Math.PI / 2) {
   const cx = center.x * frameWidth;
   const cy = center.y * frameHeight;
-  const ax = alignment.x * frameWidth;
-  const ay = alignment.y * frameHeight;
-  const boxSize = Math.hypot(ax - cx, ay - cy) * 2;
-  const rotation = normalizeRadians(Math.PI / 2 - Math.atan2(-(ay - cy), ax - cx));
-  return { cx, cy, size: boxSize * ROI_SCALE, rotation };
+  const dx = (alignment.x - center.x) * frameWidth;
+  const dy = (alignment.y - center.y) * frameHeight;
+  const boxSize = Math.hypot(dx, dy) * 2;
+  const rotation = normalizeRadians(targetAngle - Math.atan2(-dy, dx));
+  return { cx, cy, size: boxSize * scale, rotation };
+}
+
+// DetectionsToRectsCalculator + RectTransformationCalculator: rect from the
+// detection bounding box, rotated by two keypoints, shifted along the rotated
+// axes, scaled, and squared to the long side (hands and face).
+export function roiFromDetectionBox(det, frameWidth, frameHeight, { rotStartKp, rotEndKp, targetAngle, scale, shiftY = 0 }) {
+  const [x0, y0, x1, y1] = det.box;
+  let w = (x1 - x0) * frameWidth;
+  let h = (y1 - y0) * frameHeight;
+  let cx = ((x0 + x1) / 2) * frameWidth;
+  let cy = ((y0 + y1) / 2) * frameHeight;
+  const rotation = rotationFromPoints(det.keypoints[rotStartKp], det.keypoints[rotEndKp], targetAngle, frameWidth, frameHeight);
+  if (shiftY !== 0) {
+    cx += -Math.sin(rotation) * shiftY * h;
+    cy += Math.cos(rotation) * shiftY * h;
+  }
+  w *= scale;
+  h *= scale;
+  const size = Math.max(w, h); // square_long
+  return { cx, cy, size, rotation };
+}
+
+function roiIou(a, b) {
+  return boxIou(
+    [a.cx - a.size / 2, a.cy - a.size / 2, a.cx + a.size / 2, a.cy + a.size / 2],
+    [b.cx - b.size / 2, b.cy - b.size / 2, b.cx + b.size / 2, b.cy + b.size / 2],
+  );
+}
+
+// ─── Detection decoding (TensorsToDetectionsCalculator + weighted NMS) ──────
+//
+// Returns up to maxResults detections sorted by score, each with a bounding
+// box and keypoints in frame-normalized coordinates (letterbox removed).
+
+export function decodeDetections(rawBoxes, rawScores, opts) {
+  const { anchors, inputSize, numCoords, numKeypoints, scoreThreshold, maxResults, contentScale } = opts;
+  const numAnchors = rawScores.length;
+  const candidates = [];
+  // Compare raw logits against the threshold's logit so the sigmoid only
+  // runs for the handful of anchors that pass (~2000 skipped per frame).
+  const logitThreshold = Math.log(scoreThreshold / (1 - scoreThreshold));
+  for (let i = 0; i < numAnchors; i++) {
+    if (rawScores[i] < logitThreshold) continue;
+    const score = sigmoid(Math.max(-100, Math.min(100, rawScores[i])));
+    const o = i * numCoords;
+    const ax = anchors[i * 2];
+    const ay = anchors[i * 2 + 1];
+    const cx = rawBoxes[o] / inputSize + ax;
+    const cy = rawBoxes[o + 1] / inputSize + ay;
+    const w = rawBoxes[o + 2] / inputSize;
+    const h = rawBoxes[o + 3] / inputSize;
+    const values = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+    for (let k = 0; k < numKeypoints; k++) {
+      values.push(rawBoxes[o + 4 + k * 2] / inputSize + ax, rawBoxes[o + 5 + k * 2] / inputSize + ay);
+    }
+    candidates.push({ score, values });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+
+  // Weighted NMS: blend all candidates overlapping the current best,
+  // weighted by score, then continue with the non-overlapping remainder.
+  const [sx, sy] = contentScale;
+  const unpadX = (x) => (x - (1 - sx) / 2) / sx;
+  const unpadY = (y) => (y - (1 - sy) / 2) / sy;
+  const detections = [];
+  let remaining = candidates;
+  while (remaining.length > 0 && detections.length < maxResults) {
+    const best = remaining[0];
+    const overlapping = [];
+    const rest = [];
+    for (const c of remaining) {
+      if (boxIou(best.values, c.values) >= NMS_IOU_THRESHOLD) overlapping.push(c);
+      else rest.push(c);
+    }
+    const blended = new Float64Array(best.values.length);
+    let totalWeight = 0;
+    for (const c of overlapping) {
+      for (let k = 0; k < blended.length; k++) blended[k] += c.values[k] * c.score;
+      totalWeight += c.score;
+    }
+    for (let k = 0; k < blended.length; k++) blended[k] /= totalWeight;
+
+    const keypoints = [];
+    for (let k = 0; k < numKeypoints; k++) {
+      keypoints.push({ x: unpadX(blended[4 + k * 2]), y: unpadY(blended[5 + k * 2]) });
+    }
+    detections.push({
+      score: best.score,
+      box: [unpadX(blended[0]), unpadY(blended[1]), unpadX(blended[2]), unpadY(blended[3])],
+      keypoints,
+    });
+    remaining = rest;
+  }
+  return detections;
+}
+
+function boxIou(a, b) {
+  const x0 = Math.max(a[0], b[0]);
+  const y0 = Math.max(a[1], b[1]);
+  const x1 = Math.min(a[2], b[2]);
+  const y1 = Math.min(a[3], b[3]);
+  if (x1 <= x0 || y1 <= y0) return 0;
+  const inter = (x1 - x0) * (y1 - y0);
+  const areaA = (a[2] - a[0]) * (a[3] - a[1]);
+  const areaB = (b[2] - b[0]) * (b[3] - b[1]);
+  return inter / (areaA + areaB - inter);
 }
 
 // ─── WGSL ───────────────────────────────────────────────────────────────────
@@ -154,7 +243,8 @@ struct Uniforms {
 `;
 
 // Pack an rgba8 texture into an NHWC float32 tensor buffer, mapping [0,1]
-// to [offset, offset+scale] (detector wants [-1,1], landmarks want [0,1]).
+// through scale/offset (detector models want [-1,1] or [0,1] depending on
+// their TFLite metadata; all landmark models want [0,1]).
 const PACK_WGSL = `
 struct Uniforms {
   u_size: u32,
@@ -195,42 +285,76 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
 }
 `;
 
-// Warp the ROI-space mask back to frame space (inverse of the crop).
+// Warp up to 4 ROI-space masks back to frame space and union them
+// (pixel-wise max), the inverse of the per-instance crops. Each column of
+// u_rois holds one ROI as (cx, cy, size, rotation) in frame pixels.
 const MASK_WARP_WGSL = `
 struct Uniforms {
-  u_center: vec2f,
+  u_rois: mat4x4f,
   u_frame_size: vec2f,
-  u_rot: vec2f,
-  u_size: f32,
+  u_count: i32,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var defaultSampler: sampler;
-@group(0) @binding(2) var u_mask: texture_2d<f32>;
+@group(0) @binding(2) var u_mask0: texture_2d<f32>;
+@group(0) @binding(3) var u_mask1: texture_2d<f32>;
+@group(0) @binding(4) var u_mask2: texture_2d<f32>;
+@group(0) @binding(5) var u_mask3: texture_2d<f32>;
+
+fn sample_roi(roi: vec4f, mask: texture_2d<f32>, p: vec2f) -> f32 {
+  let c = cos(roi.w);
+  let s = sin(roi.w);
+  let d = p - roi.xy;
+  let local = vec2f(d.x * c + d.y * s, -d.x * s + d.y * c) / roi.z + 0.5;
+  let v = textureSample(mask, defaultSampler, clamp(local, vec2f(0.0), vec2f(1.0))).r;
+  let inside = all(local >= vec2f(0.0)) && all(local <= vec2f(1.0));
+  return select(0.0, v, inside);
+}
 
 @fragment fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-  let d = in.uv * u.u_frame_size - u.u_center;
-  let local = vec2f(d.x * u.u_rot.x + d.y * u.u_rot.y, -d.x * u.u_rot.y + d.y * u.u_rot.x) / u.u_size + 0.5;
-  let v = textureSample(u_mask, defaultSampler, clamp(local, vec2f(0.0), vec2f(1.0))).r;
-  let inside = all(local >= vec2f(0.0)) && all(local <= vec2f(1.0));
-  let masked = select(0.0, v, inside);
-  return vec4f(masked, masked, masked, 1.0);
+  let p = in.uv * u.u_frame_size;
+  var v = sample_roi(u.u_rois[0], u_mask0, p);
+  if (u.u_count > 1) { v = max(v, sample_roi(u.u_rois[1], u_mask1, p)); }
+  if (u.u_count > 2) { v = max(v, sample_roi(u.u_rois[2], u_mask2, p)); }
+  if (u.u_count > 3) { v = max(v, sample_roi(u.u_rois[3], u_mask3, p)); }
+  return vec4f(v, v, v, 1.0);
 }
 `;
 
-// ─── Pipeline ───────────────────────────────────────────────────────────────
+// ─── Shared two-stage pipeline ──────────────────────────────────────────────
+//
+// Subclasses configure the detector (input size/range, anchors, coords) and
+// implement _roiFromDetection / _decodeInstance.
 
-export class PoseGpuPipeline {
-  constructor({ model = 'lite' } = {}) {
-    this.model = model;
+class TwoStageGpuPipeline {
+  constructor({ maxInstances = 1, confidence = 0.5 } = {}) {
+    this.maxInstances = maxInstances;
+    this.confidence = confidence;
     this._device = null;
-    this._detectorSession = null;
-    this._landmarkSession = null;
-    this._anchors = generateAnchors();
-    this._trackedRoi = null;
+    this._trackedRois = [];
     this._frameWidth = 0;
     this._frameHeight = 0;
     this._initPromise = null;
+    this._processing = null;
     this._destroyed = false;
+    // Subclasses set: _name, _detectorUrl, _detectSize, _detectRange
+    // {scale, offset}, _anchorSpec {inputSize, strides}, _numCoords,
+    // _numKeypoints, _landmarkSize, _landmarkOutputNames, _tracks.
+  }
+
+  // Clamped here (not just in the constructor) because nodes assign it live
+  // when the user drags the count input; pose mask slots are sized to
+  // MAX_INSTANCES, so values beyond it must never get through.
+  get maxInstances() {
+    return this._maxInstances;
+  }
+  set maxInstances(n) {
+    this._maxInstances = Math.max(1, Math.min(MAX_INSTANCES, Math.floor(n)));
+  }
+
+  // The detector's min_detection_confidence. Nodes update `confidence` live.
+  get _detectorScoreThreshold() {
+    return this.confidence;
   }
 
   async init() {
@@ -252,372 +376,270 @@ export class PoseGpuPipeline {
     ort.env.webgpu.adapter = getAdapter();
     ort.env.webgpu.device = this._device;
 
+    this._anchors = generateSsdAnchors(this._anchorSpec);
     const [detectorSession, landmarkSession] = await Promise.all([
-      ort.InferenceSession.create('./mediapipe/onnx/pose_detector.onnx', { executionProviders: ['webgpu'] }),
-      this._createLandmarkSession(this.model),
+      ort.InferenceSession.create(this._detectorUrl, { executionProviders: ['webgpu'] }),
+      this._createLandmarkSession(),
     ]);
     this._detectorSession = detectorSession;
     this._landmarkSession = landmarkSession;
-    this._detectorOutputs = this._mapDetectorOutputs(detectorSession);
+    this._requireOutputs(detectorSession, ['boxes', 'scores']);
 
-    // Fixed-size GPU resources.
-    this._detectTarget = new RenderTarget({ label: 'poseGpu-detect-input' });
-    this._detectTarget.setSize(DETECT_SIZE, DETECT_SIZE);
-    this._cropTarget = new RenderTarget({ label: 'poseGpu-crop-input' });
-    this._cropTarget.setSize(LANDMARK_SIZE, LANDMARK_SIZE);
-    this._maskRoiTarget = this._device.createTexture({
-      size: [LANDMARK_SIZE, LANDMARK_SIZE],
-      format: 'rgba8unorm',
-      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-      label: 'poseGpu-mask-roi',
-    });
-    this._maskRoiView = this._maskRoiTarget.createView();
-    this.maskTarget = new RenderTarget({ label: 'poseGpu-mask' });
+    this._detectTarget = new RenderTarget({ label: `${this._name}-detect-input` });
+    this._detectTarget.setSize(this._detectSize, this._detectSize);
+    this._cropTarget = new RenderTarget({ label: `${this._name}-crop-input` });
+    this._cropTarget.setSize(this._landmarkSize, this._landmarkSize);
 
     this._detectInputBuffer = this._device.createBuffer({
-      size: DETECT_SIZE * DETECT_SIZE * 3 * 4,
+      size: this._detectSize * this._detectSize * 3 * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      label: 'poseGpu-detect-tensor',
+      label: `${this._name}-detect-tensor`,
     });
     this._landmarkInputBuffer = this._device.createBuffer({
-      size: LANDMARK_SIZE * LANDMARK_SIZE * 3 * 4,
+      size: this._landmarkSize * this._landmarkSize * 3 * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      label: 'poseGpu-landmark-tensor',
+      label: `${this._name}-landmark-tensor`,
     });
-    this._maskBuffer = this._device.createBuffer({
-      size: LANDMARK_SIZE * LANDMARK_SIZE * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      label: 'poseGpu-mask-tensor',
-    });
-
     this._detectInputTensor = ort.Tensor.fromGpuBuffer(this._detectInputBuffer, {
       dataType: 'float32',
-      dims: [1, DETECT_SIZE, DETECT_SIZE, 3],
+      dims: [1, this._detectSize, this._detectSize, 3],
     });
     this._landmarkInputTensor = ort.Tensor.fromGpuBuffer(this._landmarkInputBuffer, {
       dataType: 'float32',
-      dims: [1, LANDMARK_SIZE, LANDMARK_SIZE, 3],
-    });
-    this._maskTensor = ort.Tensor.fromGpuBuffer(this._maskBuffer, {
-      dataType: 'float32',
-      dims: [1, LANDMARK_SIZE, LANDMARK_SIZE, 1],
+      dims: [1, this._landmarkSize, this._landmarkSize, 3],
     });
 
     this._letterboxPipeline = createRenderPipeline({
       wgsl: LETTERBOX_WGSL,
       uniforms: { u_content_scale: 'vec2f' },
       textures: ['u_source'],
-      label: 'poseGpu-letterbox',
+      label: `${this._name}-letterbox`,
     });
     this._cropPipeline = createRenderPipeline({
       wgsl: CROP_WGSL,
       uniforms: { u_center: 'vec2f', u_frame_size: 'vec2f', u_rot: 'vec2f', u_size: 'f32' },
       textures: ['u_source'],
-      label: 'poseGpu-crop',
+      label: `${this._name}-crop`,
     });
     this._packPipeline = createComputePipeline({
       wgsl: PACK_WGSL,
       uniforms: { u_size: 'u32', u_scale: 'f32', u_offset: 'f32' },
       textures: ['u_texture'],
       storage: [{ name: 'u_out', type: 'buffer' }],
-      label: 'poseGpu-pack',
+      label: `${this._name}-pack`,
     });
-    this._maskToTexturePipeline = createComputePipeline({
-      wgsl: MASK_TO_TEXTURE_WGSL,
-      uniforms: { u_size: 'u32' },
-      storage: [
-        { name: 'u_mask', type: 'buffer' },
-        { name: 'u_out', type: 'texture_storage_2d' },
-      ],
-      label: 'poseGpu-mask-to-texture',
-    });
-    this._maskWarpPipeline = createRenderPipeline({
-      wgsl: MASK_WARP_WGSL,
-      uniforms: { u_center: 'vec2f', u_frame_size: 'vec2f', u_rot: 'vec2f', u_size: 'f32' },
-      textures: ['u_mask'],
-      label: 'poseGpu-mask-warp',
-    });
+
+    await this._initExtras();
   }
 
-  async _createLandmarkSession(model) {
-    const session = await window.ort.InferenceSession.create(`./mediapipe/onnx/pose_landmarks_${model}.onnx`, {
-      executionProviders: ['webgpu'],
-    });
-    this._landmarkOutputs = this._mapLandmarkOutputs(session);
+  // Subclass hooks (with defaults).
+  async _initExtras() {}
+  _landmarkFetches() {
+    const fetches = {};
+    for (const name of this._landmarkOutputNames) fetches[name] = null;
+    return fetches;
+  }
+  _finalize(_results, _rois) {}
+
+  async _createLandmarkSession() {
+    const session = await window.ort.InferenceSession.create(this._landmarkUrl(), { executionProviders: ['webgpu'] });
+    this._requireOutputs(session, this._landmarkOutputNames);
     return session;
   }
 
-  // tf2onnx names the outputs Identity/Identity_1/... in an order that could
-  // change across conversions, so resolve them by tensor shape instead.
-  _mapDetectorOutputs(session) {
-    const names = {};
-    session.outputNames.forEach((name, i) => {
-      const dims = session.outputMetadata[i].shape;
-      if (dims.length === 3 && dims[2] === 12) names.boxes = name;
-      else if (dims.length === 3 && dims[2] === 1) names.scores = name;
-    });
-    if (!names.boxes || !names.scores) {
-      throw new Error(`Unexpected pose detector outputs: ${session.outputNames.join(', ')}`);
+  // The conversion script renames each model's outputs to semantic names
+  // (scripts/convert-mediapipe-to-onnx.py) so the runtime never has to guess
+  // which Identity_N tensor is which; just verify they are present.
+  _requireOutputs(session, names) {
+    for (const name of names) {
+      if (!session.outputNames.includes(name)) {
+        throw new Error(
+          `${this._name} model is missing output "${name}" (has: ${session.outputNames.join(', ')}). ` +
+            'Regenerate the models with scripts/convert-mediapipe-to-onnx.py --all.',
+        );
+      }
     }
-    return names;
   }
 
-  _mapLandmarkOutputs(session) {
-    const names = {};
-    session.outputNames.forEach((name, i) => {
-      const dims = session.outputMetadata[i].shape;
-      if (dims.length === 2 && dims[1] === NUM_LANDMARKS * 5) names.landmarks = name;
-      else if (dims.length === 2 && dims[1] === 1) names.score = name;
-      else if (dims.length === 4 && dims[1] === LANDMARK_SIZE) names.mask = name;
-      else if (dims.length === 2 && dims[1] === NUM_LANDMARKS * 3) names.world = name;
-      // The 64×64×39 heatmap output is intentionally unmapped (never fetched).
-    });
-    if (!names.landmarks || !names.score || !names.mask || !names.world) {
-      throw new Error(`Unexpected pose landmark outputs: ${session.outputNames.join(', ')}`);
-    }
-    return names;
-  }
-
-  async setModel(model) {
-    if (model === this.model && this._landmarkSession) return;
-    await this.init();
-    // Wait for any in-flight frame: releasing a session mid-run corrupts it.
-    if (this._processing) await this._processing.catch(() => {});
-    const session = await this._createLandmarkSession(model);
-    const old = this._landmarkSession;
-    this._landmarkSession = session;
-    this.model = model;
-    this._trackedRoi = null;
-    if (old) void old.release();
-  }
-
-  // Run the full pipeline on a RenderTarget-like source (has .view/.width/.height).
-  // Returns { detected, landmarks, worldLandmarks, score }; when detected, the
-  // frame-space segmentation mask is available in this.maskTarget.
-  async process(source) {
-    this._processing = this._process(source);
-    try {
-      return await this._processing;
-    } finally {
+  process(source) {
+    this._processing = this._process(source).finally(() => {
       this._processing = null;
-    }
+    });
+    return this._processing;
   }
 
   async _process(source) {
     await this.init();
-    if (this._destroyed) return { detected: false };
+    if (this._destroyed) return [];
     const width = source.width;
     const height = source.height;
     if (width !== this._frameWidth || height !== this._frameHeight) {
       this._frameWidth = width;
       this._frameHeight = height;
-      this.maskTarget.setSize(width, height);
-      this._trackedRoi = null;
+      this._trackedRois = [];
+      this._onResize(width, height);
     }
 
-    const tracking = !!this._trackedRoi;
-    let roi = this._trackedRoi || (await this._detect(source));
-    let result = roi ? await this._landmarks(source, roi) : null;
+    // Reuse tracked ROIs; top up from the detector when instances are
+    // missing (mirrors MediaPipe's VIDEO-mode ROI tracking + association).
+    let rois = this._tracks ? this._trackedRois.slice(0, this.maxInstances) : [];
+    const hadTracks = rois.length > 0;
+    if (rois.length < this.maxInstances) {
+      rois = this._mergeDetections(rois, await this._detect(source));
+    }
+
+    let { results, resultRois, nextRois } = await this._runInstances(source, rois);
 
     // Tracking can go stale on a scene cut: fall back to a fresh detection
     // in the same frame instead of reporting a spurious miss.
-    if (!result && tracking) {
-      this._trackedRoi = null;
-      roi = await this._detect(source);
-      if (roi) result = await this._landmarks(source, roi);
+    if (results.length === 0 && hadTracks) {
+      this._trackedRois = [];
+      const freshRois = this._mergeDetections([], await this._detect(source));
+      ({ results, resultRois, nextRois } = await this._runInstances(source, freshRois));
     }
 
-    if (!result) this._trackedRoi = null;
+    this._trackedRois = this._tracks ? nextRois : [];
+    this._finalize(results, resultRois);
     // Wait for the queued GPU work (mask warp etc.) to drain before letting
     // the caller submit the next frame — without this the queue can grow
     // unboundedly and starve the compositor (see onnxImageModel.js).
     await this._device.queue.onSubmittedWorkDone();
-    return result || { detected: false };
+    return results;
   }
 
-  // ── Stage 1: pose detector ──
+  _onResize(_width, _height) {}
+
+  _mergeDetections(rois, detections) {
+    const merged = rois.slice();
+    for (const det of detections) {
+      if (merged.length >= this.maxInstances) break;
+      const roi = this._roiFromDetection(det);
+      if (!merged.some((r) => roiIou(r, roi) > TRACKING_IOU_THRESHOLD)) merged.push(roi);
+    }
+    return merged;
+  }
+
+  async _runInstances(source, rois) {
+    const results = [];
+    const resultRois = [];
+    const nextRois = [];
+    for (const roi of rois) {
+      const decoded = await this._runInstance(source, roi, results.length);
+      if (!decoded) continue;
+      results.push(decoded.result);
+      resultRois.push(roi);
+      if (decoded.nextRoi) nextRois.push(decoded.nextRoi);
+    }
+    return { results, resultRois, nextRois };
+  }
+
   async _detect(source) {
-    performance.mark('poseGpu-detect-start');
+    performance.mark(`${this._name}-detect-start`);
     const width = this._frameWidth;
     const height = this._frameHeight;
-    // Letterbox: scale the frame to fit the square input, centered.
-    const fit = Math.min(DETECT_SIZE / width, DETECT_SIZE / height);
-    const contentScale = [(width * fit) / DETECT_SIZE, (height * fit) / DETECT_SIZE];
+    const fit = Math.min(this._detectSize / width, this._detectSize / height);
+    const contentScale = [(width * fit) / this._detectSize, (height * fit) / this._detectSize];
 
     drawFullscreen(this._letterboxPipeline, { u_content_scale: contentScale }, { u_source: source }, this._detectTarget);
     dispatch(
       this._packPipeline,
-      { u_size: DETECT_SIZE, u_scale: 2.0, u_offset: -1.0 },
+      { u_size: this._detectSize, u_scale: this._detectRange.scale, u_offset: this._detectRange.offset },
       { u_texture: this._detectTarget, u_out: this._detectInputBuffer },
-      [Math.ceil(DETECT_SIZE / 16), Math.ceil(DETECT_SIZE / 16), 1],
+      [Math.ceil(this._detectSize / 16), Math.ceil(this._detectSize / 16), 1],
     );
 
     const feeds = { [this._detectorSession.inputNames[0]]: this._detectInputTensor };
     const outputs = await this._detectorSession.run(feeds);
-    const rawBoxes = outputs[this._detectorOutputs.boxes].data; // [2254, 12]
-    const rawScores = outputs[this._detectorOutputs.scores].data; // [2254, 1]
-
-    const keypoints = this._decodeDetections(rawBoxes, rawScores, contentScale);
-    performance.mark('poseGpu-detect-end');
+    const detections = decodeDetections(outputs['boxes'].data, outputs['scores'].data, {
+      anchors: this._anchors,
+      inputSize: this._detectSize,
+      numCoords: this._numCoords,
+      numKeypoints: this._numKeypoints,
+      scoreThreshold: this._detectorScoreThreshold,
+      maxResults: this.maxInstances,
+      contentScale,
+    });
+    performance.mark(`${this._name}-detect-end`);
     try {
-      performance.measure('mediapipe-gpu:pose:detect', 'poseGpu-detect-start', 'poseGpu-detect-end');
+      performance.measure(`mediapipe-gpu:${this._name}:detect`, `${this._name}-detect-start`, `${this._name}-detect-end`);
     } catch (_) {}
-    if (!keypoints) return null;
-    // Keypoint 0: mid-hip center; keypoint 1: full-body alignment point.
-    return roiFromKeypoints(keypoints[0], keypoints[1], this._frameWidth, this._frameHeight);
+    return detections;
   }
 
-  // TensorsToDetectionsCalculator + weighted non-max suppression.
-  _decodeDetections(rawBoxes, rawScores, contentScale) {
-    const anchors = this._anchors;
-    const candidates = [];
-    for (let i = 0; i < NUM_ANCHORS; i++) {
-      const score = sigmoid(Math.max(-100, Math.min(100, rawScores[i])));
-      if (score < DETECTION_SCORE_THRESHOLD) continue;
-      const o = i * 12;
-      const ax = anchors[i * 2];
-      const ay = anchors[i * 2 + 1];
-      const cx = rawBoxes[o] / DETECT_SIZE + ax;
-      const cy = rawBoxes[o + 1] / DETECT_SIZE + ay;
-      const w = rawBoxes[o + 2] / DETECT_SIZE;
-      const h = rawBoxes[o + 3] / DETECT_SIZE;
-      const values = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
-      for (let k = 0; k < 4; k++) {
-        values.push(rawBoxes[o + 4 + k * 2] / DETECT_SIZE + ax, rawBoxes[o + 5 + k * 2] / DETECT_SIZE + ay);
-      }
-      candidates.push({ score, values });
-    }
-    if (candidates.length === 0) return null;
-    candidates.sort((a, b) => b.score - a.score);
-
-    // Weighted NMS (MediaPipe NonMaxSuppressionCalculator, WEIGHTED): blend
-    // all candidates overlapping the best one, weighted by score.
-    const best = candidates[0];
-    const blended = new Float64Array(12);
-    let totalWeight = 0;
-    for (const c of candidates) {
-      if (this._iou(best.values, c.values) < NMS_IOU_THRESHOLD) continue;
-      for (let k = 0; k < 12; k++) blended[k] += c.values[k] * c.score;
-      totalWeight += c.score;
-    }
-    for (let k = 0; k < 12; k++) blended[k] /= totalWeight;
-
-    // Coordinates are relative to the letterboxed square; remove the
-    // letterbox padding to get frame-normalized coordinates.
-    const [sx, sy] = contentScale;
-    const unpad = (x, y) => ({ x: (x - (1 - sx) / 2) / sx, y: (y - (1 - sy) / 2) / sy });
-    const keypoints = [];
-    for (let k = 0; k < 4; k++) {
-      keypoints.push(unpad(blended[4 + k * 2], blended[5 + k * 2]));
-    }
-    return keypoints;
-  }
-
-  _iou(a, b) {
-    const x0 = Math.max(a[0], b[0]);
-    const y0 = Math.max(a[1], b[1]);
-    const x1 = Math.min(a[2], b[2]);
-    const y1 = Math.min(a[3], b[3]);
-    if (x1 <= x0 || y1 <= y0) return 0;
-    const inter = (x1 - x0) * (y1 - y0);
-    const areaA = (a[2] - a[0]) * (a[3] - a[1]);
-    const areaB = (b[2] - b[0]) * (b[3] - b[1]);
-    return inter / (areaA + areaB - inter);
-  }
-
-  // ── Stage 2: landmarks + segmentation mask ──
-  async _landmarks(source, roi) {
-    performance.mark('poseGpu-landmarks-start');
-    const width = this._frameWidth;
-    const height = this._frameHeight;
-    const rot = [Math.cos(roi.rotation), Math.sin(roi.rotation)];
-    const roiUniforms = {
+  _roiUniforms(roi) {
+    return {
       u_center: [roi.cx, roi.cy],
-      u_frame_size: [width, height],
-      u_rot: rot,
+      u_frame_size: [this._frameWidth, this._frameHeight],
+      u_rot: [Math.cos(roi.rotation), Math.sin(roi.rotation)],
       u_size: roi.size,
     };
+  }
 
-    drawFullscreen(this._cropPipeline, roiUniforms, { u_source: source }, this._cropTarget);
+  async _runInstance(source, roi, slot) {
+    performance.mark(`${this._name}-landmarks-start`);
+    drawFullscreen(this._cropPipeline, this._roiUniforms(roi), { u_source: source }, this._cropTarget);
     dispatch(
       this._packPipeline,
-      { u_size: LANDMARK_SIZE, u_scale: 1.0, u_offset: 0.0 },
+      { u_size: this._landmarkSize, u_scale: 1.0, u_offset: 0.0 },
       { u_texture: this._cropTarget, u_out: this._landmarkInputBuffer },
-      [Math.ceil(LANDMARK_SIZE / 16), Math.ceil(LANDMARK_SIZE / 16), 1],
+      [Math.ceil(this._landmarkSize / 16), Math.ceil(this._landmarkSize / 16), 1],
     );
-
-    // Fetch landmarks/score/world to the CPU (~1.3 KB), keep the mask on the
-    // GPU by passing a preallocated GPU-buffer tensor. The heatmap output is
-    // not fetched, so it is never downloaded to the CPU.
-    const names = this._landmarkOutputs;
     const feeds = { [this._landmarkSession.inputNames[0]]: this._landmarkInputTensor };
-    const fetches = { [names.landmarks]: null, [names.score]: null, [names.mask]: this._maskTensor, [names.world]: null };
-    const outputs = await this._landmarkSession.run(feeds, fetches);
+    const outputs = await this._landmarkSession.run(feeds, this._landmarkFetches());
+    const decoded = this._decodeInstance(outputs, roi, slot);
+    performance.mark(`${this._name}-landmarks-end`);
+    try {
+      performance.measure(`mediapipe-gpu:${this._name}:landmarks`, `${this._name}-landmarks-start`, `${this._name}-landmarks-end`);
+    } catch (_) {}
+    return decoded;
+  }
 
-    const score = outputs[names.score].data[0];
-    if (score < PRESENCE_THRESHOLD) {
-      performance.mark('poseGpu-landmarks-end');
-      return null;
-    }
-    const rawLandmarks = outputs[names.landmarks].data; // [39 × (x, y, z, visibility, presence)] in 256-space
-    const rawWorld = outputs[names.world].data; // [39 × (x, y, z)] in meters
-
-    // LandmarkProjectionCalculator: ROI space → frame-normalized coordinates.
-    const [cos, sin] = rot;
-    const landmarks = [];
-    const projected = [];
-    // Only the 33 public landmarks and the 2 auxiliary tracking landmarks
-    // are consumed; the model's remaining 4 landmarks are skipped.
-    for (let i = 0; i < NUM_PUBLIC_LANDMARKS + 2; i++) {
-      const o = i * 5;
-      const nx = rawLandmarks[o] / LANDMARK_SIZE - 0.5;
-      const ny = rawLandmarks[o + 1] / LANDMARK_SIZE - 0.5;
+  // LandmarkProjectionCalculator: ROI space → frame-normalized coordinates.
+  // zDivisor: extra z normalization applied by TensorsToLandmarksCalculator
+  // (hands use normalize_z 0.4; pose and face use 1).
+  _projectLandmarks(raw, count, stride, roi, { zDivisor = 1, withVisibility = false } = {}) {
+    const width = this._frameWidth;
+    const height = this._frameHeight;
+    const cos = Math.cos(roi.rotation);
+    const sin = Math.sin(roi.rotation);
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const o = i * stride;
+      const nx = raw[o] / this._landmarkSize - 0.5;
+      const ny = raw[o + 1] / this._landmarkSize - 0.5;
       const px = roi.cx + (nx * cos - ny * sin) * roi.size;
       const py = roi.cy + (nx * sin + ny * cos) * roi.size;
       const lm = {
         x: px / width,
         y: py / height,
-        z: (rawLandmarks[o + 2] / LANDMARK_SIZE) * (roi.size / width),
-        visibility: sigmoid(rawLandmarks[o + 3]),
-        presence: sigmoid(rawLandmarks[o + 4]),
+        z: (raw[o + 2] / this._landmarkSize / zDivisor) * (roi.size / width),
       };
-      projected.push(lm);
-      if (i < NUM_PUBLIC_LANDMARKS) landmarks.push(lm);
+      if (withVisibility) {
+        lm.visibility = sigmoid(raw[o + 3]);
+        lm.presence = sigmoid(raw[o + 4]);
+      }
+      out.push(lm);
     }
-    // WorldLandmarkProjectionCalculator: world landmarks are in meters around
-    // the hip center but oriented to the ROI, so rotate x/y back to frame
-    // orientation (z is unaffected by an in-plane rotation).
-    const worldLandmarks = [];
-    for (let i = 0; i < NUM_PUBLIC_LANDMARKS; i++) {
-      const wx = rawWorld[i * 3];
-      const wy = rawWorld[i * 3 + 1];
-      worldLandmarks.push({ x: wx * cos - wy * sin, y: wx * sin + wy * cos, z: rawWorld[i * 3 + 2] });
+    return out;
+  }
+
+  // WorldLandmarkProjectionCalculator: world landmarks are in meters but
+  // oriented to the ROI; rotate x/y back to frame orientation.
+  _projectWorldLandmarks(raw, count, roi) {
+    const cos = Math.cos(roi.rotation);
+    const sin = Math.sin(roi.rotation);
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const wx = raw[i * 3];
+      const wy = raw[i * 3 + 1];
+      out.push({ x: wx * cos - wy * sin, y: wx * sin + wy * cos, z: raw[i * 3 + 2] });
     }
-
-    // Track: derive the next frame's ROI from the auxiliary landmarks
-    // (indices 33/34), skipping the detector entirely while the pose holds.
-    this._trackedRoi = roiFromKeypoints(projected[NUM_PUBLIC_LANDMARKS], projected[NUM_PUBLIC_LANDMARKS + 1], width, height);
-
-    // Mask: sigmoid to ROI texture, then warp back to frame space. All GPU.
-    dispatch(this._maskToTexturePipeline, { u_size: LANDMARK_SIZE }, { u_mask: this._maskBuffer, u_out: this._maskRoiTarget }, [
-      Math.ceil(LANDMARK_SIZE / 16),
-      Math.ceil(LANDMARK_SIZE / 16),
-      1,
-    ]);
-    drawFullscreen(this._maskWarpPipeline, roiUniforms, { u_mask: this._maskRoiTarget }, this.maskTarget, {
-      sampler: samplers.linearClamp,
-    });
-
-    performance.mark('poseGpu-landmarks-end');
-    try {
-      performance.measure('mediapipe-gpu:pose:landmarks', 'poseGpu-landmarks-start', 'poseGpu-landmarks-end');
-    } catch (_) {}
-    return { detected: true, landmarks: [landmarks], worldLandmarks: [worldLandmarks], score };
+    return out;
   }
 
   destroy() {
     this._destroyed = true;
-    this._trackedRoi = null;
+    this._trackedRois = [];
     // Never free resources under an in-flight frame — wait for it to settle.
     const pending = this._processing ? this._processing.catch(() => {}) : Promise.resolve();
     void pending.then(() => {
@@ -627,12 +649,327 @@ export class PoseGpuPipeline {
       this._landmarkSession = null;
       this._detectTarget?.destroy();
       this._cropTarget?.destroy();
-      this.maskTarget?.destroy();
-      this._maskRoiTarget?.destroy();
       this._detectInputBuffer?.destroy();
       this._landmarkInputBuffer?.destroy();
-      this._maskBuffer?.destroy();
+      this._destroyExtras();
     });
     this._initPromise = null;
+  }
+
+  _destroyExtras() {}
+}
+
+// ─── Pose ───────────────────────────────────────────────────────────────────
+//
+// pose_detector: 224×224, range [-1,1], 2254 anchors (strides 8,16,32,32,32),
+// 12 coords (box + 4 keypoints). pose_landmarks_{lite,full,heavy}: 256×256,
+// range [0,1], 39×5 landmarks (33 public + 2 aux + 4 unused), presence score
+// (already a probability), 256×256 mask logits, 64×64×39 heatmap (unused),
+// 39×3 world landmarks. ROI: alignment points (hip center → full-body point),
+// target 90°, scale 1.25. Tracking via aux landmarks 33/34.
+
+const POSE_LANDMARK_COUNT = 39;
+const POSE_PUBLIC_LANDMARKS = 33;
+const POSE_PRESENCE_THRESHOLD = 0.5;
+const POSE_ROI_SCALE = 1.25;
+
+export class PoseGpuPipeline extends TwoStageGpuPipeline {
+  constructor({ model = 'lite', maxInstances = 1, withMask = false } = {}) {
+    super({ maxInstances }); // pose keeps the default detector confidence (0.5)
+    this.model = model;
+    this._withMask = withMask;
+    this._name = 'pose';
+    this._detectorUrl = './mediapipe/onnx/pose_detector.onnx';
+    this._detectSize = 224;
+    this._detectRange = { scale: 2.0, offset: -1.0 };
+    this._anchorSpec = { inputSize: 224, strides: [8, 16, 32, 32, 32] };
+    this._numCoords = 12;
+    this._numKeypoints = 4;
+    this._landmarkSize = 256;
+    this._landmarkOutputNames = ['landmarks', 'score', 'world_landmarks'];
+    this._tracks = true;
+    this.maskTarget = null;
+  }
+
+  _landmarkUrl() {
+    return `./mediapipe/onnx/pose_landmarks_${this.model}.onnx`;
+  }
+
+  async _initExtras() {
+    if (!this._withMask) return;
+    const ort = window.ort;
+    this.maskTarget = new RenderTarget({ label: 'pose-mask' });
+    this._maskBuffer = this._device.createBuffer({
+      size: this._landmarkSize * this._landmarkSize * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      label: 'pose-mask-tensor',
+    });
+    this._maskTensor = ort.Tensor.fromGpuBuffer(this._maskBuffer, {
+      dataType: 'float32',
+      dims: [1, this._landmarkSize, this._landmarkSize, 1],
+    });
+    this._maskRoiTextures = [];
+    for (let i = 0; i < MAX_INSTANCES; i++) {
+      this._maskRoiTextures.push(
+        this._device.createTexture({
+          size: [this._landmarkSize, this._landmarkSize],
+          format: 'rgba8unorm',
+          usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+          label: `pose-mask-roi-${i}`,
+        }),
+      );
+    }
+    this._maskToTexturePipeline = createComputePipeline({
+      wgsl: MASK_TO_TEXTURE_WGSL,
+      uniforms: { u_size: 'u32' },
+      storage: [
+        { name: 'u_mask', type: 'buffer' },
+        { name: 'u_out', type: 'texture_storage_2d' },
+      ],
+      label: 'pose-mask-to-texture',
+    });
+    this._maskWarpPipeline = createRenderPipeline({
+      wgsl: MASK_WARP_WGSL,
+      uniforms: { u_rois: 'mat4x4f', u_frame_size: 'vec2f', u_count: 'i32' },
+      textures: ['u_mask0', 'u_mask1', 'u_mask2', 'u_mask3'],
+      label: 'pose-mask-warp',
+    });
+  }
+
+  _onResize(width, height) {
+    if (this.maskTarget) this.maskTarget.setSize(width, height);
+  }
+
+  _landmarkFetches() {
+    // The heatmap output is never fetched; the mask stays on the GPU via a
+    // preallocated GPU-buffer tensor (and is not computed for Detect Pose).
+    const fetches = { landmarks: null, score: null, world_landmarks: null };
+    if (this._withMask) fetches.mask = this._maskTensor;
+    return fetches;
+  }
+
+  async setModel(model) {
+    if (model === this.model && this._landmarkSession) return;
+    await this.init();
+    this.model = model;
+    const session = await this._createLandmarkSession();
+    // Wait for any in-flight frame (including ones started while the new
+    // session was loading): releasing a session mid-run corrupts it.
+    while (this._processing) await this._processing.catch(() => {});
+    const old = this._landmarkSession;
+    this._landmarkSession = session;
+    this._trackedRois = [];
+    if (old) void old.release();
+  }
+
+  _roiFromDetection(det) {
+    // Keypoint 0: mid-hip center; keypoint 1: full-body alignment point.
+    return roiFromAlignmentPoints(det.keypoints[0], det.keypoints[1], this._frameWidth, this._frameHeight, POSE_ROI_SCALE);
+  }
+
+  _decodeInstance(outputs, roi, slot) {
+    // The pose presence output is already a probability (no sigmoid in the
+    // graph, unlike face).
+    const score = outputs['score'].data[0];
+    if (score < POSE_PRESENCE_THRESHOLD) return null;
+
+    const rawLandmarks = outputs['landmarks'].data;
+    // Project the 33 public + 2 auxiliary tracking landmarks (the model's
+    // remaining 4 landmarks are unused).
+    const projected = this._projectLandmarks(rawLandmarks, POSE_PUBLIC_LANDMARKS + 2, 5, roi, { withVisibility: true });
+    const landmarks = projected.slice(0, POSE_PUBLIC_LANDMARKS);
+    const worldLandmarks = this._projectWorldLandmarks(outputs['world_landmarks'].data, POSE_PUBLIC_LANDMARKS, roi);
+
+    if (this._withMask) {
+      // The mask logits for this instance are in _maskBuffer right now (the
+      // next instance's run overwrites it) — bake them into this slot's
+      // ROI-space texture; _finalize warps and unions all slots.
+      dispatch(
+        this._maskToTexturePipeline,
+        { u_size: this._landmarkSize },
+        { u_mask: this._maskBuffer, u_out: this._maskRoiTextures[slot] },
+        [Math.ceil(this._landmarkSize / 16), Math.ceil(this._landmarkSize / 16), 1],
+      );
+    }
+
+    // Track: derive the next frame's ROI from the auxiliary landmarks,
+    // skipping the detector entirely while the pose holds.
+    const nextRoi = roiFromAlignmentPoints(
+      projected[POSE_PUBLIC_LANDMARKS],
+      projected[POSE_PUBLIC_LANDMARKS + 1],
+      this._frameWidth,
+      this._frameHeight,
+      POSE_ROI_SCALE,
+    );
+    return { result: { score, landmarks, worldLandmarks }, nextRoi };
+  }
+
+  _finalize(results, rois) {
+    if (!this._withMask || results.length === 0) return;
+    const roisFlat = new Array(16).fill(0);
+    for (let i = 0; i < Math.min(rois.length, MAX_INSTANCES); i++) {
+      roisFlat[i * 4] = rois[i].cx;
+      roisFlat[i * 4 + 1] = rois[i].cy;
+      roisFlat[i * 4 + 2] = rois[i].size;
+      roisFlat[i * 4 + 3] = rois[i].rotation;
+    }
+    drawFullscreen(
+      this._maskWarpPipeline,
+      { u_rois: roisFlat, u_frame_size: [this._frameWidth, this._frameHeight], u_count: results.length },
+      {
+        u_mask0: this._maskRoiTextures[0],
+        u_mask1: this._maskRoiTextures[1],
+        u_mask2: this._maskRoiTextures[2],
+        u_mask3: this._maskRoiTextures[3],
+      },
+      this.maskTarget,
+    );
+  }
+
+  _destroyExtras() {
+    this.maskTarget?.destroy();
+    this._maskBuffer?.destroy();
+    if (this._maskRoiTextures) for (const t of this._maskRoiTextures) t.destroy();
+    this._maskRoiTextures = null;
+  }
+}
+
+// ─── Hands ──────────────────────────────────────────────────────────────────
+//
+// hand_detector (palm detection): 192×192, range [0,1], 2016 anchors
+// (strides 8,16,16,16), 18 coords (box + 7 keypoints). ROI: detection box
+// rotated by wrist (kp 0) → middle-finger MCP (kp 2) to 90°, scale 2.6,
+// shift_y −0.5, square_long. hand_landmarks_detector: 224×224, range [0,1],
+// outputs in graph order: 21×3 landmarks, presence, handedness (binary
+// classification, labels 0=Right / 1=Left), 21×3 world landmarks. Landmark z
+// is additionally normalized by 0.4. No ROI tracking: the detector runs
+// every frame (matching the IMAGE-mode behavior of the CPU node).
+
+const HAND_LANDMARK_COUNT = 21;
+const HAND_Z_NORMALIZE = 0.4;
+
+export class HandGpuPipeline extends TwoStageGpuPipeline {
+  constructor({ maxInstances = 2, confidence = 0.5 } = {}) {
+    super({ maxInstances, confidence });
+    this._name = 'hand';
+    this._detectorUrl = './mediapipe/onnx/hand_detector.onnx';
+    this._detectSize = 192;
+    this._detectRange = { scale: 1.0, offset: 0.0 };
+    this._anchorSpec = { inputSize: 192, strides: [8, 16, 16, 16] };
+    this._numCoords = 18;
+    this._numKeypoints = 7;
+    this._landmarkSize = 224;
+    this._landmarkOutputNames = ['landmarks', 'score', 'handedness', 'world_landmarks'];
+    this._tracks = false;
+  }
+
+  _landmarkUrl() {
+    return './mediapipe/onnx/hand_landmarks_detector.onnx';
+  }
+
+  _roiFromDetection(det) {
+    return roiFromDetectionBox(det, this._frameWidth, this._frameHeight, {
+      rotStartKp: 0, // wrist center
+      rotEndKp: 2, // middle finger MCP
+      targetAngle: Math.PI / 2,
+      scale: 2.6,
+      shiftY: -0.5,
+    });
+  }
+
+  _decodeInstance(outputs, roi) {
+    const presence = outputs['score'].data[0];
+    if (presence < this.confidence) return null;
+
+    const landmarks = this._projectLandmarks(outputs['landmarks'].data, HAND_LANDMARK_COUNT, 3, roi, {
+      zDivisor: HAND_Z_NORMALIZE,
+    });
+    const worldLandmarks = this._projectWorldLandmarks(outputs['world_landmarks'].data, HAND_LANDMARK_COUNT, roi);
+
+    // TensorsToClassificationCalculator with binary_classification and label
+    // map {0: Right, 1: Left}: the raw value is the probability of "Left".
+    const p = outputs['handedness'].data[0];
+    const left = p >= 0.5;
+    const handedness = [
+      {
+        index: left ? 1 : 0,
+        score: left ? p : 1 - p,
+        categoryName: left ? 'Left' : 'Right',
+        displayName: left ? 'Left' : 'Right',
+      },
+    ];
+
+    return { result: { score: presence, landmarks, worldLandmarks, handedness }, nextRoi: null };
+  }
+}
+
+// ─── Face ───────────────────────────────────────────────────────────────────
+//
+// face_detector (BlazeFace short-range): 128×128, range [-1,1], 896 anchors
+// (strides 8,16,16,16), 16 coords (box + 6 keypoints). ROI: detection box
+// rotated by right eye (kp 0) → left eye (kp 1) to 0°, scale 1.5,
+// square_long. face_landmarks_detector: 256×256, range [0,1], outputs 478×3
+// landmarks and a presence score that DOES need a sigmoid
+// (face_landmarks_detector_graph.cc). Tracking via the landmark bounding box
+// rotated by landmarks 33 → 263.
+
+const FACE_LANDMARK_COUNT = 478;
+
+// Shared by detection→ROI and landmarks→ROI so the two never drift apart:
+// rotation from the eye keypoints to 0°, scale 1.5, square_long.
+const FACE_ROI_OPTIONS = { rotStartKp: 0, rotEndKp: 1, targetAngle: 0, scale: 1.5 };
+
+export class FaceGpuPipeline extends TwoStageGpuPipeline {
+  constructor({ maxInstances = 1, confidence = 0.5 } = {}) {
+    super({ maxInstances, confidence });
+    this._name = 'face';
+    this._detectorUrl = './mediapipe/onnx/face_detector.onnx';
+    this._detectSize = 128;
+    this._detectRange = { scale: 2.0, offset: -1.0 };
+    this._anchorSpec = { inputSize: 128, strides: [8, 16, 16, 16] };
+    this._numCoords = 16;
+    this._numKeypoints = 6;
+    this._landmarkSize = 256;
+    // The model's third output ('aux') is unused and never fetched.
+    this._landmarkOutputNames = ['landmarks', 'score'];
+    this._tracks = true;
+  }
+
+  _landmarkUrl() {
+    return './mediapipe/onnx/face_landmarks_detector.onnx';
+  }
+
+  _roiFromDetection(det) {
+    // Keypoint 0: right eye; keypoint 1: left eye.
+    return roiFromDetectionBox(det, this._frameWidth, this._frameHeight, FACE_ROI_OPTIONS);
+  }
+
+  _decodeInstance(outputs, roi) {
+    // Unlike pose and hands, the face presence output needs a sigmoid
+    // (face_landmarks_detector_graph.cc).
+    const score = sigmoid(outputs['score'].data[0]);
+    if (score < this.confidence) return null;
+
+    const landmarks = this._projectLandmarks(outputs['landmarks'].data, FACE_LANDMARK_COUNT, 3, roi);
+
+    // Next-frame ROI: bounding box of the landmarks, rotated by the
+    // left-eye (33) → right-eye (263) vector to 0°, scale 1.5, square_long.
+    const nextRoi = this._roiFromLandmarks(landmarks);
+    return { result: { score, landmarks }, nextRoi };
+  }
+
+  _roiFromLandmarks(landmarks) {
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const lm of landmarks) {
+      minX = Math.min(minX, lm.x);
+      minY = Math.min(minY, lm.y);
+      maxX = Math.max(maxX, lm.x);
+      maxY = Math.max(maxY, lm.y);
+    }
+    const det = { box: [minX, minY, maxX, maxY], keypoints: [landmarks[33], landmarks[263]] };
+    return roiFromDetectionBox(det, this._frameWidth, this._frameHeight, FACE_ROI_OPTIONS);
   }
 }

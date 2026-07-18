@@ -37,29 +37,41 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'assets', 'mediapipe')
 OUT_DIR = os.path.join(ASSETS, 'onnx')
 
-# task file -> [(entry inside zip, output onnx name)]
+# tf2onnx names outputs Identity/Identity_1/... in whatever order the TFLite
+# graph declares them, which is meaningless at runtime and could shuffle
+# across converter versions. MediaPipe itself assigns meaning purely by that
+# graph order (SplitTensorVectorCalculator in the task graphs under
+# mediapipe/tasks/cc/vision/*), so we bake the semantics in here: after
+# conversion the ONNX graph outputs are RENAMED positionally to the names
+# below, and src/mediapipe-gpu.js looks them up by name.
+DETECTOR_OUTPUTS = ['boxes', 'scores']
+POSE_LANDMARK_OUTPUTS = ['landmarks', 'score', 'mask', 'heatmap', 'world_landmarks']
+HAND_LANDMARK_OUTPUTS = ['landmarks', 'score', 'handedness', 'world_landmarks']
+FACE_LANDMARK_OUTPUTS = ['landmarks', 'score', 'aux']  # 'aux' is unused by Figment
+
+# task file -> [(entry inside zip, output onnx name, semantic output names)]
 POSE_JOBS = [
     ('pose_landmarker_lite.task', [
-        ('pose_detector.tflite', 'pose_detector.onnx'),
-        ('pose_landmarks_detector.tflite', 'pose_landmarks_lite.onnx'),
+        ('pose_detector.tflite', 'pose_detector.onnx', DETECTOR_OUTPUTS),
+        ('pose_landmarks_detector.tflite', 'pose_landmarks_lite.onnx', POSE_LANDMARK_OUTPUTS),
     ]),
     ('pose_landmarker_full.task', [
-        ('pose_landmarks_detector.tflite', 'pose_landmarks_full.onnx'),
+        ('pose_landmarks_detector.tflite', 'pose_landmarks_full.onnx', POSE_LANDMARK_OUTPUTS),
     ]),
     ('pose_landmarker_heavy.task', [
-        ('pose_landmarks_detector.tflite', 'pose_landmarks_heavy.onnx'),
+        ('pose_landmarks_detector.tflite', 'pose_landmarks_heavy.onnx', POSE_LANDMARK_OUTPUTS),
     ]),
 ]
 
 EXTRA_JOBS = [
     ('hand_landmarker.task', [
-        ('hand_detector.tflite', 'hand_detector.onnx'),
-        ('hand_landmarks_detector.tflite', 'hand_landmarks_detector.onnx'),
+        ('hand_detector.tflite', 'hand_detector.onnx', DETECTOR_OUTPUTS),
+        ('hand_landmarks_detector.tflite', 'hand_landmarks_detector.onnx', HAND_LANDMARK_OUTPUTS),
     ]),
     ('face_landmarker.task', [
-        ('face_detector.tflite', 'face_detector.onnx'),
-        ('face_landmarks_detector.tflite', 'face_landmarks_detector.onnx'),
-        ('face_blendshapes.tflite', 'face_blendshapes.onnx'),
+        ('face_detector.tflite', 'face_detector.onnx', DETECTOR_OUTPUTS),
+        ('face_landmarks_detector.tflite', 'face_landmarks_detector.onnx', FACE_LANDMARK_OUTPUTS),
+        # face_blendshapes.tflite is not converted: Figment's nodes don't use it.
     ]),
 ]
 
@@ -188,8 +200,38 @@ def convert(tflite_path, onnx_path):
     )
 
 
-def validate(tflite_path, onnx_path):
-    """Compare TFLite interpreter and onnxruntime outputs on random input."""
+def rename_outputs(onnx_path, semantic_names):
+    """Rename the ONNX graph outputs, positionally, to semantic names.
+
+    tf2onnx preserves the TFLite graph's output order, which is the order
+    MediaPipe's own graphs rely on, so a positional rename is exactly as
+    authoritative as MediaPipe's SplitTensorVectorCalculator indices.
+    """
+    import onnx
+
+    model = onnx.load(onnx_path)
+    if len(model.graph.output) != len(semantic_names):
+        raise ValueError(f'{onnx_path}: expected {len(semantic_names)} outputs, found {len(model.graph.output)}')
+    mapping = {}
+    for out, new_name in zip(model.graph.output, semantic_names):
+        mapping[out.name] = new_name
+        out.name = new_name
+    for node in model.graph.node:
+        for i, name in enumerate(node.output):
+            if name in mapping:
+                node.output[i] = mapping[name]
+        for i, name in enumerate(node.input):
+            if name in mapping:
+                node.input[i] = mapping[name]
+    onnx.save(model, onnx_path)
+
+
+def validate(tflite_path, onnx_path, semantic_names):
+    """Compare TFLite interpreter and onnxruntime outputs on random input.
+
+    Outputs are compared positionally (TFLite graph order vs ONNX graph
+    order) since the ONNX outputs have been renamed to semantic names.
+    """
     import tensorflow as tf
     import onnxruntime as rt
 
@@ -200,22 +242,25 @@ def validate(tflite_path, onnx_path):
     x = rng.random(in_det['shape'], dtype=np.float32) * 2.0 - 1.0
     interp.set_tensor(in_det['index'], x)
     interp.invoke()
-    tfl_out = {d['name'].split(':')[0]: interp.get_tensor(d['index']) for d in interp.get_output_details()}
+    tfl_out = [interp.get_tensor(d['index']) for d in interp.get_output_details()]
 
     sess = rt.InferenceSession(onnx_path, providers=['CPUExecutionProvider'])
     input_name = sess.get_inputs()[0].name
     onnx_names = [o.name for o in sess.get_outputs()]
-    onnx_out = dict(zip(onnx_names, sess.run(None, {input_name: x})))
+    if onnx_names != list(semantic_names):
+        raise ValueError(f'output rename failed: {onnx_names} != {semantic_names}')
+    onnx_by_name = dict(zip(onnx_names, sess.run(None, {input_name: x})))
+    if len(tfl_out) != len(onnx_names):
+        raise ValueError(f'output count mismatch: TFLite {len(tfl_out)} vs ONNX {len(onnx_names)}')
 
     # The models use float16 weights, so exact equality is impossible. We
     # compare the max abs difference relative to the output's magnitude:
     # e.g. segmentation logits span roughly ±550, and a 0.1 absolute
     # difference there is ~1e-4 relative (and <1e-3 after sigmoid).
     worst = 0.0
-    for name, ref in tfl_out.items():
-        if name not in onnx_out:
-            raise ValueError(f'output {name} missing from ONNX model (has {onnx_names})')
-        diff = float(np.max(np.abs(ref - onnx_out[name])))
+    for name, ref in zip(semantic_names, tfl_out):
+        out = onnx_by_name[name]
+        diff = float(np.max(np.abs(ref - out.reshape(ref.shape))))
         rel = diff / max(1.0, float(np.max(np.abs(ref))))
         worst = max(worst, rel)
         print(f'  {name}: shape {list(ref.shape)}, max abs diff {diff:.2e} (rel {rel:.2e})')
@@ -236,7 +281,7 @@ def main():
             task_path = os.path.join(ASSETS, task_name)
             print(f'== {task_name}')
             with zipfile.ZipFile(task_path) as z:
-                for entry, onnx_name in models:
+                for entry, onnx_name, semantic_names in models:
                     print(f'-- {entry} -> onnx/{onnx_name}')
                     tflite_path = os.path.join(tmp, f'{task_name}.{entry}')
                     with open(tflite_path, 'wb') as f:
@@ -246,8 +291,9 @@ def main():
                         dense_path = tflite_path
                     onnx_path = os.path.join(OUT_DIR, onnx_name)
                     convert(dense_path, onnx_path)
+                    rename_outputs(onnx_path, semantic_names)
                     # Validate against the *original* (possibly sparse) model.
-                    validate(tflite_path, onnx_path)
+                    validate(tflite_path, onnx_path, semantic_names)
     print('done.')
 
 
