@@ -1,5 +1,5 @@
 ---
-title: "Rgb Cluster"
+title: 'Rgb Cluster'
 ---
 
 # Rgb Cluster

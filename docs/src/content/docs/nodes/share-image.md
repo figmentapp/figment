@@ -1,5 +1,5 @@
 ---
-title: "Share Image"
+title: 'Share Image'
 ---
 
 # Share Image

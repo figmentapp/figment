@@ -1,5 +1,5 @@
 ---
-title: "Structuring your Figment project"
+title: 'Structuring your Figment project'
 ---
 
 # Structuring your Figment project

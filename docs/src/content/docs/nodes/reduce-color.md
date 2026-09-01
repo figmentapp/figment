@@ -1,5 +1,5 @@
 ---
-title: "Reduce Color"
+title: 'Reduce Color'
 ---
 
 # Reduce Color

@@ -1,5 +1,5 @@
 ---
-title: "Trail"
+title: 'Trail'
 ---
 
 # Trail

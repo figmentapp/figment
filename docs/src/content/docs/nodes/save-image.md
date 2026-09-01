@@ -1,5 +1,5 @@
 ---
-title: "Save Image"
+title: 'Save Image'
 ---
 
 # Save Image

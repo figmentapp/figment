@@ -1,5 +1,5 @@
 ---
-title: "Color Key"
+title: 'Color Key'
 ---
 
 # Color Key

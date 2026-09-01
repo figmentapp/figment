@@ -1,5 +1,5 @@
 ---
-title: "Figment Nodes"
+title: 'Figment Nodes'
 ---
 
 # Figment Nodes

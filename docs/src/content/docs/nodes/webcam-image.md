@@ -1,5 +1,5 @@
 ---
-title: "Webcam Image"
+title: 'Webcam Image'
 ---
 
 # Webcam Image

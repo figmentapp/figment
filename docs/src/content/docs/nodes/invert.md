@@ -1,5 +1,5 @@
 ---
-title: "Invert"
+title: 'Invert'
 ---
 
 # Invert

@@ -1,5 +1,5 @@
 ---
-title: "Mask image"
+title: 'Mask image'
 ---
 
 # Mask image

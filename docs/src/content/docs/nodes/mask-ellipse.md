@@ -1,5 +1,5 @@
 ---
-title: "Mask Ellipse"
+title: 'Mask Ellipse'
 ---
 
 # Mask Ellipse

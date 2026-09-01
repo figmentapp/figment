@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 export default function Mailchimp() {
   return (
@@ -19,35 +19,17 @@ export default function Mailchimp() {
             <label className="sr-only" htmlFor="mce-EMAIL">
               Email Address
             </label>
-            <input
-              type="email"
-              name="EMAIL"
-              className="required email"
-              id="mce-EMAIL"
-              placeholder="hello@example.com"
-              required
-            />
+            <input type="email" name="EMAIL" className="required email" id="mce-EMAIL" placeholder="hello@example.com" required />
           </div>
           <div className="clear">
-            <input
-              type="submit"
-              name="subscribe"
-              id="mc-embedded-subscribe"
-              className="button"
-              value="Subscribe"
-            />
+            <input type="submit" name="subscribe" id="mc-embedded-subscribe" className="button" value="Subscribe" />
           </div>
           <div id="mce-responses" className="clear">
-            <div className="response" id="mce-error-response" style={{ display: "none" }}></div>
-            <div className="response" id="mce-success-response" style={{ display: "none" }}></div>
+            <div className="response" id="mce-error-response" style={{ display: 'none' }}></div>
+            <div className="response" id="mce-success-response" style={{ display: 'none' }}></div>
           </div>
-          <div style={{ position: "absolute", left: "-5000px" }} aria-hidden="true">
-            <input
-              type="text"
-              name="b_f2f4dfed688882b52d74c63fb_811d41b0b2"
-              tabIndex={-1}
-              defaultValue=""
-            />
+          <div style={{ position: 'absolute', left: '-5000px' }} aria-hidden="true">
+            <input type="text" name="b_f2f4dfed688882b52d74c63fb_811d41b0b2" tabIndex={-1} defaultValue="" />
           </div>
         </div>
       </form>

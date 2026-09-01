@@ -1,5 +1,5 @@
 ---
-title: "Vignette"
+title: 'Vignette'
 ---
 
 # Vignette

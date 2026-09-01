@@ -1,5 +1,5 @@
 ---
-title: "Glow Edges"
+title: 'Glow Edges'
 ---
 
 # Glow Edges

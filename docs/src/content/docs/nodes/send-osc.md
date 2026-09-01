@@ -1,5 +1,5 @@
 ---
-title: "Send OSC"
+title: 'Send OSC'
 ---
 
 # Send OSC

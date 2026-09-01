@@ -1,5 +1,5 @@
 ---
-title: "Creating Custom Nodes"
+title: 'Creating Custom Nodes'
 ---
 
 # Creating Custom Nodes
@@ -18,9 +18,9 @@ Every Figment node follows the same scaffold:
  * @category  category (e.g. image, audio, data)
  */
 
-const inputPort = node.imageIn("in");
+const inputPort = node.imageIn('in');
 // Add here other parameters as needed...
-const outputPort = node.imageOut("out");
+const outputPort = node.imageOut('out');
 
 node.onStart = async () => {
   /* one‑time init (shaders, textures, etc.) */
@@ -74,23 +74,23 @@ It will output the current image.
  * @category image
  */
 
-const imageIn = node.imageIn("in");
-const latIn = node.numberIn("latitude", 51.26, {
+const imageIn = node.imageIn('in');
+const latIn = node.numberIn('latitude', 51.26, {
   min: -90,
   max: 90,
   step: 0.01,
 });
-const lonIn = node.numberIn("longitude", 4.4, {
+const lonIn = node.numberIn('longitude', 4.4, {
   min: -180,
   max: 180,
   step: 0.01,
 });
-const intervalIn = node.numberIn("interval", 3, {
+const intervalIn = node.numberIn('interval', 3, {
   min: 0.25,
   max: 24,
   step: 0.25,
 });
-const imageOut = node.imageOut("out");
+const imageOut = node.imageOut('out');
 
 const DEFAULT_SAT = 0.7;
 const WMO_SAT = {
@@ -176,10 +176,10 @@ async function updateWeather() {
   if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
   const json = await res.json();
   const cw = json && json.current_weather;
-  if (!cw) throw new Error("No current_weather in response");
+  if (!cw) throw new Error('No current_weather in response');
   // cw contains { temperature, windspeed, winddirection, weathercode, time }
   _saturation = WMO_SAT[cw.weathercode] || DEFAULT_SAT;
-  console.log("Weather code:", cw.weathercode, "Saturation:", _saturation);
+  console.log('Weather code:', cw.weathercode, 'Saturation:', _saturation);
 }
 
 function rescheduleTimer() {

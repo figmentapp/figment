@@ -1,4 +1,4 @@
-import { defineCollection, z } from 'astro:content'
+import { defineCollection, z } from 'astro:content';
 
 export const collections = {
   docs: defineCollection({
@@ -29,4 +29,4 @@ export const collections = {
       })
       .passthrough(),
   }),
-}
+};

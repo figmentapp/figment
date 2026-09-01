@@ -20,7 +20,7 @@
 
 .docs-sidebar::before,
 .docs-toc::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   bottom: 0;
@@ -66,7 +66,9 @@
   color: var(--color-text-soft);
   text-decoration: none;
   font-size: 0.94rem;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .docs-sidebar nav a:hover {

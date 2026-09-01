@@ -1,5 +1,5 @@
 ---
-title: "Out"
+title: 'Out'
 ---
 
 # Out

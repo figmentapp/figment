@@ -1,5 +1,5 @@
 ---
-title: "Brannan"
+title: 'Brannan'
 ---
 
 # Brannan

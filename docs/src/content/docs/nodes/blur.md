@@ -1,5 +1,5 @@
 ---
-title: "Blur"
+title: 'Blur'
 ---
 
 # Blur

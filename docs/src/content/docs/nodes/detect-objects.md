@@ -1,5 +1,5 @@
 ---
-title: "Detect Objects"
+title: 'Detect Objects'
 ---
 
 # Detect Objects

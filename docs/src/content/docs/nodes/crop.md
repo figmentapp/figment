@@ -1,5 +1,5 @@
 ---
-title: "Crop"
+title: 'Crop'
 ---
 
 # Crop

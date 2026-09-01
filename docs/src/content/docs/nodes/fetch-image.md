@@ -1,5 +1,5 @@
 ---
-title: "Fetch Image"
+title: 'Fetch Image'
 ---
 
 # Fetch Image

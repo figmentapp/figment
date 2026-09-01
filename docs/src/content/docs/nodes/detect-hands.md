@@ -1,5 +1,5 @@
 ---
-title: "Detect Hands"
+title: 'Detect Hands'
 ---
 
 # Detect Hands

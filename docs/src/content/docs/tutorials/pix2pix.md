@@ -1,5 +1,5 @@
 ---
-title: "Using Figment with PIX2PIX"
+title: 'Using Figment with PIX2PIX'
 ---
 
 # Using Figment with PIX2PIX

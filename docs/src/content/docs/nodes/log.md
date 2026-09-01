@@ -1,5 +1,5 @@
 ---
-title: "LoG"
+title: 'LoG'
 ---
 
 # LoG
