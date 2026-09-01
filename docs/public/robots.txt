@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://figmentapp.com/sitemap-index.xml
+
+# Documentation for AI assistants:
+# https://figmentapp.com/llms.txt
+# https://figmentapp.com/llms-full.txt

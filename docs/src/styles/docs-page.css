@@ -210,3 +210,28 @@
     font-size: clamp(1.55rem, 7.5vw, 1.95rem);
   }
 }
+
+.docs-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.4rem;
+}
+
+.copy-md-button {
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  background: color-mix(in oklch, var(--slate-800) 72%, transparent);
+  border: 1px solid color-mix(in oklch, var(--slate-500) 45%, transparent);
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.copy-md-button:hover {
+  color: var(--slate-100);
+  background: color-mix(in oklch, var(--slate-800) 86%, var(--slate-700));
+}

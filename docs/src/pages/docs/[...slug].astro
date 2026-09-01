@@ -34,9 +34,10 @@ const { Content, headings } = await render(entry)
 const currentPath = toDocPath(entry.slug)
 
 const docsTitle = entry.data.title
+const markdownUrl = `/docs/${entry.slug}.md`
 ---
 
-<BaseLayout title={docsTitle} description={entry.data.description ?? 'Figment documentation'}>
+<BaseLayout title={docsTitle} description={entry.data.description ?? 'Figment documentation'} markdownUrl={markdownUrl}>
   <section class="docs-shell container">
     <aside class="docs-sidebar">
       <nav>
@@ -46,6 +47,13 @@ const docsTitle = entry.data.title
         <a class:list={{ active: currentPath === '/docs/tutorials/getting-started' }} href="/docs/tutorials/getting-started">Getting Started</a>
         <a class:list={{ active: currentPath === '/docs/tutorials/pix2pix' }} href="/docs/tutorials/pix2pix">Pix2Pix</a>
         <a class:list={{ active: currentPath === '/docs/tutorials/custom-nodes' }} href="/docs/tutorials/custom-nodes">Custom Nodes</a>
+
+        <h3>Custom Nodes</h3>
+        <a class:list={{ active: currentPath === '/docs/custom-nodes' }} href="/docs/custom-nodes">Overview</a>
+        <a class:list={{ active: currentPath === '/docs/custom-nodes/ports' }} href="/docs/custom-nodes/ports">Ports &amp; Parameters</a>
+        <a class:list={{ active: currentPath === '/docs/custom-nodes/api' }} href="/docs/custom-nodes/api">The figment API</a>
+        <a class:list={{ active: currentPath === '/docs/custom-nodes/shaders' }} href="/docs/custom-nodes/shaders">Writing Shaders</a>
+        <a class:list={{ active: currentPath.startsWith('/docs/custom-nodes/cookbook') }} href="/docs/custom-nodes/cookbook">Cookbook</a>
 
         <h3>Guides</h3>
         <a class:list={{ active: currentPath === '/docs/expressions' }} href="/docs/expressions">Expressions</a>
@@ -58,6 +66,11 @@ const docsTitle = entry.data.title
     </aside>
 
     <article class="docs-content">
+      <div class="docs-actions">
+        <button class="copy-md-button" type="button" data-md-url={markdownUrl} title="Copy this page as Markdown — paste it into an AI assistant as context">
+          Copy as Markdown
+        </button>
+      </div>
       <Content />
     </article>
 
@@ -78,4 +91,25 @@ const docsTitle = entry.data.title
       )}
     </aside>
   </section>
+
+  <script>
+    const button = document.querySelector('.copy-md-button')
+    if (button instanceof HTMLButtonElement) {
+      const defaultLabel = button.textContent
+      button.addEventListener('click', async () => {
+        try {
+          const response = await fetch(button.dataset.mdUrl)
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          await navigator.clipboard.writeText(await response.text())
+          button.textContent = 'Copied!'
+        } catch (err) {
+          console.error('Copy as Markdown failed:', err)
+          button.textContent = 'Copy failed'
+        }
+        setTimeout(() => {
+          button.textContent = defaultLabel
+        }, 2000)
+      })
+    }
+  </script>
 </BaseLayout>

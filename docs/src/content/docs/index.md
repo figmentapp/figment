@@ -15,4 +15,4 @@ Every node is GPU-accelerated, so you can iterate at the speed of thought and de
 
 ![Figment Screenshot](/img/welcome/figment-screenshot.png)
 
-Head over to the **[Getting Started tutorial](/docs/tutorials/getting-started)** and build your first project in minutes.
+Head over to the **[Getting Started tutorial](/docs/tutorials/getting-started)** and build your first project in minutes. Ready to write code? The **[Custom Nodes](/docs/custom-nodes)** section shows how to extend Figment with your own JavaScript + WGSL nodes.

@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@astrojs/react": "^4.4.0",
+    "@astrojs/sitemap": "^3.7.4",
     "astro": "^5.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
-  "devDependencies": {},
   "browserslist": {
     "production": [
       ">0.5%",
