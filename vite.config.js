@@ -19,4 +19,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['onnxruntime-web'],
   },
+  test: {
+    // Keep Vitest away from the Playwright E2E specs in tests/e2e.
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+  },
 });
