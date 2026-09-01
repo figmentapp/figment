@@ -26,8 +26,8 @@ describe('findBundleProblems', () => {
   });
 
   it('rejects wasm shipped from node_modules', () => {
-    const problems = findBundleProblems([...clean, '/node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm']);
+    const problems = findBundleProblems([...clean, '/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm']);
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toMatch(/vision_wasm_internal\.wasm ships from node_modules/);
+    expect(problems[0]).toMatch(/ort-wasm-simd-threaded\.wasm ships from node_modules/);
   });
 });

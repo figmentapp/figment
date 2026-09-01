@@ -138,7 +138,7 @@ The helpers assume one input and an output of the same size. For anything else, 
 - `figment.createRenderPipeline({ wgsl, uniforms, textures, label })` compiles a fragment shader. Do this once, in `onStart`.
 - `new figment.RenderTarget({ label })` is an image you can draw into. Call `setSize(width, height)` before drawing; it only reallocates when the size changes.
 - `figment.drawFullscreen(pipeline, uniformValues, textureValues, target)` runs the shader over every pixel of the target. Do this in `onRender`, then `imageOut.set(target)`.
-- `target.uploadExternal(canvas)` copies an `OffscreenCanvas` or bitmap into a render target. Use it when you draw with the 2D canvas API, as the detection nodes do.
+- `target.uploadExternal(canvas)` copies an `OffscreenCanvas` or bitmap into a render target. Use it when you draw with the 2D canvas API, as the Drawing node does.
 - `await image.readPixels()` reads an image back to the CPU as `ImageData`. This is slow; use it only when you need the pixels in JavaScript.
 - `target.destroy()` frees the GPU memory. Call it in `onStop`.
 
@@ -309,4 +309,5 @@ You can inspect the code of any node in Figment by right-clicking and choosing "
 - **Constant**: a generator.
 - **Smooth**: a feedback filter.
 - **Composite**: two input images, with the pipeline built by hand.
-- **Detect Faces**: a node that draws with the 2D canvas API and uploads the result.
+- **Drawing**: a node that fills a canvas from outside data and uploads it to a render target.
+- **Detect Faces**: a node that runs a model and draws the landmarks on the GPU with `figment.LandmarkRenderer`.

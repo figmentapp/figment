@@ -1,6 +1,6 @@
 {
   "name": "Figment",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "type": "module",
   "description": "Visual coding environment for creative AI",
   "author": "EMRG",
@@ -28,8 +28,6 @@
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
-    "@mediapipe/drawing_utils": "^0.3.1675466124",
-    "@mediapipe/tasks-vision": "^1.0.1",
     "@uiw/codemirror-theme-darcula": "^4.25.11",
     "@uiw/react-color-chrome": "^2.10.3",
     "chroma-js": "^3.2.0",
@@ -88,8 +86,8 @@
       "native/frameshare/*.node",
       "!**/*.map",
       "!build/mediapipe/*.task",
-      "!**/node_modules/onnxruntime-web/**",
-      "!**/node_modules/@mediapipe/**"
+      "!build/mediapipe/*.tflite",
+      "!**/node_modules/onnxruntime-web/**"
     ],
     "directories": {
       "buildResources": "res"

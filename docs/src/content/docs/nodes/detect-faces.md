@@ -4,7 +4,7 @@ title: 'Detect Faces'
 
 # Detect Faces
 
-Detect one or more faces in the input image and draw them on a solid background. The node runs the MediaPipe face detector and face landmark model on the GPU. The image never leaves the GPU; only the landmark coordinates come back, 478 per face.
+Detect one or more faces in the input image and draw them on a solid background. The node runs the MediaPipe face detector and face landmark models on the GPU through ONNX Runtime; the MediaPipe library itself is not used. The image never leaves the GPU; only the landmark coordinates come back, 478 per face.
 
 Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to send the landmarks to another application.
 

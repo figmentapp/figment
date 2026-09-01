@@ -4,7 +4,7 @@ title: 'Segment Pose'
 
 # Segment Pose
 
-Cut one or more people out of the input image, or cut them away and keep the background. The node runs the MediaPipe pose model with its segmentation head on the GPU. The image and the mask never leave the GPU; only the landmark coordinates come back.
+Cut one or more people out of the input image, or cut them away and keep the background. The node runs the MediaPipe pose model with its segmentation head on the GPU through ONNX Runtime; the MediaPipe library itself is not used. The image and the mask never leave the GPU; only the landmark coordinates come back.
 
 Because the segmentation follows the pose model, this node also gives you the same landmarks as [Detect Pose](/docs/nodes/detect-pose). One node can drive both a cut-out and an OSC stream.
 

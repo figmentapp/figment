@@ -384,3 +384,19 @@ describe('PoseGpuPipeline output validation', () => {
     expect(() => p._requireOutputs(session, p._landmarkOutputNames)).not.toThrow();
   });
 });
+
+describe('SegmentGpuPipeline', () => {
+  test('defaults to the category mask; nodes switch it live', () => {
+    expect(new mp.SegmentGpuPipeline().binary).toBe(true);
+    expect(new mp.SegmentGpuPipeline({ binary: false }).binary).toBe(false);
+  });
+
+  test('process() after destroy() resolves to null without initializing', async () => {
+    const p = new mp.SegmentGpuPipeline();
+    p.init = vi.fn();
+    p.destroy();
+    await expect(p.process({ width: 640, height: 480 })).resolves.toBeNull();
+    expect(p.init).not.toHaveBeenCalled();
+    expect(p.maskTarget).toBeNull();
+  });
+});

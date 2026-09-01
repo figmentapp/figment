@@ -4,7 +4,7 @@ title: 'Detect Hands'
 
 # Detect Hands
 
-Detect one or more hands in the input image and draw them as a skeleton on a solid background. The node runs the MediaPipe hand detector and hand landmark model on the GPU. Only the landmark coordinates come back, 21 per hand.
+Detect one or more hands in the input image and draw them as a skeleton on a solid background. The node runs the MediaPipe hand detector and hand landmark models on the GPU through ONNX Runtime; the MediaPipe library itself is not used. Only the landmark coordinates come back, 21 per hand.
 
 Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to send the landmarks to another application.
 

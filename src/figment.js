@@ -7,10 +7,13 @@ export {
   PoseGpuPipeline,
   HandGpuPipeline,
   FaceGpuPipeline,
+  SegmentGpuPipeline,
   MAX_INSTANCES as MEDIAPIPE_MAX_INSTANCES,
   withOrt,
   createOrtSession,
 } from './mediapipe-gpu.js';
+export { LandmarkRenderer, OverlayBatch, drawConnectors, drawLandmarks } from './landmark-drawing.js';
+export { POSE_CONNECTIONS, HAND_CONNECTIONS, FACE_LANDMARKS_CONTOURS, FACE_LANDMARKS_TESSELATION } from './landmark-connections.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 

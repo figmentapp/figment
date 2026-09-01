@@ -4,7 +4,7 @@ title: 'Detect Pose'
 
 # Detect Pose
 
-Detect one or more human poses in the input image and draw them as skeletons on a solid background. The node runs the MediaPipe pose detector and pose landmark model on the GPU. Only the landmark coordinates come back, 33 per person.
+Detect one or more human poses in the input image and draw them as skeletons on a solid background. The node runs the MediaPipe pose detector and pose landmark models on the GPU through ONNX Runtime; the MediaPipe library itself is not used. Only the landmark coordinates come back, 33 per person.
 
 Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to send the landmarks to another application. To cut people out of the image instead of drawing them, use [Segment Pose](/docs/nodes/segment-pose).
 

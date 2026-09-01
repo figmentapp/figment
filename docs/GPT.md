@@ -116,7 +116,7 @@ export const PORT_DISPLAY_PLUG = 0x02;
 Following libraries are available as globals:
 
 - `figment`: the graphics toolkit, described below.
-- `mediapipe`: the MediaPipe tasks-vision API (`DrawingUtils`, landmark connection tables).
+- `drawConnectors(ctx, landmarks, connections, options)` and `drawLandmarks(ctx, landmarks, options)`: canvas helpers for drawing landmark skeletons, in the style of the MediaPipe drawing utils.
 
 Outside of that, Figment nodes can't import external libraries (e.g. `import` does NOT work). There is no WebGL, no GLSL, no `twgl`, and no `gl` object. Never write `gl_FragColor`, `texture2D`, `createShaderProgram`, `Framebuffer`, or `drawQuad`; those do not exist.
 
