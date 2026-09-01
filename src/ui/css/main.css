@@ -60,7 +60,9 @@ img {
 
 main {
   display: grid;
-  grid-template-columns: 1fr 4px max(var(--splitter), var(--splitter-min));
+  /* minmax(0, 1fr): a bare 1fr track can't shrink below its content's min-content
+     width, so long unwrapped CodeMirror lines would widen the editor pane. */
+  grid-template-columns: minmax(0, 1fr) 4px max(var(--splitter), var(--splitter-min));
   height: 100vh;
 }
 
