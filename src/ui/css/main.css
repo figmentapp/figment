@@ -159,33 +159,27 @@ main {
 .code {
 }
 
-.CodeMirror {
+.code .cm-editor {
   width: 100%;
   height: 100%;
   border-top: 2px solid var(--gray800);
-}
-
-.CodeMirror {
   background-color: var(--gray800) !important;
+  font-size: 1rem;
 }
 
-.CodeMirror-gutters {
+.code .cm-editor .cm-gutters {
   background-color: var(--gray900) !important;
 }
 
-.CodeMirror-selected {
+.code .cm-editor .cm-selectionBackground {
   background: var(--gray700) !important;
 }
 
-.CodeMirror-code {
-  font-size: 1rem;
+.code .cm-editor .cm-content {
   font-family: var(--font-mono);
 }
 
-.code textarea {
-  font: 15px var(--font-mono);
-  width: 100%;
-  height: 100%;
+.code .cm-editor.cm-focused {
   outline: none;
 }
 

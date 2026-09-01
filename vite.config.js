@@ -13,7 +13,7 @@ export default defineConfig({
     conditions: ['onnxruntime-web-use-extern-wasm'],
   },
   build: {
-    outDir: resolve(__dirname, './build/'),
+    outDir: resolve(import.meta.dirname, './build/'),
     chunkSizeWarningLimit: 1_000_000,
   },
   optimizeDeps: {

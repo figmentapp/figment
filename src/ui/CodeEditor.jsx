@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import CodeMirror from 'codemirror';
-import 'codemirror/mode/javascript/javascript.js';
-import 'codemirror/theme/darcula.css';
+import { EditorView, basicSetup } from 'codemirror';
+import { keymap } from '@codemirror/view';
+import { EditorState, Prec } from '@codemirror/state';
+import { javascript } from '@codemirror/lang-javascript';
+import { darcula } from '@uiw/codemirror-theme-darcula';
 import clsx from 'clsx';
 import { useAppStore } from './store';
 
@@ -12,6 +14,7 @@ export default function CodeEditor() {
   const buildSource = useAppStore((state) => state.buildSource);
   const openForkDialog = useAppStore((state) => state.openForkDialog);
 
+  const containerRef = useRef(null);
   const editorRef = useRef(null);
 
   const tab = tabs[activeTabIndex];
@@ -22,58 +25,59 @@ export default function CodeEditor() {
 
   const handleBuildSource = () => {
     if (editorRef.current && nodeType) {
-      buildSource(nodeType, editorRef.current.getValue());
+      buildSource(nodeType, editorRef.current.state.doc.toString());
     }
   };
 
   useEffect(() => {
     if (!nodeType) return;
 
-    const $code = document.getElementById('code');
-    const editor = CodeMirror.fromTextArea($code, {
-      lineNumbers: true,
-      readOnly: readOnly,
-      mode: 'javascript',
-      theme: 'darcula',
-    });
+    const editor = new EditorView({
+      parent: containerRef.current,
+      doc: source,
+      extensions: [
+        basicSetup,
+        javascript(),
+        darcula,
+        EditorState.readOnly.of(readOnly),
+        Prec.highest(
+          keymap.of([
+            {
+              key: 'Shift-Enter',
+              run: () => {
+                handleBuildSource();
+                return true;
+              },
+            },
+          ]),
+        ),
+        EditorView.updateListener.of((update) => {
+          if (!update.docChanged) return;
+          const currentSource = update.state.doc.toString();
+          const { tabs, activeTabIndex } = useAppStore.getState();
+          const currentTab = tabs[activeTabIndex];
+          if (!currentTab?.nodeType) return;
 
-    // Set initial value
-    editor.setValue(source);
-
-    // Keyboard shortcuts
-    editor.setOption('extraKeys', {
-      'Shift-Enter': () => {
-        handleBuildSource();
-        return false;
-      },
-    });
-
-    editor.on('change', () => {
-      const currentSource = editor.getValue();
-      const { tabs, activeTabIndex } = useAppStore.getState();
-      const currentTab = tabs[activeTabIndex];
-      if (!currentTab?.nodeType) return;
-
-      // Compare against uncommitted source if it exists, otherwise nodeType source
-      const tabSource = currentTab.uncommittedSource !== null ? currentTab.uncommittedSource : currentTab.nodeType.source;
-      if (tabSource !== currentSource) {
-        sourceModified(currentTab.nodeType, currentSource);
-      }
+          // Compare against uncommitted source if it exists, otherwise nodeType source
+          const tabSource = currentTab.uncommittedSource !== null ? currentTab.uncommittedSource : currentTab.nodeType.source;
+          if (tabSource !== currentSource) {
+            sourceModified(currentTab.nodeType, currentSource);
+          }
+        }),
+      ],
     });
 
     editorRef.current = editor;
 
     return () => {
-      editor.toTextArea();
+      editor.destroy();
       editorRef.current = null;
     };
   }, [activeTabIndex, nodeType?.type]); // Remount when tab or nodeType changes
 
   return (
     <div className="code flex-1 flex flex-col overflow-hidden">
-      <div className={'flex-1 overflow-hidden ' + (readOnly ? 'opacity-50' : '')}>
-        <textarea className="code__area" id="code" defaultValue={source} readOnly={readOnly} />
-      </div>
+      <div ref={containerRef} className={'flex-1 overflow-hidden ' + (readOnly ? 'opacity-50' : '')} />
       <div className="code__actions px-4 py-3 flex items-center justify-between bg-gray-900">
         {readOnly && (
           <>
