@@ -370,3 +370,17 @@ describe('HandGpuPipeline handedness', () => {
     expect(decode(0.1)).toMatchObject({ index: 1, categoryName: 'Left', score: expect.closeTo(0.9, 5) });
   });
 });
+
+describe('PoseGpuPipeline output validation', () => {
+  const session = { outputNames: ['landmarks', 'score', 'world_landmarks'] };
+
+  test('with the mask enabled, a landmark model without a mask output is rejected up front', () => {
+    const p = new mp.PoseGpuPipeline({ model: 'lite', withMask: true });
+    expect(() => p._requireOutputs(session, p._landmarkOutputNames)).toThrow(/"mask"/);
+  });
+
+  test('without the mask, the same model is accepted', () => {
+    const p = new mp.PoseGpuPipeline({ model: 'lite', withMask: false });
+    expect(() => p._requireOutputs(session, p._landmarkOutputNames)).not.toThrow();
+  });
+});

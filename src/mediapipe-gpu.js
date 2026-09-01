@@ -756,7 +756,7 @@ export class PoseGpuPipeline extends TwoStageGpuPipeline {
     this._numCoords = 12;
     this._numKeypoints = 4;
     this._landmarkSize = 256;
-    this._landmarkOutputNames = ['landmarks', 'score', 'world_landmarks'];
+    this._landmarkOutputNames = withMask ? ['landmarks', 'score', 'mask', 'world_landmarks'] : ['landmarks', 'score', 'world_landmarks'];
     this._tracks = true;
     this.maskTarget = null;
   }
