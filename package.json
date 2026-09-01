@@ -18,51 +18,58 @@
     "format": "prettier --write 'src/**/*.{js,jsx}'",
     "format-check": "prettier --check 'src/**/*.{js,jsx}'",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
-    "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
-    "@uiw/react-color-chrome": "^2.9.6",
-    "chroma-js": "^3.1.2",
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@uiw/codemirror-theme-darcula": "^4.25.11",
+    "@uiw/react-color-chrome": "^2.10.3",
+    "chroma-js": "^3.2.0",
     "clsx": "^2.1.0",
-    "codemirror": "^5.65.19",
-    "fuse.js": "^7.1.0",
-    "glob": "^11.0.3",
+    "codemirror": "^6.0.2",
+    "fuse.js": "^7.5.0",
+    "glob": "^13.0.6",
     "jazz-midi-electron": "^2.0.3",
     "jexl": "^2.3.0",
     "jzz": "^1.9.4",
-    "mediabunny": "^1.23.0",
+    "mediabunny": "^1.55.5",
     "minimist": "1.2.8",
-    "node-osc": "^11.0.0",
+    "node-osc": "^11.7.0",
     "onnxruntime-web": "https://github.com/fdb/onnxruntime/releases/download/shared-device-v1.25.0-patch2/onnxruntime-web-1.25.0.tgz",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "seedrandom": "3.0.5",
     "stats.js": "^0.17.0",
     "tween-functions": "1.2.0",
-    "ws": "^8.19.0",
-    "zustand": "^5.0.8"
+    "ws": "^8.21.3",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@electron/notarize": "^3.0.1",
-    "@rollup/plugin-commonjs": "^28.0.7",
+    "@electron/notarize": "^3.1.1",
+    "@playwright/test": "^1.62.1",
+    "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-node-resolve": "^16.0.2",
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.20",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.5.4",
     "cross-env": "^10.1.0",
-    "dotenv": "^17.2.3",
-    "electron": "^38.3.0",
-    "electron-builder": "^26.0.12",
-    "esbuild": "^0.25.11",
-    "lightningcss": "^1.30.2",
-    "prettier": "^3.5.3",
-    "rimraf": "^6.0.1",
-    "rollup": "^4.59.0",
-    "tailwindcss": "^4.1.14",
-    "vite": "^7.1.10",
-    "vitest": "^3.2.4"
+    "dotenv": "^17.4.2",
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "lightningcss": "^1.33.0",
+    "prettier": "^3.9.6",
+    "rimraf": "^6.1.3",
+    "rollup": "^4.63.1",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=24.0.0"
   },
   "build": {
     "appId": "be.debleser.figment",
@@ -113,5 +120,11 @@
         "icon": "res/fgmt.ico"
       }
     ]
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "electron-winstaller": true,
+    "fsevents": true,
+    "protobufjs": true
   }
 }

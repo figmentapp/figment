@@ -195,16 +195,9 @@ intervalIn.onChange = rescheduleTimer;
 
 ## Get AI Help
 
-We developed a custom ChatGPT and custom Gemini Gem that can help you write or debug custom nodes:
+We developed a custom Gemini Gem that can help you write or debug custom nodes:
 
 <div style="display: flex; flex-direction: column; gap: 1rem;">
-  <a href="https://chatgpt.com/g/g-68d3996b835481918330cb7509368404-figmentgpt" target="_blank" rel="noopener noreferrer" style="background-color: #444444; display: flex; flex-direction: row; align-items: center; gap: 0.5rem; padding: 1rem; border-radius: 0.5rem; width: 300px; color: #eee; text-decoration: none;">
-    <img src="/img/tutorials/custom-nodes/figment-icon.png" alt="Figment Icon" style="border-radius: 100%; overflow: hidden; width: 44px; height: 44px;" />
-    <div style="display: flex; flex-direction: column;">
-      <span style="font-size: 1rem; font-weight: 600;">FigmentGPT</span>
-      <span style="font-size: 0.75rem; font-weight: 600; opacity: 0.6;">ChatGPT</span>
-    </div>
-  </a>
   <a href="https://gemini.google.com/gem/1GfVUo7C5goh4tB-fNv_TSHigXftFrTt0?usp=sharing" target="_blank" rel="noopener noreferrer" style="background-color: #444444; display: flex; flex-direction: row; align-items: center; gap: 0.5rem; padding: 1rem; border-radius: 0.5rem; width: 300px; color: #eee; text-decoration: none;">
     <img src="/img/tutorials/custom-nodes/figment-icon.png" alt="Figment Icon" style="border-radius: 100%; overflow: hidden; width: 44px; height: 44px;" />
     <div style="display: flex; flex-direction: column;">
