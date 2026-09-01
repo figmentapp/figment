@@ -151,7 +151,7 @@ node.onStart = async () => {
 node.onStop = () => {
   destroyGpuResources();
   if (session) {
-    void session.release();
+    void figment.withOrt(() => session.release());
     session = null;
   }
   if (target) target.destroy();
@@ -162,7 +162,7 @@ async function loadModel() {
 
   destroyGpuResources();
   if (session) {
-    await session.release();
+    await figment.withOrt(() => session.release());
     session = null;
   }
   device = null;
@@ -172,7 +172,7 @@ async function loadModel() {
     ort.env.webgpu.powerPreference = 'high-performance';
     ort.env.webgpu.adapter = figment.getAdapter();
     ort.env.webgpu.device = figment.getDevice();
-    session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['webgpu'] });
+    session = await figment.createOrtSession(modelUrl);
     device = figment.getDevice();
 
     // Read input/output dimensions from the model metadata (NCHW layout: [batch, channels, height, width])
@@ -252,7 +252,7 @@ async function loadModel() {
   } catch (e) {
     destroyGpuResources();
     if (session) {
-      await session.release();
+      await figment.withOrt(() => session.release());
       session = null;
     }
     device = null;
@@ -281,7 +281,9 @@ async function runInference() {
       device.queue.submit([inputEncoder.finish()]);
     });
 
-    await measureAsyncPhase('session-run', () => session.run({ [inputName]: inputTensor }, { [outputName]: outputTensor }));
+    await measureAsyncPhase('session-run', () =>
+      figment.withOrt(() => session.run({ [inputName]: inputTensor }, { [outputName]: outputTensor })),
+    );
 
     measurePhase('postprocess-dispatch', () => {
       const encoder = device.createCommandEncoder();

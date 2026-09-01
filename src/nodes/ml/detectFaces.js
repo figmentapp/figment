@@ -4,13 +4,19 @@
  * @category ml
  */
 
+// Runs the MediaPipe face models natively on the GPU (see
+// src/mediapipe-gpu.js); only landmarks (~6 KB per face) are read back each
+// frame. Drawing uses MediaPipe's canvas DrawingUtils, which is pure
+// vector drawing (no frame readback).
+
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const drawModeIn = node.selectIn('draw mode', ['contours', 'tesselation', 'bounding box'], 'contours');
 const drawColorIn = node.colorIn('draw color', [255, 255, 255, 1]);
 const drawLineWidthIn = node.numberIn('line width', 1, { min: 0, max: 10, step: 0.1 });
-const numFacesIn = node.numberIn('number of faces', 1, { min: 1, max: 4, step: 1 });
+const numFacesIn = node.numberIn('number of faces', 1, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const confidenceIn = node.numberIn('confidence', 0.5, { min: 0, max: 1, step: 0.01 });
+const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -21,47 +27,20 @@ drawLineWidthIn.label = 'Line Width';
 
 let _target, _canvas, _ctx;
 let _drawingUtils;
-let _mpClient = null;
-let _readback = null;
-let _profileSequence = 0;
-
-async function measureAsyncPhase(name, fn) {
-  const id = _profileSequence++;
-  const startMark = `${name}:start:${id}`;
-  const endMark = `${name}:end:${id}`;
-  performance.mark(startMark);
-  try {
-    return await fn();
-  } finally {
-    performance.mark(endMark);
-    try {
-      performance.measure(name, startMark, endMark);
-    } catch (_) {}
-  }
-}
+let _faces = null;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectFaces' });
   _canvas = new OffscreenCanvas(1, 1);
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
-  _readback = figment.createTextureReadback();
-  _mpClient = new figment.MediaPipeWorkerClient('face', {
-    taskFile: 'face_landmarker.task',
-    taskOptions: {
-      runningMode: 'IMAGE',
-      numFaces: numFacesIn.value,
-      minFaceDetectionConfidence: confidenceIn.value,
-      minFacePresenceConfidence: confidenceIn.value,
-      minTrackingConfidence: confidenceIn.value,
-      outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: false,
-    },
-  });
+  _faces = new figment.FaceGpuPipeline({ maxInstances: numFacesIn.value, confidence: confidenceIn.value });
+  _faces.tracking = modeIn.value === 'video';
+  await _faces.init();
 };
 
 node.onRender = async () => {
-  if (!imageIn.value) return;
+  if (!imageIn.value || !_faces) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -71,43 +50,39 @@ node.onRender = async () => {
     _target.setSize(width, height);
   }
 
-  try {
-    const frame = _mpClient.borrowFrame(width, height);
-    await measureAsyncPhase('mediapipe:face:input-readback', () => _readback.read(imageIn.value, frame));
-    const res = await measureAsyncPhase('mediapipe:face:infer', () => _mpClient.inferRgba(frame, width, height));
-    drawResults({ faceLandmarks: res.faceLandmarks });
-  } catch (_) {
-    // reinit/terminate during rapid param changes; ignore frame
-  }
+  const results = await _faces.process(imageIn.value);
+  if (!_faces) return; // stopped while the frame was in flight
+  drawResults(results.map((r) => r.landmarks));
+};
+
+node.onReset = () => {
+  if (_faces) _faces.resetTracking();
 };
 
 node.onStop = () => {
-  if (_mpClient) _mpClient.terminate();
-  _mpClient = null;
-  _readback?.destroy();
-  _readback = null;
+  if (_faces) _faces.destroy();
+  _faces = null;
   _target?.destroy();
 };
 
-function drawResults(faceResult) {
-  if (!imageIn.value || !faceResult) return;
-  const width = imageIn.value.width;
-  const height = imageIn.value.height;
+function drawResults(faceLandmarks) {
+  const width = _canvas.width;
+  const height = _canvas.height;
 
   _ctx.clearRect(0, 0, width, height);
   _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
   _ctx.fillRect(0, 0, width, height);
 
-  if (faceResult.faceLandmarks && faceResult.faceLandmarks.length > 0) {
+  if (faceLandmarks.length > 0) {
     detectedOut.value = true;
-    landmarksOut.value = { type: 'face', landmarks: faceResult.faceLandmarks };
+    landmarksOut.value = { type: 'face', landmarks: faceLandmarks };
 
     const options = {
       color: figment.toCanvasColor(drawColorIn.value),
       lineWidth: drawLineWidthIn.value,
     };
 
-    for (const landmarks of faceResult.faceLandmarks) {
+    for (const landmarks of faceLandmarks) {
       switch (drawModeIn.value) {
         case 'contours':
           _drawingUtils.drawConnectors(landmarks, mediapipe.FaceLandmarker.FACE_LANDMARKS_CONTOURS, options);
@@ -143,15 +118,12 @@ function drawResults(faceResult) {
 }
 
 function updateOptions() {
-  if (_mpClient) {
-    _mpClient.setOptions({
-      numFaces: numFacesIn.value,
-      minFaceDetectionConfidence: confidenceIn.value,
-      minFacePresenceConfidence: confidenceIn.value,
-      minTrackingConfidence: confidenceIn.value,
-    });
-  }
+  if (!_faces) return;
+  _faces.maxInstances = numFacesIn.value;
+  _faces.confidence = confidenceIn.value;
+  _faces.tracking = modeIn.value === 'video';
 }
 
 numFacesIn.onChange = updateOptions;
 confidenceIn.onChange = updateOptions;
+modeIn.onChange = updateOptions;

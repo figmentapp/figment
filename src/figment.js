@@ -3,6 +3,14 @@
 
 export { buildSaveImagePath, encodeWithCanvasFallback, ensureFallbackCanvas, parseSaveImageTemplate } from './saveImageShared.js';
 export { createImageEncoder } from './imageEncoder.js';
+export {
+  PoseGpuPipeline,
+  HandGpuPipeline,
+  FaceGpuPipeline,
+  MAX_INSTANCES as MEDIAPIPE_MAX_INSTANCES,
+  withOrt,
+  createOrtSession,
+} from './mediapipe-gpu.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 
@@ -1083,124 +1091,4 @@ export function colorToVec4(color) {
 
 export function colorToVec3(color) {
   return [color[0] / 255, color[1] / 255, color[2] / 255];
-}
-
-// ─── MediaPipe Worker Client (preserved) ────────────────────────────────────
-
-export class MediaPipeWorkerClient {
-  constructor(task, { taskFile, taskOptions = {} } = {}) {
-    this.task = task;
-    this.taskFile = taskFile;
-    this.taskOptions = taskOptions;
-    this._worker = null;
-    this._ready = false;
-    this._reqId = 1;
-    this._pending = new Map();
-    this._onReadyResolvers = [];
-    this._recycledFrameBuffer = null;
-    this._init();
-  }
-
-  _rejectAllPending(reason = 'cancelled') {
-    const err = reason instanceof Error ? reason : new Error(String(reason));
-    for (const [, { reject }] of this._pending) reject(err);
-    this._pending.clear();
-  }
-
-  _init() {
-    if (this._worker) {
-      this._rejectAllPending('reinit');
-      try {
-        this._worker.terminate();
-      } catch (_) {}
-    }
-    this._recycledFrameBuffer = null;
-    this._ready = false;
-    this._worker = new Worker(new URL('./workers/mediapipeWorker.js', import.meta.url), { type: 'module' });
-    this._worker.onmessage = (ev) => {
-      const msg = ev.data;
-      if (msg.type === 'ready') {
-        this._ready = true;
-        for (const r of this._onReadyResolvers) r();
-        this._onReadyResolvers = [];
-        return;
-      }
-      if (msg.type === 'optionsUpdated') return;
-      if (msg.type === 'error') {
-        for (const [, { reject }] of this._pending) reject(new Error(msg.error));
-        this._pending.clear();
-        return;
-      }
-      if (msg.type === 'result') {
-        const entry = this._pending.get(msg.id);
-        if (entry) {
-          this._pending.delete(msg.id);
-          if (msg.buffer instanceof ArrayBuffer) {
-            this._recycledFrameBuffer = msg.buffer;
-          }
-          entry.resolve(msg.result);
-        }
-        return;
-      }
-    };
-    this._worker.postMessage({
-      type: 'init',
-      task: this.task,
-      options: {
-        taskFile: this.taskFile,
-        taskOptions: this.taskOptions,
-      },
-    });
-  }
-
-  async ready() {
-    if (this._ready) return;
-    await new Promise((resolve) => this._onReadyResolvers.push(resolve));
-  }
-
-  async reinit({ taskFile, taskOptions } = {}) {
-    if (taskFile) this.taskFile = taskFile;
-    if (taskOptions) this.taskOptions = taskOptions;
-    this._init();
-    await this.ready();
-  }
-
-  async setOptions(options) {
-    await this.ready();
-    return new Promise((resolve) => {
-      this._worker.postMessage({ type: 'setOptions', options });
-      resolve();
-    });
-  }
-
-  borrowFrame(width, height) {
-    const byteLength = width * height * 4;
-    if (this._recycledFrameBuffer && this._recycledFrameBuffer.byteLength === byteLength) {
-      const frame = new Uint8ClampedArray(this._recycledFrameBuffer);
-      this._recycledFrameBuffer = null;
-      return frame;
-    }
-    return new Uint8ClampedArray(byteLength);
-  }
-
-  async inferRgba(frame, width, height) {
-    await this.ready();
-    const id = this._reqId++;
-    const promise = new Promise((resolve, reject) => {
-      this._pending.set(id, { resolve, reject });
-    });
-    this._worker.postMessage({ type: 'frame', id, buffer: frame.buffer, width, height }, [frame.buffer]);
-    return promise;
-  }
-
-  terminate() {
-    try {
-      if (this._worker) this._worker.terminate();
-    } catch (_) {}
-    this._worker = null;
-    this._ready = false;
-    this._recycledFrameBuffer = null;
-    for (const [, { reject }] of this._pending) reject(new Error('terminated'));
-    this._pending.clear();
-  }
 }

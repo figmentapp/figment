@@ -4,6 +4,10 @@
  * @category ml
  */
 
+// Runs the MediaPipe pose models natively on the GPU (see
+// src/mediapipe-gpu.js): the frame and the segmentation mask never leave
+// the GPU; only landmarks (~1 KB per pose) are read back each frame.
+
 const fragmentShader = `
 struct Uniforms {
   u_operation: i32,
@@ -30,50 +34,18 @@ struct Uniforms {
 
 const imageIn = node.imageIn('in');
 const operationIn = node.selectIn('remove', ['background', 'foreground']);
-const numPosesIn = node.numberIn('number of poses', 1, { min: 1, max: 4, step: 1 });
+const numPosesIn = node.numberIn('number of poses', 1, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const modelIn = node.selectIn('model', ['lite', 'full', 'heavy'], 'lite');
+const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
 const maskOut = node.imageOut('mask');
 
-let _resultTarget, _maskTarget;
+let _resultTarget;
 let _pipelineInfo;
-let _mpClient = null;
-let _readback = null;
-let _maskRgbaBuffer = null;
-let _profileSequence = 0;
-
-async function measureAsyncPhase(name, fn) {
-  const id = _profileSequence++;
-  const startMark = `${name}:start:${id}`;
-  const endMark = `${name}:end:${id}`;
-  performance.mark(startMark);
-  try {
-    return await fn();
-  } finally {
-    performance.mark(endMark);
-    try {
-      performance.measure(name, startMark, endMark);
-    } catch (_) {}
-  }
-}
-
-function measurePhase(name, fn) {
-  const id = _profileSequence++;
-  const startMark = `${name}:start:${id}`;
-  const endMark = `${name}:end:${id}`;
-  performance.mark(startMark);
-  try {
-    return fn();
-  } finally {
-    performance.mark(endMark);
-    try {
-      performance.measure(name, startMark, endMark);
-    } catch (_) {}
-  }
-}
+let _pose = null;
 
 node.onStart = async () => {
   _pipelineInfo = figment.createRenderPipeline({
@@ -83,118 +55,68 @@ node.onStart = async () => {
     label: 'segmentPose',
   });
   _resultTarget = new figment.RenderTarget({ label: 'segmentPose-result' });
-  _maskTarget = new figment.RenderTarget({ label: 'segmentPose-mask' });
-  _readback = figment.createTextureReadback();
-  _mpClient = new figment.MediaPipeWorkerClient('segmentPose', {
-    taskFile: `pose_landmarker_${modelIn.value}.task`,
-    taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
-  });
+  _pose = new figment.PoseGpuPipeline({ model: modelIn.value, maxInstances: numPosesIn.value, withMask: true });
+  _pose.tracking = modeIn.value === 'video';
+  await _pose.init();
 };
 
 node.onRender = async () => {
-  if (!imageIn.value) return;
+  if (!imageIn.value || !_pose) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
-
   _resultTarget.setSize(width, height);
-  try {
-    const frame = _mpClient.borrowFrame(width, height);
-    await measureAsyncPhase('mediapipe:segmentPose:input-readback', () => _readback.read(imageIn.value, frame));
-    const res = await measureAsyncPhase('mediapipe:segmentPose:infer', () => _mpClient.inferRgba(frame, width, height));
-    await drawWorkerResult(res);
-  } catch (_) {
-    // reinit/terminate during rapid param changes; ignore frame
-  }
-};
 
-// Removed legacy sync path; worker result is handled in drawWorkerResult.
+  const results = await _pose.process(imageIn.value);
+  if (!_pose) return; // stopped while the frame was in flight
 
-async function drawWorkerResult(result) {
-  if (!imageIn.value || !result) {
-    imageOut.set(imageIn.value);
-    detectedOut.value = false;
-    landmarksOut.value = null;
-    maskOut.set(null);
-    return;
-  }
-
-  const width = imageIn.value.width;
-  const height = imageIn.value.height;
-
-  if (result.landmarks && result.landmarks.length > 0) {
+  if (results.length > 0) {
     detectedOut.value = true;
-    landmarksOut.value = result.landmarks;
-
-    if (result.mask) {
-      const maskData = new Uint8Array(result.mask);
-      const maskByteLength = width * height * 4;
-      if (!_maskRgbaBuffer || _maskRgbaBuffer.length !== maskByteLength) {
-        _maskRgbaBuffer = new Uint8ClampedArray(maskByteLength);
-      }
-
-      for (let i = 0; i < maskData.length; i++) {
-        const p = i * 4;
-        const v = maskData[i];
-        _maskRgbaBuffer[p] = v;
-        _maskRgbaBuffer[p + 1] = v;
-        _maskRgbaBuffer[p + 2] = v;
-        _maskRgbaBuffer[p + 3] = 255;
-      }
-
-      _maskTarget.setSize(width, height);
-      measurePhase('mediapipe:segmentPose:mask-upload', () => {
-        _maskTarget.uploadBytes(_maskRgbaBuffer, { bytesPerRow: width * 4 });
-      });
-      maskOut.set(_maskTarget);
-
-      _resultTarget.setSize(width, height);
-      figment.drawFullscreen(
-        _pipelineInfo,
-        { u_operation: operationIn.value === 'background' ? 0 : 1 },
-        { u_source_texture: imageIn.value, u_mask_texture: _maskTarget },
-        _resultTarget,
-      );
-      imageOut.set(_resultTarget);
-    } else {
-      imageOut.set(imageIn.value);
-      maskOut.set(null);
-    }
+    landmarksOut.value = results.map((r) => r.landmarks);
+    maskOut.set(_pose.maskTarget);
+    figment.drawFullscreen(
+      _pipelineInfo,
+      { u_operation: operationIn.value === 'background' ? 0 : 1 },
+      { u_source_texture: imageIn.value, u_mask_texture: _pose.maskTarget },
+      _resultTarget,
+    );
+    imageOut.set(_resultTarget);
   } else {
     detectedOut.value = false;
     landmarksOut.value = null;
     maskOut.set(null);
     if (operationIn.value === 'background') {
-      _resultTarget.setSize(width, height);
       figment.clearRenderTarget(_resultTarget);
       imageOut.set(_resultTarget);
     } else {
       imageOut.set(imageIn.value);
     }
   }
-}
+};
 
-function updateOptions() {
-  if (_mpClient) {
-    _mpClient.setOptions({ numPoses: numPosesIn.value });
-  }
-}
+numPosesIn.onChange = () => {
+  if (_pose) _pose.maxInstances = numPosesIn.value;
+};
 
-numPosesIn.onChange = updateOptions;
+modeIn.onChange = () => {
+  if (_pose) _pose.tracking = modeIn.value === 'video';
+};
+
 modelIn.onChange = async () => {
-  if (_mpClient) {
-    await _mpClient.reinit({
-      taskFile: `pose_landmarker_${modelIn.value}.task`,
-      taskOptions: { runningMode: 'IMAGE', numPoses: numPosesIn.value, outputSegmentationMasks: true },
-    });
+  if (!_pose) return;
+  try {
+    await _pose.setModel(modelIn.value);
+  } catch (err) {
+    console.error(err);
+    if (_pose) modelIn.set(_pose.model); // the installed model stays; the select follows it
   }
 };
 
+node.onReset = () => {
+  if (_pose) _pose.resetTracking();
+};
+
 node.onStop = () => {
-  if (_mpClient) _mpClient.terminate();
-  _mpClient = null;
-  _readback?.destroy();
-  _readback = null;
-  _maskRgbaBuffer = null;
+  if (_pose) _pose.destroy();
+  _pose = null;
   if (_resultTarget) _resultTarget.destroy();
-  if (_maskTarget) _maskTarget.destroy();
 };
