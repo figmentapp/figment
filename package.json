@@ -122,6 +122,7 @@
   "allowScripts": {
     "esbuild": true,
     "electron-winstaller": true,
+    "fsevents": true,
     "protobufjs": true
   }
 }
