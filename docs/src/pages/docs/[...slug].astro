@@ -1,39 +1,39 @@
 ---
-import { getCollection, render } from 'astro:content'
-import BaseLayout from '../../layouts/BaseLayout.astro'
-import '../../styles/docs-page.css'
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/docs-page.css';
 
 function normalizeSlugForPath(slug) {
-  if (slug === 'index') return ''
-  if (slug.endsWith('/index')) return slug.slice(0, -'/index'.length)
-  return slug
+  if (slug === 'index') return '';
+  if (slug.endsWith('/index')) return slug.slice(0, -'/index'.length);
+  return slug;
 }
 
 function toDocPath(slug) {
-  const normalized = normalizeSlugForPath(slug)
-  return normalized ? `/docs/${normalized}` : '/docs'
+  const normalized = normalizeSlugForPath(slug);
+  return normalized ? `/docs/${normalized}` : '/docs';
 }
 
 export async function getStaticPaths() {
   const normalize = (slug) => {
-    if (slug === 'index') return ''
-    if (slug.endsWith('/index')) return slug.slice(0, -'/index'.length)
-    return slug
-  }
+    if (slug === 'index') return '';
+    if (slug.endsWith('/index')) return slug.slice(0, -'/index'.length);
+    return slug;
+  };
 
-  const entries = await getCollection('docs')
+  const entries = await getCollection('docs');
   return entries.map((entry) => ({
     params: { slug: normalize(entry.slug) || undefined },
     props: { entry },
-  }))
+  }));
 }
 
-const { entry } = Astro.props
-const { Content, headings } = await render(entry)
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
 
-const currentPath = toDocPath(entry.slug)
+const currentPath = toDocPath(entry.slug);
 
-const docsTitle = entry.data.title
+const docsTitle = entry.data.title;
 ---
 
 <BaseLayout title={docsTitle} description={entry.data.description ?? 'Figment documentation'}>
@@ -43,7 +43,9 @@ const docsTitle = entry.data.title
         <a class:list={{ active: currentPath === '/docs' }} href="/docs">Welcome</a>
 
         <h3>Tutorials</h3>
-        <a class:list={{ active: currentPath === '/docs/tutorials/getting-started' }} href="/docs/tutorials/getting-started">Getting Started</a>
+        <a class:list={{ active: currentPath === '/docs/tutorials/getting-started' }} href="/docs/tutorials/getting-started"
+          >Getting Started</a
+        >
         <a class:list={{ active: currentPath === '/docs/tutorials/pix2pix' }} href="/docs/tutorials/pix2pix">Pix2Pix</a>
         <a class:list={{ active: currentPath === '/docs/tutorials/custom-nodes' }} href="/docs/tutorials/custom-nodes">Custom Nodes</a>
 
@@ -62,20 +64,22 @@ const docsTitle = entry.data.title
     </article>
 
     <aside class="docs-toc">
-      {headings.length > 0 && (
-        <>
-          <h3>On this page</h3>
-          <ul>
-            {headings
-              .filter((heading) => heading.depth === 2)
-              .map((heading) => (
-                <li>
-                  <a href={`#${heading.slug}`}>{heading.text}</a>
-                </li>
-              ))}
-          </ul>
-        </>
-      )}
+      {
+        headings.length > 0 && (
+          <>
+            <h3>On this page</h3>
+            <ul>
+              {headings
+                .filter((heading) => heading.depth === 2)
+                .map((heading) => (
+                  <li>
+                    <a href={`#${heading.slug}`}>{heading.text}</a>
+                  </li>
+                ))}
+            </ul>
+          </>
+        )
+      }
     </aside>
   </section>
 </BaseLayout>
