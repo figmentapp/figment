@@ -197,6 +197,27 @@ Per-frame CPU↔GPU traffic drops from ~10 MB (frame down + mask up at
 detector output (108 KB pose / 145 KB hand / 61 KB face) on frames where
 the detector actually runs.
 
+## Drawing the overlays (`src/landmark-drawing.js`)
+
+The detect nodes and Receive Rokoko used to draw their skeletons with
+MediaPipe's `DrawingUtils` on an `OffscreenCanvas` and upload the canvas
+every frame — another full-frame CPU→GPU copy. `LandmarkRenderer` draws
+them on the GPU instead: the node fills an `OverlayBatch` with points and
+connectors in pixel space (48 bytes per primitive, a few KB per frame),
+and one instanced draw call rasterizes every primitive as a
+signed-distance capsule (round caps for points, butt caps for lines, 1px
+antialiasing) over the cleared background color. `DrawingUtils`
+semantics are preserved — `lineWidth` 4 and `radius` 6 by default, a
+point is a filled circle plus a same-color stroke — so overlays look as
+before. The connection tables (`src/landmark-connections.js`) are copied
+from `@mediapipe/tasks-vision`; the package itself is gone.
+
+For project custom nodes, `window.drawConnectors` and
+`window.drawLandmarks` remain as small canvas helpers with the
+`drawing_utils` API, and the tables are exposed as
+`figment.POSE_CONNECTIONS` and friends. `window.mediapipe` no longer
+exists.
+
 ## What's implemented, what's not
 
 - ✅ Pose: detector + lite/full/heavy landmarks + segmentation mask +

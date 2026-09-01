@@ -33,7 +33,7 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _target, _canvas, _ctx;
+let _target, _overlay;
 let _currentBody = null;
 
 const ROKOKO_BODY_CONNECTIONS = [
@@ -61,30 +61,12 @@ const ROKOKO_BODY_CONNECTIONS = [
 
 let _listener;
 
-function resizeOutput() {
-  const width = widthIn.value;
-  const height = heightIn.value;
-
-  if (_canvas && _canvas.width === width && _canvas.height === height) {
-    return;
-  }
-
-  _canvas = new OffscreenCanvas(width, height);
-  _ctx = _canvas.getContext('2d');
-  if (_target) {
-    _target.setSize(width, height);
-    drawResults();
-  }
-}
-
-widthIn.onChange = resizeOutput;
-heightIn.onChange = resizeOutput;
+widthIn.onChange = drawResults;
+heightIn.onChange = drawResults;
 
 node.onStart = async () => {
-  await figment.loadScripts(['./mediapipe/drawing_utils.js']);
-
   _target = new figment.RenderTarget({ label: 'receiveRokoko' });
-  resizeOutput();
+  _overlay = new figment.LandmarkRenderer({ label: 'receiveRokoko' });
 
   drawResults(); // initial blank frame
 
@@ -116,6 +98,9 @@ node.onStart = async () => {
 
 node.onStop = () => {
   _target?.destroy();
+  _overlay?.destroy();
+  _target = null;
+  _overlay = null;
   window.desktop.registerListener('udp', null);
   window.desktop.stopUdpServer(udpPortIn.value);
 };
@@ -130,31 +115,28 @@ udpPortIn.onChange = (oldPort, newPort) => {
 //// DRAWING ////
 
 function drawResults() {
+  if (!_overlay) return;
   const width = widthIn.value;
   const height = heightIn.value;
-
-  if (!_ctx) return;
-
-  // clear background
-  _ctx.clearRect(0, 0, width, height);
-  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  _ctx.fillRect(0, 0, width, height);
+  const batch = _overlay.begin(width, height);
 
   if (_currentBody) {
     const { landmarks, connections } = _extractLandmarksAndConnections(_currentBody, width, height);
     if (landmarks.length) {
       detectedOut.set(true);
+      // Joints behind the camera get visibility 0; hide them and their bones.
       if (linesToggleIn.value && connections.length) {
-        drawConnectors(_ctx, landmarks, connections, {
-          color: figment.toCanvasColor(linesColorIn.value),
+        batch.connectors(landmarks, connections, {
+          color: linesColorIn.value,
           lineWidth: linesWidthIn.value,
           visibilityMin: 0,
         });
       }
       if (pointsToggleIn.value) {
-        drawLandmarks(_ctx, landmarks, {
-          color: figment.toCanvasColor(pointsColorIn.value),
+        batch.landmarks(landmarks, {
+          color: pointsColorIn.value,
           radius: pointsRadiusIn.value,
+          visibilityMin: 0,
         });
       }
     } else {
@@ -164,8 +146,7 @@ function drawResults() {
     detectedOut.set(false);
   }
 
-  // upload canvas to texture
-  _target.uploadExternal(_canvas);
+  _overlay.draw(_target, backgroundIn.value);
   imageOut.set(_target);
 }
 

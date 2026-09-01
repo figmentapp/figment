@@ -1,13 +1,12 @@
 /**
  * @name Detect Faces
- * @description Detect faces in an image using MediaPipe
+ * @description Detect faces in an image and draw their landmarks.
  * @category ml
  */
 
-// Runs the MediaPipe face models natively on the GPU (see
+// Runs MediaPipe's face models natively on the GPU (see
 // src/mediapipe-gpu.js); only landmarks (~6 KB per face) are read back each
-// frame. Drawing uses MediaPipe's canvas DrawingUtils, which is pure
-// vector drawing (no frame readback).
+// frame. The overlay is drawn on the GPU as well (src/landmark-drawing.js).
 
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
@@ -25,15 +24,12 @@ const landmarksOut = node.objectOut('landmarks');
 drawColorIn.label = 'Color';
 drawLineWidthIn.label = 'Line Width';
 
-let _target, _canvas, _ctx;
-let _drawingUtils;
+let _target, _overlay;
 let _faces = null;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectFaces' });
-  _canvas = new OffscreenCanvas(1, 1);
-  _ctx = _canvas.getContext('2d');
-  _drawingUtils = new mediapipe.DrawingUtils(_ctx);
+  _overlay = new figment.LandmarkRenderer({ label: 'detectFaces' });
   _faces = new figment.FaceGpuPipeline({ maxInstances: numFacesIn.value, confidence: confidenceIn.value });
   _faces.tracking = modeIn.value === 'video';
   await _faces.init();
@@ -44,15 +40,13 @@ node.onRender = async () => {
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
-  if (width !== _canvas.width || height !== _canvas.height) {
-    _canvas.width = width;
-    _canvas.height = height;
-    _target.setSize(width, height);
-  }
-
   const results = await _faces.process(imageIn.value);
   if (!_faces) return; // stopped while the frame was in flight
-  drawResults(results.map((r) => r.landmarks));
+  drawResults(
+    results.map((r) => r.landmarks),
+    width,
+    height,
+  );
 };
 
 node.onReset = () => {
@@ -63,34 +57,27 @@ node.onStop = () => {
   if (_faces) _faces.destroy();
   _faces = null;
   _target?.destroy();
+  _overlay?.destroy();
 };
 
-function drawResults(faceLandmarks) {
-  const width = _canvas.width;
-  const height = _canvas.height;
-
-  _ctx.clearRect(0, 0, width, height);
-  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  _ctx.fillRect(0, 0, width, height);
+function drawResults(faceLandmarks, width, height) {
+  const batch = _overlay.begin(width, height);
 
   if (faceLandmarks.length > 0) {
     detectedOut.value = true;
     landmarksOut.value = { type: 'face', landmarks: faceLandmarks };
 
-    const options = {
-      color: figment.toCanvasColor(drawColorIn.value),
-      lineWidth: drawLineWidthIn.value,
-    };
+    const options = { color: drawColorIn.value, lineWidth: drawLineWidthIn.value };
 
     for (const landmarks of faceLandmarks) {
       switch (drawModeIn.value) {
         case 'contours':
-          _drawingUtils.drawConnectors(landmarks, mediapipe.FaceLandmarker.FACE_LANDMARKS_CONTOURS, options);
+          batch.connectors(landmarks, figment.FACE_LANDMARKS_CONTOURS, options);
           break;
         case 'tesselation':
-          _drawingUtils.drawConnectors(landmarks, mediapipe.FaceLandmarker.FACE_LANDMARKS_TESSELATION, options);
+          batch.connectors(landmarks, figment.FACE_LANDMARKS_TESSELATION, options);
           break;
-        case 'bounding box':
+        case 'bounding box': {
           let minX = Infinity,
             minY = Infinity,
             maxX = -Infinity,
@@ -101,11 +88,9 @@ function drawResults(faceLandmarks) {
             maxX = Math.max(maxX, landmark.x);
             maxY = Math.max(maxY, landmark.y);
           }
-
-          _ctx.strokeStyle = figment.toCanvasColor(drawColorIn.value);
-          _ctx.lineWidth = drawLineWidthIn.value;
-          _ctx.strokeRect(minX * width, minY * height, (maxX - minX) * width, (maxY - minY) * height);
+          batch.rect(minX, minY, maxX - minX, maxY - minY, options);
           break;
+        }
       }
     }
   } else {
@@ -113,7 +98,7 @@ function drawResults(faceLandmarks) {
     landmarksOut.value = null;
   }
 
-  _target.uploadExternal(_canvas);
+  _overlay.draw(_target, backgroundIn.value);
   imageOut.set(_target);
 }
 

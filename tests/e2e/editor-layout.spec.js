@@ -18,7 +18,7 @@ test('code editor pane keeps its width when scrolling wide code', async ({ page 
 
   // Create a fresh project, then open the Detect Pose code tab. Its source has
   // long lines. We open the tab directly instead of instantiating the node so
-  // the test doesn't depend on MediaPipe loading in a headless browser.
+  // the test doesn't depend on the ML models loading in a headless browser.
   await page.waitForFunction(() => window.app?.getState().network);
   await page.evaluate(async () => {
     await window.app.getState().newProject();

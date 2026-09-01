@@ -1,13 +1,12 @@
 /**
  * @name Detect Pose
- * @description Detect poses in an image using MediaPipe
+ * @description Detect poses in an image and draw them as skeletons.
  * @category ml
  */
 
-// Runs the MediaPipe pose models natively on the GPU (see
+// Runs MediaPipe's pose models natively on the GPU (see
 // src/mediapipe-gpu.js); only landmarks (~1 KB per pose) are read back each
-// frame. Drawing uses MediaPipe's canvas DrawingUtils, which is pure
-// vector drawing (no frame readback).
+// frame. The skeleton is drawn on the GPU as well (src/landmark-drawing.js).
 
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
@@ -30,15 +29,12 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _target, _canvas, _ctx;
-let _drawingUtils;
+let _target, _overlay;
 let _pose = null;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectPose' });
-  _canvas = new OffscreenCanvas(1, 1);
-  _ctx = _canvas.getContext('2d');
-  _drawingUtils = new mediapipe.DrawingUtils(_ctx);
+  _overlay = new figment.LandmarkRenderer({ label: 'detectPose' });
   _pose = new figment.PoseGpuPipeline({ model: modelIn.value, maxInstances: numPosesIn.value });
   _pose.tracking = modeIn.value === 'video';
   await _pose.init();
@@ -49,44 +45,28 @@ node.onRender = async () => {
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
-  if (width !== _canvas.width || height !== _canvas.height) {
-    _canvas.width = width;
-    _canvas.height = height;
-    _target.setSize(width, height);
-  }
-
   const results = await _pose.process(imageIn.value);
   if (!_pose) return; // stopped while the frame was in flight
-  drawResults(results.map((r) => r.landmarks));
+  drawResults(
+    results.map((r) => r.landmarks),
+    width,
+    height,
+  );
 };
 
-function drawResults(poseLandmarks) {
-  const width = _canvas.width;
-  const height = _canvas.height;
-
-  _ctx.clearRect(0, 0, width, height);
-  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  _ctx.fillRect(0, 0, width, height);
+function drawResults(poseLandmarks, width, height) {
+  const batch = _overlay.begin(width, height);
 
   if (poseLandmarks.length > 0) {
     detectedOut.value = true;
     landmarksOut.value = { type: 'pose', landmarks: poseLandmarks };
 
-    for (const landmark of poseLandmarks) {
+    for (const landmarks of poseLandmarks) {
       if (pointsToggleIn.value) {
-        const options = {
-          color: figment.toCanvasColor(pointsColorIn.value),
-          radius: pointsRadiusIn.value,
-        };
-        _drawingUtils.drawLandmarks(landmark, options);
+        batch.landmarks(landmarks, { color: pointsColorIn.value, radius: pointsRadiusIn.value });
       }
-
       if (linesToggleIn.value) {
-        const options = {
-          color: figment.toCanvasColor(linesColorIn.value),
-          lineWidth: linesWidthIn.value,
-        };
-        _drawingUtils.drawConnectors(landmark, mediapipe.PoseLandmarker.POSE_CONNECTIONS, options);
+        batch.connectors(landmarks, figment.POSE_CONNECTIONS, { color: linesColorIn.value, lineWidth: linesWidthIn.value });
       }
     }
   } else {
@@ -94,7 +74,7 @@ function drawResults(poseLandmarks) {
     landmarksOut.value = null;
   }
 
-  _target.uploadExternal(_canvas);
+  _overlay.draw(_target, backgroundIn.value);
   imageOut.set(_target);
 }
 
@@ -124,4 +104,5 @@ node.onStop = () => {
   if (_pose) _pose.destroy();
   _pose = null;
   _target?.destroy();
+  _overlay?.destroy();
 };

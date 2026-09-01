@@ -3,11 +3,8 @@ import { createRoot } from 'react-dom/client';
 import * as g from '../g';
 import * as figment from '../figment';
 import * as ort from 'onnxruntime-web/all';
-import * as mediapipe from '@mediapipe/tasks-vision';
-// drawing_utils is a plain global script with no ESM/CJS exports; it defines
-// drawConnectors & friends on window, so it must be imported for side effects only.
-import '@mediapipe/drawing_utils';
 import * as mediabunny from 'mediabunny';
+import { drawConnectors, drawLandmarks } from '../landmark-drawing';
 
 import App from './App';
 
@@ -17,14 +14,9 @@ window.g = g;
 window.figment = figment;
 window.profiling = { dumpPerformance, clearPerformance };
 window.ort = ort;
-window.mediapipe = mediapipe;
-window.drawing_utils = {
-  clamp: window.clamp,
-  drawConnectors: window.drawConnectors,
-  drawLandmarks: window.drawLandmarks,
-  drawRectangle: window.drawRectangle,
-  lerp: window.lerp,
-};
+// Canvas landmark helpers (the drawing_utils API) for project custom nodes.
+window.drawConnectors = drawConnectors;
+window.drawLandmarks = drawLandmarks;
 window.mediabunny = mediabunny;
 
 // Point ONNX to the public assets folder (works in both dev and prod)
