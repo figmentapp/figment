@@ -647,7 +647,7 @@ export const useAppStore = create((set, get) => ({
       for (let currentFrame = 1; currentFrame <= frameCount; currentFrame++) {
         window.desktop.setCurrentFrame(currentFrame);
         await network.doFrame();
-        const continueRendering = callback(currentFrame);
+        const continueRendering = await callback(currentFrame);
         if (!continueRendering) break;
       }
     } finally {
