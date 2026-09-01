@@ -3,7 +3,14 @@
 
 export { buildSaveImagePath, encodeWithCanvasFallback, ensureFallbackCanvas, parseSaveImageTemplate } from './saveImageShared.js';
 export { createImageEncoder } from './imageEncoder.js';
-export { PoseGpuPipeline, HandGpuPipeline, FaceGpuPipeline } from './mediapipe-gpu.js';
+export {
+  PoseGpuPipeline,
+  HandGpuPipeline,
+  FaceGpuPipeline,
+  MAX_INSTANCES as MEDIAPIPE_MAX_INSTANCES,
+  withOrt,
+  createOrtSession,
+} from './mediapipe-gpu.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 

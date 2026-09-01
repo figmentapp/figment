@@ -426,8 +426,9 @@ export default class Network {
         await node.onRender();
         node.error = null;
       } catch (e) {
-        console.error(e && e.stack);
-        node.error = e && e.stack ? e.stack : String(e);
+        const message = e && e.stack ? e.stack : String(e);
+        if (message !== node.error) console.error(message);
+        node.error = message;
       }
       performance.mark(markName + '-end');
       try {

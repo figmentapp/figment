@@ -6,7 +6,7 @@
 
 // Runs the MediaPipe face models natively on the GPU (see
 // src/mediapipe-gpu.js); only landmarks (~6 KB per face) are read back each
-// frame. Drawing still uses MediaPipe's canvas DrawingUtils, which is pure
+// frame. Drawing uses MediaPipe's canvas DrawingUtils, which is pure
 // vector drawing (no frame readback).
 
 const imageIn = node.imageIn('in');
@@ -14,8 +14,9 @@ const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
 const drawModeIn = node.selectIn('draw mode', ['contours', 'tesselation', 'bounding box'], 'contours');
 const drawColorIn = node.colorIn('draw color', [255, 255, 255, 1]);
 const drawLineWidthIn = node.numberIn('line width', 1, { min: 0, max: 10, step: 0.1 });
-const numFacesIn = node.numberIn('number of faces', 1, { min: 1, max: 4, step: 1 });
+const numFacesIn = node.numberIn('number of faces', 1, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const confidenceIn = node.numberIn('confidence', 0.5, { min: 0, max: 1, step: 0.01 });
+const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -27,7 +28,6 @@ drawLineWidthIn.label = 'Line Width';
 let _target, _canvas, _ctx;
 let _drawingUtils;
 let _faces = null;
-let _busy = false;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectFaces' });
@@ -35,11 +35,12 @@ node.onStart = async () => {
   _ctx = _canvas.getContext('2d');
   _drawingUtils = new mediapipe.DrawingUtils(_ctx);
   _faces = new figment.FaceGpuPipeline({ maxInstances: numFacesIn.value, confidence: confidenceIn.value });
+  _faces.tracking = modeIn.value === 'video';
   await _faces.init();
 };
 
 node.onRender = async () => {
-  if (!imageIn.value || !_faces || _busy) return;
+  if (!imageIn.value || !_faces) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -49,17 +50,13 @@ node.onRender = async () => {
     _target.setSize(width, height);
   }
 
-  _busy = true;
-  let results;
-  try {
-    results = await _faces.process(imageIn.value);
-  } catch (err) {
-    node.error = err && err.stack ? err.stack : String(err);
-    return;
-  } finally {
-    _busy = false;
-  }
+  const results = await _faces.process(imageIn.value);
+  if (!_faces) return; // stopped while the frame was in flight
   drawResults(results.map((r) => r.landmarks));
+};
+
+node.onReset = () => {
+  if (_faces) _faces.resetTracking();
 };
 
 node.onStop = () => {
@@ -124,7 +121,9 @@ function updateOptions() {
   if (!_faces) return;
   _faces.maxInstances = numFacesIn.value;
   _faces.confidence = confidenceIn.value;
+  _faces.tracking = modeIn.value === 'video';
 }
 
 numFacesIn.onChange = updateOptions;
 confidenceIn.onChange = updateOptions;
+modeIn.onChange = updateOptions;

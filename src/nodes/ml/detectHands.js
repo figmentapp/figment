@@ -6,7 +6,7 @@
 
 // Runs the MediaPipe hand models natively on the GPU (see
 // src/mediapipe-gpu.js); only landmarks (~1 KB per hand) are read back each
-// frame. Drawing still uses MediaPipe's canvas DrawingUtils, which is pure
+// frame. Drawing uses MediaPipe's canvas DrawingUtils, which is pure
 // vector drawing (no frame readback).
 
 const imageIn = node.imageIn('in');
@@ -17,7 +17,7 @@ const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step
 const linesToggleIn = node.toggleIn('draw lines', true);
 const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
 const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
-const numHandsIn = node.numberIn('number of hands', 2, { min: 1, max: 4, step: 1 });
+const numHandsIn = node.numberIn('number of hands', 2, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const confidenceIn = node.numberIn('confidence', 0.5, { min: 0, max: 1, step: 0.01 });
 
 const imageOut = node.imageOut('out');
@@ -32,7 +32,6 @@ linesWidthIn.label = 'Line Width';
 let _target, _canvas, _ctx;
 let _drawingUtils;
 let _hands = null;
-let _busy = false;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectHands' });
@@ -44,7 +43,7 @@ node.onStart = async () => {
 };
 
 node.onRender = async () => {
-  if (!imageIn.value || !_hands || _busy) return;
+  if (!imageIn.value || !_hands) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
@@ -54,16 +53,8 @@ node.onRender = async () => {
     _target.setSize(width, height);
   }
 
-  _busy = true;
-  let results;
-  try {
-    results = await _hands.process(imageIn.value);
-  } catch (err) {
-    node.error = err && err.stack ? err.stack : String(err);
-    return;
-  } finally {
-    _busy = false;
-  }
+  const results = await _hands.process(imageIn.value);
+  if (!_hands) return; // stopped while the frame was in flight
   drawResults(results);
 };
 

@@ -227,3 +227,146 @@ describe('decodeDetections', () => {
     expect(dets[0].box[3] - dets[0].box[1]).toBeCloseTo(0.4, 6);
   });
 });
+
+describe('decodeDetections: degenerate boxes', () => {
+  test('a zero-area best box forms its own cluster instead of NaN and repeats', () => {
+    const numCoords = 12;
+    const numKeypoints = 4;
+    const anchors = new Float32Array([0.5, 0.5, 0.2, 0.2]);
+    const boxes = new Float32Array(2 * numCoords);
+    // Anchor 0: zero width and height (IoU 0 with itself); anchor 1: a real box.
+    boxes[numCoords + 2] = 22.4;
+    boxes[numCoords + 3] = 22.4;
+    const scores = new Float32Array([3.0, 2.0]);
+
+    const dets = mp.decodeDetections(boxes, scores, {
+      anchors,
+      inputSize: 224,
+      numCoords,
+      numKeypoints,
+      scoreThreshold: 0.5,
+      maxResults: 4,
+      contentScale: [1, 1],
+    });
+
+    expect(dets.length).toBe(2);
+    for (const det of dets) for (const v of det.box) expect(Number.isNaN(v)).toBe(false);
+    expect((dets[0].box[0] + dets[0].box[2]) / 2).toBeCloseTo(0.5, 6);
+    expect((dets[1].box[0] + dets[1].box[2]) / 2).toBeCloseTo(0.2, 6);
+  });
+});
+
+describe('PoseGpuPipeline.setModel', () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  function makePipeline() {
+    const p = new mp.PoseGpuPipeline({ model: 'lite' });
+    p.init = async () => {};
+    p._landmarkSession = { name: 'lite', release: vi.fn() };
+    const loads = new Map();
+    p._createLandmarkSession = (model) => new Promise((resolve, reject) => loads.set(model, { resolve, reject }));
+    return { p, loads };
+  }
+
+  test('keeps the installed model when the new session fails to load', async () => {
+    const { p, loads } = makePipeline();
+    const change = p.setModel('heavy');
+    await flush();
+    loads.get('heavy').reject(new Error('404'));
+    await expect(change).rejects.toThrow('404');
+    expect(p.model).toBe('lite');
+    expect(p._landmarkSession.name).toBe('lite');
+
+    // A second attempt is not a no-op.
+    const retry = p.setModel('heavy');
+    await flush();
+    loads.get('heavy').resolve({ name: 'heavy', release: vi.fn() });
+    await retry;
+    expect(p.model).toBe('heavy');
+    expect(p._landmarkSession.name).toBe('heavy');
+  });
+
+  test('applies rapid changes in call order', async () => {
+    const { p, loads } = makePipeline();
+    const first = p.setModel('full');
+    const second = p.setModel('heavy');
+    await flush();
+    expect(loads.has('heavy')).toBe(false); // waits for 'full'
+    const full = { name: 'full', release: vi.fn() };
+    loads.get('full').resolve(full);
+    await first;
+    await flush();
+    loads.get('heavy').resolve({ name: 'heavy', release: vi.fn() });
+    await second;
+    expect(p.model).toBe('heavy');
+    expect(p._landmarkSession.name).toBe('heavy');
+    expect(full.release).toHaveBeenCalled();
+  });
+
+  test('releases a session that finished loading after destroy()', async () => {
+    const { p, loads } = makePipeline();
+    const change = p.setModel('heavy');
+    await flush();
+    p.destroy();
+    const heavy = { name: 'heavy', release: vi.fn() };
+    loads.get('heavy').resolve(heavy);
+    await change;
+    expect(heavy.release).toHaveBeenCalled();
+    expect(p.model).toBe('lite');
+  });
+});
+
+describe('tracking mode', () => {
+  test('still mode switches tracking off and back on', () => {
+    const p = new mp.PoseGpuPipeline({ model: 'lite' });
+    expect(p.tracking).toBe(true);
+    p.tracking = false;
+    expect(p.tracking).toBe(false);
+    p.tracking = true;
+    expect(p.tracking).toBe(true);
+  });
+
+  test('hands never track', () => {
+    expect(new mp.HandGpuPipeline().tracking).toBe(false);
+  });
+});
+
+describe('withOrt', () => {
+  test('runs calls one at a time, in order, and survives rejections', async () => {
+    const order = [];
+    const gate = (name, ms, fail = false) =>
+      mp.withOrt(async () => {
+        order.push(`${name}:start`);
+        await new Promise((r) => setTimeout(r, ms));
+        order.push(`${name}:end`);
+        if (fail) throw new Error(name);
+      });
+    const a = gate('a', 20, true);
+    const b = gate('b', 1);
+    await expect(a).rejects.toThrow('a');
+    await b;
+    expect(order).toEqual(['a:start', 'a:end', 'b:start', 'b:end']);
+  });
+});
+
+describe('HandGpuPipeline handedness', () => {
+  function decode(rawHandedness) {
+    const p = new mp.HandGpuPipeline();
+    p._frameWidth = 1920;
+    p._frameHeight = 1080;
+    const outputs = {
+      score: { data: new Float32Array([0.99]) },
+      landmarks: { data: new Float32Array(21 * 3) },
+      world_landmarks: { data: new Float32Array(21 * 3) },
+      handedness: { data: new Float32Array([rawHandedness]) },
+    };
+    return p._decodeInstance(outputs, { cx: 960, cy: 540, size: 300, rotation: 0 }).result.handedness[0];
+  }
+
+  // hand_landmarks_detector_graph.cc hardcodes label_items {0: Right, 1: Left}
+  // and the binary classification gives index 0 the raw score.
+  test('raw score is P(Right): label map {0: Right, 1: Left}', () => {
+    expect(decode(0.9)).toMatchObject({ index: 0, categoryName: 'Right', score: expect.closeTo(0.9, 5) });
+    expect(decode(0.1)).toMatchObject({ index: 1, categoryName: 'Left', score: expect.closeTo(0.9, 5) });
+  });
+});

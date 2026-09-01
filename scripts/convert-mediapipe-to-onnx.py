@@ -9,7 +9,9 @@ containing one or more TFLite models. This script:
      weights in TFLite's sparse CSR format behind DENSIFY ops, which
      tf2onnx cannot parse).
   3. Converts each TFLite model to ONNX with tf2onnx.
-  4. Validates the ONNX model against the TFLite interpreter on random
+  4. Expands PRelu into ops that onnxruntime-web's WebGPU provider runs on
+     the GPU (it has no PRelu kernel and would fall back to the CPU).
+  5. Validates the ONNX model against the TFLite interpreter on random
      input (max abs difference per output).
 
 The resulting .onnx files can be run in the browser with onnxruntime-web's
@@ -226,6 +228,48 @@ def rename_outputs(onnx_path, semantic_names):
     onnx.save(model, onnx_path)
 
 
+def expand_prelu(onnx_path):
+    """Replace every PRelu node with Relu(x) - slope * Relu(-x).
+
+    onnxruntime-web's WebGPU (JSEP) provider has no PRelu kernel, so ORT
+    places each PRelu on the CPU provider and pays a GPU->CPU->GPU round
+    trip per layer. Relu, Neg, Mul and Sub all have GPU kernels. The slopes
+    are per-channel tensors with values outside [0, 1], so the two-op form
+    Max(x, slope * x) is not equivalent.
+    """
+    import onnx
+    from onnx import helper
+
+    model = onnx.load(onnx_path)
+    nodes = []
+    count = 0
+    for node in model.graph.node:
+        if node.op_type != 'PRelu':
+            nodes.append(node)
+            continue
+        x, slope = node.input
+        (y,) = node.output
+        base = node.name or y
+        pos, neg, neg_relu, scaled = (f'{base}/{s}' for s in ('pos', 'neg', 'neg_relu', 'scaled'))
+        nodes.extend(
+            [
+                helper.make_node('Relu', [x], [pos], name=f'{base}/Relu'),
+                helper.make_node('Neg', [x], [neg], name=f'{base}/Neg'),
+                helper.make_node('Relu', [neg], [neg_relu], name=f'{base}/Relu_neg'),
+                helper.make_node('Mul', [neg_relu, slope], [scaled], name=f'{base}/Mul'),
+                helper.make_node('Sub', [pos, scaled], [y], name=f'{base}/Sub'),
+            ]
+        )
+        count += 1
+    if count == 0:
+        return
+    del model.graph.node[:]
+    model.graph.node.extend(nodes)
+    onnx.checker.check_model(model)
+    onnx.save(model, onnx_path)
+    print(f'  expanded {count} PRelu nodes')
+
+
 def validate(tflite_path, onnx_path, semantic_names):
     """Compare TFLite interpreter and onnxruntime outputs on random input.
 
@@ -292,6 +336,15 @@ def main():
                     onnx_path = os.path.join(OUT_DIR, onnx_name)
                     convert(dense_path, onnx_path)
                     rename_outputs(onnx_path, semantic_names)
+                    # Every op in the graph must have a WebGPU (JSEP) kernel in
+                    # onnxruntime-web. An op without one silently runs on the
+                    # CPU, with a GPU->CPU->GPU round trip per node, and can
+                    # make the model slower than the MediaPipe CPU path. After
+                    # converting a new model, load it in Figment and check the
+                    # ORT session log for "Some nodes were not assigned to the
+                    # preferred execution providers"; rewrite any such op here,
+                    # as expand_prelu does for PRelu.
+                    expand_prelu(onnx_path)
                     # Validate against the *original* (possibly sparse) model.
                     validate(tflite_path, onnx_path, semantic_names)
     print('done.')

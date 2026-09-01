@@ -34,8 +34,9 @@ struct Uniforms {
 
 const imageIn = node.imageIn('in');
 const operationIn = node.selectIn('remove', ['background', 'foreground']);
-const numPosesIn = node.numberIn('number of poses', 1, { min: 1, max: 4, step: 1 });
+const numPosesIn = node.numberIn('number of poses', 1, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const modelIn = node.selectIn('model', ['lite', 'full', 'heavy'], 'lite');
+const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -45,7 +46,6 @@ const maskOut = node.imageOut('mask');
 let _resultTarget;
 let _pipelineInfo;
 let _pose = null;
-let _busy = false;
 
 node.onStart = async () => {
   _pipelineInfo = figment.createRenderPipeline({
@@ -56,25 +56,18 @@ node.onStart = async () => {
   });
   _resultTarget = new figment.RenderTarget({ label: 'segmentPose-result' });
   _pose = new figment.PoseGpuPipeline({ model: modelIn.value, maxInstances: numPosesIn.value, withMask: true });
+  _pose.tracking = modeIn.value === 'video';
   await _pose.init();
 };
 
 node.onRender = async () => {
-  if (!imageIn.value || !_pose || _busy) return;
+  if (!imageIn.value || !_pose) return;
   const width = imageIn.value.width;
   const height = imageIn.value.height;
   _resultTarget.setSize(width, height);
 
-  _busy = true;
-  let results;
-  try {
-    results = await _pose.process(imageIn.value);
-  } catch (err) {
-    node.error = err && err.stack ? err.stack : String(err);
-    return;
-  } finally {
-    _busy = false;
-  }
+  const results = await _pose.process(imageIn.value);
+  if (!_pose) return; // stopped while the frame was in flight
 
   if (results.length > 0) {
     detectedOut.value = true;
@@ -104,13 +97,22 @@ numPosesIn.onChange = () => {
   if (_pose) _pose.maxInstances = numPosesIn.value;
 };
 
+modeIn.onChange = () => {
+  if (_pose) _pose.tracking = modeIn.value === 'video';
+};
+
 modelIn.onChange = async () => {
   if (!_pose) return;
   try {
     await _pose.setModel(modelIn.value);
   } catch (err) {
-    node.error = err && err.stack ? err.stack : String(err);
+    console.error(err);
+    if (_pose) modelIn.set(_pose.model); // the installed model stays; the select follows it
   }
+};
+
+node.onReset = () => {
+  if (_pose) _pose.resetTracking();
 };
 
 node.onStop = () => {

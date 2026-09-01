@@ -52,7 +52,7 @@ output surfaces are unchanged.
 
 `scripts/convert-mediapipe-to-onnx.py` (dev-time only; requires
 `pip install tensorflow-cpu tf2onnx onnxruntime`) extracts the TFLite
-models and converts them with tf2onnx. Two wrinkles worth knowing about:
+models and converts them with tf2onnx. Three wrinkles worth knowing about:
 
 - **Sparse weights.** `pose_detector.tflite` stores its conv weights in
   TFLite's sparse CSR format behind `DENSIFY` ops, which tf2onnx cannot
@@ -61,6 +61,15 @@ models and converts them with tf2onnx. Two wrinkles worth knowing about:
   CSR segments/indices) itself, materializes dense buffers, strips the
   `DENSIFY` ops from the flatbuffer, and re-serializes the model. All other
   models (hands, face, pose landmarks) convert without this.
+- **PRelu.** tf2onnx fuses Keras' PReLU expansion into a single `PRelu`
+  op (31 in the palm detector, 69 in the face landmark model).
+  onnxruntime-web's WebGPU (JSEP) provider has no PRelu kernel, so ORT
+  would place each one on the CPU and pay a GPU→CPU→GPU round trip per
+  layer. The script expands every PRelu back into
+  `Relu(x) − slope · Relu(−x)`, four ops that all have GPU kernels. The
+  ORT session log's *"Some nodes were not assigned to the preferred
+  execution providers"* warning is the symptom to watch for whenever a
+  model is added or reconverted.
 - **Validation.** Each ONNX model is compared against the original TFLite
   model (run by the TFLite interpreter) on random input. Differences are
   relative to output magnitude because the fp16 weights make exact
@@ -70,7 +79,9 @@ models and converts them with tf2onnx. Two wrinkles worth knowing about:
 
 The converted models live in `assets/mediapipe/onnx/` and ship with the
 app: pose (detector + lite/full/heavy landmarks), hands (palm detector +
-landmarks), and face (detector + landmarks). tf2onnx upcasts the fp16
+landmarks), and face (detector + landmarks). The `.task` files stay in the
+repo as conversion input only; `package.json` (`build.files`) excludes
+them from the packaged app. tf2onnx upcasts the fp16
 weights to fp32, so they are ~2× the TFLite size (~100 MB total); see
 "Future work" for the fp16 route to halve that.
 
@@ -83,8 +94,9 @@ Two per-model facts the runtime depends on, and where they come from:
   and their activations) come from MediaPipe's task graph sources
   (`mediapipe/tasks/cc/vision/*/**_graph.cc`). Notably: pose and hand
   presence scores are already probabilities, the face presence score needs
-  a sigmoid, and hand handedness is a binary classification with labels
-  0 = Right / 1 = Left.
+  a sigmoid, and hand handedness is a binary classification whose label map
+  is hardcoded in `hand_landmarks_detector_graph.cc` as 0 = Right / 1 = Left
+  (the model's own `handedness.txt` says the opposite and is not used).
 
 ## Step 3+4: the GPU pipeline (`src/mediapipe-gpu.js`)
 
@@ -116,20 +128,38 @@ calculator maps to a small piece of the module:
 | `ImageToTensorCalculator` (ROI) | rotated-crop fragment shader, run per instance |
 | `TensorsToLandmarksCalculator` + `LandmarkProjectionCalculator` | `_projectLandmarks()` ROI→frame, sigmoid on visibility, z divisors |
 | `WorldLandmarkProjectionCalculator` | `_projectWorldLandmarks()` — rotate world x/y by ROI rotation |
-| `TensorsToClassificationCalculator` (handedness) | binary classification, labels 0 = Right / 1 = Left |
+| `TensorsToClassificationCalculator` (handedness) | binary classification, labels 0 = Right / 1 = Left (hardcoded in the graph) |
 | `TensorsToSegmentationCalculator` + `WarpAffineCalculator` (pose) | compute sigmoid pass per instance + one inverse-warp pass that unions up to 4 masks (pixel-wise max) |
 
 Details that matter if you extend this:
 
+- **Device loss.** When the GPUDevice is lost, `App.jsx` stops the network so
+  every node drops its resources; "Reinitialize GPU" starts it again on the
+  new device. onnxruntime-web (fork tag `shared-device-v1.25.0-patch4`)
+  rebinds its WebGPU backend to the new `ort.env.webgpu.device` on the next
+  session creation, so the pipelines come back without a page reload.
+- **The ONNX runtime has two halves.** `onnxruntime-web` is a JavaScript
+  bundle (the API plus every WGSL kernel) and a WebAssembly module (the C++
+  engine that loads the graph and decides which operator runs on which
+  provider). They must come from the same build: the wasm's kernel
+  registrations decide placement, the JS implements what runs. Figment
+  installs the JS from the fork
+  (`fdb/onnxruntime`, tag `shared-device-v1.25.0-patch4`) and serves the wasm
+  from `assets/onnxruntime-web/` via `ort.env.wasm.wasmPaths`
+  (`src/ui/index.jsx`), because the packaged app excludes `node_modules`.
+  The fork's tarball carries both halves, so after changing its version run
+  `npm run sync-ort-wasm` to copy the matching wasm into `assets/`.
 - **NHWC, not NCHW.** tf2onnx keeps TFLite's NHWC input layout, so the
   pack shader writes interleaved RGB — simpler than the ONNX Image Model
   node's NCHW planes.
 - **Tracking.** Pose tracks via auxiliary landmarks 33/34, face via the
   landmark bounding box (rotation from landmarks 33→263); while enough
   instances are tracked the detector is skipped, and a same-frame
-  re-detection covers scene cuts. Hands run the detector every frame
-  (MediaPipe's hand-landmarks→ROI calculator is custom; the 192×192 palm
-  detector is cheap), which matches the CPU node's IMAGE-mode behavior.
+  re-detection covers scene cuts. This is the nodes' `mode: video`
+  (MediaPipe's VIDEO running mode); `mode: still` detects afresh on every
+  frame (IMAGE mode), for sequences of unrelated images. Hands run the
+  detector every frame in both modes (MediaPipe's hand-landmarks→ROI
+  calculator is custom; the 192×192 palm detector is cheap).
   Note that "enough" means the configured count: with `number of poses` at
   4 and one person in frame, the detector still runs every frame looking
   for the other three — the same rule MediaPipe's tracking graphs use. Set

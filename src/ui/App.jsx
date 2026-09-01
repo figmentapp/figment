@@ -76,6 +76,9 @@ export default function App(props) {
     }
 
     figment.onDeviceLost(() => {
+      // Every node holds resources of the lost device; stop them so the
+      // restart after "Reinitialize GPU" creates fresh ones.
+      useAppStore.getState().network?.stop();
       setGpuStatus('lost');
     });
   }, []);
@@ -104,9 +107,10 @@ export default function App(props) {
   // Start the network and open initial file only after the GPU device is ready
   useEffect(() => {
     if (gpuStatus === 'ready') {
-      startNetwork();
+      // Opening a file starts that file's network; otherwise start the default one.
       const initialPath = props.filePath || useAppStore.getState().filePath;
       if (initialPath) openFile(initialPath);
+      else startNetwork();
     }
   }, [gpuStatus, startNetwork, props.filePath, openFile]);
 

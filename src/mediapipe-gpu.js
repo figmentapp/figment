@@ -29,7 +29,33 @@
 
 import { getAdapter, getDevice, createRenderPipeline, createComputePipeline, drawFullscreen, dispatch, RenderTarget } from './figment';
 
-const MAX_INSTANCES = 4;
+export const MAX_INSTANCES = 4;
+
+// onnxruntime-web's wasm module is asyncified: while one session.run() is
+// suspended, no other call (run, create, release) may enter the module — a
+// second run throws "Session already started", a create hangs. Every ORT
+// call in Figment's own nodes goes through this gate; project custom nodes
+// that talk to ORT directly should use `figment.withOrt` as well.
+let ortQueue = Promise.resolve();
+export function withOrt(fn) {
+  const call = ortQueue.then(fn);
+  ortQueue = settled(call);
+  return call;
+}
+
+// Resolves when `promise` has settled, whatever its outcome.
+function settled(promise) {
+  return promise ? promise.catch(() => {}) : Promise.resolve();
+}
+
+// Fetch the model outside the gate (plain I/O that other nodes need not wait
+// for) and build the session inside it.
+export async function createOrtSession(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch model ${url}: ${response.status} ${response.statusText}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  return withOrt(() => window.ort.InferenceSession.create(bytes, { executionProviders: ['webgpu'] }));
+}
 const NMS_IOU_THRESHOLD = 0.3; // min_suppression_threshold in all three detector graphs
 const TRACKING_IOU_THRESHOLD = 0.5; // AssociationNormRect min_similarity_threshold
 
@@ -160,9 +186,12 @@ export function decodeDetections(rawBoxes, rawScores, opts) {
   let remaining = candidates;
   while (remaining.length > 0 && detections.length < maxResults) {
     const best = remaining[0];
-    const overlapping = [];
+    // `best` seeds its own cluster, so every iteration consumes at least one
+    // candidate and totalWeight > 0, even for a zero-area box (IoU 0 with itself).
+    const overlapping = [best];
     const rest = [];
     for (const c of remaining) {
+      if (c === best) continue;
       if (boxIou(best.values, c.values) >= NMS_IOU_THRESHOLD) overlapping.push(c);
       else rest.push(c);
     }
@@ -352,38 +381,56 @@ class TwoStageGpuPipeline {
     this._maxInstances = Math.max(1, Math.min(MAX_INSTANCES, Math.floor(n)));
   }
 
+  // Video mode keeps ROIs across frames and skips the detector while enough
+  // instances are tracked; still mode detects afresh on every frame. Hands
+  // yield no next-frame ROI (nextRoi is null), so they detect every frame
+  // whatever this flag says.
+  get tracking() {
+    return this._tracks;
+  }
+  set tracking(on) {
+    this._tracks = Boolean(on);
+  }
+
   // The detector's min_detection_confidence. Nodes update `confidence` live.
   get _detectorScoreThreshold() {
     return this.confidence;
   }
 
-  async init() {
-    if (!this._initPromise) {
-      this._initPromise = this._init().catch((err) => {
-        this._initPromise = null; // allow a later retry
-        throw err;
-      });
-    }
+  // A failed init stays failed: the node reports the error on every render,
+  // and restarting the node creates a fresh pipeline.
+  init() {
+    if (!this._initPromise) this._initPromise = this._init();
     return this._initPromise;
   }
 
   async _init() {
+    try {
+      await this._allocate();
+    } catch (err) {
+      this._release();
+      throw err;
+    }
+  }
+
+  async _allocate() {
     const ort = window.ort;
     if (!ort) throw new Error('onnxruntime-web (window.ort) is not available');
     this._device = getDevice();
 
-    ort.env.webgpu.powerPreference = 'high-performance';
-    ort.env.webgpu.adapter = getAdapter();
-    ort.env.webgpu.device = this._device;
+    // Point onnxruntime-web at Figment's device. A different device (after a
+    // device loss) makes ORT rebind its WebGPU backend on the next session
+    // creation, so assign only when it actually changed.
+    if (ort.env.webgpu.device !== this._device) {
+      ort.env.webgpu.powerPreference = 'high-performance';
+      ort.env.webgpu.adapter = getAdapter();
+      ort.env.webgpu.device = this._device;
+    }
 
     this._anchors = generateSsdAnchors(this._anchorSpec);
-    const [detectorSession, landmarkSession] = await Promise.all([
-      ort.InferenceSession.create(this._detectorUrl, { executionProviders: ['webgpu'] }),
-      this._createLandmarkSession(),
-    ]);
-    this._detectorSession = detectorSession;
-    this._landmarkSession = landmarkSession;
-    this._requireOutputs(detectorSession, ['boxes', 'scores']);
+    this._detectorSession = await createOrtSession(this._detectorUrl);
+    this._requireOutputs(this._detectorSession, ['boxes', 'scores']);
+    this._landmarkSession = await this._createLandmarkSession(this.model);
 
     this._detectTarget = new RenderTarget({ label: `${this._name}-detect-input` });
     this._detectTarget.setSize(this._detectSize, this._detectSize);
@@ -441,9 +488,14 @@ class TwoStageGpuPipeline {
   }
   _finalize(_results, _rois) {}
 
-  async _createLandmarkSession() {
-    const session = await window.ort.InferenceSession.create(this._landmarkUrl(), { executionProviders: ['webgpu'] });
-    this._requireOutputs(session, this._landmarkOutputNames);
+  async _createLandmarkSession(model) {
+    const session = await createOrtSession(this._landmarkUrl(model));
+    try {
+      this._requireOutputs(session, this._landmarkOutputNames);
+    } catch (err) {
+      void withOrt(() => session.release());
+      throw err;
+    }
     return session;
   }
 
@@ -469,6 +521,7 @@ class TwoStageGpuPipeline {
   }
 
   async _process(source) {
+    if (this._destroyed) return [];
     await this.init();
     if (this._destroyed) return [];
     const width = source.width;
@@ -486,16 +539,20 @@ class TwoStageGpuPipeline {
     const hadTracks = rois.length > 0;
     if (rois.length < this.maxInstances) {
       rois = this._mergeDetections(rois, await this._detect(source));
+      if (this._destroyed) return [];
     }
 
     let { results, resultRois, nextRois } = await this._runInstances(source, rois);
+    if (this._destroyed) return [];
 
     // Tracking can go stale on a scene cut: fall back to a fresh detection
     // in the same frame instead of reporting a spurious miss.
     if (results.length === 0 && hadTracks) {
       this._trackedRois = [];
       const freshRois = this._mergeDetections([], await this._detect(source));
+      if (this._destroyed) return [];
       ({ results, resultRois, nextRois } = await this._runInstances(source, freshRois));
+      if (this._destroyed) return [];
     }
 
     this._trackedRois = this._tracks ? nextRois : [];
@@ -524,6 +581,7 @@ class TwoStageGpuPipeline {
     const resultRois = [];
     const nextRois = [];
     for (const roi of rois) {
+      if (this._destroyed) break;
       const decoded = await this._runInstance(source, roi, results.length);
       if (!decoded) continue;
       results.push(decoded.result);
@@ -549,7 +607,7 @@ class TwoStageGpuPipeline {
     );
 
     const feeds = { [this._detectorSession.inputNames[0]]: this._detectInputTensor };
-    const outputs = await this._detectorSession.run(feeds);
+    const outputs = await withOrt(() => this._detectorSession.run(feeds));
     const detections = decodeDetections(outputs['boxes'].data, outputs['scores'].data, {
       anchors: this._anchors,
       inputSize: this._detectSize,
@@ -585,7 +643,7 @@ class TwoStageGpuPipeline {
       [Math.ceil(this._landmarkSize / 16), Math.ceil(this._landmarkSize / 16), 1],
     );
     const feeds = { [this._landmarkSession.inputNames[0]]: this._landmarkInputTensor };
-    const outputs = await this._landmarkSession.run(feeds, this._landmarkFetches());
+    const outputs = await withOrt(() => this._landmarkSession.run(feeds, this._landmarkFetches()));
     const decoded = this._decodeInstance(outputs, roi, slot);
     performance.mark(`${this._name}-landmarks-end`);
     try {
@@ -637,23 +695,35 @@ class TwoStageGpuPipeline {
     return out;
   }
 
+  // Drop the tracked ROIs so the next frame starts from a fresh detection.
+  resetTracking() {
+    this._trackedRois = [];
+  }
+
   destroy() {
     this._destroyed = true;
     this._trackedRois = [];
-    // Never free resources under an in-flight frame — wait for it to settle.
-    const pending = this._processing ? this._processing.catch(() => {}) : Promise.resolve();
-    void pending.then(() => {
-      if (this._detectorSession) void this._detectorSession.release();
-      if (this._landmarkSession) void this._landmarkSession.release();
-      this._detectorSession = null;
-      this._landmarkSession = null;
-      this._detectTarget?.destroy();
-      this._cropTarget?.destroy();
-      this._detectInputBuffer?.destroy();
-      this._landmarkInputBuffer?.destroy();
-      this._destroyExtras();
-    });
-    this._initPromise = null;
+    // Never free resources under a pending init or an in-flight frame.
+    void settled(this._initPromise)
+      .then(() => settled(this._processing))
+      .then(() => this._release());
+  }
+
+  _release() {
+    for (const session of [this._detectorSession, this._landmarkSession]) {
+      if (session) void withOrt(() => session.release());
+    }
+    this._detectorSession = null;
+    this._landmarkSession = null;
+    this._detectTarget?.destroy();
+    this._cropTarget?.destroy();
+    this._detectInputBuffer?.destroy();
+    this._landmarkInputBuffer?.destroy();
+    this._detectTarget = null;
+    this._cropTarget = null;
+    this._detectInputBuffer = null;
+    this._landmarkInputBuffer = null;
+    this._destroyExtras();
   }
 
   _destroyExtras() {}
@@ -691,8 +761,8 @@ export class PoseGpuPipeline extends TwoStageGpuPipeline {
     this.maskTarget = null;
   }
 
-  _landmarkUrl() {
-    return `./mediapipe/onnx/pose_landmarks_${this.model}.onnx`;
+  _landmarkUrl(model) {
+    return `./mediapipe/onnx/pose_landmarks_${model}.onnx`;
   }
 
   async _initExtras() {
@@ -748,18 +818,30 @@ export class PoseGpuPipeline extends TwoStageGpuPipeline {
     return fetches;
   }
 
-  async setModel(model) {
-    if (model === this.model && this._landmarkSession) return;
+  // Model changes apply one at a time, in call order, so `this.model` always
+  // names the installed session.
+  setModel(model) {
+    this._modelChange = settled(this._modelChange).then(() => this._setModel(model));
+    return this._modelChange;
+  }
+
+  async _setModel(model) {
+    if (model === this.model) return;
     await this.init();
-    this.model = model;
-    const session = await this._createLandmarkSession();
+    const session = await this._createLandmarkSession(model);
     // Wait for any in-flight frame (including ones started while the new
-    // session was loading): releasing a session mid-run corrupts it.
-    while (this._processing) await this._processing.catch(() => {});
+    // session was loading): a frame reads this._landmarkSession at several
+    // points and must see the same session throughout.
+    while (this._processing) await settled(this._processing);
+    if (this._destroyed) {
+      void withOrt(() => session.release());
+      return;
+    }
     const old = this._landmarkSession;
     this._landmarkSession = session;
+    this.model = model;
     this._trackedRois = [];
-    if (old) void old.release();
+    if (old) void withOrt(() => old.release());
   }
 
   _roiFromDetection(det) {
@@ -830,6 +912,8 @@ export class PoseGpuPipeline extends TwoStageGpuPipeline {
     this.maskTarget?.destroy();
     this._maskBuffer?.destroy();
     if (this._maskRoiTextures) for (const t of this._maskRoiTextures) t.destroy();
+    this.maskTarget = null;
+    this._maskBuffer = null;
     this._maskRoiTextures = null;
   }
 }
@@ -842,8 +926,8 @@ export class PoseGpuPipeline extends TwoStageGpuPipeline {
 // shift_y −0.5, square_long. hand_landmarks_detector: 224×224, range [0,1],
 // outputs in graph order: 21×3 landmarks, presence, handedness (binary
 // classification, labels 0=Right / 1=Left), 21×3 world landmarks. Landmark z
-// is additionally normalized by 0.4. No ROI tracking: the detector runs
-// every frame (matching the IMAGE-mode behavior of the CPU node).
+// is additionally normalized by 0.4. No ROI tracking (MediaPipe's
+// hand-landmarks→ROI calculator is custom): the detector runs every frame.
 
 const HAND_LANDMARK_COUNT = 21;
 const HAND_Z_NORMALIZE = 0.4;
@@ -886,16 +970,18 @@ export class HandGpuPipeline extends TwoStageGpuPipeline {
     });
     const worldLandmarks = this._projectWorldLandmarks(outputs['world_landmarks'].data, HAND_LANDMARK_COUNT, roi);
 
-    // TensorsToClassificationCalculator with binary_classification and label
-    // map {0: Right, 1: Left}: the raw value is the probability of "Left".
+    // TensorsToClassificationCalculator with binary_classification: index 0
+    // scores the raw value, index 1 scores 1 - raw. The label map is hardcoded
+    // in hand_landmarks_detector_graph.cc as {0: Right, 1: Left} (the model's
+    // handedness.txt is not consulted), so raw is the probability of "Right".
     const p = outputs['handedness'].data[0];
-    const left = p >= 0.5;
+    const right = p >= 0.5;
     const handedness = [
       {
-        index: left ? 1 : 0,
-        score: left ? p : 1 - p,
-        categoryName: left ? 'Left' : 'Right',
-        displayName: left ? 'Left' : 'Right',
+        index: right ? 0 : 1,
+        score: right ? p : 1 - p,
+        categoryName: right ? 'Right' : 'Left',
+        displayName: right ? 'Right' : 'Left',
       },
     ];
 
