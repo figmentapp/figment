@@ -1,13 +1,12 @@
 /**
  * @name Detect Hands
- * @description Detect hands in an image using MediaPipe
+ * @description Detect hands in an image and draw them as skeletons.
  * @category ml
  */
 
-// Runs the MediaPipe hand models natively on the GPU (see
+// Runs MediaPipe's hand models natively on the GPU (see
 // src/mediapipe-gpu.js); only landmarks (~1 KB per hand) are read back each
-// frame. Drawing uses MediaPipe's canvas DrawingUtils, which is pure
-// vector drawing (no frame readback).
+// frame. The skeleton is drawn on the GPU as well (src/landmark-drawing.js).
 
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
@@ -29,15 +28,12 @@ pointsRadiusIn.label = 'Radius';
 linesColorIn.label = 'Color';
 linesWidthIn.label = 'Line Width';
 
-let _target, _canvas, _ctx;
-let _drawingUtils;
+let _target, _overlay;
 let _hands = null;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectHands' });
-  _canvas = new OffscreenCanvas(1, 1);
-  _ctx = _canvas.getContext('2d');
-  _drawingUtils = new mediapipe.DrawingUtils(_ctx);
+  _overlay = new figment.LandmarkRenderer({ label: 'detectHands' });
   _hands = new figment.HandGpuPipeline({ maxInstances: numHandsIn.value, confidence: confidenceIn.value });
   await _hands.init();
 };
@@ -47,24 +43,13 @@ node.onRender = async () => {
   const width = imageIn.value.width;
   const height = imageIn.value.height;
 
-  if (width !== _canvas.width || height !== _canvas.height) {
-    _canvas.width = width;
-    _canvas.height = height;
-    _target.setSize(width, height);
-  }
-
   const results = await _hands.process(imageIn.value);
   if (!_hands) return; // stopped while the frame was in flight
-  drawResults(results);
+  drawResults(results, width, height);
 };
 
-function drawResults(results) {
-  const width = _canvas.width;
-  const height = _canvas.height;
-
-  _ctx.clearRect(0, 0, width, height);
-  _ctx.fillStyle = figment.toCanvasColor(backgroundIn.value);
-  _ctx.fillRect(0, 0, width, height);
+function drawResults(results, width, height) {
+  const batch = _overlay.begin(width, height);
 
   if (results.length > 0) {
     detectedOut.value = true;
@@ -77,19 +62,10 @@ function drawResults(results) {
 
     for (const { landmarks } of results) {
       if (linesToggleIn.value) {
-        const options = {
-          color: figment.toCanvasColor(linesColorIn.value),
-          lineWidth: linesWidthIn.value,
-        };
-        _drawingUtils.drawConnectors(landmarks, mediapipe.HandLandmarker.HAND_CONNECTIONS, options);
+        batch.connectors(landmarks, figment.HAND_CONNECTIONS, { color: linesColorIn.value, lineWidth: linesWidthIn.value });
       }
-
       if (pointsToggleIn.value) {
-        const options = {
-          color: figment.toCanvasColor(pointsColorIn.value),
-          radius: pointsRadiusIn.value,
-        };
-        _drawingUtils.drawLandmarks(landmarks, options);
+        batch.landmarks(landmarks, { color: pointsColorIn.value, radius: pointsRadiusIn.value });
       }
     }
   } else {
@@ -97,7 +73,7 @@ function drawResults(results) {
     landmarksOut.value = null;
   }
 
-  _target.uploadExternal(_canvas);
+  _overlay.draw(_target, backgroundIn.value);
   imageOut.set(_target);
 }
 
@@ -114,4 +90,5 @@ node.onStop = () => {
   if (_hands) _hands.destroy();
   _hands = null;
   _target?.destroy();
+  _overlay?.destroy();
 };

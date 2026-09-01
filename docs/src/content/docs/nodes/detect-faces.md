@@ -18,3 +18,7 @@ Detect a face in the input image using FaceMesh and draw a shape around it.
 - **Draw Bounding Box**: Whether to draw a bounding box around the face.
 - **Bounding Box Color**: The color of the bounding box.
 - **Bounding Box Line Width**: The thickness of the lines of the bounding box.
+
+## Model
+
+Uses the MediaPipe face landmarker models (Face Mesh), run on the GPU through ONNX Runtime. The MediaPipe library itself is not used; see the `landmarks` output for the raw landmark data.

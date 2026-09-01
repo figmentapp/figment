@@ -15,3 +15,7 @@ Detect one or more hands in the input image and draw it as a skeleton-like shape
 - **Draw Lines**: Whether to connect the landmarks of the hands with lines.
 - **Lines Color**: The color of the lines.
 - **Lines Width**: The thickness of the lines.
+
+## Model
+
+Uses the MediaPipe hand landmarker models, run on the GPU through ONNX Runtime. The MediaPipe library itself is not used; see the `landmarks` output for the raw landmark and handedness data.
