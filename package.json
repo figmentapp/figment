@@ -10,13 +10,16 @@
     "dev": "vite",
     "start": "cross-env NODE_ENV=development electron --trace-warnings .",
     "build": "cross-env NODE_ENV=production vite build",
+    "build:native": "node native/frameshare/scripts/build.mjs",
+    "build:native:mac-universal": "node native/frameshare/scripts/build.mjs --universal",
+    "postinstall": "node native/frameshare/scripts/build.mjs --postinstall",
     "build-library": "cross-env NODE_ENV=production rollup -c",
     "sync-ort-wasm": "cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm assets/onnxruntime-web/",
-    "dist": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal && electron-builder build --win --x64",
-    "dist-mac": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal",
+    "dist": "rimraf build && rimraf dist && npm run build:native:mac-universal && npm run build && electron-builder build --mac --universal && electron-builder build --win --x64",
+    "dist-mac": "rimraf build && rimraf dist && npm run build:native:mac-universal && npm run build && electron-builder build --mac --universal",
     "dist-win": "rimraf build && rimraf dist && npm run build && electron-builder build --win --x64",
-    "fastdist": "rimraf build && rimraf dist && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
-    "format": "prettier --write 'src/**/*.{js,jsx}'",
+    "fastdist": "rimraf build && rimraf dist && npm run build:native && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
+    "format": "prettier --write 'src/**/*.{js,jsx}' 'docs/src/**/*.{md,js,jsx,ts,css,astro}'",
     "format-check": "prettier --check 'src/**/*.{js,jsx}'",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -63,6 +66,7 @@
     "esbuild": "^0.28.2",
     "lightningcss": "^1.33.0",
     "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
     "rimraf": "^6.1.3",
     "rollup": "^4.63.1",
     "tailwindcss": "^4.3.3",
@@ -79,6 +83,8 @@
       "build/**/*",
       "examples/**/*",
       "src/electron/**/*",
+      "native/frameshare/index.cjs",
+      "native/frameshare/*.node",
       "!**/*.map",
       "!build/mediapipe/*.task",
       "!**/node_modules/onnxruntime-web/**",
@@ -87,6 +93,9 @@
     "directories": {
       "buildResources": "res"
     },
+    "asarUnpack": [
+      "native/frameshare/*.node"
+    ],
     "mac": {
       "hardenedRuntime": true,
       "entitlements": "res/entitlements.mac.plist",

@@ -1,5 +1,5 @@
 ---
-title: "Figment Nodes"
+title: 'Figment Nodes'
 ---
 
 # Figment Nodes
@@ -63,3 +63,8 @@ The images of the examples courtesy of [John Mark Arnold](https://unsplash.com/@
 - [Segment Pose](/docs/nodes/segment-pose): Remove the background from an image.
 - [Detect Hands](/docs/nodes/detect-hands): Detect hands in an input image.
 - [Image to Image](/docs/nodes/image-to-image): Run a generative image to image model (pix2pix).
+
+## Communication
+
+- [Send OSC](/docs/nodes/send-osc): Send OSC messages, including detected landmarks, to other applications.
+- [Share Image](/docs/nodes/share-image): Share the image with other applications via Syphon (macOS).

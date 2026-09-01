@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
 
 * {
   box-sizing: border-box;
@@ -47,7 +47,7 @@ body {
 
 body {
   margin: 0;
-  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
   color: var(--color-text);
   line-height: 1.65;
   background:
@@ -61,7 +61,7 @@ h2,
 h3,
 h4 {
   margin: 0;
-  font-family: "Space Grotesk", "Source Sans 3", sans-serif;
+  font-family: 'Space Grotesk', 'Source Sans 3', sans-serif;
   color: var(--color-heading);
   letter-spacing: 0.01em;
   line-height: 1.1;
@@ -124,7 +124,7 @@ main {
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  font-family: "Space Grotesk", "Source Sans 3", sans-serif;
+  font-family: 'Space Grotesk', 'Source Sans 3', sans-serif;
   font-weight: 600;
   color: var(--slate-50);
 }
@@ -306,7 +306,9 @@ a.cta__button:hover {
   font-size: clamp(1rem, 1.25vw + 0.7rem, 1.5rem);
   font-weight: 700;
   text-decoration: none;
-  transition: transform 180ms ease, background 180ms ease;
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
 }
 
 .download-primary:hover {
@@ -355,7 +357,7 @@ a.cta__button:hover {
 }
 
 .download-options summary::after {
-  content: "\25be";
+  content: '\25be';
   color: var(--slate-300);
   transition: transform 180ms ease;
 }
@@ -652,8 +654,8 @@ figcaption {
   color: var(--color-text-soft);
 }
 
-#mc_embed_signup input[type="email"],
-#mc_embed_signup input[type="submit"] {
+#mc_embed_signup input[type='email'],
+#mc_embed_signup input[type='submit'] {
   width: 100%;
   padding: 0.76rem 0.9rem;
   border: 1px solid var(--color-border);
@@ -661,19 +663,19 @@ figcaption {
   font-size: 0.95rem;
 }
 
-#mc_embed_signup input[type="email"] {
+#mc_embed_signup input[type='email'] {
   min-width: 0;
   background: color-mix(in oklch, var(--slate-900) 78%, var(--slate-800));
   color: var(--slate-100);
   margin-bottom: 0.75rem;
 }
 
-#mc_embed_signup input[type="email"]::placeholder {
+#mc_embed_signup input[type='email']::placeholder {
   color: var(--slate-400);
   letter-spacing: 0.01em;
 }
 
-#mc_embed_signup input[type="submit"] {
+#mc_embed_signup input[type='submit'] {
   background: #d94848;
   color: #fff;
   font-weight: 700;
@@ -683,7 +685,7 @@ figcaption {
   cursor: pointer;
 }
 
-#mc_embed_signup input[type="submit"]:hover {
+#mc_embed_signup input[type='submit']:hover {
   background: #cc3e3e;
 }
 

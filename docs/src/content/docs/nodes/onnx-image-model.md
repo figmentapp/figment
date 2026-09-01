@@ -1,5 +1,5 @@
 ---
-title: "ONNX Image Model"
+title: 'ONNX Image Model'
 ---
 
 # ONNX Image Model

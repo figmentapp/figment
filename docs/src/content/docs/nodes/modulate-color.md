@@ -1,5 +1,5 @@
 ---
-title: "Modulate Color"
+title: 'Modulate Color'
 ---
 
 # Modulate Color

@@ -1,5 +1,5 @@
 ---
-title: "Glitch"
+title: 'Glitch'
 ---
 
 # Glitch

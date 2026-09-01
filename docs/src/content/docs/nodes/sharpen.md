@@ -1,5 +1,5 @@
 ---
-title: "Sharpen"
+title: 'Sharpen'
 ---
 
 # Sharpen

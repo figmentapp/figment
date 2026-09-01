@@ -1,5 +1,5 @@
 ---
-title: "Lookup"
+title: 'Lookup'
 ---
 
 # Lookup

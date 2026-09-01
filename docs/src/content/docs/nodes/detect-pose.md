@@ -1,5 +1,5 @@
 ---
-title: "Detect Pose"
+title: 'Detect Pose'
 ---
 
 # Detect Pose

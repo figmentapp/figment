@@ -1,5 +1,5 @@
 ---
-title: "Canny"
+title: 'Canny'
 ---
 
 # Canny

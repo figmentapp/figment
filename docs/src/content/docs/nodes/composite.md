@@ -1,5 +1,5 @@
 ---
-title: "Composite"
+title: 'Composite'
 ---
 
 # Composite

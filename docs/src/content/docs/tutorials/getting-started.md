@@ -1,5 +1,5 @@
 ---
-title: "Getting Started with Figment"
+title: 'Getting Started with Figment'
 ---
 
 # Getting Started with Figment

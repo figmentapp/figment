@@ -1,5 +1,5 @@
 ---
-title: "Welcome to Figment"
+title: 'Welcome to Figment'
 ---
 
 # Welcome to Figment

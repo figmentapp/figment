@@ -1,5 +1,5 @@
 ---
-title: "Detect Faces"
+title: 'Detect Faces'
 ---
 
 # Detect Faces

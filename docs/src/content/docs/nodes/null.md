@@ -1,5 +1,5 @@
 ---
-title: "Null"
+title: 'Null'
 ---
 
 # Null

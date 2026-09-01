@@ -1,5 +1,5 @@
 ---
-title: "Cartoon"
+title: 'Cartoon'
 ---
 
 # Cartoon

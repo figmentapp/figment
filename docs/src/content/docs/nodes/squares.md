@@ -1,5 +1,5 @@
 ---
-title: "Squares"
+title: 'Squares'
 ---
 
 # Squares

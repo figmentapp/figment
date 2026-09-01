@@ -1,5 +1,5 @@
 ---
-title: "Load Image"
+title: 'Load Image'
 ---
 
 # Load Image

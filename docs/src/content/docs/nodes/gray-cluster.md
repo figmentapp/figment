@@ -1,5 +1,5 @@
 ---
-title: "Gray Cluster"
+title: 'Gray Cluster'
 ---
 
 # Gray Cluster

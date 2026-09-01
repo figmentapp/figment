@@ -1,5 +1,5 @@
 ---
-title: "Pixelate"
+title: 'Pixelate'
 ---
 
 # Pixelate

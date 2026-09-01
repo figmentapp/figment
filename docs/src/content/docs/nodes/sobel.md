@@ -1,5 +1,5 @@
 ---
-title: "Sobel"
+title: 'Sobel'
 ---
 
 # Sobel

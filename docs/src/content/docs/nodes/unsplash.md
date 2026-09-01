@@ -1,5 +1,5 @@
 ---
-title: "Unsplash"
+title: 'Unsplash'
 ---
 
 # Unsplash

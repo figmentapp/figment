@@ -1,11 +1,12 @@
 ---
-import "../styles/site.css";
+import '../styles/site.css';
 
 const { title, description } = Astro.props;
-const pageTitle = title ? `${title} | Figment` : "Figment";
-const pageDescription = description ?? "Visual Coding for Creative AI";
+const pageTitle = title ? `${title} | Figment` : 'Figment';
+const pageDescription = description ?? 'Visual Coding for Creative AI';
 const year = new Date().getFullYear();
 ---
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -26,9 +27,7 @@ const year = new Date().getFullYear();
           <a href="/download">Download</a>
           <a href="/docs">Documentation</a>
           <a href="/docs/nodes">Reference</a>
-          <a href="https://github.com/figmentapp" target="_blank" rel="noopener noreferrer">
-            GitHub
-          </a>
+          <a href="https://github.com/figmentapp" target="_blank" rel="noopener noreferrer"> GitHub </a>
         </nav>
       </div>
     </header>
@@ -46,15 +45,11 @@ const year = new Date().getFullYear();
         </div>
         <div>
           <h4>Community</h4>
-          <a href="https://github.com/figmentapp/figment/discussions" target="_blank" rel="noopener noreferrer">
-            Forum
-          </a>
+          <a href="https://github.com/figmentapp/figment/discussions" target="_blank" rel="noopener noreferrer"> Forum </a>
         </div>
         <div>
           <h4>More</h4>
-          <a href="https://github.com/figmentapp" target="_blank" rel="noopener noreferrer">
-            GitHub
-          </a>
+          <a href="https://github.com/figmentapp" target="_blank" rel="noopener noreferrer"> GitHub </a>
         </div>
       </div>
       <div class="container footer-meta">Copyright © {year} Figment.</div>

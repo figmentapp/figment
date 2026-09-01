@@ -1,5 +1,5 @@
 ---
-title: "Grayscale"
+title: 'Grayscale'
 ---
 
 # Grayscale
