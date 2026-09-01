@@ -2,7 +2,7 @@ name: Build & Publish to S3
 
 on:
   push:
-    branches: [master] # nightly builds
+    branches: [main] # nightly builds
     tags: ['v*'] # versioned “release” builds
 
 jobs:
