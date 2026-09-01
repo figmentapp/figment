@@ -46,7 +46,12 @@ fn build_macos() {
         }
     }
 
+    // Syphon is vendored upstream code that compiles clean under -Wall but
+    // not under the -Wextra that cc adds by default (unused block parameters,
+    // stray semicolons before method bodies). Keep the diff against upstream
+    // minimal and drop -Wextra instead of patching the sources.
     let mut objc = cc::Build::new();
+    objc.extra_warnings(false);
     for src in SYPHON_OBJC_SOURCES {
         objc.file(vendor.join(src));
     }
