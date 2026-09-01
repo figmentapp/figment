@@ -11,8 +11,12 @@ on:
 
 jobs:
   test:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
+    name: Run Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout repository
@@ -23,8 +27,23 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Cache native addon build
+        if: runner.os == 'macOS'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/frameshare
+
+      # On macOS, postinstall builds the native addon; a missing Rust
+      # toolchain fails the install under CI.
       - name: Install dependencies
         run: npm ci
+
+      - name: Build universal native addon
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add x86_64-apple-darwin
+          npm run build:native:mac-universal
+          lipo -info native/frameshare/frameshare.darwin-universal.node
 
       - name: Run Vitest tests
         run: npm run test

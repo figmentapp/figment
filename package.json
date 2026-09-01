@@ -10,11 +10,14 @@
     "dev": "vite",
     "start": "cross-env NODE_ENV=development electron --trace-warnings .",
     "build": "cross-env NODE_ENV=production vite build",
+    "build:native": "node native/frameshare/scripts/build.mjs",
+    "build:native:mac-universal": "node native/frameshare/scripts/build.mjs --universal",
+    "postinstall": "node native/frameshare/scripts/build.mjs --postinstall",
     "build-library": "cross-env NODE_ENV=production rollup -c",
-    "dist": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal && electron-builder build --win --x64",
-    "dist-mac": "rimraf build && rimraf dist && npm run build && electron-builder build --mac --universal",
+    "dist": "rimraf build && rimraf dist && npm run build:native:mac-universal && npm run build && electron-builder build --mac --universal && electron-builder build --win --x64",
+    "dist-mac": "rimraf build && rimraf dist && npm run build:native:mac-universal && npm run build && electron-builder build --mac --universal",
     "dist-win": "rimraf build && rimraf dist && npm run build && electron-builder build --win --x64",
-    "fastdist": "rimraf build && rimraf dist && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
+    "fastdist": "rimraf build && rimraf dist && npm run build:native && npm run build && cross-env DIST_ENV=development electron-builder --dir -c.mac.identity=null",
     "format": "prettier --write 'src/**/*.{js,jsx}'",
     "format-check": "prettier --check 'src/**/*.{js,jsx}'",
     "test": "vitest run",
@@ -78,6 +81,8 @@
       "build/**/*",
       "examples/**/*",
       "src/electron/**/*",
+      "native/frameshare/index.cjs",
+      "native/frameshare/*.node",
       "!**/*.map",
       "!**/node_modules/onnxruntime-web/**",
       "!**/node_modules/@mediapipe/**"
@@ -85,6 +90,9 @@
     "directories": {
       "buildResources": "res"
     },
+    "asarUnpack": [
+      "native/frameshare/*.node"
+    ],
     "mac": {
       "hardenedRuntime": true,
       "entitlements": "res/entitlements.mac.plist",
