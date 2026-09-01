@@ -8,3 +8,5 @@ build/
 .env
 electron-builder.env
 .playwright-mcp/
+test-results/
+playwright-report/

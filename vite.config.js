@@ -13,10 +13,14 @@ export default defineConfig({
     conditions: ['onnxruntime-web-use-extern-wasm'],
   },
   build: {
-    outDir: resolve(__dirname, './build/'),
+    outDir: resolve(import.meta.dirname, './build/'),
     chunkSizeWarningLimit: 1_000_000,
   },
   optimizeDeps: {
     exclude: ['onnxruntime-web'],
+  },
+  test: {
+    // Keep Vitest away from the Playwright E2E specs in tests/e2e.
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
   },
 });
