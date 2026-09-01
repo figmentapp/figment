@@ -7,6 +7,7 @@ export {
   PoseGpuPipeline,
   HandGpuPipeline,
   FaceGpuPipeline,
+  SegmentGpuPipeline,
   MAX_INSTANCES as MEDIAPIPE_MAX_INSTANCES,
   withOrt,
   createOrtSession,

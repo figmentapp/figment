@@ -1,10 +1,10 @@
-// GPU-resident MediaPipe pipelines (pose, hands, face).
+// GPU-resident MediaPipe pipelines (pose, hands, face, selfie segmentation).
 //
 // MediaPipe's own web runtime (tasks-vision) runs its models through WebGL
 // and only accepts CPU-side images, which forces a full-frame GPU→CPU
 // readback on input and a CPU upload for the mask on output. This module
-// reimplements the two-stage landmarker graphs natively on Figment's
-// WebGPU device instead:
+// reimplements the task graphs natively on Figment's WebGPU device
+// instead. The two-stage landmarker graphs:
 //
 //   frame texture ──letterbox──▶ NxN ──pack──▶ NHWC buffer
 //        │                                      │ ONNX detector (WebGPU EP)
@@ -15,6 +15,11 @@
 //                    landmarks (~1 KB readback) ◀┤
 //                                               ▼ pose only: segmentation mask
 //                    frame-size mask ◀──warp── 256×256 mask textures (stay on GPU)
+//
+// and the single-stage image segmenter graph:
+//
+//   frame texture ──resize──▶ NxN ──pack──▶ NHWC buffer ──ONNX segmenter──▶ NxN mask
+//                                                    frame-size mask ◀──resize──┘
 //
 // The models are the exact TFLite networks extracted from the .task files,
 // converted to ONNX with scripts/convert-mediapipe-to-onnx.py and executed
@@ -56,6 +61,31 @@ export async function createOrtSession(url) {
   const bytes = new Uint8Array(await response.arrayBuffer());
   return withOrt(() => window.ort.InferenceSession.create(bytes, { executionProviders: ['webgpu'] }));
 }
+
+// Point onnxruntime-web at Figment's device. A different device (after a
+// device loss) makes ORT rebind its WebGPU backend on the next session
+// creation, so assign only when it actually changed.
+function bindOrtDevice(ort, device) {
+  if (ort.env.webgpu.device === device) return;
+  ort.env.webgpu.powerPreference = 'high-performance';
+  ort.env.webgpu.adapter = getAdapter();
+  ort.env.webgpu.device = device;
+}
+
+// The conversion script renames each model's outputs to semantic names
+// (scripts/convert-mediapipe-to-onnx.py) so the runtime never has to guess
+// which Identity_N tensor is which; just verify they are present.
+function requireOutputs(modelName, session, names) {
+  for (const name of names) {
+    if (!session.outputNames.includes(name)) {
+      throw new Error(
+        `${modelName} model is missing output "${name}" (has: ${session.outputNames.join(', ')}). ` +
+          'Regenerate the models with scripts/convert-mediapipe-to-onnx.py --all.',
+      );
+    }
+  }
+}
+
 const NMS_IOU_THRESHOLD = 0.3; // min_suppression_threshold in all three detector graphs
 const TRACKING_IOU_THRESHOLD = 0.5; // AssociationNormRect min_similarity_threshold
 
@@ -417,15 +447,7 @@ class TwoStageGpuPipeline {
     const ort = window.ort;
     if (!ort) throw new Error('onnxruntime-web (window.ort) is not available');
     this._device = getDevice();
-
-    // Point onnxruntime-web at Figment's device. A different device (after a
-    // device loss) makes ORT rebind its WebGPU backend on the next session
-    // creation, so assign only when it actually changed.
-    if (ort.env.webgpu.device !== this._device) {
-      ort.env.webgpu.powerPreference = 'high-performance';
-      ort.env.webgpu.adapter = getAdapter();
-      ort.env.webgpu.device = this._device;
-    }
+    bindOrtDevice(ort, this._device);
 
     this._anchors = generateSsdAnchors(this._anchorSpec);
     this._detectorSession = await createOrtSession(this._detectorUrl);
@@ -499,18 +521,8 @@ class TwoStageGpuPipeline {
     return session;
   }
 
-  // The conversion script renames each model's outputs to semantic names
-  // (scripts/convert-mediapipe-to-onnx.py) so the runtime never has to guess
-  // which Identity_N tensor is which; just verify they are present.
   _requireOutputs(session, names) {
-    for (const name of names) {
-      if (!session.outputNames.includes(name)) {
-        throw new Error(
-          `${this._name} model is missing output "${name}" (has: ${session.outputNames.join(', ')}). ` +
-            'Regenerate the models with scripts/convert-mediapipe-to-onnx.py --all.',
-        );
-      }
-    }
+    requireOutputs(this._name, session, names);
   }
 
   process(source) {
@@ -1057,5 +1069,212 @@ export class FaceGpuPipeline extends TwoStageGpuPipeline {
     }
     const det = { box: [minX, minY, maxX, maxY], keypoints: [landmarks[33], landmarks[263]] };
     return roiFromDetectionBox(det, this._frameWidth, this._frameHeight, FACE_ROI_OPTIONS);
+  }
+}
+
+// ─── Selfie segmentation ────────────────────────────────────────────────────
+//
+// selfie_segmenter: 256×256, range [0,1]; one output, a 256×256×1 person
+// probability — the network ends in a LOGISTIC, and its SEGMENTER_METADATA
+// activation is NONE, so no activation is applied here. The image
+// segmenter graph (image_segmenter_graph.cc) resizes the frame to the model
+// input without keeping the aspect ratio (ImagePreprocessingGraph's
+// default) and resizes the mask back to the frame size, so the pipeline is
+// a single stage with no detector, ROI or tracking.
+
+const SEGMENT_INPUT_SIZE = 256;
+
+// Plain resample, used both to shrink the frame to the model input and to
+// grow the mask back to the frame.
+const RESIZE_WGSL = `
+struct Uniforms {
+  _pad: f32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var defaultSampler: sampler;
+@group(0) @binding(2) var u_source: texture_2d<f32>;
+
+@fragment fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+  return textureSample(u_source, defaultSampler, in.uv);
+}
+`;
+
+// Convert the probability buffer (ONNX output) to a texture. In category
+// mode the probability is thresholded at 0.5, as TensorsToSegmentationCalculator
+// does for a single-channel model.
+const PROBABILITY_TO_TEXTURE_WGSL = `
+struct Uniforms {
+  u_size: u32,
+  u_binary: u32,
+};
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var<storage, read_write> u_mask: array<f32>;
+@group(0) @binding(2) var u_out: texture_storage_2d<rgba8unorm, write>;
+
+@compute @workgroup_size(16, 16)
+fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
+  if (gid.x >= u.u_size || gid.y >= u.u_size) { return; }
+  let p = u_mask[gid.y * u.u_size + gid.x];
+  let v = select(p, step(0.5, p), u.u_binary != 0u);
+  textureStore(u_out, vec2i(gid.xy), vec4f(v, v, v, 1.0));
+}
+`;
+
+export class SegmentGpuPipeline {
+  // binary: category mask (probability > 0.5) rather than the confidence
+  // mask. Nodes assign it live.
+  constructor({ binary = true } = {}) {
+    this.binary = binary;
+    this.maskTarget = null;
+    this._name = 'segment';
+    this._modelUrl = './mediapipe/onnx/selfie_segmenter.onnx';
+    this._inputSize = SEGMENT_INPUT_SIZE;
+    this._device = null;
+    this._frameWidth = 0;
+    this._frameHeight = 0;
+    this._initPromise = null;
+    this._processing = null;
+    this._destroyed = false;
+  }
+
+  // A failed init stays failed, as for the two-stage pipelines.
+  init() {
+    if (!this._initPromise) this._initPromise = this._init();
+    return this._initPromise;
+  }
+
+  async _init() {
+    try {
+      await this._allocate();
+    } catch (err) {
+      this._release();
+      throw err;
+    }
+  }
+
+  async _allocate() {
+    const ort = window.ort;
+    if (!ort) throw new Error('onnxruntime-web (window.ort) is not available');
+    this._device = getDevice();
+    bindOrtDevice(ort, this._device);
+
+    this._session = await createOrtSession(this._modelUrl);
+    requireOutputs(this._name, this._session, ['mask']);
+
+    const size = this._inputSize;
+    this._inputTarget = new RenderTarget({ label: 'segment-input' });
+    this._inputTarget.setSize(size, size);
+    this._inputBuffer = this._device.createBuffer({
+      size: size * size * 3 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      label: 'segment-input-tensor',
+    });
+    this._inputTensor = ort.Tensor.fromGpuBuffer(this._inputBuffer, { dataType: 'float32', dims: [1, size, size, 3] });
+    this._maskBuffer = this._device.createBuffer({
+      size: size * size * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      label: 'segment-mask-tensor',
+    });
+    this._maskTensor = ort.Tensor.fromGpuBuffer(this._maskBuffer, { dataType: 'float32', dims: [1, size, size, 1] });
+    this._maskTexture = this._device.createTexture({
+      size: [size, size],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+      label: 'segment-mask',
+    });
+    this.maskTarget = new RenderTarget({ label: 'segment-mask-frame' });
+
+    this._resizePipeline = createRenderPipeline({ wgsl: RESIZE_WGSL, textures: ['u_source'], label: 'segment-resize' });
+    this._packPipeline = createComputePipeline({
+      wgsl: PACK_WGSL,
+      uniforms: { u_size: 'u32', u_scale: 'f32', u_offset: 'f32' },
+      textures: ['u_texture'],
+      storage: [{ name: 'u_out', type: 'buffer' }],
+      label: 'segment-pack',
+    });
+    this._maskToTexturePipeline = createComputePipeline({
+      wgsl: PROBABILITY_TO_TEXTURE_WGSL,
+      uniforms: { u_size: 'u32', u_binary: 'u32' },
+      storage: [
+        { name: 'u_mask', type: 'buffer' },
+        { name: 'u_out', type: 'texture_storage_2d' },
+      ],
+      label: 'segment-mask-to-texture',
+    });
+  }
+
+  // Segments `source` and resolves with the frame-size mask target (person
+  // probability, or 0/1 when binary), or null once destroyed.
+  process(source) {
+    this._processing = this._process(source).finally(() => {
+      this._processing = null;
+    });
+    return this._processing;
+  }
+
+  async _process(source) {
+    if (this._destroyed) return null;
+    await this.init();
+    if (this._destroyed) return null;
+    if (source.width !== this._frameWidth || source.height !== this._frameHeight) {
+      this._frameWidth = source.width;
+      this._frameHeight = source.height;
+      this.maskTarget.setSize(source.width, source.height);
+    }
+
+    performance.mark('segment-start');
+    const size = this._inputSize;
+    const workgroups = [Math.ceil(size / 16), Math.ceil(size / 16), 1];
+    drawFullscreen(this._resizePipeline, {}, { u_source: source }, this._inputTarget);
+    dispatch(
+      this._packPipeline,
+      { u_size: size, u_scale: 1.0, u_offset: 0.0 },
+      { u_texture: this._inputTarget, u_out: this._inputBuffer },
+      workgroups,
+    );
+    const feeds = { [this._session.inputNames[0]]: this._inputTensor };
+    await withOrt(() => this._session.run(feeds, { mask: this._maskTensor }));
+    if (this._destroyed) return null;
+    dispatch(
+      this._maskToTexturePipeline,
+      { u_size: size, u_binary: this.binary ? 1 : 0 },
+      { u_mask: this._maskBuffer, u_out: this._maskTexture },
+      workgroups,
+    );
+    drawFullscreen(this._resizePipeline, {}, { u_source: this._maskTexture }, this.maskTarget);
+    performance.mark('segment-end');
+    try {
+      performance.measure('mediapipe-gpu:segment', 'segment-start', 'segment-end');
+    } catch (_) {}
+    // Let the queued GPU work drain before the caller submits the next
+    // frame (see TwoStageGpuPipeline._process).
+    await this._device.queue.onSubmittedWorkDone();
+    return this.maskTarget;
+  }
+
+  destroy() {
+    this._destroyed = true;
+    // Never free resources under a pending init or an in-flight frame.
+    void settled(this._initPromise)
+      .then(() => settled(this._processing))
+      .then(() => this._release());
+  }
+
+  _release() {
+    if (this._session) {
+      const session = this._session;
+      void withOrt(() => session.release());
+    }
+    this._session = null;
+    this._inputTarget?.destroy();
+    this._inputBuffer?.destroy();
+    this._maskBuffer?.destroy();
+    this._maskTexture?.destroy();
+    this.maskTarget?.destroy();
+    this._inputTarget = null;
+    this._inputBuffer = null;
+    this._maskBuffer = null;
+    this._maskTexture = null;
+    this.maskTarget = null;
   }
 }

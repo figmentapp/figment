@@ -43,16 +43,18 @@ So instead of bridging into MediaPipe's runtime, we bypass it entirely:
 3. **Run** them with onnxruntime-web's WebGPU EP on Figment's device.
 4. **Reimplement** the calculator graph as WGSL passes + small JS.
 
-This is implemented in `src/mediapipe-gpu.js` for all three task families —
-pose, hands, and face — and powers the existing **Detect Pose**, **Segment
-Pose**, **Detect Hands**, and **Detect Faces** nodes, whose parameter and
-output surfaces are unchanged.
+This is implemented in `src/mediapipe-gpu.js` for the three landmarker
+task families — pose, hands, and face — and for the image segmenter, and
+powers the **Detect Pose**, **Segment Pose**, **Detect Hands**, **Detect
+Faces** and **Segment Image** nodes, whose parameter and output surfaces
+are unchanged.
 
 ## Step 1+2: model conversion
 
-`scripts/convert-mediapipe-to-onnx.py` (dev-time only; requires
-`pip install tensorflow-cpu tf2onnx onnxruntime`) extracts the TFLite
-models and converts them with tf2onnx. Three wrinkles worth knowing about:
+`scripts/convert-mediapipe-to-onnx.py` (dev-time only; run it with
+`uv run`, its inline metadata declares the dependencies) extracts the
+TFLite models and converts them with tf2onnx. The wrinkles worth knowing
+about:
 
 - **Sparse weights.** `pose_detector.tflite` stores its conv weights in
   TFLite's sparse CSR format behind `DENSIFY` ops, which tf2onnx cannot
@@ -66,10 +68,21 @@ models and converts them with tf2onnx. Three wrinkles worth knowing about:
   onnxruntime-web's WebGPU (JSEP) provider has no PRelu kernel, so ORT
   would place each one on the CPU and pay a GPU→CPU→GPU round trip per
   layer. The script expands every PRelu back into
-  `Relu(x) − slope · Relu(−x)`, four ops that all have GPU kernels. The
-  ORT session log's *"Some nodes were not assigned to the preferred
-  execution providers"* warning is the symptom to watch for whenever a
-  model is added or reconverted.
+  `Relu(x) − slope · Relu(−x)`, four ops that all have GPU kernels.
+- **HardSwish and a custom op (selfie segmenter).** The segmenter's
+  MobileNetV3 blocks convert to `HardSwish`, which the WebGPU provider
+  also lacks; the script expands it to `x · HardSigmoid(x)`. Its last
+  layer is `Convolution2DTransposeBias`, a MediaPipe custom TFLite op that
+  tf2onnx cannot parse; the script rewrites it in the flatbuffer as the
+  builtin `TRANSPOSE_CONV` + `ADD` before conversion.
+- **Placement checks.** After conversion the script compares every op
+  type against the WebGPU kernel table in the installed `onnxruntime-web`
+  bundle and fails on a miss. The runtime counterpart is
+  `tests/e2e/onnx-webgpu-placement.spec.js`, which creates a session for
+  every shipped model in a headless browser and asserts ORT's verbose
+  session log reports *all nodes placed on the WebGPU provider* (a PRelu
+  model serves as the positive control). Both catch what would otherwise
+  be a silent GPU→CPU→GPU round trip per node.
 - **Validation.** Each ONNX model is compared against the original TFLite
   model (run by the TFLite interpreter) on random input. Differences are
   relative to output magnitude because the fp16 weights make exact
@@ -79,9 +92,9 @@ models and converts them with tf2onnx. Three wrinkles worth knowing about:
 
 The converted models live in `assets/mediapipe/onnx/` and ship with the
 app: pose (detector + lite/full/heavy landmarks), hands (palm detector +
-landmarks), and face (detector + landmarks). The `.task` files stay in the
-repo as conversion input only; `package.json` (`build.files`) excludes
-them from the packaged app. tf2onnx upcasts the fp16
+landmarks), face (detector + landmarks), and the selfie segmenter. The
+`.task` and `.tflite` files stay in the repo as conversion input only;
+`package.json` (`build.files`) excludes them from the packaged app. tf2onnx upcasts the fp16
 weights to fp32, so they are ~2× the TFLite size (~100 MB total); see
 "Future work" for the fp16 route to halve that.
 
@@ -130,6 +143,7 @@ calculator maps to a small piece of the module:
 | `WorldLandmarkProjectionCalculator` | `_projectWorldLandmarks()` — rotate world x/y by ROI rotation |
 | `TensorsToClassificationCalculator` (handedness) | binary classification, labels 0 = Right / 1 = Left (hardcoded in the graph) |
 | `TensorsToSegmentationCalculator` + `WarpAffineCalculator` (pose) | compute sigmoid pass per instance + one inverse-warp pass that unions up to 4 masks (pixel-wise max) |
+| `ImageSegmenterGraph` (selfie segmenter) | `SegmentGpuPipeline`: plain resize to 256×256 (no letterbox, as in `image_segmenter_graph.cc`), pack, model, probability→texture (optionally thresholded at 0.5 for the category mask), resize back to the frame |
 
 Details that matter if you extend this:
 
@@ -192,6 +206,8 @@ the detector actually runs.
   to 4 hands (**Detect Hands**).
 - ✅ Face: detector + 478-point landmarks, up to 4 faces with ROI tracking
   (**Detect Faces**).
+- ✅ Selfie segmentation: person probability mask at frame size, hard or
+  soft (**Segment Image**).
 - ⏳ Heatmap-based landmark refinement (MediaPipe applies it to pose; we
   skip it — landmarks are slightly less stable in exchange for not
   touching the 64×64×39 tensor).

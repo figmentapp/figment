@@ -1,33 +1,44 @@
 #!/usr/bin/env python3
-"""Convert MediaPipe .task models to ONNX for WebGPU inference.
+# /// script
+# requires-python = ">=3.10,<3.13"
+# dependencies = ["tensorflow", "tf2onnx", "onnxruntime", "onnx", "flatbuffers", "numpy"]
+# ///
+"""Convert MediaPipe models to ONNX for WebGPU inference.
 
 MediaPipe .task files are ZIP archives (with STORED, uncompressed entries)
-containing one or more TFLite models. This script:
+containing one or more TFLite models; the selfie segmenter is a bare
+.tflite. This script:
 
-  1. Extracts the TFLite models from a .task file.
+  1. Extracts the TFLite models from a .task file (or reads the .tflite).
   2. Densifies sparse weight tensors (pose_detector.tflite stores its conv
      weights in TFLite's sparse CSR format behind DENSIFY ops, which
      tf2onnx cannot parse).
-  3. Converts each TFLite model to ONNX with tf2onnx.
-  4. Expands PRelu into ops that onnxruntime-web's WebGPU provider runs on
-     the GPU (it has no PRelu kernel and would fall back to the CPU).
-  5. Validates the ONNX model against the TFLite interpreter on random
+  3. Replaces MediaPipe's Convolution2DTransposeBias custom op (selfie
+     segmenter) with the builtin TRANSPOSE_CONV + ADD, which tf2onnx knows.
+  4. Converts each TFLite model to ONNX with tf2onnx.
+  5. Expands PRelu and HardSwish into ops that onnxruntime-web's WebGPU
+     provider runs on the GPU (it has no kernels for them and would fall
+     back to the CPU), then checks every remaining op against the WebGPU
+     kernel list in the installed onnxruntime-web.
+  6. Validates the ONNX model against the TFLite interpreter on random
      input (max abs difference per output).
 
 The resulting .onnx files can be run in the browser with onnxruntime-web's
 WebGPU execution provider, sharing Figment's GPUDevice, so that image
 tensors never leave the GPU.
 
-Requirements (conversion is a development-time step, not needed at runtime):
-  pip install tensorflow-cpu tf2onnx onnxruntime
+Conversion is a development-time step, not needed at runtime. The inline
+script metadata above declares the dependencies, so:
 
-Usage:
-  python3 scripts/convert-mediapipe-to-onnx.py            # convert pose models
-  python3 scripts/convert-mediapipe-to-onnx.py --all      # also hands + face
+  uv run scripts/convert-mediapipe-to-onnx.py                 # pose models
+  uv run scripts/convert-mediapipe-to-onnx.py --all           # + hands, face, segmenter
+  uv run scripts/convert-mediapipe-to-onnx.py --only selfie   # one model (substring)
 """
 
 import argparse
 import os
+import re
+import struct
 import subprocess
 import sys
 import tempfile
@@ -50,8 +61,10 @@ DETECTOR_OUTPUTS = ['boxes', 'scores']
 POSE_LANDMARK_OUTPUTS = ['landmarks', 'score', 'mask', 'heatmap', 'world_landmarks']
 HAND_LANDMARK_OUTPUTS = ['landmarks', 'score', 'handedness', 'world_landmarks']
 FACE_LANDMARK_OUTPUTS = ['landmarks', 'score', 'aux']  # 'aux' is unused by Figment
+SEGMENTER_OUTPUTS = ['mask']
 
-# task file -> [(entry inside zip, output onnx name, semantic output names)]
+# model file -> [(entry inside the .task zip, or None for a bare .tflite,
+#                 output onnx name, semantic output names)]
 POSE_JOBS = [
     ('pose_landmarker_lite.task', [
         ('pose_detector.tflite', 'pose_detector.onnx', DETECTOR_OUTPUTS),
@@ -74,6 +87,13 @@ EXTRA_JOBS = [
         ('face_detector.tflite', 'face_detector.onnx', DETECTOR_OUTPUTS),
         ('face_landmarks_detector.tflite', 'face_landmarks_detector.onnx', FACE_LANDMARK_OUTPUTS),
         # face_blendshapes.tflite is not converted: Figment's nodes don't use it.
+    ]),
+    # The selfie segmenter ships as a bare .tflite (no .task wrapper). Its
+    # last op is a LOGISTIC, so the 256×256×1 output is already a
+    # probability (SEGMENTER_METADATA activation NONE); the runtime applies
+    # no activation.
+    ('selfie_segmenter.tflite', [
+        (None, 'selfie_segmenter.onnx', SEGMENTER_OUTPUTS),
     ]),
 ]
 
@@ -191,6 +211,105 @@ def densify_model(tflite_path, out_path):
     return True
 
 
+# ─── MediaPipe custom ops ───────────────────────────────────────────────────
+#
+# The selfie segmenter's last layer is "Convolution2DTransposeBias", a
+# MediaPipe custom op (mediapipe/util/tflite/operations/transpose_conv_bias.cc)
+# that predates TFLite's own bias input on TRANSPOSE_CONV. Its inputs are
+# (input, weights OHWI, bias) and its custom_options are the raw
+# TfLiteTransposeConvParams struct: int32 padding (1 = SAME, 2 = VALID),
+# int32 stride_w, int32 stride_h. tf2onnx has no handler for it, so rewrite
+# it as builtin TRANSPOSE_CONV(output_shape, weights, input) + ADD(bias).
+
+CUSTOM_TRANSPOSE_CONV_BIAS = 'Convolution2DTransposeBias'
+
+
+def rewrite_transpose_conv_bias(tflite_path, out_path):
+    """Rewrite a TFLite model, replacing Convolution2DTransposeBias ops."""
+    from tensorflow.lite.python import schema_py_generated as schema_fb
+    import flatbuffers
+
+    with open(tflite_path, 'rb') as f:
+        data = f.read()
+    model = schema_fb.ModelT.InitFromObj(schema_fb.Model.GetRootAsModel(data, 0))
+
+    def is_custom(op, name):
+        opcode = model.operatorCodes[op.opcodeIndex]
+        code = max(opcode.builtinCode, opcode.deprecatedBuiltinCode)
+        return code == schema_fb.BuiltinOperator.CUSTOM and opcode.customCode == name.encode()
+
+    def opcode_index(builtin):
+        for i, opcode in enumerate(model.operatorCodes):
+            if max(opcode.builtinCode, opcode.deprecatedBuiltinCode) == builtin and opcode.customCode is None:
+                return i
+        opcode = schema_fb.OperatorCodeT()
+        opcode.builtinCode = builtin
+        opcode.deprecatedBuiltinCode = min(builtin, 127)
+        opcode.version = 1
+        model.operatorCodes.append(opcode)
+        return len(model.operatorCodes) - 1
+
+    def add_tensor(sg, name, shape, dtype, data=None):
+        buf = schema_fb.BufferT()
+        if data is not None:
+            buf.data = np.frombuffer(data.tobytes(), dtype=np.uint8)
+        model.buffers.append(buf)
+        t = schema_fb.TensorT()
+        t.name = name.encode()
+        t.shape = list(shape)
+        t.type = dtype
+        t.buffer = len(model.buffers) - 1
+        sg.tensors.append(t)
+        return len(sg.tensors) - 1
+
+    count = 0
+    for sg in model.subgraphs:
+        ops = []
+        for op in sg.operators:
+            if not is_custom(op, CUSTOM_TRANSPOSE_CONV_BIAS):
+                ops.append(op)
+                continue
+            padding, stride_w, stride_h = struct.unpack('<3i', bytes(op.customOptions))
+            x, w, b = op.inputs
+            (y,) = op.outputs
+            out_shape = list(sg.tensors[y].shape)
+            name = sg.tensors[y].name.decode()
+
+            shape_t = add_tensor(sg, f'{name}/output_shape', [4], schema_fb.TensorType.INT32, np.array(out_shape, dtype=np.int32))
+            conv_t = add_tensor(sg, f'{name}/transpose_conv', out_shape, sg.tensors[y].type)
+
+            conv_opts = schema_fb.TransposeConvOptionsT()
+            conv_opts.padding = {1: schema_fb.Padding.SAME, 2: schema_fb.Padding.VALID}[padding]
+            conv_opts.strideW = stride_w
+            conv_opts.strideH = stride_h
+            conv = schema_fb.OperatorT()
+            conv.opcodeIndex = opcode_index(schema_fb.BuiltinOperator.TRANSPOSE_CONV)
+            conv.inputs = [shape_t, w, x]
+            conv.outputs = [conv_t]
+            conv.builtinOptionsType = schema_fb.BuiltinOptions.TransposeConvOptions
+            conv.builtinOptions = conv_opts
+
+            add = schema_fb.OperatorT()
+            add.opcodeIndex = opcode_index(schema_fb.BuiltinOperator.ADD)
+            add.inputs = [conv_t, b]
+            add.outputs = [y]
+            add.builtinOptionsType = schema_fb.BuiltinOptions.AddOptions
+            add.builtinOptions = schema_fb.AddOptionsT()
+
+            ops.extend([conv, add])
+            count += 1
+        sg.operators = ops
+
+    if count == 0:
+        return False
+    builder = flatbuffers.Builder(1024)
+    builder.Finish(model.Pack(builder), file_identifier=b'TFL3')
+    with open(out_path, 'wb') as f:
+        f.write(builder.Output())
+    print(f'  rewrote {count} {CUSTOM_TRANSPOSE_CONV_BIAS} ops as TRANSPOSE_CONV + ADD')
+    return True
+
+
 # ─── Conversion + validation ────────────────────────────────────────────────
 
 
@@ -270,6 +389,81 @@ def expand_prelu(onnx_path):
     print(f'  expanded {count} PRelu nodes')
 
 
+def expand_hardswish(onnx_path):
+    """Replace every HardSwish node with x * HardSigmoid(x, alpha=1/6, beta=0.5).
+
+    That is the definition of HardSwish; onnxruntime-web's WebGPU provider
+    has a HardSigmoid kernel but no HardSwish kernel. tf2onnx emits
+    HardSwish for the selfie segmenter's MobileNetV3 blocks.
+    """
+    import onnx
+    from onnx import helper
+
+    model = onnx.load(onnx_path)
+    nodes = []
+    count = 0
+    for node in model.graph.node:
+        if node.op_type != 'HardSwish':
+            nodes.append(node)
+            continue
+        (x,) = node.input
+        (y,) = node.output
+        base = node.name or y
+        gate = f'{base}/hard_sigmoid'
+        nodes.extend(
+            [
+                helper.make_node('HardSigmoid', [x], [gate], name=f'{base}/HardSigmoid', alpha=1.0 / 6.0, beta=0.5),
+                helper.make_node('Mul', [x, gate], [y], name=f'{base}/Mul'),
+            ]
+        )
+        count += 1
+    if count == 0:
+        return
+    del model.graph.node[:]
+    model.graph.node.extend(nodes)
+    onnx.checker.check_model(model)
+    onnx.save(model, onnx_path)
+    print(f'  expanded {count} HardSwish nodes')
+
+
+# Ops that onnxruntime-web's WebGPU provider handles in the wasm engine
+# without a WGSL kernel (data stays on the GPU): they don't appear in the
+# JS kernel table below.
+WEBGPU_PASSTHROUGH_OPS = {'Constant', 'Flatten', 'Identity', 'Reshape', 'Shape', 'Squeeze', 'Unsqueeze'}
+
+
+def webgpu_ops():
+    """Op types with a WebGPU kernel in the installed onnxruntime-web.
+
+    Read from the op-resolve table in onnxruntime-web's JS bundle (the
+    WebGPU provider implements its kernels in JS/WGSL). Returns None when
+    node_modules is not installed.
+    """
+    bundle = os.path.join(ROOT, 'node_modules', 'onnxruntime-web', 'dist', 'ort.all.mjs')
+    if not os.path.exists(bundle):
+        return None
+    with open(bundle, encoding='utf-8') as f:
+        source = f.read()
+    return set(re.findall(r'\["([A-Z][A-Za-z0-9]+)",\s*\[', source)) | WEBGPU_PASSTHROUGH_OPS
+
+
+def check_webgpu_ops(onnx_path, supported):
+    """Fail on any op the WebGPU provider would hand to the CPU provider.
+
+    Such an op costs a GPU->CPU->GPU round trip per node and can make the
+    model slower than MediaPipe's own CPU path. Rewrite it in this script
+    (as expand_prelu / expand_hardswish do) rather than shipping the model.
+    ORT's session log ("Some nodes were not assigned to the preferred
+    execution providers") is the runtime counterpart of this check.
+    """
+    import onnx
+
+    model = onnx.load(onnx_path)
+    unsupported = sorted({n.op_type for n in model.graph.node} - supported)
+    if unsupported:
+        raise ValueError(f'{os.path.basename(onnx_path)}: no WebGPU kernel for {", ".join(unsupported)}')
+
+
 def validate(tflite_path, onnx_path, semantic_names):
     """Compare TFLite interpreter and onnxruntime outputs on random input.
 
@@ -312,41 +506,54 @@ def validate(tflite_path, onnx_path, semantic_names):
         raise ValueError(f'validation failed: max relative diff {worst:.2e} > 1e-2')
 
 
+def read_model(container_path, entry):
+    """Bytes of a TFLite model: an entry of a .task zip, or the file itself."""
+    if entry is None:
+        with open(container_path, 'rb') as f:
+            return f.read()
+    with zipfile.ZipFile(container_path) as z:
+        return z.read(entry)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--all', action='store_true', help='also convert hand and face models')
+    parser.add_argument('--all', action='store_true', help='also convert the hand, face and segmenter models')
+    parser.add_argument('--only', metavar='NAME', help='convert only the models whose output name contains NAME')
     args = parser.parse_args()
 
-    jobs = POSE_JOBS + (EXTRA_JOBS if args.all else [])
+    jobs = POSE_JOBS + (EXTRA_JOBS if args.all or args.only else [])
+    supported_ops = webgpu_ops()
+    if supported_ops is None:
+        print('warning: node_modules/onnxruntime-web not found, skipping the WebGPU op check')
     os.makedirs(OUT_DIR, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        for task_name, models in jobs:
-            task_path = os.path.join(ASSETS, task_name)
-            print(f'== {task_name}')
-            with zipfile.ZipFile(task_path) as z:
-                for entry, onnx_name, semantic_names in models:
-                    print(f'-- {entry} -> onnx/{onnx_name}')
-                    tflite_path = os.path.join(tmp, f'{task_name}.{entry}')
-                    with open(tflite_path, 'wb') as f:
-                        f.write(z.read(entry))
-                    dense_path = tflite_path + '.dense'
-                    if not densify_model(tflite_path, dense_path):
-                        dense_path = tflite_path
-                    onnx_path = os.path.join(OUT_DIR, onnx_name)
-                    convert(dense_path, onnx_path)
-                    rename_outputs(onnx_path, semantic_names)
-                    # Every op in the graph must have a WebGPU (JSEP) kernel in
-                    # onnxruntime-web. An op without one silently runs on the
-                    # CPU, with a GPU->CPU->GPU round trip per node, and can
-                    # make the model slower than the MediaPipe CPU path. After
-                    # converting a new model, load it in Figment and check the
-                    # ORT session log for "Some nodes were not assigned to the
-                    # preferred execution providers"; rewrite any such op here,
-                    # as expand_prelu does for PRelu.
-                    expand_prelu(onnx_path)
-                    # Validate against the *original* (possibly sparse) model.
-                    validate(tflite_path, onnx_path, semantic_names)
+        for container_name, models in jobs:
+            models = [m for m in models if not args.only or args.only in m[1]]
+            if not models:
+                continue
+            container_path = os.path.join(ASSETS, container_name)
+            print(f'== {container_name}')
+            for entry, onnx_name, semantic_names in models:
+                print(f'-- {entry or container_name} -> onnx/{onnx_name}')
+                tflite_path = os.path.join(tmp, f'{container_name}.{entry or "tflite"}')
+                with open(tflite_path, 'wb') as f:
+                    f.write(read_model(container_path, entry))
+                # Rewrite what tf2onnx cannot parse; each step reads the
+                # previous step's file.
+                source_path = tflite_path
+                for suffix, rewrite in (('.dense', densify_model), ('.builtin', rewrite_transpose_conv_bias)):
+                    if rewrite(source_path, source_path + suffix):
+                        source_path = source_path + suffix
+                onnx_path = os.path.join(OUT_DIR, onnx_name)
+                convert(source_path, onnx_path)
+                rename_outputs(onnx_path, semantic_names)
+                expand_prelu(onnx_path)
+                expand_hardswish(onnx_path)
+                if supported_ops is not None:
+                    check_webgpu_ops(onnx_path, supported_ops)
+                # Validate against the *original* model.
+                validate(tflite_path, onnx_path, semantic_names)
     print('done.')
 
 
