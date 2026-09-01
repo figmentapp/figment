@@ -4,14 +4,25 @@ title: 'Detect Pose'
 
 # Detect Pose
 
-Detect a single human pose in the input image and draw it as a skeleton-like shape.
+Detect one or more human poses in the input image and draw them as skeletons on a solid background. The node runs the MediaPipe pose detector and pose landmark model on the GPU. Only the landmark coordinates come back, 33 per person.
+
+Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to send the landmarks to another application. To cut people out of the image instead of drawing them, use [Segment Pose](/docs/nodes/segment-pose).
 
 ## Parameters
 
-- **Background**: The color of the background.
-- **Draw Points**: Whether to draw the landmarks of the pose as points.
-- **Points Color**: The color of the points.
-- **Points Radius**: The size of the points.
-- **Draw Lines**: Whether to connect the landmarks of the pose with lines.
-- **Lines Color**: The color of the lines.
-- **Lines Width**: The thickness of the lines.
+- **Background** The color that fills the output image behind the drawing.
+- **Draw Points** Draw each landmark as a dot.
+- **Color** (points) The color of the dots.
+- **Radius** The size of the dots.
+- **Draw Lines** Connect the landmarks of each pose with lines.
+- **Color** (lines) The color of the lines.
+- **Line Width** The thickness of the lines.
+- **Number of Poses** The maximum number of people to detect, from 1 to 4. Each extra person costs one more landmark pass.
+- **Model** The size of the landmark model: `lite`, `full`, or `heavy`. Larger models are more accurate and slower. Switching the model reloads it; the node keeps running the current model until the new one is ready.
+- **Mode** `video` follows each person from frame to frame and only runs the detector again when a person is lost. This is faster and steadier for a webcam or movie. `still` runs the detector on every frame. Use it for unrelated images, such as a Load Image Folder.
+
+## Outputs
+
+- **Out** The drawing on the background color, at the size of the input image.
+- **Detected** `true` while at least one person is in the frame.
+- **Landmarks** An object with `type: 'pose'` and a `landmarks` array with one entry per person. Each entry is a list of points with `x`, `y`, and `z` normalized to the image (0 to 1) and a `visibility` score. The output is `null` when nobody is detected.

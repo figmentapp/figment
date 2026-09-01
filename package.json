@@ -23,7 +23,8 @@
     "format-check": "prettier --check 'src/**/*.{js,jsx}'",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "render-node-examples": "node scripts/render-node-examples.mjs"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",

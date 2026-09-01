@@ -16,6 +16,8 @@ Here's how that works:
 
 ## Parameters
 
-- **Enable** When to save the images. By default, images are saved when rendering/exporting. Change this to "always" to also save images during normal operation. Note that this can slow down the network. Change this to "never" to disable the export.
+- **Enable** A boolean plug. Connect it to a [Conditional](/docs/nodes/conditional) or a detection node to save only while the value is `true`.
+- **Save** When to save the images. `On Export` saves only during File > Render. `Always` also saves during normal operation, which can slow down the network. `Never` disables saving.
 - **Folder** Folder to image sequence
-- **Template** Image filename template. The `#####` will be replaced with the sequence number, e.g. `image-#####.png` will turn into `image-00001.png`, `image-00002.png`, and so on.
+- **Template** Image filename template. The `#####` will be replaced with the sequence number, e.g. `image-#####.png` will turn into `image-00001.png`, `image-00002.png`, and so on. The extension picks the format: `.png` or `.jpg`.
+- **Quality** The JPEG quality from 0 to 1. PNG files ignore it.

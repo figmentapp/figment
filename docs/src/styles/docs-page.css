@@ -212,3 +212,37 @@
     font-size: clamp(1.55rem, 7.5vw, 1.95rem);
   }
 }
+
+/* Admonitions (:::tip, :::note, :::info in Markdown) */
+.admonition {
+  margin: 1.4rem 0;
+  padding: 0.85rem 1.1rem;
+  border-left: 3px solid var(--admonition-accent, var(--slate-400));
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--admonition-accent, var(--slate-400)) 10%, var(--color-bg-soft));
+}
+
+.admonition-tip {
+  --admonition-accent: oklch(0.78 0.16 160);
+}
+
+.admonition-info {
+  --admonition-accent: oklch(0.76 0.13 240);
+}
+
+.admonition-note {
+  --admonition-accent: var(--slate-400);
+}
+
+.admonition-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--admonition-accent);
+}
+
+.admonition > :last-child {
+  margin-bottom: 0;
+}
