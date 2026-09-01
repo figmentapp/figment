@@ -25,6 +25,12 @@ jobs:
       - name: Install node dependencies
         run: npm ci
 
+      - name: Build native addon (macOS universal)
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          npm run build:native:mac-universal
+
       - name: Build
         run: npm run build
 

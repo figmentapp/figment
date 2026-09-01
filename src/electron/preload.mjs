@@ -291,7 +291,7 @@ function getFrameShareModule() {
   if (frameShareModule === undefined) {
     frameShareModule = null;
     try {
-      const loader = requireNative('../../native/frameshare/index.js');
+      const loader = requireNative('../../native/frameshare/index.cjs');
       frameShareModule = loader.load();
       if (!frameShareModule && loader.getLoadError()) {
         console.warn('frameshare addon failed to load:', loader.getLoadError());

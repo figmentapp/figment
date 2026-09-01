@@ -2,12 +2,15 @@
  shim.m — C ABI over SyphonMetalServer for the figment-frameshare addon.
 
  Design notes:
- - Servers are created and destroyed on a dedicated thread that runs a live
-   CFRunLoop. SyphonServerBase registers an NSDistributedNotificationCenter
-   observer for announce requests on the thread that creates it; that
-   observer only fires if the thread's run loop is pumped. Electron's
-   renderer/preload threads don't pump a run loop, so without this thread a
-   Figment server would be invisible to Syphon clients launched after it.
+ - Syphon discovery is request/response over NSDistributedNotificationCenter:
+   a client's SyphonServerDirectory posts an announce request and drops every
+   server that does not answer within 6 seconds. Those notifications are only
+   ever delivered on the process main thread's run loop, and Electron's
+   renderer main thread does not pump one, so a server in this process never
+   sees the request. Instead each server re-announces itself every 2 seconds
+   from a timer on a dedicated run-loop thread; the directory treats a repeat
+   announce for a known server as a keep-alive.
+ - Servers are created and destroyed on that same thread.
  - Publishing runs on the caller's thread: SyphonMetalServer is documented
    thread-safe, and replaceRegion is a synchronous CPU->GPU copy, so the
    pixel buffer does not need to outlive the call.
@@ -20,11 +23,26 @@
 
 #include <stdint.h>
 
+// Interval between keep-alive announces; must stay well under the 6 second
+// timeout in SyphonServerDirectory.
+static const NSTimeInterval kFSAnnounceInterval = 2.0;
+
+// App name clients show for this server. Without it the description carries
+// the bundle name of the Electron process, "Figment Helper (Renderer)".
+extern NSString *SyphonServerAppNameOverride;
+
+@interface SyphonServerBase (FSAnnounce)
+- (void)broadcastServerAnnounce;
+@end
+
 @interface FSServerBox : NSObject
 @property(strong) SyphonMetalServer *server;
 @property(strong) id<MTLDevice> device;
 @property(strong) id<MTLCommandQueue> queue;
 @property(strong) id<MTLTexture> texture;
+// Command buffer of the last publish; it reads `texture` on the GPU.
+@property(strong) id<MTLCommandBuffer> inFlight;
+@property(strong) NSTimer *announceTimer;
 @end
 
 @implementation FSServerBox
@@ -85,6 +103,7 @@ void *fs_syphon_server_create(const char *utf8_name)
                 return;
             }
             NSString *name = utf8_name != NULL ? [NSString stringWithUTF8String:utf8_name] : nil;
+            SyphonServerAppNameOverride = @"Figment";
             SyphonMetalServer *server = [[SyphonMetalServer alloc] initWithName:name
                                                                          device:device
                                                                         options:nil];
@@ -100,6 +119,12 @@ void *fs_syphon_server_create(const char *utf8_name)
             box.server = server;
             box.device = device;
             box.queue = queue;
+            // Scheduled on this thread's run loop, which fs_thread keeps pumping.
+            box.announceTimer = [NSTimer scheduledTimerWithTimeInterval:kFSAnnounceInterval
+                                                                repeats:YES
+                                                                  block:^(NSTimer *__unused timer) {
+                                                                      [server broadcastServerAnnounce];
+                                                                  }];
         }
     });
     if (box == nil) {
@@ -120,6 +145,11 @@ int fs_syphon_server_publish(void *handle,
     }
     FSServerBox *box = (__bridge FSServerBox *)handle;
     @autoreleasepool {
+        // replaceRegion must not overwrite the texture while the GPU still
+        // reads it for the previous frame. The blit is tiny, so this rarely
+        // blocks for more than a few microseconds.
+        [box.inFlight waitUntilCompleted];
+        box.inFlight = nil;
         id<MTLTexture> texture = box.texture;
         if (texture == nil || texture.width != width || texture.height != height) {
             MTLTextureDescriptor *desc =
@@ -151,6 +181,7 @@ int fs_syphon_server_publish(void *handle,
                             imageRegion:NSMakeRect(0, 0, width, height)
                                 flipped:flipped ? YES : NO];
         [commandBuffer commit];
+        box.inFlight = commandBuffer;
     }
     return 0;
 }
@@ -180,8 +211,12 @@ void fs_syphon_server_destroy(void *handle)
     }
     FSServerBox *box = (FSServerBox *)CFBridgingRelease(handle);
     fs_run_on_syphon_thread(^{
+        [box.announceTimer invalidate];
+        box.announceTimer = nil;
         [box.server stop];
         box.server = nil;
+        [box.inFlight waitUntilCompleted];
+        box.inFlight = nil;
         box.texture = nil;
         box.queue = nil;
         box.device = nil;

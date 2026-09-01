@@ -17,7 +17,12 @@ Local modifications (marked with `FIGMENT PATCH` comments):
   `newDefaultLibraryWithBundle:` finds no compiled `default.metallib`.
   Figment links Syphon statically into its native addon, so there is no
   framework bundle to load the metallib from.
+- `SyphonServerBase.m`: adds the global `SyphonServerAppNameOverride`, used
+  by `serverDescription` in place of the running application's name when
+  set. The server runs in an Electron renderer helper process, whose bundle
+  name is "Figment Helper (Renderer)"; the shim sets the override to
+  "Figment".
 
-To update: re-copy the files listed here from upstream, re-apply the patch,
+To update: re-copy the files listed here from upstream, re-apply the patches,
 and regenerate the embedded shader header with
 `python3 scripts/generate-embedded-shader.py`.

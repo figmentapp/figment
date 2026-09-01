@@ -37,6 +37,9 @@ static void finalizer(void)
     BOOL _pushPending;
 }
 
+// FIGMENT PATCH: see serverDescription.
+NSString *SyphonServerAppNameOverride = nil;
+
 + (NSSet *)keyPathsForValuesAffectingValueForKey:(NSString *)key
 {
     if ([key isEqualToString:@"serverDescription"])
@@ -162,7 +165,10 @@ static void finalizer(void)
      http://developer.apple.com/library/mac/qa/qa1544/_index.html
 
      */
-    NSString *appName = [[NSRunningApplication currentApplication] localizedName];
+    // FIGMENT PATCH: the host can name the app itself; the server may live in a
+    // helper process whose bundle name is not what clients should display.
+    NSString *appName = SyphonServerAppNameOverride;
+    if (!appName) appName = [[NSRunningApplication currentApplication] localizedName];
     if (!appName) appName = [[NSProcessInfo processInfo] processName];
     if (!appName) appName = [NSString string];
 

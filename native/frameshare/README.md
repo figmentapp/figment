@@ -10,7 +10,7 @@ Share Image node degrades gracefully.
 - The **Share Image** node (`src/nodes/comms/shareImage.js`) reads the
   frame back from the GPU (`RenderTarget.readPixelsRaw()`) and hands the RGBA
   buffer to the preload bridge (`window.desktop.frameSharePublish`).
-- The preload script loads this addon **in-process** (`index.js` picks the
+- The preload script loads this addon **in-process** (`index.cjs` picks the
   right prebuilt `.node`), so publishing never crosses to the Electron main
   process — no IPC, one buffer handoff.
 - The Rust crate (`src/lib.rs`) exposes `FrameSender` and calls the Obj-C
@@ -18,18 +18,30 @@ Share Image node degrades gracefully.
   publishes it through `SyphonMetalServer`. Connected clients then read that
   texture GPU-side; the readback in the first step is the only GPU↔CPU trip.
 - Syphon itself is **statically linked** from the vendored, BSD-licensed
-  sources in `vendor/syphon/` (see `VENDOR.md` for provenance and the one
-  local patch). There is no `Syphon.framework` bundle inside Figment.app.
-- Server create/destroy runs on a dedicated run-loop thread inside the shim
-  so Syphon's discovery announcements work from any Electron process.
+  sources in `vendor/syphon/` (see `VENDOR.md` for provenance and the local
+  patches). There is no `Syphon.framework` bundle inside Figment.app.
+- Discovery: Syphon clients find servers by posting an announce request over
+  `NSDistributedNotificationCenter` and drop servers that stay silent for
+  6 seconds. macOS delivers those notifications only on the process main
+  thread's run loop, which Electron's renderer never pumps, so a server here
+  would never see the request. The shim therefore re-announces every server
+  every 2 seconds from a timer on its own run-loop thread. Clients treat the
+  repeat as a keep-alive, so Figment stays listed in apps launched before
+  *or* after it.
 
 ## Building
 
 Requires a Rust toolchain (https://rustup.rs) and Xcode command line tools.
 
+On macOS, `npm install` builds the addon for the current arch through the
+`postinstall` script, so the normal `npm install && npm start` setup is
+enough. Without `cargo` on the PATH the install prints a warning and skips
+the build (the Share Image node then reports unavailable); under `CI` the
+missing toolchain is an error. Other platforms skip the build.
+
 ```sh
 npm run build:native               # current platform + arch (dev / fastdist)
-npm run build:native:mac-universal # arm64 + x64, lipo'd (used by dist/dist-mac)
+npm run build:native:mac-universal # arm64 + x64, lipo'd (dist/dist-mac and the release workflow)
 ```
 
 For the universal build both targets must be installed once:
@@ -39,7 +51,7 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin
 ```
 
 The result is `frameshare.darwin-<arch>.node` (or `-universal`) next to
-`index.js`. Binaries are gitignored and built on the machine that packages
+`index.cjs`. Binaries are gitignored and built on the machine that packages
 the app; `npm run dist`, `dist-mac` and `fastdist` run the right build step
 automatically.
 
