@@ -18,4 +18,13 @@ describe('frameshare loader', () => {
     const mod = loader.load();
     expect(mod === null || typeof mod.isAvailable === 'function').toBe(true);
   });
+
+  // CI on macOS builds the addon during npm ci, so there it must load.
+  test.runIf(process.env.CI && process.platform === 'darwin')('loads the built addon on macOS CI', () => {
+    const loader = require('../../native/frameshare/index.cjs');
+    const mod = loader.load();
+    expect(loader.getLoadError()).toBeNull();
+    expect(mod).not.toBeNull();
+    expect(mod.isAvailable()).toBe(true);
+  });
 });
