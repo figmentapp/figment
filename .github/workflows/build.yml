@@ -5,6 +5,12 @@ on:
     branches: [main] # nightly builds
     tags: ['v*'] # versioned “release” builds
 
+# A newer push to main cancels the nightly still building for the previous one.
+# Tags have their own ref, so a release build is never cancelled by a push to main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
