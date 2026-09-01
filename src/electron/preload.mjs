@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { promises as fs } from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 import url from 'url';
 import { glob } from 'glob';
@@ -278,6 +279,87 @@ async function getMidiDevices() {
   return await ipcRenderer.invoke('getMidiDevices');
 }
 
+// Frame sharing (Syphon on macOS; Spout planned for Windows).
+// The native addon is loaded lazily and in-process: publishing goes straight
+// from the renderer into the addon without an IPC round-trip to main.
+const requireNative = createRequire(import.meta.url);
+let frameShareModule; // undefined = not tried yet, null = unavailable
+const frameShareSenders = new Map();
+let frameShareNextId = 1;
+
+function getFrameShareModule() {
+  if (frameShareModule === undefined) {
+    frameShareModule = null;
+    try {
+      const loader = requireNative('../../native/frameshare/index.js');
+      frameShareModule = loader.load();
+      if (!frameShareModule && loader.getLoadError()) {
+        console.warn('frameshare addon failed to load:', loader.getLoadError());
+      }
+    } catch (err) {
+      console.warn('frameshare addon not present:', err.message);
+    }
+  }
+  return frameShareModule;
+}
+
+function frameShareAvailable() {
+  const mod = getFrameShareModule();
+  return !!(mod && mod.isAvailable());
+}
+
+function frameShareOpen(serverName) {
+  const mod = getFrameShareModule();
+  if (!mod || !mod.isAvailable()) return 0;
+  try {
+    const sender = new mod.FrameSender(serverName);
+    const id = frameShareNextId++;
+    frameShareSenders.set(id, sender);
+    return id;
+  } catch (err) {
+    console.warn('frameShareOpen failed:', err.message);
+    return 0;
+  }
+}
+
+function frameSharePublish(id, data, width, height) {
+  const sender = frameShareSenders.get(id);
+  if (!sender) return false;
+  try {
+    sender.publish(data, width, height, false);
+    return true;
+  } catch (err) {
+    console.warn('frameSharePublish failed:', err.message);
+    return false;
+  }
+}
+
+function frameShareHasClients(id) {
+  const sender = frameShareSenders.get(id);
+  return sender ? sender.hasClients() : false;
+}
+
+function frameShareSetName(id, serverName) {
+  const sender = frameShareSenders.get(id);
+  if (!sender) return;
+  try {
+    sender.setName(serverName);
+  } catch (err) {
+    console.warn('frameShareSetName failed:', err.message);
+  }
+}
+
+function frameShareClose(id) {
+  const sender = frameShareSenders.get(id);
+  if (!sender) return;
+  frameShareSenders.delete(id);
+  try {
+    sender.destroy();
+  } catch (err) {
+    console.warn('frameShareClose failed:', err.message);
+  }
+}
+
 contextBridge.exposeInMainWorld('desktop', {
   getRuntimeMode,
   setRuntimeMode,
@@ -319,4 +401,10 @@ contextBridge.exposeInMainWorld('desktop', {
   sendToNodeServer,
   registerNodeServerListener,
   unregisterNodeServerListener,
+  frameShareAvailable,
+  frameShareOpen,
+  frameSharePublish,
+  frameShareHasClients,
+  frameShareSetName,
+  frameShareClose,
 });
