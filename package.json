@@ -14,7 +14,7 @@
     "build:native:mac-universal": "node native/frameshare/scripts/build.mjs --universal",
     "postinstall": "node native/frameshare/scripts/build.mjs --postinstall",
     "build-library": "cross-env NODE_ENV=production rollup -c",
-    "sync-ort-wasm": "cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm assets/onnxruntime-web/",
+    "sync-ort-wasm": "node -e \"for (const f of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) require('fs').copyFileSync('node_modules/onnxruntime-web/dist/' + f, 'assets/onnxruntime-web/' + f)\"",
     "dist": "rimraf build && rimraf dist && npm run build:native:mac-universal && npm run build && electron-builder build --mac --universal && electron-builder build --win --x64",
     "dist-mac": "rimraf build && rimraf dist && npm run build:native:mac-universal && npm run build && electron-builder build --mac --universal",
     "dist-win": "rimraf build && rimraf dist && npm run build && electron-builder build --win --x64",
