@@ -10,7 +10,7 @@ const PHASES = [
   { key: 'frame', label: 'Frame', color: '#888' },
   { key: 'render-all-nodes', label: 'Render All', color: '#6cf' },
   { onnxSuffix: 'preprocess-dispatch', label: 'Pre (GPU→NCHW)', color: '#f90' },
-  { onnxSuffix: 'session-run', label: 'ONNX Inference', color: '#f44' },
+  { onnxSuffix: 'inference-total', label: 'ONNX Inference', color: '#f44' },
   { onnxSuffix: 'postprocess-dispatch', label: 'Post (NCHW→GPU)', color: '#4c4' },
 ];
 
