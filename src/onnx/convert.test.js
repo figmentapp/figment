@@ -72,10 +72,31 @@ describe('ConvTranspose rewrite', () => {
   });
 });
 
+describe('constant folding', () => {
+  it('folds the demodulation chain into a per-channel constant and drops what it read', async () => {
+    const original = fixture('stylegan-mini.onnx');
+    const { bytes, report } = convertModel(original, { fp16: false, convTranspose: false });
+    // Mul, Mul, ReduceSum, Sqrt, Div, Unsqueeze: six nodes, leaving Mul(c, demod) with a constant.
+    expect(report.fold.nodesFolded).toBe(6);
+    expect(report.after.ops.ReduceSum).toBeUndefined();
+    expect(report.after.ops.Sqrt).toBeUndefined();
+    expect(report.after.ops.Mul).toBe(1);
+    // 'style' and the intermediate constants are gone; 'w' stays for the Conv.
+    const names = decodeModel(bytes).graph.initializer.map((t) => t.name);
+    expect(names).toContain('w');
+    expect(names).not.toContain('style');
+    const input = randomInput(4 * 8 * 8, 7);
+    const a = await run(original, input, [1, 4, 8, 8]);
+    const b = await run(bytes, input, [1, 4, 8, 8]);
+    expect(maxAbsDiff(a, b)).toBeLessThan(1e-5);
+  });
+});
+
 describe('float16 conversion', () => {
   it('halves the weights, keeps float32 inputs and outputs, and stays close to the original', async () => {
     const original = fixture('unet-mini.onnx');
     const { bytes, report } = convertModel(original, { convTranspose: false });
+    expect(report.fold.nodesFolded).toBe(0);
     expect(report.fp16.initializersConverted).toBe(9);
     expect(report.bytes.after).toBeLessThan(report.bytes.before * 0.6);
     const model = decodeModel(bytes);
@@ -92,7 +113,8 @@ describe('float16 conversion', () => {
 
   it('removes no-op casts, keeps reductions and Resize scales in float32', async () => {
     const original = fixture('stylegan-mini.onnx');
-    const { bytes, report } = convertModel(original);
+    // Folding off: the demodulation chain stays and shows the blocked-op handling.
+    const { bytes, report } = convertModel(original, { fold: false });
     expect(report.fp16.castsRemoved).toBe(2);
     expect(report.fp16.blockedNodes).toBe(1);
     const model = decodeModel(bytes);
