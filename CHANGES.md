@@ -1,11 +1,13 @@
 # CHANGES
 
-## Version 0.8.0 (2026-09-01)
+## Version 0.8.0 (2026-09-02)
 
+- Added Share Image node: publishes any image to other applications on the same Mac through Syphon (Max/MSP, TouchDesigner, Resolume, OBS Studio, ...). macOS only; Spout support for Windows is planned.
 - Segment Image now runs on the GPU through ONNX Runtime like the other ML nodes, and gains a `mask` output. Its `model` parameter is gone: only the selfie model ever shipped.
 - Detect Pose, Detect Hands, Detect Faces and Receive Rokoko draw their overlays on the GPU instead of uploading a canvas every frame.
 - Removed the MediaPipe runtime; the app is about 11 MB smaller. The ML nodes keep using MediaPipe's models, converted to ONNX.
 - Breaking change for custom code nodes: `window.mediapipe` and `window.drawing_utils` no longer exist. `drawConnectors` and `drawLandmarks` stay available as globals, and the landmark connection tables are exposed as `figment.POSE_CONNECTIONS`, `figment.HAND_CONNECTIONS`, `figment.FACE_LANDMARKS_CONTOURS` and `figment.FACE_LANDMARKS_TESSELATION`.
+- Fixed long lines in the code editor widening the editor pane; they scroll horizontally inside the editor instead.
 
 ## Version 0.7.3 (2026-05-21)
 
