@@ -11,6 +11,7 @@ Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to s
 ## Parameters
 
 - **Background** The color that fills the output image behind the drawing.
+- **Coloring** `solid` draws every point and line in the colors below. `per limb` gives each landmark and each limb a fixed color, so the left and right sides and every limb are distinguishable by hue. Use `per limb` when the drawing is the input of an image-to-image model such as pix2pix: the model can then tell which limb is which. The point and line colors are ignored in this mode. The palette is borrowed from OpenPose, so the look is familiar; the drawing is not a drop-in replacement for an OpenPose render.
 - **Draw Points** Draw each landmark as a dot.
 - **Color** (points) The color of the dots.
 - **Radius** The size of the dots.

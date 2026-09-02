@@ -15,6 +15,13 @@
 // coordinates scale to the target size, `lineWidth` defaults to 4 and
 // `radius` to 6, and a point is a filled circle plus a stroke of the same
 // color, so its visible radius is radius + lineWidth / 2.
+//
+// `color` is a color-port value ([r, g, b, a], 0–255 channels, alpha 0–1),
+// or a table of them: one per landmark in landmarks(), one per connection
+// in connectors(), for skeletons where hue encodes the limb (see
+// POSE_LANDMARK_COLORS / POSE_CONNECTION_COLORS in
+// src/landmark-connections.js). DrawingUtils has the same idea: its `color`
+// option may be a per-landmark callback.
 
 import { getDevice, getQueue, colorToVec4 } from './figment';
 
@@ -26,6 +33,23 @@ const DEFAULT_RADIUS = 6;
 // as { start, end } objects (MediaPipe's tables, project custom nodes).
 function connectionEnds(connection) {
   return Array.isArray(connection) ? connection : [connection.start, connection.end];
+}
+
+// `color` is one color-port value ([r, g, b, a], 0–255 channels, alpha 0–1)
+// or a table of them indexed like the primitives it colors. Returns the
+// color of primitive `i` as a vec4 of floats, converted once per call, not
+// per primitive. A table shorter than the primitive list is a programming
+// error, not a fallback.
+function colorPerIndex(color, count, what) {
+  if (!Array.isArray(color[0])) {
+    const rgba = colorToVec4(color);
+    return () => rgba;
+  }
+  if (color.length < count) {
+    throw new Error(`OverlayBatch: ${color.length} colors for ${count} ${what}`);
+  }
+  const table = color.map(colorToVec4);
+  return (i) => table[i];
 }
 
 // visibilityMin, when given, hides landmarks whose visibility is at or below
@@ -78,30 +102,33 @@ export class OverlayBatch {
     this.count++;
   }
 
-  // Filled circles of `radius` plus a stroke of `lineWidth`, both in `color`.
+  // Filled circles of `radius` plus a stroke of `lineWidth`, both in `color`:
+  // one color or a table with one color per landmark.
   landmarks(landmarks, { color, radius = DEFAULT_RADIUS, lineWidth = DEFAULT_LINE_WIDTH, visibilityMin } = {}) {
     if (!landmarks) return;
-    const rgba = colorToVec4(color);
+    const colorAt = colorPerIndex(color, landmarks.length, 'landmarks');
     const r = radius + lineWidth / 2;
-    for (const lm of landmarks) {
+    for (let i = 0; i < landmarks.length; i++) {
+      const lm = landmarks[i];
       if (!visible(lm, visibilityMin)) continue;
       const x = lm.x * this.width;
       const y = lm.y * this.height;
-      this.segment(x, y, x, y, r, true, rgba);
+      this.segment(x, y, x, y, r, true, colorAt(i));
     }
   }
 
-  // Lines of `lineWidth` between connected landmarks.
+  // Lines of `lineWidth` between connected landmarks. `color` is one color
+  // or a table with one color per connection.
   connectors(landmarks, connections, { color, lineWidth = DEFAULT_LINE_WIDTH, visibilityMin } = {}) {
     if (!landmarks || !connections) return;
-    const rgba = colorToVec4(color);
+    const colorAt = colorPerIndex(color, connections.length, 'connections');
     const halfWidth = lineWidth / 2;
-    for (const connection of connections) {
-      const [start, end] = connectionEnds(connection);
+    for (let i = 0; i < connections.length; i++) {
+      const [start, end] = connectionEnds(connections[i]);
       const a = landmarks[start];
       const b = landmarks[end];
       if (!visible(a, visibilityMin) || !visible(b, visibilityMin)) continue;
-      this.segment(a.x * this.width, a.y * this.height, b.x * this.width, b.y * this.height, halfWidth, false, rgba);
+      this.segment(a.x * this.width, a.y * this.height, b.x * this.width, b.y * this.height, halfWidth, false, colorAt(i));
     }
   }
 

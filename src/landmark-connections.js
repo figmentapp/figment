@@ -19,6 +19,81 @@ export const POSE_CONNECTIONS = pairs([
   20, 16, 22, 18, 20, 11, 23, 12, 24, 23, 24, 23, 25, 24, 26, 25, 27, 26, 28, 27, 29, 28, 30, 29, 31, 30, 32, 27, 31, 28, 32,
 ]);
 
+// OpenPose's COCO-18 render palette, in OpenPose keypoint order
+// (POSE_COCO_COLORS_RENDER_GPU in openpose/pose/poseParametersRender.hpp),
+// as color-port values [r, g, b, 1]. Hue encodes the joint: warm colors on
+// the right arm, green on the left arm, cyan on the right leg, blue on the
+// left leg, magenta and violet around the head.
+export const OPENPOSE_COLORS = [
+  [255, 0, 85, 1], // 0 Nose
+  [255, 0, 0, 1], // 1 Neck
+  [255, 85, 0, 1], // 2 RShoulder
+  [255, 170, 0, 1], // 3 RElbow
+  [255, 255, 0, 1], // 4 RWrist
+  [170, 255, 0, 1], // 5 LShoulder
+  [85, 255, 0, 1], // 6 LElbow
+  [0, 255, 0, 1], // 7 LWrist
+  [0, 255, 85, 1], // 8 RHip
+  [0, 255, 170, 1], // 9 RKnee
+  [0, 255, 255, 1], // 10 RAnkle
+  [0, 170, 255, 1], // 11 LHip
+  [0, 85, 255, 1], // 12 LKnee
+  [0, 0, 255, 1], // 13 LAnkle
+  [255, 0, 170, 1], // 14 REye
+  [170, 0, 255, 1], // 15 LEye
+  [255, 0, 255, 1], // 16 REar
+  [85, 0, 255, 1], // 17 LEar
+];
+
+// The OpenPose keypoint each of the 33 pose landmarks belongs to. BlazePose
+// has no neck; landmarks OpenPose lacks (eye corners, mouth, fingers, heels
+// and toes) take the nearest joint on the same side. Left and right are the
+// person's own in both systems.
+const POSE_LANDMARK_TO_OPENPOSE = [
+  0, // 0 nose → Nose
+  15, // 1 left eye inner → LEye
+  15, // 2 left eye → LEye
+  15, // 3 left eye outer → LEye
+  14, // 4 right eye inner → REye
+  14, // 5 right eye → REye
+  14, // 6 right eye outer → REye
+  17, // 7 left ear → LEar
+  16, // 8 right ear → REar
+  0, // 9 mouth left → Nose
+  0, // 10 mouth right → Nose
+  5, // 11 left shoulder → LShoulder
+  2, // 12 right shoulder → RShoulder
+  6, // 13 left elbow → LElbow
+  3, // 14 right elbow → RElbow
+  7, // 15 left wrist → LWrist
+  4, // 16 right wrist → RWrist
+  7, // 17 left pinky → LWrist
+  4, // 18 right pinky → RWrist
+  7, // 19 left index → LWrist
+  4, // 20 right index → RWrist
+  7, // 21 left thumb → LWrist
+  4, // 22 right thumb → RWrist
+  11, // 23 left hip → LHip
+  8, // 24 right hip → RHip
+  12, // 25 left knee → LKnee
+  9, // 26 right knee → RKnee
+  13, // 27 left ankle → LAnkle
+  10, // 28 right ankle → RAnkle
+  13, // 29 left heel → LAnkle
+  10, // 30 right heel → RAnkle
+  13, // 31 left foot index → LAnkle
+  10, // 32 right foot index → RAnkle
+];
+
+// One color per pose landmark, indexed like the landmark list.
+export const POSE_LANDMARK_COLORS = POSE_LANDMARK_TO_OPENPOSE.map((i) => OPENPOSE_COLORS[i]);
+
+// One color per POSE_CONNECTIONS entry: the color of the connection's second
+// landmark, which is OpenPose's own rule (renderKeypointsCpu colors each
+// limb by pairs[pair + 1]). No special cases for the shoulder line, hip line
+// or torso sides.
+export const POSE_CONNECTION_COLORS = POSE_CONNECTIONS.map(([, end]) => POSE_LANDMARK_COLORS[end]);
+
 // 21 hand landmarks, 21 connections.
 export const HAND_CONNECTIONS = pairs([
   0, 1, 1, 2, 2, 3, 3, 4, 0, 5, 5, 6, 6, 7, 7, 8, 5, 9, 9, 10, 10, 11, 11, 12, 9, 13, 13, 14, 14, 15, 15, 16, 13, 17, 0, 17, 17, 18, 18, 19,

@@ -13,7 +13,15 @@ export {
   createOrtSession,
 } from './mediapipe-gpu.js';
 export { LandmarkRenderer, OverlayBatch, drawConnectors, drawLandmarks } from './landmark-drawing.js';
-export { POSE_CONNECTIONS, HAND_CONNECTIONS, FACE_LANDMARKS_CONTOURS, FACE_LANDMARKS_TESSELATION } from './landmark-connections.js';
+export {
+  POSE_CONNECTIONS,
+  POSE_LANDMARK_COLORS,
+  POSE_CONNECTION_COLORS,
+  OPENPOSE_COLORS,
+  HAND_CONNECTIONS,
+  FACE_LANDMARKS_CONTOURS,
+  FACE_LANDMARKS_TESSELATION,
+} from './landmark-connections.js';
 
 // ─── GPU State ──────────────────────────────────────────────────────────────
 

@@ -81,6 +81,8 @@ Since these are faces, we want to use a face detection algorithm. The [Detect Fa
 
 <figure><img src="/img/tutorials/pix2pix/detect-faces.png" alt="Screenshot of Detect Faces setup"/><figcaption>Screenshot of Detect Faces setup</figcaption></figure>
 
+If your photos show whole bodies instead of faces, use the [Detect Pose node](/docs/nodes/detect-pose) in place of Detect Faces and set its _Coloring_ to `per limb`. Every limb then has its own color, so the model can tell which line is which and which side of the body faces the camera.
+
 The training script requires the two images side-by-side, with the **target** (the photo) on the left and the **input** (the mesh) on the right. We'll do that with a [Stack node](/docs/nodes/stack). Note that our final size should be `1024x512`, so we'll take the output of `Resize` and `Detect Faces`, which are both `512x512`.
 
 - Create a `Stack` node.
