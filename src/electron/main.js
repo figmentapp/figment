@@ -7,7 +7,7 @@ import { oscSendMessage, oscStartServer, oscStopServer } from './osc.js';
 import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
 import { midiStartServer, midiStopServer, midiEmitter, getMidiDevices } from './midi.js';
 import { nodeServerStart, nodeServerStop, nodeServerSend, nodeServerStopAll } from './node-server.js';
-import minimist from 'minimist';
+import { parseRenderArgs, RenderCliError, USAGE } from './render-cli.js';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -324,6 +324,16 @@ async function startDevServer() {
   return viteServer;
 }
 
+// The renderer page, from the Vite dev server or the packaged build directory.
+function appPageUrl(params) {
+  const query = querystring.stringify({ appPath: app.getAppPath(), ...params });
+  if (process.env.NODE_ENV === 'development') {
+    return `http://localhost:3000/?${query}`;
+  }
+  const uiDir = path.join(__dirname, '../../build');
+  return `file:///${uiDir}/index.html?${query}`;
+}
+
 function createMainWindow(filePath) {
   gMainWindow = new BrowserWindow({
     width: 1200,
@@ -339,20 +349,13 @@ function createMainWindow(filePath) {
     },
   });
 
-  const encodedFilePath = filePath ? querystring.escape(filePath) : '';
-  // Load the index.html of the app.
+  gMainWindow.loadURL(appPageUrl({ filePath: filePath || '' }));
   if (process.env.NODE_ENV === 'development') {
-    gMainWindow.loadURL(`http://localhost:3000/?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
     // Defer DevTools until after page load to avoid freezing the renderer's
     // event loop during WebGPU initialization (Chromium 140+ regression).
     gMainWindow.webContents.once('did-finish-load', () => {
       gMainWindow.webContents.openDevTools();
     });
-  } else {
-    const electronDir = __dirname;
-    const asarDir = path.join(electronDir, '../../');
-    const uiDir = path.join(asarDir, 'build');
-    gMainWindow.loadURL(`file:///${uiDir}/index.html?appPath=${app.getAppPath()}&filePath=${encodedFilePath}`);
   }
 
   // Handle window close with unsaved changes
@@ -491,7 +494,73 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-const argv = minimist(process.argv.slice(2));
+// In a packaged app the executable is argv[0]; under `electron .` the script path is argv[1].
+const cliArgs = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2);
+let gRenderJob = null;
+if (cliArgs.includes('--help')) {
+  process.stdout.write(USAGE);
+  app.exit(0);
+}
+try {
+  gRenderJob = parseRenderArgs(cliArgs, process.cwd());
+} catch (err) {
+  if (!(err instanceof RenderCliError)) throw err;
+  process.stderr.write(`${err.message}\n`);
+  app.exit(2);
+}
+
+// Headless render: a hidden window runs the export loop and reports back over IPC.
+// Progress goes to stdout, renderer errors to stderr, and the exit code says whether it worked.
+async function startRender(job) {
+  try {
+    await fs.access(job.project);
+  } catch (err) {
+    process.stderr.write(`Project file not found: ${job.project}\n`);
+    app.exit(2);
+    return;
+  }
+  if (isMac) app.dock?.hide();
+
+  gMainWindow = new BrowserWindow({
+    width: 1200,
+    height: 1000,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      webSecurity: false,
+      nodeIntegration: true,
+      // Keeps the hidden page "visible" so WebGPU hands out an adapter and timers run at full speed.
+      backgroundThrottling: false,
+    },
+  });
+  gMainWindow.webContents.on('console-message', (event) => {
+    if (event.level === 'error') process.stderr.write(`${event.message}\n`);
+  });
+  gMainWindow.webContents.on('render-process-gone', (event, details) => {
+    process.stderr.write(`Render process exited unexpectedly (${details.reason}).\n`);
+    app.exit(1);
+  });
+  gMainWindow.loadURL(appPageUrl({ render: JSON.stringify(job) }));
+}
+
+ipcMain.on('render-started', (_, { frames, fps }) => {
+  process.stdout.write(`Rendering ${frames} frame${frames === 1 ? '' : 's'} at ${fps} fps\n`);
+});
+
+ipcMain.on('render-progress', (_, frame, total) => {
+  const line = `Frame ${frame}/${total}`;
+  process.stdout.write(process.stdout.isTTY ? `\r${line}` : `${line}\n`);
+});
+
+ipcMain.handle('render-finished', (_, result) => {
+  if (process.stdout.isTTY) process.stdout.write('\n');
+  if (result.ok) {
+    process.stdout.write(result.output ? `Wrote ${result.frames} frame${result.frames === 1 ? '' : 's'} to ${result.output}\n` : 'Done.\n');
+  } else {
+    process.stderr.write(`Render failed: ${result.message}\n`);
+  }
+  app.exit(result.ok ? 0 : 1);
+});
 
 let gDevServer;
 let filePathToOpen = null;
@@ -513,6 +582,10 @@ app.commandLine.appendSwitch('enable-features', 'WebGPU,UseSkiaGraphite');
 app.whenReady().then(async () => {
   await gSettings.load();
   gDevServer = await startDevServer();
+  if (gRenderJob) {
+    await startRender(gRenderJob);
+    return;
+  }
   // const status = systemPreferences.getMediaAccessStatus('camera');
   // if (status !== 'granted') {
   //   await systemPreferences.askForMediaAccess('camera');
