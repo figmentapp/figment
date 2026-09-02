@@ -90,7 +90,11 @@ export async function initGPU(options = {}) {
       }
     }
 
-    const supportedFeatures = requiredFeatures.filter((f) => _adapter.features.has(f));
+    // Features onnxruntime-web uses on the shared device when present:
+    // shader-f16 to compile float16 models (without it they fail at run time),
+    // timestamp-query for its per-kernel GPU profiling (ort.env.webgpu.profiling).
+    const wantedFeatures = [...new Set([...requiredFeatures, 'shader-f16', 'timestamp-query'])];
+    const supportedFeatures = wantedFeatures.filter((f) => _adapter.features.has(f));
 
     // Request adapter-max compute limits so that libraries like ONNX Runtime
     // can reuse this device without hitting limit validation errors.
