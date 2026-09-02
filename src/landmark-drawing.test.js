@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, test, vi } from 'vitest';
+import { POSE_CONNECTIONS, POSE_LANDMARK_COLORS, POSE_CONNECTION_COLORS, OPENPOSE_COLORS } from './landmark-connections';
 
 // landmark-drawing.js imports figment.js, which touches GPU globals at
 // module scope — stub them before importing (as mediapipe-gpu.test.js does).
@@ -51,6 +52,50 @@ describe('OverlayBatch', () => {
       { p0: [0, 0], p1: [100, 0], radius: 1.5, round: false, color: [1, 1, 1, 1] },
       { p0: [100, 0], p1: [100, 100], radius: 1.5, round: false, color: [1, 1, 1, 1] },
     ]);
+  });
+
+  test('connectors take one color per connection, indexed like the connection list', () => {
+    const b = new ld.OverlayBatch();
+    b.begin(100, 100);
+    const lms = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    const connections = [
+      [0, 1],
+      [1, 2],
+    ];
+    b.connectors(lms, connections, {
+      color: [
+        [255, 0, 0, 1],
+        [0, 255, 0, 0.5],
+      ],
+    });
+    expect(instances(b).map((i) => i.color)).toEqual([
+      [1, 0, 0, 1],
+      [0, 1, 0, 0.5],
+    ]);
+  });
+
+  test('landmarks take one color per landmark; a short table throws', () => {
+    const b = new ld.OverlayBatch();
+    b.begin(10, 10);
+    const lms = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    b.landmarks(lms, {
+      color: [
+        [255, 0, 0, 1],
+        [0, 0, 255, 1],
+      ],
+    });
+    expect(instances(b).map((i) => i.color)).toEqual([
+      [1, 0, 0, 1],
+      [0, 0, 1, 1],
+    ]);
+    expect(() => b.landmarks(lms, { color: [[255, 0, 0, 1]] })).toThrow();
   });
 
   test('visibilityMin hides landmarks at or below it, and their connectors', () => {
@@ -178,5 +223,44 @@ describe('canvas helpers', () => {
       ['lineTo', 100, 50],
     ]);
     expect(ctx.calls.filter(([n]) => n === 'stroke')).toHaveLength(1);
+  });
+});
+
+describe('OpenPose color tables', () => {
+  test('one color per OpenPose keypoint, pose landmark and pose connection', () => {
+    expect(OPENPOSE_COLORS).toHaveLength(18);
+    expect(POSE_LANDMARK_COLORS).toHaveLength(33);
+    expect(POSE_CONNECTION_COLORS).toHaveLength(POSE_CONNECTIONS.length);
+  });
+
+  test('mirrored landmarks never share a color', () => {
+    // Every left/right pair of the BlazePose list; 9/10 (mouth) both map to
+    // the nose and are left out.
+    const mirrored = [
+      [1, 4],
+      [2, 5],
+      [3, 6],
+      [7, 8],
+      [11, 12],
+      [13, 14],
+      [15, 16],
+      [17, 18],
+      [19, 20],
+      [21, 22],
+      [23, 24],
+      [25, 26],
+      [27, 28],
+      [29, 30],
+      [31, 32],
+    ];
+    for (const [left, right] of mirrored) {
+      expect(POSE_LANDMARK_COLORS[left], `landmarks ${left} and ${right}`).not.toEqual(POSE_LANDMARK_COLORS[right]);
+    }
+  });
+
+  test('a connection takes the color of its second landmark', () => {
+    POSE_CONNECTIONS.forEach(([, end], i) => {
+      expect(POSE_CONNECTION_COLORS[i]).toBe(POSE_LANDMARK_COLORS[end]);
+    });
   });
 });

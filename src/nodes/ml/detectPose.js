@@ -10,6 +10,7 @@
 
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
+const coloringIn = node.selectIn('coloring', ['solid', 'per limb'], 'solid');
 const pointsToggleIn = node.toggleIn('draw points', true);
 const pointsColorIn = node.colorIn('points color', [255, 255, 255, 1]);
 const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step: 0.1 });
@@ -61,12 +62,19 @@ function drawResults(poseLandmarks, width, height) {
     detectedOut.value = true;
     landmarksOut.value = { type: 'pose', landmarks: poseLandmarks };
 
+    // Per-limb coloring gives every landmark and limb a fixed hue (the
+    // OpenPose palette), so an image-to-image model trained on these
+    // drawings can tell limbs and sides apart. The points and lines colors
+    // are ignored in that mode.
+    const perLimb = coloringIn.value === 'per limb';
+    const pointsColor = perLimb ? figment.POSE_LANDMARK_COLORS : pointsColorIn.value;
+    const linesColor = perLimb ? figment.POSE_CONNECTION_COLORS : linesColorIn.value;
     for (const landmarks of poseLandmarks) {
       if (pointsToggleIn.value) {
-        batch.landmarks(landmarks, { color: pointsColorIn.value, radius: pointsRadiusIn.value });
+        batch.landmarks(landmarks, { color: pointsColor, radius: pointsRadiusIn.value });
       }
       if (linesToggleIn.value) {
-        batch.connectors(landmarks, figment.POSE_CONNECTIONS, { color: linesColorIn.value, lineWidth: linesWidthIn.value });
+        batch.connectors(landmarks, figment.POSE_CONNECTIONS, { color: linesColor, lineWidth: linesWidthIn.value });
       }
     }
   } else {
