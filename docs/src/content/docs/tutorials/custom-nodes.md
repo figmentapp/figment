@@ -7,6 +7,8 @@ title: 'Creating Custom Nodes'
 By writing a custom JavaScript node you can add brand‑new image‑processing, audio, or data‑generation to any project.
 This guide walks you through the whole workflow – from the UI basics to the final code.
 
+Every node in Figment is written the same way, so once you know the scaffold you can read and change the built-in nodes too.
+
 ## What a custom node looks like
 
 Every Figment node follows the same scaffold:
@@ -23,7 +25,7 @@ const inputPort = node.imageIn('in');
 const outputPort = node.imageOut('out');
 
 node.onStart = async () => {
-  /* one‑time init (shaders, textures, etc.) */
+  /* one‑time init (pipelines, render targets, timers) */
 };
 
 node.onRender = () => {
@@ -36,6 +38,8 @@ node.onStop = () => {
 ```
 
 The block above is the template you’ll paste into your new node after you “fork” a Null node (see the UI steps below).
+
+Two globals are available inside a node: `node`, the node you are writing, and `figment`, the graphics toolkit described below. Nodes cannot `import` external libraries.
 
 ## Creating a custom node
 
@@ -53,6 +57,92 @@ Custom nodes are stored in the `.fgmt` file as source code.
 :::info
 Figment is actually a custom browser (built in Electron). Use the developer tools (View > Toggle Developer Tools) to debug and inspect your custom node!
 :::
+
+## Ports and parameters
+
+Ports are the inputs and outputs of a node. Declare them at the top of the file; the editor builds the parameter panel and the plugs on the node from them.
+
+Inputs that show up as parameters:
+
+- `node.numberIn(name, default, { min, max, step })`: a number slider.
+- `node.toggleIn(name, default)`: a checkbox.
+- `node.selectIn(name, options, default)`: a drop-down list.
+- `node.stringIn(name, default)`: a text field.
+- `node.colorIn(name, [r, g, b, a])`: a color picker. Red, green, and blue are 0 to 255; alpha is 0 to 1.
+- `node.pointIn(name, point)`: an x/y position.
+- `node.fileIn(name)` and `node.directoryIn(name)`: a file or folder chooser.
+- `node.triggerButtonIn(name)`: a button. Set `.onTrigger` to react to a click.
+
+Inputs that show up as plugs on the node:
+
+- `node.imageIn(name)`: an image.
+- `node.audioIn(name)`: an audio signal.
+- `node.booleanIn(name)`: a true/false value.
+- `node.objectIn(name)`: any JavaScript value, such as landmarks.
+- `node.triggerIn(name)`: a bang. Set `.onTrigger` to react.
+
+Outputs: `imageOut`, `booleanOut`, `numberOut`, `stringOut`, `colorOut`, `objectOut`, and `triggerOut`.
+
+Read a port with `.value` and write an output with `.set(value)`. Every parameter input has an `.onChange` hook that fires when the user changes it. A parameter can also be a plug, so an expression or another node can drive it:
+
+```js
+const playIn = node.toggleIn('play', true);
+playIn.display = 0x03; // parameter (0x01) and plug (0x02)
+```
+
+## Writing a GPU filter
+
+Image nodes work on the GPU. An image in Figment is a texture that never leaves the graphics card, and a filter is a small program in [WGSL](https://www.w3.org/TR/WGSL/), the WebGPU shading language, that computes one output pixel at a time.
+
+The `figment.createImageFilter` helper handles everything around the shader: it creates the `in` and `out` ports, compiles the pipeline, allocates the output image at the size of the input, and draws every frame. You supply the pixel function and the parameter values.
+
+```js
+/**
+ * @name Saturation
+ * @description Change the saturation of the image.
+ * @category image
+ */
+
+const saturationIn = node.numberIn('saturation', 1.0, { min: 0, max: 2, step: 0.01 });
+
+figment.createImageFilter(node, {
+  label: 'saturation',
+  uniforms: { u_saturation: 'f32' },
+  wgsl: `
+    let c = textureSample(u_input_texture, defaultSampler, in.uv);
+    let luma = dot(c.rgb, vec3f(0.2126, 0.7152, 0.0722));
+    return vec4f(mix(vec3f(luma), c.rgb, u.u_saturation), c.a);
+  `,
+  getUniforms: () => ({ u_saturation: saturationIn.value }),
+});
+```
+
+Inside the `wgsl` block you can use:
+
+- `in.uv`: the position of the pixel, from `(0, 0)` at the top left to `(1, 1)` at the bottom right.
+- `u_input_texture` and `defaultSampler`: the input image. Read it with `textureSample(u_input_texture, defaultSampler, in.uv)`.
+- `u.<name>`: the uniforms you declared. Give each one a WGSL type: `f32`, `i32`, `u32`, `vec2f`, `vec3f`, `vec4f`, `mat3x3f`, or `mat4x4f`. `getUniforms` returns the values for the current frame.
+
+The block is the body of the fragment function, so it ends with `return` of a `vec4f` color, with each channel from 0 to 1. To write helper functions, or to take control of the entry point, include the whole `@fragment fn fs_main(in: VertexOutput) -> @location(0) vec4f { ... }` yourself; the helper detects it. The Levels node is an example.
+
+Two variations of the helper cover the other common shapes:
+
+- `figment.createImageGenerator(node, { label, uniforms, wgsl, getUniforms, getSize })` makes a node with no input. `getSize` returns the `{ width, height }` of the output. See the Constant node.
+- `figment.createFeedbackFilter(node, { label, uniforms, wgsl, getUniforms })` keeps the previous output and passes it to the shader as `u_feedback_texture`. Trail and Smooth are built on it.
+
+## Taking full control
+
+The helpers assume one input and an output of the same size. For anything else, such as two input images, a fixed output size, or drawing with the 2D canvas API, use the building blocks directly:
+
+- `figment.generateWgslPreamble({ uniforms, textures })` writes the WGSL declarations for your uniforms and textures, so the shader can refer to them by name.
+- `figment.createRenderPipeline({ wgsl, uniforms, textures, label })` compiles a fragment shader. Do this once, in `onStart`.
+- `new figment.RenderTarget({ label })` is an image you can draw into. Call `setSize(width, height)` before drawing; it only reallocates when the size changes.
+- `figment.drawFullscreen(pipeline, uniformValues, textureValues, target)` runs the shader over every pixel of the target. Do this in `onRender`, then `imageOut.set(target)`.
+- `target.uploadExternal(canvas)` copies an `OffscreenCanvas` or bitmap into a render target. Use it when you draw with the 2D canvas API, as the Drawing node does.
+- `await image.readPixels()` reads an image back to the CPU as `ImageData`. This is slow; use it only when you need the pixels in JavaScript.
+- `target.destroy()` frees the GPU memory. Call it in `onStop`.
+
+The example below uses this path.
 
 ## Example: weather forecast node
 
@@ -124,48 +214,46 @@ const WMO_SAT = {
   99: 0.3, // Thunderstorm with hail (slight/heavy)
 };
 
-const fragmentShader = `
- precision mediump float;
- uniform sampler2D u_input_texture;
- uniform float u_saturation;
- varying vec2 v_uv;
+const uniforms = { u_saturation: 'f32' };
+const textures = ['u_input_texture'];
+const wgsl =
+  figment.generateWgslPreamble({ uniforms, textures }) +
+  `
+  @fragment
+  fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    let c = textureSample(u_input_texture, defaultSampler, in.uv);
+    // Perceptual luma (Rec. 709)
+    let luma = dot(c.rgb, vec3f(0.2126, 0.7152, 0.0722));
+    let grey = vec3f(luma);
+    // Mix the gray version with the original color
+    let rgb = mix(grey, c.rgb, u.u_saturation);
+    return vec4f(rgb, c.a);
+  }
+`;
 
- void main() {
-   vec4 c = texture2D(u_input_texture, v_uv);
-   // Calculate perceptual luma (Rec. 709)
-   float luma = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-   vec3 grey = vec3(luma);
-   // Mix original color with saturation value
-   vec3 outRgb = mix(grey, c.rgb, luma);
-   gl_FragColor = vec4(outRgb, c.a);
- }
- `;
-
-let _program, _framebuffer;
-let _lastLat, _lastLon, _lastInterval; // This allows us to track changes
+let _pipeline, _target;
 let _timer; // Interval timer
-let _saturation = 0.75;
+let _saturation = DEFAULT_SAT;
 
 node.onStart = async () => {
-  _program = figment.createShaderProgram(fragmentShader);
-  _framebuffer = new figment.Framebuffer();
+  _pipeline = figment.createRenderPipeline({ wgsl, uniforms, textures, label: 'weather-saturation' });
+  _target = new figment.RenderTarget({ label: 'weather-saturation' });
   // Fetch immediately, then schedule periodic refreshes.
   await updateWeather();
   rescheduleTimer();
 };
 
 node.onRender = () => {
-  if (!imageIn.value) return;
+  const img = imageIn.value;
+  if (!img) return;
+  _target.setSize(img.width, img.height);
+  figment.drawFullscreen(_pipeline, { u_saturation: _saturation }, { u_input_texture: img }, _target);
+  imageOut.set(_target);
+};
 
-  _framebuffer.setSize(imageIn.value.width, imageIn.value.height);
-  _framebuffer.bind();
-  figment.clear();
-  figment.drawQuad(_program, {
-    u_input_texture: imageIn.value.texture,
-    u_saturation: _saturation,
-  });
-  _framebuffer.unbind();
-  imageOut.set(_framebuffer);
+node.onStop = () => {
+  clearInterval(_timer);
+  _target?.destroy();
 };
 
 async function updateWeather() {
@@ -193,6 +281,12 @@ lonIn.onChange = updateWeather;
 intervalIn.onChange = rescheduleTimer;
 ```
 
+A few things to note:
+
+- The shader is compiled once, in `onStart`. Only the uniform value changes per frame, which is cheap.
+- The weather fetch is asynchronous and independent of rendering. `onRender` never waits for the network; it uses whatever saturation value the last fetch produced.
+- `onStop` clears the timer. Without it, the fetch would keep running after the node is deleted.
+
 ## Get AI Help
 
 We developed a custom Gemini Gem that can help you write or debug custom nodes:
@@ -209,4 +303,11 @@ We developed a custom Gemini Gem that can help you write or debug custom nodes:
 
 ## Example Nodes
 
-You can inspect the code of any node in Figment by right-clicking and choosing "View Source". Furthermore, the code of Figment is also open-source, so you can look at the [src/nodes](https://github.com/figmentapp/figment/tree/master/src/nodes) directory of Figment.
+You can inspect the code of any node in Figment by right-clicking and choosing "View Source". Furthermore, the code of Figment is also open-source, so you can look at the [src/nodes](https://github.com/figmentapp/figment/tree/main/src/nodes) directory of Figment. Good starting points:
+
+- **Invert** and **Levels**: filters built with `createImageFilter`, the second with helper functions in WGSL.
+- **Constant**: a generator.
+- **Smooth**: a feedback filter.
+- **Composite**: two input images, with the pipeline built by hand.
+- **Drawing**: a node that fills a canvas from outside data and uploads it to a render target.
+- **Detect Faces**: a node that runs a model and draws the landmarks on the GPU with `figment.LandmarkRenderer`.

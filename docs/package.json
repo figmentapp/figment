@@ -13,9 +13,10 @@
     "@astrojs/react": "^4.4.0",
     "astro": "^5.2.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "remark-directive": "^4.0.0",
+    "unist-util-visit": "^5.1.0"
   },
-  "devDependencies": {},
   "browserslist": {
     "production": [
       ">0.5%",

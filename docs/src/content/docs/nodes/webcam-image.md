@@ -10,3 +10,4 @@ This node captures the webcam stream.
 
 - **Frame Rate** The speed in fps.
 - **Camera** Switch between the available cameras.
+- **Mirror** Flip the image horizontally, so it behaves like a mirror. On by default.

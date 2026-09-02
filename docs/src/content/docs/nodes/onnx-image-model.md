@@ -4,9 +4,11 @@ title: 'ONNX Image Model'
 
 # ONNX Image Model
 
-Run a PIX2PIX image to image model developed in ONNX. This is similar to [Image to Image](image-to-image.md) but uses an ONNX model instead of a TensorFlow.js model.
+Run a PIX2PIX image to image model in ONNX format. Inference runs through ONNX Runtime Web on the GPU and does not block the interface: the node keeps showing its last output until the next result is ready.
 
-The node automatically reads the required input and output dimensions from the ONNX model metadata. Input images must match the model's expected size.
+The node reads the required input and output dimensions from the ONNX model metadata. Input images must match the model's expected size, so put a [Resize](/docs/nodes/resize) node in front of it.
+
+The [PIX2PIX tutorial](/docs/tutorials/pix2pix) walks through preparing a dataset in Figment, training with the script below, and running the result live.
 
 To work well, it needs an input that is similar to what it has seen in training; e.g. if you trained it on a hand model, you need to feed it hand models with the same color and line thickness.
 

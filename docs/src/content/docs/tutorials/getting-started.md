@@ -27,6 +27,16 @@ Watch the YouTube tutorial to get started with Figment:
 
 <video muted autoplay style="width: 100%;" src="/img/tutorials/getting-started/figment-connect-disconnect.mp4"></video>
 
+## Undo and redo
+
+- Every change to the network can be undone: adding, deleting, moving, and connecting nodes, and changing parameters.
+- Undo with Cmd+Z (macOS) or Ctrl+Z (Windows). Redo with Cmd+Shift+Z or Ctrl+Shift+Z. Both are also in the Edit menu.
+
+## Full screen and performance
+
+- View > Enter Full Screen (Cmd/Ctrl+Shift+F) shows only the output. Press Escape to leave.
+- View > Toggle Performance Overlay (Cmd/Ctrl+Shift+P) shows rolling averages of the frame time and of the render time of the slowest nodes. Use it to find the node that slows the network down.
+
 ## Exporting
 
 - Once you're done, you can export as an image sequence. Read the [documentation on exporting](/docs/export) for more info.

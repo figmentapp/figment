@@ -10,5 +10,7 @@ This node loads a list of images from disk.
 
 - **Folder** The folder that needs to be selected from. Figment will use [relative paths](/docs/structuring#relative-paths) if the file was saved.
 - **Filter** Specifies the image type (jpg / png)
+- **Sort By** The order of the list: `alphabetical` by file name, or by the `created` or `modified` date of the files.
+- **Order** `ascending` or `descending`.
 - **Animate** Play through the list of images. Turn this off to stop playing.
 - **Frame Rate** The speed in fps to run through the selected images

@@ -59,8 +59,8 @@ function FeatureMachineLearning() {
           <div className="col col-6">
             <h2 className="text-2xl">Training & inference built in</h2>
             <p className="text-lg">
-              Use pre-made MediaPipe models or bring your own TensorFlow.js and ONNX models. Train, fine-tune and run them live with minimal
-              latency.
+              Use the built-in MediaPipe models, running natively on the GPU, or bring your own ONNX models. Train, fine-tune and run them
+              live with minimal latency.
             </p>
           </div>
           <div className="col col-6">

@@ -9,8 +9,9 @@ Log stands for Laplacian of Gaussian.
 
 ## Parameters
 
-- **Blur**
-- **Increase Fx**
+- **Blur** The radius of the Gaussian blur that runs before the Laplacian. Larger values find coarser edges.
+- **Increase Fx** Amplifies the edge response.
+- **Threshold** Edges below this value are dropped, from 0 to 1.
 
 ## Example
 

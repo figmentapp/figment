@@ -8,8 +8,7 @@ This node pixelates the input image.
 
 ## Parameters
 
-- **Amount X** The amount of pixels on the width of the image
-- **Amount Y** The amount of pixels on the height of the image
+- **Cell Size** The size of each block in pixels, from 1 to 200.
 
 ## Example
 

@@ -4,16 +4,16 @@ title: 'Segment Image'
 
 # Segment Image
 
-Isolate a person from the background of the input image, either removing or keeping only the background. Works on any image; it does not need a detected pose (compare [Segment Pose](/docs/nodes/segment-pose)).
+Cut the person out of the input image with MediaPipe's selfie segmenter, or cut the person away and keep the background. Unlike [Segment Pose](/docs/nodes/segment-pose), this node does not need a full body in view: it works on portraits and close-ups.
 
-The segmentation runs MediaPipe's selfie segmenter model on the GPU through ONNX Runtime, so the image never leaves the GPU.
+The model runs on the GPU through ONNX Runtime; the image and the mask never leave the GPU.
 
 ## Parameters
 
-- **Remove**: Whether to remove the background or the foreground.
-- **Output Type**: `categoryMask` gives a hard edge (each pixel is either person or background); `confidenceMasks` keeps the model's probability, for soft edges.
+- **Remove** `background` keeps the person and makes everything else transparent. `foreground` does the opposite.
+- **Output Type** `categoryMask` gives a hard edge: every pixel is either person or background. `confidenceMasks` keeps the model's probability for a softer edge.
 
 ## Outputs
 
-- **Out**: The input image with the selected part made transparent.
-- **Mask**: The person mask as a grayscale image (white is person).
+- **Out** The input image with the alpha channel set from the mask.
+- **Mask** The person mask as a grayscale image: white where the person is, black elsewhere. Use it with [Mask Image](/docs/nodes/mask) or [Composite](/docs/nodes/composite) to build your own effects.
