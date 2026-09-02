@@ -87,7 +87,7 @@ function requireOutputs(modelName, session, names) {
 }
 
 const NMS_IOU_THRESHOLD = 0.3; // min_suppression_threshold in all three detector graphs
-const TRACKING_IOU_THRESHOLD = 0.5; // AssociationNormRect min_similarity_threshold
+const TRACKING_OVERLAP_THRESHOLD = 0.5; // AssociationNormRect min_similarity_threshold
 
 // ─── SSD anchors (SsdAnchorsCalculator) ─────────────────────────────────────
 //
@@ -170,11 +170,21 @@ export function roiFromDetectionBox(det, frameWidth, frameHeight, { rotStartKp, 
   return { cx, cy, size, rotation };
 }
 
-function roiIou(a, b) {
-  return boxIou(
-    [a.cx - a.size / 2, a.cy - a.size / 2, a.cx + a.size / 2, a.cy + a.size / 2],
-    [b.cx - b.size / 2, b.cy - b.size / 2, b.cx + b.size / 2, b.cy + b.size / 2],
-  );
+// How much two ROIs cover the same subject: their intersection over the
+// smaller of the two, ignoring rotation. MediaPipe associates rects by IoU,
+// but the two ROI estimates for one person — the detector's keypoints and
+// the landmark model's auxiliary points — differ most in size, on close-ups
+// and bodies partly out of frame, and two concentric squares at a 2:1 size
+// ratio have an IoU of only 0.25. Nested boxes score 1 here.
+export function roiOverlap(a, b) {
+  const ax0 = a.cx - a.size / 2;
+  const ay0 = a.cy - a.size / 2;
+  const bx0 = b.cx - b.size / 2;
+  const by0 = b.cy - b.size / 2;
+  const w = Math.min(ax0 + a.size, bx0 + b.size) - Math.max(ax0, bx0);
+  const h = Math.min(ay0 + a.size, by0 + b.size) - Math.max(ay0, by0);
+  if (w <= 0 || h <= 0) return 0;
+  return (w * h) / Math.min(a.size * a.size, b.size * b.size);
 }
 
 // ─── Detection decoding (TensorsToDetectionsCalculator + weighted NMS) ──────
@@ -583,7 +593,7 @@ class TwoStageGpuPipeline {
     for (const det of detections) {
       if (merged.length >= this.maxInstances) break;
       const roi = this._roiFromDetection(det);
-      if (!merged.some((r) => roiIou(r, roi) > TRACKING_IOU_THRESHOLD)) merged.push(roi);
+      if (!merged.some((r) => roiOverlap(r, roi) > TRACKING_OVERLAP_THRESHOLD)) merged.push(roi);
     }
     return merged;
   }

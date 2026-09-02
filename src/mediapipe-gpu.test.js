@@ -400,3 +400,25 @@ describe('SegmentGpuPipeline', () => {
     expect(p.maskTarget).toBeNull();
   });
 });
+
+describe('roiOverlap', () => {
+  test('is the intersection over the smaller ROI, so a nested ROI counts as full overlap', () => {
+    const small = { cx: 100, cy: 100, size: 100, rotation: 0 };
+    const twiceAsBig = { cx: 100, cy: 100, size: 200, rotation: 0.3 };
+    expect(mp.roiOverlap(small, twiceAsBig)).toBeCloseTo(1, 9);
+    expect(mp.roiOverlap(twiceAsBig, small)).toBeCloseTo(1, 9);
+    // Same size, shifted by half a side.
+    expect(mp.roiOverlap(small, { ...small, cx: 150 })).toBeCloseTo(0.5, 9);
+    expect(mp.roiOverlap(small, { ...small, cx: 300 })).toBe(0);
+  });
+});
+
+describe('_mergeDetections', () => {
+  test('rejects a detection of a tracked person even when its ROI is much larger', () => {
+    const p = new mp.PoseGpuPipeline({ maxInstances: 4 });
+    const tracked = { cx: 320, cy: 240, size: 300, rotation: 0 };
+    const detections = [{ roi: { cx: 330, cy: 250, size: 700, rotation: 0.1 } }, { roi: { cx: 40, cy: 40, size: 60, rotation: 0 } }];
+    p._roiFromDetection = (det) => det.roi;
+    expect(p._mergeDetections([tracked], detections)).toEqual([tracked, detections[1].roi]);
+  });
+});
