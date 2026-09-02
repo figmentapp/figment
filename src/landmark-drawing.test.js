@@ -1,5 +1,14 @@
 import { beforeAll, describe, expect, test, vi } from 'vitest';
-import { POSE_CONNECTIONS, POSE_LANDMARK_COLORS, POSE_CONNECTION_COLORS, OPENPOSE_COLORS } from './landmark-connections';
+import {
+  POSE_CONNECTIONS,
+  POSE_LANDMARK_COLORS,
+  POSE_CONNECTION_COLORS,
+  OPENPOSE_COLORS,
+  HAND_CONNECTIONS,
+  HAND_COLORS,
+  HAND_LANDMARK_COLORS,
+  HAND_CONNECTION_COLORS,
+} from './landmark-connections';
 
 // landmark-drawing.js imports figment.js, which touches GPU globals at
 // module scope — stub them before importing (as mediapipe-gpu.test.js does).
@@ -262,5 +271,36 @@ describe('OpenPose color tables', () => {
     POSE_CONNECTIONS.forEach(([, end], i) => {
       expect(POSE_CONNECTION_COLORS[i]).toBe(POSE_LANDMARK_COLORS[end]);
     });
+  });
+});
+
+describe('hand color tables', () => {
+  test('one color per hand, per landmark and per connection, for each handedness', () => {
+    for (const side of ['Right', 'Left']) {
+      expect(HAND_COLORS[side]).toHaveLength(4);
+      expect(HAND_LANDMARK_COLORS[side]).toHaveLength(21);
+      expect(HAND_CONNECTION_COLORS[side]).toHaveLength(HAND_CONNECTIONS.length);
+    }
+  });
+
+  test('no landmark color is shared between the two hands', () => {
+    const left = new Set(HAND_LANDMARK_COLORS.Left.map(String));
+    for (const color of HAND_LANDMARK_COLORS.Right) expect(left.has(String(color))).toBe(false);
+  });
+
+  test('within a hand, the wrist and the five fingertips all differ', () => {
+    for (const side of ['Right', 'Left']) {
+      const colors = [0, 4, 8, 12, 16, 20].map((i) => String(HAND_LANDMARK_COLORS[side][i]));
+      expect(new Set(colors).size).toBe(6);
+    }
+  });
+
+  test('a connection takes the color of its second landmark; the hand color is the wrist color', () => {
+    for (const side of ['Right', 'Left']) {
+      HAND_CONNECTIONS.forEach(([, end], i) => {
+        expect(HAND_CONNECTION_COLORS[side][i]).toBe(HAND_LANDMARK_COLORS[side][end]);
+      });
+      expect(HAND_COLORS[side]).toBe(HAND_LANDMARK_COLORS[side][0]);
+    }
   });
 });

@@ -100,6 +100,49 @@ export const HAND_CONNECTIONS = pairs([
   19, 20,
 ]);
 
+// Hand palettes: hue encodes the finger, in 30° steps, and the two hands
+// take opposite halves of the hue wheel, so no finger of one hand shares a
+// color with any finger of the other. Keyed by the handedness label the
+// hand pipeline returns. Entry 0 is the wrist, then thumb, index, middle,
+// ring, pinky.
+export const HAND_FINGER_COLORS = {
+  Right: [
+    [255, 0, 0, 1], // wrist
+    [255, 128, 0, 1], // thumb
+    [255, 255, 0, 1], // index
+    [128, 255, 0, 1], // middle
+    [0, 255, 0, 1], // ring
+    [0, 255, 128, 1], // pinky
+  ],
+  Left: [
+    [0, 255, 255, 1], // wrist
+    [0, 128, 255, 1], // thumb
+    [0, 0, 255, 1], // index
+    [128, 0, 255, 1], // middle
+    [255, 0, 255, 1], // ring
+    [255, 0, 128, 1], // pinky
+  ],
+};
+
+// The wrist color stands for the whole hand: red for a right hand, cyan for
+// a left hand.
+export const HAND_COLORS = { Right: HAND_FINGER_COLORS.Right[0], Left: HAND_FINGER_COLORS.Left[0] };
+
+// The finger each of the 21 hand landmarks belongs to: 0 is the wrist, then
+// four landmarks per finger from the base to the tip.
+const HAND_LANDMARK_TO_FINGER = [0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5];
+
+// One color per hand landmark and per HAND_CONNECTIONS entry, for each
+// handedness. As for the pose, a connection takes the color of its second
+// landmark, so the palm edges fan out in the color of the finger they lead
+// to and the wrist color appears only on the wrist dot.
+export const HAND_LANDMARK_COLORS = {};
+export const HAND_CONNECTION_COLORS = {};
+for (const side of ['Right', 'Left']) {
+  HAND_LANDMARK_COLORS[side] = HAND_LANDMARK_TO_FINGER.map((i) => HAND_FINGER_COLORS[side][i]);
+  HAND_CONNECTION_COLORS[side] = HAND_CONNECTIONS.map(([, end]) => HAND_LANDMARK_COLORS[side][end]);
+}
+
 // 478 face landmarks. Contours: lips, eyes, eyebrows, irises and face oval
 // (124 connections).
 export const FACE_LANDMARKS_CONTOURS = pairs([

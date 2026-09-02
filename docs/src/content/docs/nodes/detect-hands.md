@@ -11,6 +11,7 @@ Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to s
 ## Parameters
 
 - **Background** The color that fills the output image behind the drawing.
+- **Coloring** `solid` draws every point and line in the colors below. `per hand` draws a right hand in red and a left hand in cyan. `per finger` gives each finger its own hue as well, warm colors for the right hand and cool colors for the left, so no two fingers of either hand share a color. Use `per hand` or `per finger` when the drawing is the input of an image-to-image model such as pix2pix. The point and line colors are ignored in these modes. Handedness is judged from an un-mirrored image: a mirrored webcam swaps the colors.
 - **Draw Points** Draw each landmark as a dot.
 - **Color** (points) The color of the dots.
 - **Radius** The size of the dots.
