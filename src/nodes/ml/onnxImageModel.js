@@ -263,49 +263,54 @@ async function loadModel() {
 async function runInference() {
   isRunning = true;
   try {
-    measurePhase('preprocess-dispatch', () => {
-      const convertInputBindGroup = device.createBindGroup({
-        layout: convertInputPipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: imageIn.value.view },
-          { binding: 1, resource: { buffer: inputBuffer } },
-        ],
-      });
-
-      const inputEncoder = device.createCommandEncoder();
-      const convertInputPass = inputEncoder.beginComputePass();
-      convertInputPass.setPipeline(convertInputPipeline);
-      convertInputPass.setBindGroup(0, convertInputBindGroup);
-      convertInputPass.dispatchWorkgroups(inputWorkgroupsX, inputWorkgroupsY);
-      convertInputPass.end();
-      device.queue.submit([inputEncoder.finish()]);
-    });
-
-    await measureAsyncPhase('session-run', () =>
-      figment.withOrt(() => session.run({ [inputName]: inputTensor }, { [outputName]: outputTensor })),
-    );
-
-    measurePhase('postprocess-dispatch', () => {
-      const encoder = device.createCommandEncoder();
-      const convertOutputPass = encoder.beginComputePass();
-      convertOutputPass.setPipeline(convertOutputPipeline);
-      convertOutputPass.setBindGroup(0, convertOutputBindGroup);
-      convertOutputPass.dispatchWorkgroups(outputWorkgroupsX, outputWorkgroupsY);
-      convertOutputPass.end();
-
-      encoder.copyTextureToTexture({ texture: bridgeTexture }, { texture: target.texture }, [outWidth, outHeight]);
-
-      device.queue.submit([encoder.finish()]);
-    });
-
-    // Wait for actual GPU completion before allowing the next inference.
-    // Without this, session.run() resolves after merely queuing GPU work,
-    // isRunning clears immediately, and the next frame floods the GPU queue
-    // with another inference — starving the compositor of GPU time.
-    await device.queue.onSubmittedWorkDone();
+    // Measured to GPU completion: session.run() resolves once the work is queued.
+    await measureAsyncPhase('inference-total', dispatchInference);
   } finally {
     isRunning = false;
   }
+}
+
+async function dispatchInference() {
+  measurePhase('preprocess-dispatch', () => {
+    const convertInputBindGroup = device.createBindGroup({
+      layout: convertInputPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: imageIn.value.view },
+        { binding: 1, resource: { buffer: inputBuffer } },
+      ],
+    });
+
+    const inputEncoder = device.createCommandEncoder();
+    const convertInputPass = inputEncoder.beginComputePass();
+    convertInputPass.setPipeline(convertInputPipeline);
+    convertInputPass.setBindGroup(0, convertInputBindGroup);
+    convertInputPass.dispatchWorkgroups(inputWorkgroupsX, inputWorkgroupsY);
+    convertInputPass.end();
+    device.queue.submit([inputEncoder.finish()]);
+  });
+
+  await measureAsyncPhase('session-run', () =>
+    figment.withOrt(() => session.run({ [inputName]: inputTensor }, { [outputName]: outputTensor })),
+  );
+
+  measurePhase('postprocess-dispatch', () => {
+    const encoder = device.createCommandEncoder();
+    const convertOutputPass = encoder.beginComputePass();
+    convertOutputPass.setPipeline(convertOutputPipeline);
+    convertOutputPass.setBindGroup(0, convertOutputBindGroup);
+    convertOutputPass.dispatchWorkgroups(outputWorkgroupsX, outputWorkgroupsY);
+    convertOutputPass.end();
+
+    encoder.copyTextureToTexture({ texture: bridgeTexture }, { texture: target.texture }, [outWidth, outHeight]);
+
+    device.queue.submit([encoder.finish()]);
+  });
+
+  // Wait for actual GPU completion before allowing the next inference.
+  // Without this, session.run() resolves after merely queuing GPU work,
+  // isRunning clears immediately, and the next frame floods the GPU queue
+  // with another inference — starving the compositor of GPU time.
+  await measureAsyncPhase('gpu-wait', () => device.queue.onSubmittedWorkDone());
 }
 
 node.onRender = () => {

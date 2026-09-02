@@ -51,7 +51,9 @@ export function dumpPerformance() {
     'frame',
     'render-all-nodes',
     'onnx-image:preprocess-dispatch',
+    'onnx-image:inference-total',
     'onnx-image:session-run',
+    'onnx-image:gpu-wait',
     'onnx-image:postprocess-dispatch',
   ];
 
