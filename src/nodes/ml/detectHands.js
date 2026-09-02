@@ -10,6 +10,7 @@
 
 const imageIn = node.imageIn('in');
 const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
+const coloringIn = node.selectIn('coloring', ['solid', 'per hand', 'per finger'], 'solid');
 const pointsToggleIn = node.toggleIn('draw points', true);
 const pointsColorIn = node.colorIn('points color', [255, 255, 255, 1]);
 const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step: 0.1 });
@@ -60,12 +61,13 @@ function drawResults(results, width, height) {
       worldLandmarks: results.map((r) => r.worldLandmarks),
     };
 
-    for (const { landmarks } of results) {
+    for (const { landmarks, handedness } of results) {
+      const [pointsColor, linesColor] = handColors(handedness[0].categoryName);
       if (linesToggleIn.value) {
-        batch.connectors(landmarks, figment.HAND_CONNECTIONS, { color: linesColorIn.value, lineWidth: linesWidthIn.value });
+        batch.connectors(landmarks, figment.HAND_CONNECTIONS, { color: linesColor, lineWidth: linesWidthIn.value });
       }
       if (pointsToggleIn.value) {
-        batch.landmarks(landmarks, { color: pointsColorIn.value, radius: pointsRadiusIn.value });
+        batch.landmarks(landmarks, { color: pointsColor, radius: pointsRadiusIn.value });
       }
     }
   } else {
@@ -75,6 +77,21 @@ function drawResults(results, width, height) {
 
   _overlay.draw(_target, backgroundIn.value);
   imageOut.set(_target);
+}
+
+// The [points, lines] colors for a hand of the given handedness ('Right' or
+// 'Left'). Per-hand and per-finger coloring use fixed hues so that an
+// image-to-image model trained on these drawings can tell the hands, and
+// the fingers, apart; the points and lines colors are ignored then.
+function handColors(side) {
+  switch (coloringIn.value) {
+    case 'per hand':
+      return [figment.HAND_COLORS[side], figment.HAND_COLORS[side]];
+    case 'per finger':
+      return [figment.HAND_LANDMARK_COLORS[side], figment.HAND_CONNECTION_COLORS[side]];
+    default:
+      return [pointsColorIn.value, linesColorIn.value];
+  }
 }
 
 function updateOptions() {
