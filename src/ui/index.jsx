@@ -25,9 +25,15 @@ ort.env.wasm.wasmPaths = ortBase;
 
 const params = new URLSearchParams(window.location.search);
 const filePath = params.get('filePath');
-const root = createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App filePath={filePath} />
-  </React.StrictMode>,
-);
+const renderJob = params.get('render');
+if (renderJob) {
+  // Headless --render: no editor, the module drives the export loop and exits the app.
+  import('./headless-render').then(({ runHeadlessRender }) => runHeadlessRender(JSON.parse(renderJob)));
+} else {
+  const root = createRoot(document.getElementById('root'));
+  root.render(
+    <React.StrictMode>
+      <App filePath={filePath} />
+    </React.StrictMode>,
+  );
+}

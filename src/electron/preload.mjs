@@ -279,6 +279,20 @@ async function getMidiDevices() {
   return await ipcRenderer.invoke('getMidiDevices');
 }
 
+// Headless --render reporting. Progress is fire-and-forget; the result is
+// awaited so the main process has it before it exits.
+function renderStarted(info) {
+  ipcRenderer.send('render-started', info);
+}
+
+function renderProgress(frame, total) {
+  ipcRenderer.send('render-progress', frame, total);
+}
+
+async function renderFinished(result) {
+  await ipcRenderer.invoke('render-finished', result);
+}
+
 // Frame sharing (Syphon on macOS; Spout planned for Windows).
 // The native addon is loaded lazily and in-process: publishing goes straight
 // from the renderer into the addon without an IPC round-trip to main.
@@ -395,6 +409,9 @@ contextBridge.exposeInMainWorld('desktop', {
   setRepresentedFilename,
   setDocumentEdited,
   getMidiDevices,
+  renderStarted,
+  renderProgress,
+  renderFinished,
   openExternal,
   startNodeServer,
   stopNodeServer,
