@@ -55,12 +55,16 @@ function settled(promise) {
 }
 
 // Fetch the model outside the gate (plain I/O that other nodes need not wait
-// for) and build the session inside it.
-export async function createOrtSession(url) {
+// for) and build the session inside it. Accepts a URL or the model bytes.
+export async function createOrtSession(source) {
+  const bytes = source instanceof Uint8Array ? source : await fetchModelBytes(source);
+  return withOrt(() => window.ort.InferenceSession.create(bytes, { executionProviders: ['webgpu'] }));
+}
+
+export async function fetchModelBytes(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch model ${url}: ${response.status} ${response.statusText}`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  return withOrt(() => window.ort.InferenceSession.create(bytes, { executionProviders: ['webgpu'] }));
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 // Point onnxruntime-web at Figment's device. A different device (after a
