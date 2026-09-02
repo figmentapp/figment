@@ -20,6 +20,7 @@ Figment is a visual node-based application for creative AI data processing, buil
 
 - `src/model/`: core application logic and data structures
 - `src/nodes/`: node definitions and processing logic
+- `src/onnx/`: ONNX model converter (float16, ConvTranspose rewrite) and its protobuf codec
 - `src/ui/`: React components and UI logic
 - `src/ui/store.js`: Zustand state management
 - `src/electron/`: Electron main and preload scripts
