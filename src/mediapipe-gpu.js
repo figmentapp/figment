@@ -33,6 +33,7 @@
 // the corresponding *_graph.cc files.
 
 import { getAdapter, getDevice, createRenderPipeline, createComputePipeline, drawFullscreen, dispatch, RenderTarget } from './figment';
+import { LandmarkSmoother } from './one-euro';
 
 export const MAX_INSTANCES = 4;
 
@@ -257,6 +258,21 @@ export function decodeDetections(rawBoxes, rawScores, opts) {
   return detections;
 }
 
+// Bounding box of a landmark list, in the landmarks' own coordinates.
+function landmarkBox(landmarks) {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const lm of landmarks) {
+    if (lm.x < minX) minX = lm.x;
+    if (lm.x > maxX) maxX = lm.x;
+    if (lm.y < minY) minY = lm.y;
+    if (lm.y > maxY) maxY = lm.y;
+  }
+  return [minX, minY, maxX, maxY];
+}
+
 function boxIou(a, b) {
   const x0 = Math.max(a[0], b[0]);
   const y0 = Math.max(a[1], b[1]);
@@ -267,6 +283,39 @@ function boxIou(a, b) {
   const areaA = (a[2] - a[0]) * (a[3] - a[1]);
   const areaB = (b[2] - b[0]) * (b[3] - b[1]);
   return inter / (areaA + areaB - inter);
+}
+
+// ─── Landmark smoothing (LandmarksSmoothingCalculator) ──────────────────────
+//
+// MediaPipe's stream mode runs a One-Euro filter over the pose and face
+// landmarks (pose_landmarks_detector_graph.cc, face_landmarks_detector_graph.cc);
+// hands get the same filter here. The user-facing `smoothing` value only
+// moves min_cutoff, on a log scale from 1 Hz (0) down to 0.01 Hz (1); beta
+// and derivate_cutoff stay at MediaPipe's values. MediaPipe's own
+// min_cutoff, 0.05 Hz, sits at 0.65.
+
+export function smoothingMinCutoff(smoothing) {
+  return smoothing > 0 ? 10 ** (-2 * smoothing) : 0;
+}
+
+// Beta 80 with min_cutoff 0.05 gives ~0.94 alpha for a fast-moving
+// landmark and ~0.01 when static (at 30 fps); the derivative cutoff of 1 Hz
+// gives ~0.17 alpha on the velocity estimate. World landmarks are filtered
+// more lightly (min_cutoff 0.1, beta 40) and without value scaling.
+const LANDMARK_FILTER = { beta: 80, derivateCutoff: 1 };
+const WORLD_LANDMARK_FILTER = { beta: 40, derivateCutoff: 1 };
+const WORLD_MIN_CUTOFF_RATIO = 2; // 0.1 / 0.05
+// Below this object size (pixels) the value scale explodes; skip the filter.
+const MIN_OBJECT_SCALE = 1e-6;
+
+// Filter state for one instance (person, hand, face) across frames.
+class SmoothingSlot {
+  constructor(smoothing) {
+    const minCutoff = smoothingMinCutoff(smoothing);
+    this.roi = null;
+    this.landmarks = new LandmarkSmoother({ ...LANDMARK_FILTER, minCutoff });
+    this.worldLandmarks = new LandmarkSmoother({ ...WORLD_LANDMARK_FILTER, minCutoff: minCutoff * WORLD_MIN_CUTOFF_RATIO });
+  }
 }
 
 // ─── WGSL ───────────────────────────────────────────────────────────────────
@@ -401,6 +450,8 @@ class TwoStageGpuPipeline {
     this.confidence = confidence;
     this._device = null;
     this._trackedRois = [];
+    this._smoothing = 0;
+    this._smoothers = []; // one SmoothingSlot per instance of the previous frame
     this._frameWidth = 0;
     this._frameHeight = 0;
     this._initPromise = null;
@@ -430,6 +481,18 @@ class TwoStageGpuPipeline {
   }
   set tracking(on) {
     this._tracks = Boolean(on);
+  }
+
+  // Landmark smoothing strength, 0 (off) to 1; see smoothingMinCutoff.
+  // Successive frames must be related: nodes pass 0 in still mode.
+  get smoothing() {
+    return this._smoothing;
+  }
+  set smoothing(value) {
+    const clamped = Math.max(0, Math.min(1, Number(value) || 0));
+    if (clamped === this._smoothing) return;
+    this._smoothing = clamped;
+    this._smoothers = []; // slots carry the cutoff; rebuild them
   }
 
   // The detector's min_detection_confidence. Nodes update `confidence` live.
@@ -552,6 +615,7 @@ class TwoStageGpuPipeline {
       this._frameWidth = width;
       this._frameHeight = height;
       this._trackedRois = [];
+      this._smoothers = [];
       this._onResize(width, height);
     }
 
@@ -578,6 +642,7 @@ class TwoStageGpuPipeline {
     }
 
     this._trackedRois = this._tracks ? nextRois : [];
+    this._smoothResults(results, resultRois, performance.now() / 1000);
     this._finalize(results, resultRois);
     // Wait for the queued GPU work (mask warp etc.) to drain before letting
     // the caller submit the next frame — without this the queue can grow
@@ -587,6 +652,56 @@ class TwoStageGpuPipeline {
   }
 
   _onResize(_width, _height) {}
+
+  // Runs the One-Euro filter over each result's landmarks (x, y, z) and
+  // world landmarks, in place; `t` is in seconds. An instance continues the
+  // state of the previous frame's instance whose ROI it overlaps — a
+  // tracked ROI, or the same subject re-detected in place — and starts
+  // fresh otherwise (a new subject, a scene cut, or the detector's results
+  // in a different order). Unmatched state is dropped.
+  _smoothResults(results, rois, t) {
+    if (this._smoothing === 0 || results.length === 0) {
+      if (this._smoothers.length > 0) this._smoothers = [];
+      return;
+    }
+    const previous = this._smoothers;
+    const current = [];
+    for (let i = 0; i < results.length; i++) {
+      const roi = rois[i];
+      let bestOverlap = TRACKING_OVERLAP_THRESHOLD;
+      let bestIndex = -1;
+      for (let j = 0; j < previous.length; j++) {
+        const overlap = roiOverlap(previous[j].roi, roi);
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap;
+          bestIndex = j;
+        }
+      }
+      const slot = bestIndex >= 0 ? previous.splice(bestIndex, 1)[0] : new SmoothingSlot(this._smoothing);
+      slot.roi = roi;
+      this._smoothInstance(slot, results[i], t);
+      current.push(slot);
+    }
+    this._smoothers = current;
+  }
+
+  _smoothInstance(slot, result, t) {
+    const { landmarks, worldLandmarks } = result;
+    // MediaPipe filters in pixel space with the velocity scaled by
+    // 1 / object size, so `beta` means the same for a subject near and far
+    // from the camera. Filtering the normalized values with per-axis scales
+    // is the same computation. Object size, as in LandmarksSmoothingCalculator:
+    // the mean of the landmark bounding box's width and height, in pixels.
+    const [minX, minY, maxX, maxY] = landmarkBox(landmarks);
+    const width = this._frameWidth;
+    const height = this._frameHeight;
+    const objectScale = ((maxX - minX) * width + (maxY - minY) * height) / 2;
+    if (objectScale >= MIN_OBJECT_SCALE) {
+      const scale = 1 / objectScale;
+      slot.landmarks.apply(landmarks, t, width * scale, height * scale, width * scale);
+    }
+    if (worldLandmarks) slot.worldLandmarks.apply(worldLandmarks, t);
+  }
 
   _mergeDetections(rois, detections) {
     const merged = rois.slice();
@@ -717,14 +832,17 @@ class TwoStageGpuPipeline {
     return out;
   }
 
-  // Drop the tracked ROIs so the next frame starts from a fresh detection.
+  // Drop the tracked ROIs and the smoothing state so the next frame starts
+  // from a fresh detection.
   resetTracking() {
     this._trackedRois = [];
+    this._smoothers = [];
   }
 
   destroy() {
     this._destroyed = true;
     this._trackedRois = [];
+    this._smoothers = [];
     // Never free resources under a pending init or an in-flight frame.
     void settled(this._initPromise)
       .then(() => settled(this._processing))
@@ -863,6 +981,7 @@ export class PoseGpuPipeline extends TwoStageGpuPipeline {
     this._landmarkSession = session;
     this.model = model;
     this._trackedRois = [];
+    this._smoothers = [];
     if (old) void withOrt(() => old.release());
   }
 

@@ -238,8 +238,10 @@ exists.
 - ⏳ Heatmap-based landmark refinement (MediaPipe applies it to pose; we
   skip it — landmarks are slightly less stable in exchange for not
   touching the 64×64×39 tensor).
-- ⏳ Landmark smoothing (One-Euro filter) — MediaPipe only smooths in
-  VIDEO mode; the CPU nodes ran IMAGE mode, so parity holds.
+- ✅ Landmark smoothing (One-Euro filter, `src/one-euro.js`), the
+  `smoothing` parameter of the three detect nodes. MediaPipe smooths pose
+  and face in VIDEO mode; Figment applies the same filter to hands as well,
+  and to up to 4 instances (MediaPipe: one). Visibility is not smoothed.
 - ⏳ Face blendshapes (the nodes never exposed them; the model is in the
   .task file if ever needed).
 
