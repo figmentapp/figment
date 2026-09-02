@@ -20,6 +20,7 @@ const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.
 const numPosesIn = node.numberIn('number of poses', 4, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const modelIn = node.selectIn('model', ['lite', 'full', 'heavy'], 'lite');
 const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
+const smoothingIn = node.numberIn('smoothing', 0, { min: 0, max: 1, step: 0.01 });
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -37,7 +38,7 @@ node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectPose' });
   _overlay = new figment.LandmarkRenderer({ label: 'detectPose' });
   _pose = new figment.PoseGpuPipeline({ model: modelIn.value, maxInstances: numPosesIn.value });
-  _pose.tracking = modeIn.value === 'video';
+  updateMode();
   await _pose.init();
 };
 
@@ -90,9 +91,16 @@ numPosesIn.onChange = () => {
   if (_pose) _pose.maxInstances = numPosesIn.value;
 };
 
-modeIn.onChange = () => {
-  if (_pose) _pose.tracking = modeIn.value === 'video';
-};
+// Smoothing needs consecutive frames: it only applies in video mode.
+function updateMode() {
+  if (!_pose) return;
+  const video = modeIn.value === 'video';
+  _pose.tracking = video;
+  _pose.smoothing = video ? smoothingIn.value : 0;
+}
+
+modeIn.onChange = updateMode;
+smoothingIn.onChange = updateMode;
 
 modelIn.onChange = async () => {
   if (!_pose) return;

@@ -400,3 +400,135 @@ describe('SegmentGpuPipeline', () => {
     expect(p.maskTarget).toBeNull();
   });
 });
+
+describe('smoothingMinCutoff', () => {
+  test('0 disables; the cutoff falls on a log scale from 1 Hz to 0.01 Hz', () => {
+    expect(mp.smoothingMinCutoff(0)).toBe(0);
+    expect(mp.smoothingMinCutoff(1)).toBeCloseTo(0.01, 9);
+    expect(mp.smoothingMinCutoff(0.5)).toBeCloseTo(0.1, 9);
+    // MediaPipe's own min_cutoff (0.05 Hz) is the documented starting point, 0.65.
+    expect(mp.smoothingMinCutoff(0.65)).toBeCloseTo(0.05, 2);
+    expect(mp.smoothingMinCutoff(0.001)).toBeLessThan(1);
+  });
+});
+
+describe('landmark smoothing', () => {
+  const ROI = { cx: 320, cy: 240, size: 300, rotation: 0 };
+
+  // One pose whose landmarks all sit at x = z = `x`, spread out in y.
+  function pose(x) {
+    const landmarks = [];
+    const worldLandmarks = [];
+    for (let i = 0; i < 33; i++) {
+      landmarks.push({ x, y: 0.2 + i * 0.01, z: x, visibility: 0.7, presence: 0.8 });
+      worldLandmarks.push({ x, y: i * 0.01, z: x });
+    }
+    return { score: 0.9, landmarks, worldLandmarks };
+  }
+
+  function pipeline(smoothing) {
+    const p = new mp.PoseGpuPipeline();
+    p._frameWidth = 640;
+    p._frameHeight = 480;
+    p.smoothing = smoothing;
+    return p;
+  }
+
+  test('filters x, y, z of landmarks and world landmarks; visibility, presence and score pass through', () => {
+    const p = pipeline(0.65);
+    const first = [pose(0.2)];
+    p._smoothResults(first, [ROI], 0);
+    expect(first[0].landmarks[0].x).toBe(0.2); // first frame seeds the filters
+
+    const second = [pose(0.3)];
+    p._smoothResults(second, [ROI], 1 / 30);
+    const lm = second[0].landmarks[5];
+    expect(lm.x).toBeGreaterThan(0.2);
+    expect(lm.x).toBeLessThan(0.3);
+    expect(lm.z).toBeGreaterThan(0.2);
+    expect(lm.z).toBeLessThan(0.3);
+    expect(lm.y).toBeCloseTo(0.25, 12); // unchanged input stays put
+    expect(lm.visibility).toBe(0.7);
+    expect(lm.presence).toBe(0.8);
+    expect(second[0].score).toBe(0.9);
+    const world = second[0].worldLandmarks[5];
+    expect(world.x).toBeGreaterThan(0.2);
+    expect(world.x).toBeLessThan(0.3);
+    expect(world.y).toBeCloseTo(0.05, 12);
+  });
+
+  test('smoothing 0 leaves the results untouched', () => {
+    const p = pipeline(0);
+    p._smoothResults([pose(0.2)], [ROI], 0);
+    const second = [pose(0.3)];
+    p._smoothResults(second, [ROI], 1 / 30);
+    expect(second[0].landmarks[5].x).toBe(0.3);
+    expect(second[0].worldLandmarks[5].x).toBe(0.3);
+  });
+
+  test('state follows the subject by ROI overlap, not by result order', () => {
+    const p = pipeline(0.65);
+    const left = { cx: 100, cy: 240, size: 150, rotation: 0 };
+    const right = { cx: 500, cy: 240, size: 150, rotation: 0 };
+    p._smoothResults([pose(0.1), pose(0.7)], [left, right], 0);
+
+    // Same two subjects, reported in the other order and moved a little.
+    const swapped = [pose(0.75), pose(0.15)];
+    p._smoothResults(
+      swapped,
+      [
+        { ...right, cx: 510 },
+        { ...left, cx: 110 },
+      ],
+      1 / 30,
+    );
+    expect(swapped[0].landmarks[0].x).toBeGreaterThan(0.7);
+    expect(swapped[0].landmarks[0].x).toBeLessThan(0.75);
+    expect(swapped[1].landmarks[0].x).toBeGreaterThan(0.1);
+    expect(swapped[1].landmarks[0].x).toBeLessThan(0.15);
+  });
+
+  test('a subject whose ROI overlaps nothing from the previous frame passes through unfiltered', () => {
+    const p = pipeline(0.65);
+    p._smoothResults([pose(0.2)], [ROI], 0);
+    const elsewhere = [pose(0.9)];
+    p._smoothResults(elsewhere, [{ cx: 40, cy: 40, size: 50, rotation: 0 }], 1 / 30);
+    expect(elsewhere[0].landmarks[0].x).toBe(0.9);
+  });
+
+  test('resetTracking() and an empty frame drop the state', () => {
+    const p = pipeline(0.65);
+    p._smoothResults([pose(0.2)], [ROI], 0);
+    p.resetTracking();
+    const afterReset = [pose(0.3)];
+    p._smoothResults(afterReset, [ROI], 1 / 30);
+    expect(afterReset[0].landmarks[0].x).toBe(0.3);
+
+    p._smoothResults([], [], 2 / 30);
+    const afterGap = [pose(0.4)];
+    p._smoothResults(afterGap, [ROI], 3 / 30);
+    expect(afterGap[0].landmarks[0].x).toBe(0.4);
+  });
+});
+
+describe('roiOverlap', () => {
+  test('is the intersection over the smaller ROI, so a nested ROI counts as full overlap', () => {
+    const small = { cx: 100, cy: 100, size: 100, rotation: 0 };
+    const twiceAsBig = { cx: 100, cy: 100, size: 200, rotation: 0.3 };
+    expect(mp.roiOverlap(small, twiceAsBig)).toBeCloseTo(1, 9);
+    expect(mp.roiOverlap(twiceAsBig, small)).toBeCloseTo(1, 9);
+    // Same size, shifted by half a side.
+    expect(mp.roiOverlap(small, { ...small, cx: 150 })).toBeCloseTo(0.5, 9);
+    expect(mp.roiOverlap(small, { ...small, cx: 300 })).toBe(0);
+  });
+});
+
+describe('_mergeDetections', () => {
+  test('rejects a detection of a tracked person even when its ROI is much larger', () => {
+    const p = new mp.PoseGpuPipeline({ maxInstances: 4 });
+    const tracked = { cx: 320, cy: 240, size: 300, rotation: 0 };
+    const detections = [{ roi: { cx: 330, cy: 250, size: 700, rotation: 0.1 } }, { roi: { cx: 40, cy: 40, size: 60, rotation: 0 } }];
+    p._roiFromDetection = (det) => det.roi;
+    expect(p._mergeDetections([tracked], detections)).toEqual([tracked, detections[1].roi]);
+  });
+});

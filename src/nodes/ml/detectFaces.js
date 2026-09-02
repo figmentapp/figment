@@ -16,6 +16,7 @@ const drawLineWidthIn = node.numberIn('line width', 1, { min: 0, max: 10, step: 
 const numFacesIn = node.numberIn('number of faces', 1, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const confidenceIn = node.numberIn('confidence', 0.5, { min: 0, max: 1, step: 0.01 });
 const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
+const smoothingIn = node.numberIn('smoothing', 0, { min: 0, max: 1, step: 0.01 });
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -31,7 +32,7 @@ node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectFaces' });
   _overlay = new figment.LandmarkRenderer({ label: 'detectFaces' });
   _faces = new figment.FaceGpuPipeline({ maxInstances: numFacesIn.value, confidence: confidenceIn.value });
-  _faces.tracking = modeIn.value === 'video';
+  updateOptions();
   await _faces.init();
 };
 
@@ -106,9 +107,13 @@ function updateOptions() {
   if (!_faces) return;
   _faces.maxInstances = numFacesIn.value;
   _faces.confidence = confidenceIn.value;
-  _faces.tracking = modeIn.value === 'video';
+  // Smoothing needs consecutive frames: it only applies in video mode.
+  const video = modeIn.value === 'video';
+  _faces.tracking = video;
+  _faces.smoothing = video ? smoothingIn.value : 0;
 }
 
 numFacesIn.onChange = updateOptions;
 confidenceIn.onChange = updateOptions;
 modeIn.onChange = updateOptions;
+smoothingIn.onChange = updateOptions;

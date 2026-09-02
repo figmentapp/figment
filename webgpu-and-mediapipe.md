@@ -137,7 +137,7 @@ calculator maps to a small piece of the module:
 | `NonMaxSuppressionCalculator` (weighted) | score-weighted blend of overlapping boxes, up to 4 results |
 | `AlignmentPointsRectsCalculator` (pose) | `roiFromAlignmentPoints()` — hip→body point, ×1.25 |
 | `DetectionsToRectsCalculator` + `RectTransformationCalculator` (hands, face) | `roiFromDetectionBox()` — box + keypoint rotation, shift, scale, square_long |
-| `AssociationNormRect` (multi-instance tracking) | ROI IoU > 0.5 dedup when topping up tracked ROIs from the detector |
+| `AssociationNormRect` (multi-instance tracking) | ROI overlap > 0.5 dedup when topping up tracked ROIs from the detector — intersection over the smaller ROI (`roiOverlap()`), not IoU |
 | `ImageToTensorCalculator` (ROI) | rotated-crop fragment shader, run per instance |
 | `TensorsToLandmarksCalculator` + `LandmarkProjectionCalculator` | `_projectLandmarks()` ROI→frame, sigmoid on visibility, z divisors |
 | `WorldLandmarkProjectionCalculator` | `_projectWorldLandmarks()` — rotate world x/y by ROI rotation |
@@ -180,7 +180,13 @@ Details that matter if you extend this:
   the count to the number you actually expect.
 - **Multi-instance.** The detector's weighted NMS yields up to 4
   detections; tracked ROIs are topped up with non-overlapping detections
-  (IoU > 0.5 dedup). The landmark model is batch-1, so instances run
+  (overlap > 0.5 dedup). The overlap is the intersection over the smaller
+  ROI rather than IoU: the tracked ROI (from the landmark model's auxiliary
+  points) and the detector's ROI for the same person differ mostly in size
+  on close-ups and bodies partly out of frame, where IoU drops below 0.5
+  and the person would be landmarked twice — and, since both copies then
+  track, kept as up to 4 copies. The landmark model is batch-1, so
+  instances run
   sequentially; each pose instance's mask is baked into its own slot
   texture before the next run reuses the output buffer.
 - **Partial fetches.** `session.run(feeds, fetches)` gets a preallocated
@@ -232,8 +238,10 @@ exists.
 - ⏳ Heatmap-based landmark refinement (MediaPipe applies it to pose; we
   skip it — landmarks are slightly less stable in exchange for not
   touching the 64×64×39 tensor).
-- ⏳ Landmark smoothing (One-Euro filter) — MediaPipe only smooths in
-  VIDEO mode; the CPU nodes ran IMAGE mode, so parity holds.
+- ✅ Landmark smoothing (One-Euro filter, `src/one-euro.js`), the
+  `smoothing` parameter of the three detect nodes. MediaPipe smooths pose
+  and face in VIDEO mode; Figment applies the same filter to hands as well,
+  and to up to 4 instances (MediaPipe: one). Visibility is not smoothed.
 - ⏳ Face blendshapes (the nodes never exposed them; the model is in the
   .task file if ever needed).
 

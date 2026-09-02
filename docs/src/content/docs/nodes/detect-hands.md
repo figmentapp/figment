@@ -20,6 +20,7 @@ Connect the **landmarks** output to a [Send OSC](/docs/nodes/send-osc) node to s
 - **Line Width** The thickness of the lines.
 - **Number of Hands** The maximum number of hands to detect, from 1 to 4. Each extra hand costs one more landmark pass.
 - **Confidence** The minimum detection score for a hand to count, from 0 to 1.
+- **Smoothing** Filters the landmarks over time so they stop jittering. `0` is off. Higher values are steadier but add a little lag on fast movement; the filter follows fast motion more closely than slow motion, so around `0.65` is a good starting point. The filter follows each hand from frame to frame by position, so it works without tracking. The drawn skeleton and the **Landmarks** output are both smoothed. Keep it at `0` for unrelated images, such as a Load Image Folder.
 
 ## Outputs
 

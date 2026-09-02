@@ -19,6 +19,7 @@ const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
 const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
 const numHandsIn = node.numberIn('number of hands', 2, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const confidenceIn = node.numberIn('confidence', 0.5, { min: 0, max: 1, step: 0.01 });
+const smoothingIn = node.numberIn('smoothing', 0, { min: 0, max: 1, step: 0.01 });
 
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
@@ -36,6 +37,7 @@ node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'detectHands' });
   _overlay = new figment.LandmarkRenderer({ label: 'detectHands' });
   _hands = new figment.HandGpuPipeline({ maxInstances: numHandsIn.value, confidence: confidenceIn.value });
+  _hands.smoothing = smoothingIn.value;
   await _hands.init();
 };
 
@@ -98,10 +100,12 @@ function updateOptions() {
   if (!_hands) return;
   _hands.maxInstances = numHandsIn.value;
   _hands.confidence = confidenceIn.value;
+  _hands.smoothing = smoothingIn.value;
 }
 
 numHandsIn.onChange = updateOptions;
 confidenceIn.onChange = updateOptions;
+smoothingIn.onChange = updateOptions;
 
 node.onStop = () => {
   if (_hands) _hands.destroy();
