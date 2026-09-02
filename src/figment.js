@@ -11,8 +11,36 @@ export {
   MAX_INSTANCES as MEDIAPIPE_MAX_INSTANCES,
   withOrt,
   createOrtSession,
+  fetchModelBytes,
 } from './mediapipe-gpu.js';
 export { LandmarkRenderer, OverlayBatch, drawConnectors, drawLandmarks } from './landmark-drawing.js';
+import { withOrt, fetchModelBytes as _fetchModelBytes } from './mediapipe-gpu.js';
+import { convertModel, describeModel } from './onnx/convert.js';
+import { optimizeModel, loadOptimizedModel, optimizedPathsFor, PSNR_FLOOR_DB, EXACT_FLOOR_DB } from './onnx/optimize.js';
+
+// WebGPU sessions for src/onnx/optimize.js: it runs the original and the
+// converted model on one input to check the conversion.
+const webgpuSession = {
+  createSession: (bytes) => withOrt(() => window.ort.InferenceSession.create(bytes, { executionProviders: ['webgpu'] })),
+  release: (session) => withOrt(() => session.release()),
+  run: async (session, name, data, dims) => {
+    const result = await withOrt(() => session.run({ [name]: new window.ort.Tensor('float32', data, dims) }));
+    return Float32Array.from(result[session.outputNames[0]].data);
+  },
+};
+
+// The ONNX model converter (src/onnx): used by the ONNX Image Model node's
+// `optimize` option and by File > Optimize ONNX Model.
+export const onnx = {
+  convertModel,
+  describeModel,
+  optimizeModel,
+  loadOptimizedModel,
+  optimizedPathsFor,
+  webgpuSession,
+  PSNR_FLOOR_DB,
+  EXACT_FLOOR_DB,
+};
 export {
   POSE_CONNECTIONS,
   POSE_LANDMARK_COLORS,

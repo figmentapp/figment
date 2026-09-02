@@ -6,8 +6,13 @@
 
 const imageIn = node.imageIn('in');
 const modelFileIn = node.fileIn('model');
+// Convert the model for this GPU on first load (float16 where the GPU has
+// shader-f16, faster ConvTranspose) and cache the result next to the file.
+// Off by default: the original model is what the user trained.
+const optimizeIn = node.booleanIn('optimize', false);
 const imageOut = node.imageOut('out');
 let oldModelFile,
+  oldOptimize,
   session,
   device,
   target,
@@ -174,7 +179,9 @@ async function loadModel() {
     ort.env.webgpu.powerPreference = 'high-performance';
     ort.env.webgpu.adapter = figment.getAdapter();
     ort.env.webgpu.device = figment.getDevice();
-    session = await figment.createOrtSession(modelUrl);
+    let modelBytes = await figment.fetchModelBytes(modelUrl);
+    if (optimizeIn.value) modelBytes = await optimizedBytes(modelBytes);
+    session = await figment.createOrtSession(modelBytes);
     shadersUnverified = true;
     device = figment.getDevice();
 
@@ -252,6 +259,7 @@ async function loadModel() {
     });
 
     oldModelFile = modelFileIn.value;
+    oldOptimize = optimizeIn.value;
   } catch (e) {
     destroyGpuResources();
     if (session) {
@@ -261,6 +269,37 @@ async function loadModel() {
     device = null;
     console.error('Failed to load ONNX model:', e);
   }
+}
+
+// The optimized copy of the model: from the cache next to the file when its
+// key still matches, else converted now, compared against the original on
+// a synthetic input, and cached when it holds. A rejected conversion falls
+// back to the original and says so in the console.
+async function optimizedBytes(sourceBytes) {
+  const modelPath = figment.filePathForAsset(modelFileIn.value);
+  const fp16 = figment.getDevice().features.has('shader-f16');
+  const desktop = window.desktop;
+  const { loadOptimizedModel, optimizeModel } = figment.onnx;
+  const cached = await loadOptimizedModel({ modelPath, sourceBytes, fp16, desktop, fetchBytes: figment.fetchModelBytes });
+  if (cached) return cached.bytes;
+  const result = await optimizeModel({
+    modelPath,
+    sourceBytes,
+    fp16,
+    desktop,
+    session: figment.onnx.webgpuSession,
+    onProgress: (message) => console.log(`${node.name}: ${message}`),
+  });
+  if (result.status === 'unchanged') return sourceBytes;
+  if (result.status !== 'verified') {
+    const score = result.reason === 'fp16' ? result.psnr : result.exactness;
+    console.warn(
+      `${node.name}: the ${result.reason === 'fp16' ? 'float16' : 'rewritten'} model differs from the original (${score.toFixed(1)} dB); using the original.`,
+    );
+    return sourceBytes;
+  }
+  console.log(`${node.name}: optimized model written to ${result.paths.model}`);
+  return result.bytes;
 }
 
 async function runInference() {
@@ -335,8 +374,9 @@ node.onRender = async () => {
   // background so the frame loop never waits for the GPU. During an export
   // every frame must show the inference of its own input, so the node waits.
   const exporting = window.desktop.getRuntimeMode() === 'export';
-  if (oldModelFile !== modelFileIn.value) {
+  if (oldModelFile !== modelFileIn.value || oldOptimize !== optimizeIn.value) {
     oldModelFile = modelFileIn.value;
+    oldOptimize = optimizeIn.value;
     isRunning = true;
     pending = loadModel()
       .catch((e) => {

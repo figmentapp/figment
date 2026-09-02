@@ -15,6 +15,15 @@ To work well, it needs an input that is similar to what it has seen in training;
 ## Parameters
 
 - **Model** The .onnx model file.
+- **Optimize** Convert the model for this GPU on load and use the converted copy. Off by default.
+
+## Optimizing a model
+
+Two things make a model faster in Figment without retraining it: float16 weights and activations, which halve the file and speed up most GPUs, and a rewrite of stride-2 `ConvTranspose` layers, whose WebGPU kernel is several times slower than a regular convolution. Constant chains left behind by the exporter are folded as well.
+
+With **Optimize** on, the node converts the model on first load and checks the result against the original on the same input: the rewritten graph has to reproduce the original to rounding, and the float16 version has to stay close to it. A conversion that fails either check is not used. The result is written next to the model as `<name>.figment-optimized.onnx` with a `.json` file that records what was done and why. Later loads use that copy as long as the model file, the converter and the GPU's float16 support are unchanged; a retrained model or a machine without `shader-f16` gets a fresh conversion. A rejected conversion leaves the original in use and a note in the console.
+
+**File > Optimize ONNX Model…** runs the same conversion on a file you choose and shows the report: sizes, layers rewritten, and how closely the result matches the original. Use it to produce a file to hand to someone else, or to see what the option would do before turning it on.
 
 ## Float16 models
 
