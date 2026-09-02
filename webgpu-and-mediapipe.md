@@ -82,7 +82,11 @@ about:
   every shipped model in a headless browser and asserts ORT's verbose
   session log reports *all nodes placed on the WebGPU provider* (a PRelu
   model serves as the positive control). Both catch what would otherwise
-  be a silent GPU→CPU→GPU round trip per node.
+  be a silent GPU→CPU→GPU round trip per node. For models that are not
+  shipped with the app (a pix2pix generator, say),
+  `scripts/check-onnx-webgpu.mjs` runs the same session-log check on any
+  `.onnx` file and also reports the Memcpy nodes ORT inserts, which is the
+  real cost: a CPU-placed node is harmless when it only computes shapes.
 - **Validation.** Each ONNX model is compared against the original TFLite
   model (run by the TFLite interpreter) on random input. Differences are
   relative to output magnitude because the fp16 weights make exact

@@ -31,6 +31,20 @@ A model with float16 weights and activations (for instance one converted with `o
 
 During an export (File > Render, or `--render`) every frame waits for its own inference, so the rendered frames match their input. Live, the node keeps showing its last result while the next inference runs.
 
+## Checking that the model runs on the GPU
+
+The node keeps the image on the GPU: the input texture is packed into a GPU buffer, ONNX Runtime runs the model on the WebGPU execution provider, and the output buffer is unpacked into a texture. That only holds when every operator in the model has a WebGPU kernel. ONNX Runtime silently runs any operator without one on the CPU and copies the activations to the CPU and back around it, on every frame. A single such operator can make the model several times slower.
+
+The generator from the script below, and the ones from the [figmentapp/pix2pix](https://github.com/figmentapp/pix2pix) notebooks (U-Net with instance normalization, pix2pixHD with reflection padding), export to operators that all have WebGPU kernels: `Conv`, `ConvTranspose`, `BatchNormalization` or `InstanceNormalization`, `LeakyRelu`, `Relu`, `Tanh`, `Concat` and `Pad`. Operators to avoid when you change the architecture: `PRelu`, `Selu` and `Softplus` (so also `Mish`), and anything else ONNX Runtime has no WebGPU kernel for in the build Figment ships.
+
+The reliable check is to load the model in Figment itself. From a checkout of the Figment repository, with `npm install` done:
+
+```bash
+node scripts/check-onnx-webgpu.mjs output/generator_epoch_14.onnx
+```
+
+The script opens Figment in a headless browser, creates a session for the model and reports whether every node landed on the WebGPU provider, or which operators fell back to the CPU and how many GPU to CPU copies that costs per run. Run it once on a freshly exported model, and again after every change to the network.
+
 ## Training
 
 Here's a simple example of how to train a PIX2PIX model using PyTorch. You will need torch, torchvision, onnx and onnxruntime installed.
