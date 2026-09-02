@@ -2,6 +2,7 @@
 
 ## Version 0.8.0 (2026-09-02)
 
+- Added headless rendering from the command line: `Figment --render project.fgmt [-o frame-####.png] [--frames N] [--fps N] [--quality Q]` runs the same export loop as File > Render without showing a window, so renders can be scripted.
 - Added Share Image node: publishes any image to other applications on the same Mac through Syphon (Max/MSP, TouchDesigner, Resolume, OBS Studio, ...). macOS only; Spout support for Windows is planned.
 - Segment Image now runs on the GPU through ONNX Runtime like the other ML nodes, and gains a `mask` output. Its `model` parameter is gone: only the selfie model ever shipped.
 - Detect Pose, Detect Hands, Detect Faces and Receive Rokoko draw their overlays on the GPU instead of uploading a canvas every frame.
