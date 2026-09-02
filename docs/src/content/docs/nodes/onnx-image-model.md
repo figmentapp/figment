@@ -16,6 +16,12 @@ To work well, it needs an input that is similar to what it has seen in training;
 
 - **Model** The .onnx model file.
 
+## Float16 models
+
+A model with float16 weights and activations (for instance one converted with `onnxconverter-common`, keeping the input and output in float32) loads like any other and runs faster on most GPUs: about 1.5× for a pix2pix U-Net. Figment asks the GPU for the `shader-f16` feature when it has one. On a GPU without it, a float16 model fails on its first frame with an error on the node that says so; keep the float32 model as the fallback for those machines.
+
+During an export (File > Render, or `--render`) every frame waits for its own inference, so the rendered frames match their input. Live, the node keeps showing its last result while the next inference runs.
+
 ## Training
 
 Here's a simple example of how to train a PIX2PIX model using PyTorch. You will need torch, torchvision, onnx and onnxruntime installed.

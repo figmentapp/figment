@@ -87,6 +87,7 @@
       "!**/*.map",
       "!build/mediapipe/*.task",
       "!build/mediapipe/*.tflite",
+      "!build/test/**",
       "!**/node_modules/onnxruntime-web/**"
     ],
     "directories": {

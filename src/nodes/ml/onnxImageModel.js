@@ -11,7 +11,9 @@ let oldModelFile,
   session,
   device,
   target,
-  isRunning = false;
+  isRunning = false,
+  pending = null, // the load or live inference in flight, awaited by an export
+  shadersUnverified = false;
 let imageWidth = 0,
   imageHeight = 0;
 let outWidth = 0,
@@ -173,6 +175,7 @@ async function loadModel() {
     ort.env.webgpu.adapter = figment.getAdapter();
     ort.env.webgpu.device = figment.getDevice();
     session = await figment.createOrtSession(modelUrl);
+    shadersUnverified = true;
     device = figment.getDevice();
 
     // Read input/output dimensions from the model metadata (NCHW layout: [batch, channels, height, width])
@@ -262,12 +265,26 @@ async function loadModel() {
 
 async function runInference() {
   isRunning = true;
+  // The first run after a load compiles the model's shaders. Errors from
+  // that surface only as uncaptured GPU errors (a float16 model on a device
+  // without shader-f16 renders garbage without throwing), so catch them here.
+  const checkShaders = shadersUnverified;
+  if (checkShaders) device.pushErrorScope('validation');
+  let gpuError = null;
   try {
     // Measured to GPU completion: session.run() resolves once the work is queued.
     await measureAsyncPhase('inference-total', dispatchInference);
   } finally {
+    if (checkShaders) gpuError = await device.popErrorScope().catch(() => null);
     isRunning = false;
   }
+  if (gpuError) {
+    const hint = device.features.has('shader-f16')
+      ? ''
+      : ' If the model is float16: this GPU has no shader-f16 feature, use the float32 model.';
+    throw new Error(`The GPU rejected the model: ${gpuError.message}${hint}`);
+  }
+  shadersUnverified = false;
 }
 
 async function dispatchInference() {
@@ -313,11 +330,15 @@ async function dispatchInference() {
   await measureAsyncPhase('gpu-wait', () => device.queue.onSubmittedWorkDone());
 }
 
-node.onRender = () => {
+node.onRender = async () => {
+  // Live, the node shows its last result and runs inference in the
+  // background so the frame loop never waits for the GPU. During an export
+  // every frame must show the inference of its own input, so the node waits.
+  const exporting = window.desktop.getRuntimeMode() === 'export';
   if (oldModelFile !== modelFileIn.value) {
     oldModelFile = modelFileIn.value;
     isRunning = true;
-    loadModel()
+    pending = loadModel()
       .catch((e) => {
         node.error = e && e.stack ? e.stack : String(e);
       })
@@ -325,11 +346,18 @@ node.onRender = () => {
         isRunning = false;
         node._markDirty();
       });
-    return;
+    if (!exporting) return;
   }
+  if (exporting && isRunning) await pending;
   if (!session || !imageIn.value) return;
   if (imageIn.value.width !== imageWidth || imageIn.value.height !== imageHeight) {
     throw new Error(`Image must be ${imageWidth}×${imageHeight} (model expects this size)`);
+  }
+
+  if (exporting) {
+    await runInference();
+    imageOut.set(target);
+    return;
   }
 
   // Always output the current target (shows last completed inference)
@@ -337,7 +365,7 @@ node.onRender = () => {
 
   // Kick off new inference if not already running
   if (!isRunning) {
-    runInference()
+    pending = runInference()
       .catch((e) => {
         node.error = e && e.stack ? e.stack : String(e);
       })
