@@ -1,28 +1,34 @@
 import React, { useState } from 'react';
-import Icon from './Icon';
-import { COLORS } from '../colors';
 import { useAppStore } from './store';
 import * as figment from '../figment';
 
 const formatMB = (bytes) => `${(bytes / 1e6).toFixed(1)} MB`;
+const baseName = (filePath) => filePath.split('/').pop();
 
 // File > Optimize ONNX Model…: converts a model for this GPU and writes the
 // result next to it, the same conversion the ONNX Image Model node's
 // `optimize` option runs on load, with the report shown instead of logged.
 export default function OptimizeModelDialog() {
   const closeOptimizeModelDialog = useAppStore((s) => s.closeOptimizeModelDialog);
+  const [modelPath, setModelPath] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | working | done | error
-  const [message, setMessage] = useState('');
+  const [progress, setProgress] = useState({ message: '', fraction: 0 });
   const [result, setResult] = useState(null);
 
   const handleChoose = async () => {
-    const modelPath = await window.desktop.showOpenFileDialog('onnx');
-    if (!modelPath) return;
+    const filePath = await window.desktop.showOpenFileDialog('onnx');
+    if (!filePath) return;
+    setModelPath(filePath);
+    setStatus('idle');
+    setResult(null);
+  };
+
+  const handleOptimize = async () => {
     setStatus('working');
     setResult(null);
+    setProgress({ message: 'Reading model…', fraction: 0.02 });
     try {
       const fp16 = figment.getDevice().features.has('shader-f16');
-      setMessage('Reading model…');
       const sourceBytes = await figment.fetchModelBytes(window.desktop.pathToFileURL(modelPath));
       const outcome = await figment.onnx.optimizeModel({
         modelPath,
@@ -30,61 +36,77 @@ export default function OptimizeModelDialog() {
         fp16,
         desktop: window.desktop,
         session: figment.onnx.webgpuSession,
-        onProgress: setMessage,
+        onProgress: (message, fraction) => setProgress({ message, fraction }),
       });
-      setResult({ ...outcome, fp16, modelPath });
+      setProgress({ message: 'Done.', fraction: 1 });
+      setResult({ ...outcome, fp16 });
       setStatus('done');
     } catch (e) {
-      setMessage(e && e.message ? e.message : String(e));
+      setProgress({ message: e && e.message ? e.message : String(e), fraction: 0 });
       setStatus('error');
     }
   };
 
   const report = result?.report;
-  return (
-    <div className="dialog-wrapper" onClick={status === 'working' ? undefined : closeOptimizeModelDialog}>
-      <div
-        className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900 rounded-lg overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-row justify-between items-center bg-gray-800">
-          <span className="text-xl text-gray-400 py-4 px-6">Optimize ONNX Model</span>
-          <Icon name="x" size={16} fill={COLORS.gray600} className="text-gray-600 cursor-pointer mr-4" onClick={closeOptimizeModelDialog} />
-        </div>
+  const outcomeText = !result
+    ? ''
+    : result.status === 'verified'
+      ? `Optimized model written to ${baseName(result.paths.model)}.`
+      : result.status === 'unchanged'
+        ? 'This model is already optimized; nothing to do.'
+        : `The ${result.reason === 'fp16' ? 'float16' : 'rewritten'} model differs too much from the original; nothing was written.`;
 
-        <div className="flex flex-col gap-4 p-6 text-gray-200">
-          <div className="flex flex-col gap-2">
-            <p className="text-gray-200">Convert a model to be more efficient.</p>
-            <ul className="text-sm text-gray-400 list-disc pl-5">
-              <li>Weights and activations become float16 when this GPU supports it: half the file, faster inference.</li>
-              <li>Stride-2 ConvTranspose layers are rewritten as regular convolutions, which run several times faster.</li>
-              <li>Constant calculations left by the exporter are folded into the weights.</li>
-              <li>The result is compared with the original and only kept when it matches.</li>
-              <li>
-                It is written next to the model as <code>&lt;name&gt;.figment-optimized.onnx</code>; the ONNX Image Model node uses it when
-                its <code>optimize</code> option is on.
-              </li>
-            </ul>
+  return (
+    <div className="dialog-wrapper">
+      <div className="dialog node-dialog shadow-xl w-1/2 flex flex-col bg-gray-900 overflow-hidden rounded-lg">
+        <div className="flex flex-col flex-1">
+          {/* Top row */}
+          <div className="flex flex-row justify-between items-center bg-gray-800">
+            <span className="text-xl text-gray-400 py-4 px-6">Optimize ONNX Model</span>
+            <span
+              className="text-gray-600 text-2xl p-4 flex items-center justify-center font-bold cursor-pointer"
+              onClick={status === 'working' ? undefined : closeOptimizeModelDialog}
+            >
+              &times;
+            </span>
           </div>
 
-          {status === 'idle' && (
-            <button className="self-start px-4 py-2 rounded bg-gray-700 hover:bg-gray-600" onClick={handleChoose}>
-              Choose model…
-            </button>
-          )}
-          {status === 'working' && <p className="text-gray-300">{message}</p>}
-          {status === 'error' && <p className="text-red-400">{message}</p>}
+          {/* Description */}
+          <div className="flex flex-row justify-between items-center bg-gray-700">
+            <span className="text-gray-200 text-sm py-4 px-6">Convert a model to be more efficient.</span>
+          </div>
 
+          {/* Model */}
+          <div className="flex flex-row items-center mt-6 mb-6">
+            <span className="text-right w-48 mr-2 text-gray-400 px-4">Model</span>
+            <span className="text-gray-300 truncate flex-1">{modelPath ? baseName(modelPath) : 'No model chosen'}</span>
+            <button
+              className="w-32 mx-6 bg-gray-800 text-gray-300 p-2 focus:outline-none"
+              onClick={handleChoose}
+              disabled={status === 'working'}
+            >
+              Choose…
+            </button>
+          </div>
+
+          {/* Progress */}
+          {status !== 'idle' && (
+            <div className="flex flex-col mx-6 mb-6 gap-2">
+              <div className="w-full h-2 bg-gray-800 rounded overflow-hidden">
+                <div
+                  className={`h-2 ${status === 'error' ? 'bg-red-500' : 'bg-blue-500'} transition-all`}
+                  style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+                />
+              </div>
+              <span className={`text-sm ${status === 'error' ? 'text-red-400' : 'text-gray-400'}`}>{progress.message}</span>
+            </div>
+          )}
+
+          {/* Report */}
           {status === 'done' && result && (
-            <div className="flex flex-col gap-2">
-              <p className={result.status === 'verified' ? 'text-green-400' : 'text-yellow-400'}>
-                {result.status === 'verified'
-                  ? `Optimized model written to ${result.paths.model}`
-                  : result.status === 'unchanged'
-                    ? 'Nothing to optimize for this GPU; the original is used as is.'
-                    : `The ${result.reason === 'fp16' ? 'float16' : 'rewritten'} model differs too much from the original; nothing was written.`}
-              </p>
-              <table className="text-sm">
+            <div className="flex flex-col mx-6 mb-6 gap-2">
+              <span className={result.status === 'verified' ? 'text-green-400' : 'text-yellow-400'}>{outcomeText}</span>
+              <table className="text-sm text-gray-300">
                 <tbody>
                   <tr>
                     <td className="pr-4 text-gray-400">Size</td>
@@ -94,15 +116,11 @@ export default function OptimizeModelDialog() {
                   </tr>
                   <tr>
                     <td className="pr-4 text-gray-400">Precision</td>
-                    <td>{result.fp16 ? 'float16 (this GPU has shader-f16)' : 'float32 (this GPU has no shader-f16)'}</td>
+                    <td>{result.fp16 ? 'float16' : 'float32 (this GPU has no shader-f16)'}</td>
                   </tr>
                   <tr>
                     <td className="pr-4 text-gray-400">ConvTranspose layers rewritten</td>
-                    <td>
-                      {report.convTranspose
-                        ? `${report.convTranspose.rewritten} of ${report.convTranspose.rewritten + report.convTranspose.kept}`
-                        : '0'}
-                    </td>
+                    <td>{report.convTranspose ? report.convTranspose.rewritten : 0}</td>
                   </tr>
                   {report.fold && (
                     <tr>
@@ -111,34 +129,41 @@ export default function OptimizeModelDialog() {
                     </tr>
                   )}
                   <tr>
-                    <td className="pr-4 text-gray-400">Nodes</td>
-                    <td>
-                      {report.before.nodes} → {report.after.nodes}
-                    </td>
-                  </tr>
-                  <tr>
                     <td className="pr-4 text-gray-400">Rewritten graph vs original</td>
-                    <td>
-                      {Number.isFinite(result.exactness) ? `${result.exactness.toFixed(1)} dB` : 'identical'} (floor{' '}
-                      {figment.onnx.EXACT_FLOOR_DB} dB)
-                    </td>
+                    <td>{Number.isFinite(result.exactness) ? `${result.exactness.toFixed(1)} dB` : 'identical'}</td>
                   </tr>
                   {result.fp16 && (
                     <tr>
                       <td className="pr-4 text-gray-400">Float16 vs original</td>
-                      <td>
-                        {Number.isFinite(result.psnr) ? `${result.psnr.toFixed(1)} dB` : 'identical'} (floor {figment.onnx.PSNR_FLOOR_DB}{' '}
-                        dB)
-                      </td>
+                      <td>{Number.isFinite(result.psnr) ? `${result.psnr.toFixed(1)} dB` : 'identical'}</td>
                     </tr>
                   )}
                 </tbody>
               </table>
-              <button className="self-start px-4 py-2 rounded bg-gray-700 hover:bg-gray-600" onClick={() => setStatus('idle')}>
-                Optimize another model…
-              </button>
             </div>
           )}
+
+          <hr className="border-gray-800 mb-6" />
+
+          {/* Bottom row */}
+          <div className="flex-1"></div>
+          <div className="self-end flex flex-row-reverse justify-between items-center px-6 pb-6">
+            {status === 'working' ? (
+              <span className="text-gray-300 p-2">Optimizing…</span>
+            ) : status === 'done' ? (
+              <button className="w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none" onClick={closeOptimizeModelDialog}>
+                Close
+              </button>
+            ) : (
+              <button
+                className={`w-32 ml-2 bg-gray-800 text-gray-300 p-2 focus:outline-none ${modelPath ? '' : 'opacity-40'}`}
+                onClick={handleOptimize}
+                disabled={!modelPath}
+              >
+                Optimize
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
