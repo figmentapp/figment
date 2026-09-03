@@ -1,5 +1,20 @@
 # CHANGES
 
+## Version 0.9.0 (2026-09-03)
+
+- Added an `optimize` option to the ONNX Image Model node (off by default). It converts the model for the GPU on first load: float16 weights and activations where the GPU supports them, a faster form of stride-2 ConvTranspose layers, and constant folding. The result is checked against the original and cached next to the model as `<name>.figment-optimized.onnx`. A pix2pix U-Net runs about twice as fast this way, with no visible change in output.
+- Added File > Optimize ONNX Model…, which runs the same conversion on a chosen file and shows a report.
+- Float16 ONNX models load and run. On a GPU without float16 support the node reports it instead of showing garbage.
+- Added Normalize Pose, Normalize Face and Draw Landmarks nodes: they scale and center detected landmarks to match the body a model was trained on, so a person's position and size on camera no longer change what an image-to-image model sees.
+- Detect Pose, Detect Hands and Detect Faces smooth their landmarks in video mode, as MediaPipe's stream mode does, which removes the frame-to-frame jitter that turned into flicker in image-to-image models.
+- Detect Pose gains a `per limb` coloring and Detect Hands `per hand` and `per finger` colorings, so an image-to-image model can tell limbs, hands and fingers apart.
+- Fixed video mode occasionally tracking one person as several.
+- During an export (File > Render or `--render`) the ONNX Image Model node waits for its own inference, so every rendered frame shows the inference of its own input instead of the previous frame's.
+- The performance overlay's ONNX Inference row measures to GPU completion; it showed under a millisecond for a model that takes 56.
+- The parameter panel scrolls when a node has more parameters than fit in the window.
+- Updated onnxruntime-web to the fork build 1.25.0-fdb.5, which fixes a WebGPU convolution kernel that returned wrong results for kernels the size of their input with end padding.
+- For developers: `scripts/check-onnx-webgpu.mjs` reports whether an ONNX model runs entirely on the WebGPU provider in Figment.
+
 ## Version 0.8.0 (2026-09-02)
 
 - Added headless rendering from the command line: `Figment --render project.fgmt [-o frame-####.png] [--frames N] [--fps N] [--quality Q]` runs the same export loop as File > Render without showing a window, so renders can be scripted.
