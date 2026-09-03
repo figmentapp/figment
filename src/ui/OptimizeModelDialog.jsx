@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAppStore } from './store';
 import * as figment from '../figment';
+import { baseName } from '../onnx/optimize.js';
 
 const formatMB = (bytes) => `${(bytes / 1e6).toFixed(1)} MB`;
-const baseName = (filePath) => filePath.split('/').pop();
 
 // File > Optimize ONNX Model…: converts a model for this GPU and writes the
 // result next to it, the same conversion the ONNX Image Model node's

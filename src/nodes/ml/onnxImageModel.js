@@ -180,7 +180,15 @@ async function loadModel() {
     ort.env.webgpu.adapter = figment.getAdapter();
     ort.env.webgpu.device = figment.getDevice();
     let modelBytes = await figment.fetchModelBytes(modelUrl);
-    if (optimizeIn.value) modelBytes = await optimizedBytes(modelBytes);
+    if (optimizeIn.value) {
+      // Whatever goes wrong here (a read-only folder, a model the converter
+      // cannot handle) must not keep the original model from loading.
+      try {
+        modelBytes = await optimizedBytes(modelBytes);
+      } catch (e) {
+        console.warn(`${node.name}: could not optimize the model, using the original.`, e);
+      }
+    }
     session = await figment.createOrtSession(modelBytes);
     shadersUnverified = true;
     device = figment.getDevice();
