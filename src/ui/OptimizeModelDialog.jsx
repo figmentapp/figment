@@ -53,11 +53,19 @@ export default function OptimizeModelDialog() {
         </div>
 
         <div className="flex flex-col gap-4 p-6 text-gray-200">
-          <p className="text-gray-400">
-            Converts a model for this GPU: float16 weights and activations where the GPU supports them, and a faster form of ConvTranspose
-            layers. The result is compared with the original and written next to it as <code>&lt;name&gt;.figment-optimized.onnx</code>. The
-            ONNX Image Model node uses that copy when its <code>optimize</code> option is on.
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-gray-200">Convert a model to be more efficient.</p>
+            <ul className="text-sm text-gray-400 list-disc pl-5">
+              <li>Weights and activations become float16 when this GPU supports it: half the file, faster inference.</li>
+              <li>Stride-2 ConvTranspose layers are rewritten as regular convolutions, which run several times faster.</li>
+              <li>Constant calculations left by the exporter are folded into the weights.</li>
+              <li>The result is compared with the original and only kept when it matches.</li>
+              <li>
+                It is written next to the model as <code>&lt;name&gt;.figment-optimized.onnx</code>; the ONNX Image Model node uses it when
+                its <code>optimize</code> option is on.
+              </li>
+            </ul>
+          </div>
 
           {status === 'idle' && (
             <button className="self-start px-4 py-2 rounded bg-gray-700 hover:bg-gray-600" onClick={handleChoose}>
