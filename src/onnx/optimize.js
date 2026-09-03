@@ -20,6 +20,11 @@ export const EXACT_FLOOR_DB = 60;
 export const PSNR_FLOOR_DB = 30;
 const SAMPLE_BYTES = 4 * 1024 * 1024;
 
+// The last path segment, with either separator (Windows paths use backslashes).
+export function baseName(filePath) {
+  return filePath.split(/[\\/]/).pop();
+}
+
 export function optimizedPathsFor(modelPath) {
   const base = modelPath.replace(/\.onnx$/i, '');
   return { model: `${base}.figment-optimized.onnx`, sidecar: `${base}.figment-optimized.json` };
@@ -131,7 +136,7 @@ export async function optimizeModel({ modelPath, sourceBytes, fp16, desktop, ses
   const paths = optimizedPathsFor(modelPath);
   const key = cacheKey({ fingerprint: await fingerprint(sourceBytes), fp16 });
   const finish = async (fields) => {
-    const sidecar = { key, fp16, source: modelPath.split('/').pop(), created: new Date().toISOString(), ...fields };
+    const sidecar = { key, fp16, source: baseName(modelPath), created: new Date().toISOString(), ...fields };
     // JSON has no Infinity: identical outputs are stored as null.
     for (const name of ['exactness', 'psnr']) if (name in sidecar) sidecar[name] = Number.isFinite(sidecar[name]) ? sidecar[name] : null;
     await desktop.writeProjectFile(paths.sidecar, JSON.stringify(sidecar, null, 2));

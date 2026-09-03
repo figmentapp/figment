@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import * as ort from 'onnxruntime-web';
 import {
   EXACT_FLOOR_DB,
+  baseName,
   optimizedPathsFor,
   fingerprint,
   cacheKey,
@@ -45,6 +46,11 @@ function fakeDesktop() {
 }
 
 describe('optimized model cache', () => {
+  it('takes the file name from either path separator', () => {
+    expect(baseName('/models/generator_epoch_089.onnx')).toBe('generator_epoch_089.onnx');
+    expect(baseName('C:\\models\\generator_epoch_089.onnx')).toBe('generator_epoch_089.onnx');
+  });
+
   it('names the files next to the model', () => {
     expect(optimizedPathsFor('/models/generator_epoch_089.onnx')).toEqual({
       model: '/models/generator_epoch_089.figment-optimized.onnx',
