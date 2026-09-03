@@ -51,7 +51,7 @@ export default function OptimizeModelDialog() {
   const outcomeText = !result
     ? ''
     : result.status === 'verified'
-      ? `Optimized model written to ${baseName(result.paths.model)}.`
+      ? 'Optimized model written.'
       : result.status === 'unchanged'
         ? 'This model is already optimized; nothing to do.'
         : `The ${result.reason === 'fp16' ? 'float16' : 'rewritten'} model differs too much from the original; nothing was written.`;
@@ -106,6 +106,7 @@ export default function OptimizeModelDialog() {
           {status === 'done' && result && (
             <div className="flex flex-col mx-6 mb-6 gap-2">
               <span className={result.status === 'verified' ? 'text-green-400' : 'text-yellow-400'}>{outcomeText}</span>
+              {result.status === 'verified' && <span className="text-sm text-gray-400 break-all">{result.paths.model}</span>}
               <table className="text-sm text-gray-300">
                 <tbody>
                   <tr>
