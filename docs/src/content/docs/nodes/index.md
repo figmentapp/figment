@@ -114,6 +114,9 @@ Over time:
 - [Detect Faces](/docs/nodes/detect-faces): Detect faces in an image.
 - [Detect Hands](/docs/nodes/detect-hands): Detect hands in an input image.
 - [Detect Pose](/docs/nodes/detect-pose): Detect human poses in input image.
+- [Normalize Pose](/docs/nodes/normalize-pose): Scale and move pose landmarks to match the body a model was trained on.
+- [Normalize Face](/docs/nodes/normalize-face): Scale and move face landmarks to match the face a model was trained on.
+- [Draw Landmarks](/docs/nodes/draw-landmarks): Draw pose, hand or face landmarks as an image.
 - [Segment Pose](/docs/nodes/segment-pose): Cut people out of an image using the pose model.
 - [Segment Image](/docs/nodes/segment-image): Cut the person out of a portrait.
 - [ONNX Image Model](/docs/nodes/onnx-image-model): Run your own image to image model (pix2pix).

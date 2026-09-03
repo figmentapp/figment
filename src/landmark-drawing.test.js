@@ -304,3 +304,48 @@ describe('hand color tables', () => {
     }
   });
 });
+
+describe('drawSkeleton', () => {
+  const lms = Array.from({ length: 33 }, (_, i) => ({ x: i / 33, y: 0.5 }));
+  const style = {
+    coloring: 'per limb',
+    drawPoints: true,
+    pointsColor: [255, 0, 0, 1],
+    pointsRadius: 2,
+    drawLines: true,
+    linesColor: [0, 255, 0, 1],
+    linesWidth: 3,
+  };
+
+  test('per limb coloring on a pose draws the OpenPose palette, like Detect Pose', () => {
+    const a = new ld.OverlayBatch();
+    a.begin(100, 100);
+    ld.drawSkeleton(a, lms, ld.SKELETONS.pose, style);
+
+    const b = new ld.OverlayBatch();
+    b.begin(100, 100);
+    b.landmarks(lms, { color: POSE_LANDMARK_COLORS, radius: 2 });
+    b.connectors(lms, POSE_CONNECTIONS, { color: POSE_CONNECTION_COLORS, lineWidth: 3 });
+    expect(instances(a)).toEqual(instances(b));
+    expect(a.count).toBe(33 + POSE_CONNECTIONS.length);
+  });
+
+  test('per limb coloring on a face falls back to the solid colors', () => {
+    const a = new ld.OverlayBatch();
+    a.begin(100, 100);
+    const face = Array.from({ length: 478 }, (_, i) => ({ x: i / 478, y: 0.5 }));
+    ld.drawSkeleton(a, face, ld.SKELETONS.face, style);
+    const colors = new Set(instances(a).map((i) => i.color.join()));
+    expect(colors).toEqual(new Set(['1,0,0,1', '0,1,0,1']));
+  });
+
+  test('draw points and draw lines switch each part off', () => {
+    const a = new ld.OverlayBatch();
+    a.begin(100, 100);
+    ld.drawSkeleton(a, lms, ld.SKELETONS.pose, { ...style, drawLines: false });
+    expect(a.count).toBe(33);
+    a.begin(100, 100);
+    ld.drawSkeleton(a, lms, ld.SKELETONS.pose, { ...style, drawPoints: false });
+    expect(a.count).toBe(POSE_CONNECTIONS.length);
+  });
+});

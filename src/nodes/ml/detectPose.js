@@ -9,14 +9,7 @@
 // frame. The skeleton is drawn on the GPU as well (src/landmark-drawing.js).
 
 const imageIn = node.imageIn('in');
-const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
-const coloringIn = node.selectIn('coloring', ['solid', 'per limb'], 'solid');
-const pointsToggleIn = node.toggleIn('draw points', true);
-const pointsColorIn = node.colorIn('points color', [255, 255, 255, 1]);
-const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step: 0.1 });
-const linesToggleIn = node.toggleIn('draw lines', true);
-const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
-const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
+const drawing = figment.skeletonPorts(node); // shared with Draw Landmarks
 const numPosesIn = node.numberIn('number of poses', 4, { min: 1, max: figment.MEDIAPIPE_MAX_INSTANCES, step: 1 });
 const modelIn = node.selectIn('model', ['lite', 'full', 'heavy'], 'lite');
 const modeIn = node.selectIn('mode', ['video', 'still'], 'video');
@@ -25,11 +18,6 @@ const smoothingIn = node.numberIn('smoothing', 0, { min: 0, max: 1, step: 0.01 }
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
-
-pointsColorIn.label = 'Color';
-pointsRadiusIn.label = 'Radius';
-linesColorIn.label = 'Color';
-linesWidthIn.label = 'Line Width';
 
 let _target, _overlay;
 let _pose = null;
@@ -63,27 +51,16 @@ function drawResults(poseLandmarks, width, height) {
     detectedOut.value = true;
     landmarksOut.value = { type: 'pose', landmarks: poseLandmarks };
 
-    // Per-limb coloring gives every landmark and limb a fixed hue (the
-    // OpenPose palette), so an image-to-image model trained on these
-    // drawings can tell limbs and sides apart. The points and lines colors
-    // are ignored in that mode.
-    const perLimb = coloringIn.value === 'per limb';
-    const pointsColor = perLimb ? figment.POSE_LANDMARK_COLORS : pointsColorIn.value;
-    const linesColor = perLimb ? figment.POSE_CONNECTION_COLORS : linesColorIn.value;
+    const style = figment.skeletonStyle(drawing);
     for (const landmarks of poseLandmarks) {
-      if (pointsToggleIn.value) {
-        batch.landmarks(landmarks, { color: pointsColor, radius: pointsRadiusIn.value });
-      }
-      if (linesToggleIn.value) {
-        batch.connectors(landmarks, figment.POSE_CONNECTIONS, { color: linesColor, lineWidth: linesWidthIn.value });
-      }
+      figment.drawSkeleton(batch, landmarks, figment.SKELETONS.pose, style);
     }
   } else {
     detectedOut.value = false;
     landmarksOut.value = null;
   }
 
-  _overlay.draw(_target, backgroundIn.value);
+  _overlay.draw(_target, drawing.background.value);
   imageOut.set(_target);
 }
 
