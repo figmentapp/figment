@@ -146,3 +146,23 @@ Here's an example with a model that's trained for a number of days:
 <video loop="true" autoplay="true" muted="true" src="https://tag-site.s3-eu-central-1.amazonaws.com/maureen/maureen-2.mp4" width="100%"/>
 <figcaption>Maureen and a realtime face, side-by-side.</figcaption>
 </figure>
+
+## Driving the model with a different body
+
+A model trained on one performer only ever saw that body at one size on screen, with the feet on one line. When someone else drives it, they are taller or shorter and stand closer or further away, so their skeleton lands where the model has never seen one. The [Normalize Pose](/docs/nodes/normalize-pose) node fixes this: it zooms the guest's skeleton until it is as tall as the performer's and puts the feet on the performer's floor, without changing the guest's proportions.
+
+The live graph is:
+
+`Webcam Image` → `Detect Pose` → `Normalize Pose` → `ONNX Image Model`
+
+Connect the **landmarks** output of Detect Pose to Normalize Pose, and the **out** image of Normalize Pose to the model. Normalize Pose draws the normalized skeleton with the same parameters as Detect Pose: set its _Width_ and _Height_ to the size the model was trained on, and its _Coloring_ and colors to what you used when you made the dataset.
+
+Normalize Pose needs three numbers about the performer: the floor (the ankle line), the height (ankles to nose) and the x position of the hips. All of them are fractions of the image, 0 to 1, from the top left corner, so they do not depend on the resolution. Measure them in Figment with a separate, throwaway graph on the performer footage:
+
+`Load Movie` → `Detect Pose` → `Normalize Pose`
+
+Let it run for a few seconds and read the **measured floor**, **measured height** and **measured x** outputs of the Normalize Pose node. Type them into _Reference Floor_, _Reference Height_ and _Reference X_ of the Normalize Pose node in the live graph.
+
+The graph that makes the dataset must not contain a Normalize Pose node. The performer has to be saved exactly where the camera saw them; the normalizing happens only on the guest, at show time.
+
+For a face model, the same works with `Detect Faces` → [Normalize Face](/docs/nodes/normalize-face) → `ONNX Image Model`.

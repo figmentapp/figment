@@ -23,7 +23,14 @@
 // src/landmark-connections.js). DrawingUtils has the same idea: its `color`
 // option may be a per-landmark callback.
 
-import { getDevice, getQueue, colorToVec4 } from './figment';
+import { getDevice, getQueue, colorToVec4, RenderTarget } from './figment';
+import {
+  POSE_CONNECTIONS,
+  POSE_LANDMARK_COLORS,
+  POSE_CONNECTION_COLORS,
+  HAND_CONNECTIONS,
+  FACE_LANDMARKS_CONTOURS,
+} from './landmark-connections';
 
 const FLOATS_PER_INSTANCE = 12; // p0.xy, p1.xy, radius, round, pad.xy, color.rgba (48 bytes, vec4f-aligned)
 const DEFAULT_LINE_WIDTH = 4;
@@ -318,6 +325,108 @@ export class LandmarkRenderer {
     this._bindGroup = null;
     this._instanceCapacity = 0;
   }
+}
+
+// ─── Skeletons ──────────────────────────────────────────────────────────────
+//
+// The drawing parameters and the drawing itself that Detect Pose and Draw
+// Landmarks share, so the two cannot drift apart: a model trained on Detect
+// Pose drawings must see the same drawing from Draw Landmarks.
+
+const WHITE = [255, 255, 255, 1];
+
+// The connection table per landmark `type`, with the per-limb color tables
+// where a palette exists (the OpenPose palette for poses).
+export const SKELETONS = {
+  pose: { connections: POSE_CONNECTIONS, landmarkColors: POSE_LANDMARK_COLORS, connectionColors: POSE_CONNECTION_COLORS },
+  hand: { connections: HAND_CONNECTIONS },
+  face: { connections: FACE_LANDMARKS_CONTOURS },
+};
+
+// Creates the shared drawing ports on `node`.
+export function skeletonPorts(node) {
+  const ports = {
+    background: node.colorIn('background', [0, 0, 0, 1]),
+    coloring: node.selectIn('coloring', ['solid', 'per limb'], 'solid'),
+    drawPoints: node.toggleIn('draw points', true),
+    pointsColor: node.colorIn('points color', WHITE),
+    pointsRadius: node.numberIn('points radius', 2, { min: 0, max: 20, step: 0.1 }),
+    drawLines: node.toggleIn('draw lines', true),
+    linesColor: node.colorIn('lines color', WHITE),
+    linesWidth: node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 }),
+  };
+  ports.pointsColor.label = 'Color';
+  ports.pointsRadius.label = 'Radius';
+  ports.linesColor.label = 'Color';
+  ports.linesWidth.label = 'Line Width';
+  return ports;
+}
+
+// Reads the shared drawing ports once per frame into a plain style object.
+export function skeletonStyle(ports) {
+  return {
+    coloring: ports.coloring.value,
+    drawPoints: ports.drawPoints.value,
+    pointsColor: ports.pointsColor.value,
+    pointsRadius: ports.pointsRadius.value,
+    drawLines: ports.drawLines.value,
+    linesColor: ports.linesColor.value,
+    linesWidth: ports.linesWidth.value,
+  };
+}
+
+// Adds one skeleton to `batch`. Per-limb coloring gives every landmark and
+// limb a fixed hue, so an image-to-image model trained on these drawings
+// can tell limbs and sides apart; the points and lines colors are ignored
+// in that mode. A skeleton without a palette draws solid.
+export function drawSkeleton(batch, landmarks, skeleton, style) {
+  const perLimb = style.coloring === 'per limb' && skeleton.landmarkColors;
+  if (style.drawPoints) {
+    batch.landmarks(landmarks, { color: perLimb ? skeleton.landmarkColors : style.pointsColor, radius: style.pointsRadius });
+  }
+  if (style.drawLines) {
+    batch.connectors(landmarks, skeleton.connections, {
+      color: perLimb ? skeleton.connectionColors : style.linesColor,
+      lineWidth: style.linesWidth,
+    });
+  }
+}
+
+// The image side of a node that outputs landmarks: the Width and Height
+// ports, the shared drawing ports, the `out` image and the GPU objects that
+// draw into it. Detect Pose does its own because the detector owns its
+// render target; Draw Landmarks and the Normalize nodes use this.
+export function skeletonImage(node) {
+  const widthIn = node.numberIn('width', 512, { min: 1, max: 8192, step: 1 });
+  const heightIn = node.numberIn('height', 512, { min: 1, max: 8192, step: 1 });
+  const drawing = skeletonPorts(node);
+  const imageOut = node.imageOut('out');
+  let _target, _overlay;
+
+  return {
+    start() {
+      _target = new RenderTarget({ label: 'skeleton' });
+      _overlay = new LandmarkRenderer({ label: 'skeleton' });
+    },
+    stop() {
+      _target?.destroy();
+      _overlay?.destroy();
+      _target = _overlay = null;
+    },
+    // Draws a landmarks object ({ type, landmarks: [...] }) or, for null,
+    // only the background.
+    render(input) {
+      if (!_overlay) return;
+      const batch = _overlay.begin(widthIn.value, heightIn.value);
+      if (input && Array.isArray(input.landmarks)) {
+        const skeleton = SKELETONS[input.type] || { connections: null };
+        const style = skeletonStyle(drawing);
+        for (const landmarks of input.landmarks) drawSkeleton(batch, landmarks, skeleton, style);
+      }
+      _overlay.draw(_target, drawing.background.value);
+      imageOut.set(_target);
+    },
+  };
 }
 
 // ─── Canvas helpers ─────────────────────────────────────────────────────────
