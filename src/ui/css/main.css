@@ -63,6 +63,8 @@ main {
   /* minmax(0, 1fr): a bare 1fr track can't shrink below its content's min-content
      width, so long unwrapped CodeMirror lines would widen the editor pane. */
   grid-template-columns: minmax(0, 1fr) 4px max(var(--splitter), var(--splitter-min));
+  /* minmax(0, 1fr) again: an auto row grows with a long parameter list instead of letting the panel scroll. */
+  grid-template-rows: minmax(0, 1fr);
   height: 100vh;
 }
 
@@ -197,7 +199,8 @@ main {
   flex: 1;
   background-color: var(--gray900);
   min-width: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .params__empty {
@@ -216,6 +219,9 @@ main {
 }
 
 .params__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   height: 34px;
   background: #0d1017;
   border-bottom: 4px solid var(--gray800);
