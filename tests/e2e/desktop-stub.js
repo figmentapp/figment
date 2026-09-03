@@ -44,9 +44,19 @@
   let currentFrame = 0;
   let exportFps = 60;
 
+  // Files the app writes during a test (optimized models and their sidecars).
+  const files = new Map();
+  window.__stubFiles = files;
+
   const sync = {
     getPackagedFile: (filePath) => filePath.replace('examples/', ''),
     pathToFileURL: (filename) => `assets/${filename}`,
+    readProjectFile: async (filePath) => {
+      if (!files.has(filePath)) throw new Error(`ENOENT: ${filePath}`);
+      return files.get(filePath);
+    },
+    writeProjectFile: async (filePath, data) => void files.set(filePath, data),
+    saveBufferToFile: async (buffer, filePath) => void files.set(filePath, new Uint8Array(buffer)),
     getRuntimeMode: () => runtimeMode,
     setRuntimeMode: (mode) => {
       runtimeMode = mode;

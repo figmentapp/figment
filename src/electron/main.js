@@ -16,6 +16,7 @@ const FILTER_MAP = {
   project: { name: 'Figment Project', extensions: ['fgmt'] },
   image: { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif'] },
   video: { name: 'Videos', extensions: ['mp4', 'webm'] },
+  onnx: { name: 'ONNX Models', extensions: ['onnx'] },
   generic: { name: 'All Files', extensions: ['*'] },
 };
 
@@ -452,6 +453,8 @@ function createApplicationMenu() {
       { label: 'Project Settings…', accelerator: 'CmdOrCtrl+;', click: emit('project-settings-dialog') },
       { type: 'separator' },
       { label: 'Render…', accelerator: 'CmdOrCtrl+Shift+E', click: emit('render-dialog') },
+      { type: 'separator' },
+      { label: 'Optimize ONNX Model…', click: emit('optimize-model-dialog') },
     ],
   };
   if (!isMac) {

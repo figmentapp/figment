@@ -93,6 +93,15 @@ describe('constant folding', () => {
 });
 
 describe('float16 conversion', () => {
+  it('leaves an already converted model alone', () => {
+    const once = convertModel(fixture('unet-mini.onnx'));
+    const twice = convertModel(once.bytes);
+    expect(twice.report.fp16.initializersConverted).toBe(0);
+    expect(twice.report.fp16.castsInserted).toBe(0);
+    expect(twice.report.convTranspose.rewritten).toBe(0);
+    expect(twice.bytes).toEqual(once.bytes);
+  });
+
   it('halves the weights, keeps float32 inputs and outputs, and stays close to the original', async () => {
     const original = fixture('unet-mini.onnx');
     const { bytes, report } = convertModel(original, { convTranspose: false });

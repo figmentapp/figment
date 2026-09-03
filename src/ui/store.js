@@ -30,6 +30,7 @@ export const useAppStore = create((set, get) => ({
   pendingConnectionPort: null,
   showForkDialog: false,
   showRenderDialog: false,
+  showOptimizeModelDialog: false,
   showProjectSettingsDialog: false,
   showNodeRenameDialog: false,
   nodeToRename: null,
@@ -561,6 +562,9 @@ export const useAppStore = create((set, get) => ({
   closeRenderDialog() {
     set({ showRenderDialog: false });
   },
+  closeOptimizeModelDialog() {
+    set({ showOptimizeModelDialog: false });
+  },
   openProjectSettingsDialog() {
     set({ showProjectSettingsDialog: true });
   },
@@ -755,6 +759,9 @@ export const useAppStore = create((set, get) => ({
         break;
       case 'render-dialog':
         get().openRenderDialog();
+        break;
+      case 'optimize-model-dialog':
+        set({ showOptimizeModelDialog: true });
         break;
       case 'enter-full-screen':
         get().toggleFullscreen();
