@@ -122,7 +122,8 @@ export async function loadOptimizedModel({ modelPath, sourceBytes, fp16, desktop
   }
 }
 
-// Convert, verify, and cache. Returns the result whether or not it was
+// Convert, verify, and cache. `onProgress(message, fraction)` reports the
+// steps. Returns the result whether or not it was
 // kept; `status` is 'verified', 'rejected' or 'unchanged'. A rejected or
 // unchanged conversion leaves only a sidecar, so the next load does not
 // repeat the work.
@@ -136,7 +137,7 @@ export async function optimizeModel({ modelPath, sourceBytes, fp16, desktop, ses
     await desktop.writeProjectFile(paths.sidecar, JSON.stringify(sidecar, null, 2));
   };
 
-  onProgress('Rewriting model…');
+  onProgress('Rewriting model…', 0.1);
   const structural = convertModel(sourceBytes, { fp16: false });
   const rewrote = structural.report.convTranspose?.rewritten > 0 || structural.report.fold?.nodesFolded > 0;
   if (!rewrote && !fp16) {
@@ -146,7 +147,7 @@ export async function optimizeModel({ modelPath, sourceBytes, fp16, desktop, ses
   }
   let exactness = Infinity;
   if (rewrote) {
-    onProgress('Checking the rewritten model against the original…');
+    onProgress('Checking the rewritten model against the original…', 0.3);
     exactness = await compareModels(sourceBytes, structural.bytes, session);
     if (!(exactness >= EXACT_FLOOR_DB)) {
       await finish({ status: 'rejected', reason: 'rewrite', exactness, report: structural.report });
@@ -156,16 +157,21 @@ export async function optimizeModel({ modelPath, sourceBytes, fp16, desktop, ses
   let final = structural;
   let quality = Infinity;
   if (fp16) {
-    onProgress('Converting to float16…');
+    onProgress('Converting to float16…', 0.5);
     final = convertModel(sourceBytes, { fp16: true });
-    onProgress('Checking the float16 model against the original…');
+    if (!rewrote && final.report.fp16.initializersConverted === 0) {
+      // Already float16: nothing to do.
+      await finish({ status: 'unchanged', report: final.report });
+      return { bytes: sourceBytes, report: final.report, status: 'unchanged', exactness: Infinity, psnr: Infinity, paths };
+    }
+    onProgress('Checking the float16 model against the original…', 0.7);
     quality = await compareModels(sourceBytes, final.bytes, session);
     if (!(quality >= PSNR_FLOOR_DB)) {
       await finish({ status: 'rejected', reason: 'fp16', exactness, psnr: quality, report: final.report });
       return { bytes: null, report: final.report, status: 'rejected', reason: 'fp16', exactness, psnr: quality, paths };
     }
   }
-  onProgress('Writing optimized model…');
+  onProgress('Writing optimized model…', 0.9);
   const bytes = final.bytes;
   await desktop.saveBufferToFile(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), paths.model);
   await finish({ status: 'verified', exactness, psnr: quality, report: final.report });

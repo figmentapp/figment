@@ -64,10 +64,37 @@ export function float32ToFloat16(values) {
   return new Uint16Array(half.buffer, half.byteOffset, half.length);
 }
 
+function hasConvertibleFloat32(graph, blocked) {
+  const edges = new Map(); // tensor -> [float32-only edges, all edges]
+  for (const node of graph.node) {
+    node.input.forEach((name, ii) => {
+      if (!name) return;
+      const keep = blocked.has(node.opType) || (KEEP_FLOAT32_INPUTS[node.opType] ?? []).includes(ii);
+      const counts = edges.get(name) ?? [0, 0];
+      counts[0] += keep ? 1 : 0;
+      counts[1] += 1;
+      edges.set(name, counts);
+    });
+  }
+  const convertible = (name) => {
+    const counts = edges.get(name);
+    return !counts || counts[0] < counts[1];
+  };
+  return (
+    graph.initializer.some((t) => t.dataType === DataType.FLOAT && convertible(t.name)) ||
+    graph.node.some((n) => n.opType === 'Constant' && getAttribute(n, 'value')?.dataType === DataType.FLOAT && convertible(n.output[0]))
+  );
+}
+
 export function convertToFloat16(model, { blockOps = DEFAULT_BLOCK_OPS } = {}) {
   const graph = model.graph;
   const blocked = new Set(blockOps);
   const report = { initializersConverted: 0, castsRemoved: 0, castsInserted: 0, blockedNodes: 0 };
+
+  // Nothing to convert (a float16 model, or one already converted): leave
+  // the graph alone rather than wrap it in another pair of casts. Float32
+  // constants that only feed blocked ops or Resize scales do not count.
+  if (!hasConvertibleFloat32(graph, blocked)) return report;
 
   // 1. Remove no-op Cast(to=float) nodes.
   const rename = new Map();
@@ -155,15 +182,16 @@ export function convertToFloat16(model, { blockOps = DEFAULT_BLOCK_OPS } = {}) {
   const graphOutputs = new Set(graph.output.map((o) => o.name));
   const castTo16 = new Map(); // float32 tensor -> its float16 twin
   const castTo32 = new Map(); // float16 tensor -> its float32 twin
-  const cast = (from, to, dataType, name) => {
-    result.push(makeNode('Cast', [from], [to], [intAttribute('to', dataType)], name));
+  const cast = (from, to, dataType) => {
+    // The output name is unique in the graph, so a node named after it is too.
+    result.push(makeNode('Cast', [from], [to], [intAttribute('to', dataType)], `${to}/cast`));
     report.castsInserted++;
   };
   for (const input of graph.input) {
     if (!isFloat(input.name) || initializers.has(input.name)) continue;
     const half = uniqueName(graph, `${input.name}_fp16`);
     castTo16.set(input.name, half);
-    cast(input.name, half, DataType.FLOAT16, `${input.name}/to_fp16`);
+    cast(input.name, half, DataType.FLOAT16);
   }
   for (let ni = 0; ni < graph.node.length; ni++) {
     const node = graph.node[ni];
@@ -179,7 +207,7 @@ export function convertToFloat16(model, { blockOps = DEFAULT_BLOCK_OPS } = {}) {
         if (!castTo32.has(name)) {
           const wide = uniqueName(graph, `${name}_fp32`);
           castTo32.set(name, wide);
-          cast(name, wide, DataType.FLOAT, `${name}/to_fp32`);
+          cast(name, wide, DataType.FLOAT);
         }
         return castTo32.get(name);
       }
@@ -199,12 +227,12 @@ export function convertToFloat16(model, { blockOps = DEFAULT_BLOCK_OPS } = {}) {
       if (isBlocked) {
         if (graphOutputs.has(out)) return out;
         const wide = uniqueName(graph, `${out}_fp32`);
-        after.push([wide, out, DataType.FLOAT16, `${out}/to_fp16`]);
+        after.push([wide, out, DataType.FLOAT16]);
         return wide;
       }
       if (!graphOutputs.has(out)) return out;
       const half = uniqueName(graph, `${out}_fp16`);
-      after.push([half, out, DataType.FLOAT, `${out}/to_fp32`]);
+      after.push([half, out, DataType.FLOAT]);
       return half;
     });
     result.push(node);

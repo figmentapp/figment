@@ -133,6 +133,21 @@ describe('optimized model cache', () => {
     expect(cached.bytes).toBe(sourceBytes);
   });
 
+  it('reports an already optimized model as unchanged', async () => {
+    const desktop = fakeDesktop();
+    const sourceBytes = fixture('unet-mini.onnx');
+    const first = await optimizeModel({ modelPath: '/m/unet-mini.onnx', sourceBytes, fp16: true, desktop, session });
+    const again = await optimizeModel({
+      modelPath: '/m/unet-mini.figment-optimized.onnx',
+      sourceBytes: first.bytes,
+      fp16: true,
+      desktop,
+      session,
+    });
+    expect(again.status).toBe('unchanged');
+    expect(again.bytes).toBe(first.bytes);
+  });
+
   it('compares two models on the same synthetic input', async () => {
     const bytes = fixture('unet-mini.onnx');
     expect(await compareModels(bytes, bytes, session)).toBe(Infinity);
