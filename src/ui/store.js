@@ -385,8 +385,8 @@ export const useAppStore = create((set, get) => ({
     get().cancelMigration();
     const { network } = get();
     if (network) network.stop();
-    get().setDirty(false);
-    set({ filePath: undefined, tabs: [], activeTabIndex: -1, selection: new Set(), undoStack: [], redoStack: [] });
+    get().setFilePath(undefined);
+    set({ tabs: [], activeTabIndex: -1, selection: new Set(), undoStack: [], redoStack: [] });
     window.desktop.stopOscServer();
     // Ring buffers are keyed by node id; identities don't carry across projects.
     resetProfiling();
