@@ -8,6 +8,7 @@ import { udpSendMessage, udpStartServer, udpStopServer } from './udp.js';
 import { midiStartServer, midiStopServer, midiEmitter, getMidiDevices } from './midi.js';
 import { nodeServerStart, nodeServerStop, nodeServerSend, nodeServerStopAll } from './node-server.js';
 import { parseRenderArgs, RenderCliError, USAGE } from './render-cli.js';
+import { DialogFolders } from './dialog-paths.js';
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -65,6 +66,13 @@ let gMainWindow;
 let gSettings = new Settings();
 let gDocumentEdited = false;
 let gPendingClose = false;
+let gDialogFolders;
+
+function setProjectFilePath(filePath) {
+  gDialogFolders.setProject(filePath);
+  if (!gMainWindow || gMainWindow.isDestroyed()) return;
+  gMainWindow.setRepresentedFilename(filePath || '');
+}
 
 function emit(name, args = {}) {
   return () => {
@@ -75,6 +83,7 @@ function emit(name, args = {}) {
 async function showOpenProjectDialog() {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Open Project',
+    defaultPath: gDialogFolders.defaultFor('project'),
     properties: ['openFile'],
     filters: [FILTER_MAP.project],
   });
@@ -84,8 +93,7 @@ async function showOpenProjectDialog() {
 
   const filePath = filePaths[0];
   gSettings.addRecentProject(filePath);
-  gMainWindow.setRepresentedFilename(filePath);
-  // gMainWindow.webContents.send('open-project', filePath);
+  setProjectFilePath(filePath);
   return filePath;
 }
 ipcMain.handle('showOpenProjectDialog', showOpenProjectDialog);
@@ -97,6 +105,7 @@ ipcMain.handle('getMidiDevices', () => {
 async function showOpenFileDialog(fileType = 'generic') {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Open Image',
+    defaultPath: gDialogFolders.defaultFor('file'),
     properties: ['openFile'],
     filters: [FILTER_MAP[fileType]],
   });
@@ -105,6 +114,7 @@ async function showOpenFileDialog(fileType = 'generic') {
   }
 
   const filePath = filePaths[0];
+  gDialogFolders.remember('file', filePath);
   return filePath;
 }
 ipcMain.handle('showOpenFileDialog', showOpenFileDialog);
@@ -113,12 +123,14 @@ async function showOpenDirectoryDialog() {
   const { filePaths } = await dialog.showOpenDialog({
     title: 'Choose Directory',
     button: 'Choose Directory',
+    defaultPath: gDialogFolders.defaultFor('directory'),
     properties: ['openDirectory', 'createDirectory'],
   });
   if (!filePaths || filePaths.length < 1) {
     return;
   }
   const filePath = filePaths[0];
+  gDialogFolders.remember('directory', filePath);
   return filePath;
 }
 ipcMain.handle('showOpenDirectoryDialog', showOpenDirectoryDialog);
@@ -126,11 +138,12 @@ ipcMain.handle('showOpenDirectoryDialog', showOpenDirectoryDialog);
 async function showSaveProjectDialog() {
   const result = await dialog.showSaveDialog({
     title: 'Save Project',
+    defaultPath: gDialogFolders.defaultFor('project'),
     filters: [FILTER_MAP.project],
   });
   if (result.canceled) return null;
   gSettings.addRecentProject(result.filePath);
-  gMainWindow.setRepresentedFilename(result.filePath);
+  setProjectFilePath(result.filePath);
   return result.filePath;
 }
 ipcMain.handle('showSaveProjectDialog', showSaveProjectDialog);
@@ -138,9 +151,11 @@ ipcMain.handle('showSaveProjectDialog', showSaveProjectDialog);
 async function showSaveImageDialog() {
   const result = await dialog.showSaveDialog({
     title: 'Save Image',
+    defaultPath: gDialogFolders.defaultFor('image'),
     filters: [FILTER_MAP.image],
   });
   if (result.canceled) return null;
+  gDialogFolders.remember('image', result.filePath);
   return result.filePath;
 }
 ipcMain.handle('showSaveImageDialog', showSaveImageDialog);
@@ -279,13 +294,8 @@ ipcMain.handle('setRepresentedFilename', (_, filePath) => {
     return;
   }
 
-  if (filePath) {
-    gMainWindow.setRepresentedFilename(filePath);
-    gMainWindow.setTitle(`${path.basename(filePath)}`);
-  } else {
-    gMainWindow.setRepresentedFilename('');
-    gMainWindow.setTitle('Figment');
-  }
+  setProjectFilePath(filePath);
+  gMainWindow.setTitle(filePath ? path.basename(filePath) : 'Figment');
 });
 
 ipcMain.handle('setDocumentEdited', (_, edited) => {
@@ -583,6 +593,7 @@ app.commandLine.appendSwitch('enable-unsafe-webgpu');
 app.commandLine.appendSwitch('enable-features', 'WebGPU,UseSkiaGraphite');
 
 app.whenReady().then(async () => {
+  gDialogFolders = new DialogFolders(app.getPath('desktop'));
   await gSettings.load();
   gDevServer = await startDevServer();
   if (gRenderJob) {
