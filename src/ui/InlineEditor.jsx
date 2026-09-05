@@ -9,6 +9,11 @@ export default function InlineEditor({ value, onChange, color = 'gray', disabled
   const [inputValue, setInputValue] = useState(value);
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef(null);
+  // The latest draft and callbacks, readable from the unmount cleanup below.
+  const draftRef = useRef({ value, inputValue, onChange, onValidate });
+  draftRef.current = { value, inputValue, onChange, onValidate };
+  // True once the edit ended through blur or Escape, so the unmount cleanup stays quiet.
+  const settledRef = useRef(false);
 
   useEffect(() => {
     setInputValue(value);
@@ -20,12 +25,30 @@ export default function InlineEditor({ value, onChange, color = 'gray', disabled
     }
   }, [isEditing]);
 
-  const handleBlur = () => {
+  const commit = () => {
+    const { value, inputValue, onChange, onValidate } = draftRef.current;
+    if (inputValue === value) return;
     if (!onValidate || onValidate(inputValue)) {
       onChange(inputValue);
     } else {
       setInputValue(value);
     }
+  };
+
+  // Mouse-down handlers elsewhere (the network canvas, splitters) call preventDefault,
+  // so the input can lose its place without ever blurring. Commit the draft when the
+  // input unmounts while an edit is still open.
+  useEffect(() => {
+    if (!isEditing) return;
+    settledRef.current = false;
+    return () => {
+      if (!settledRef.current) commit();
+    };
+  }, [isEditing]);
+
+  const handleBlur = () => {
+    commit();
+    settledRef.current = true;
     setIsEditing(false);
   };
 
@@ -33,6 +56,7 @@ export default function InlineEditor({ value, onChange, color = 'gray', disabled
     if (e.key === 'Enter') {
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
+      settledRef.current = true;
       setInputValue(value);
       setIsEditing(false);
     }
