@@ -599,10 +599,18 @@ export default function ParamsEditor() {
     useAppStore.getState().pushSnapshot();
   };
 
-  const handleChangePortExpression = (portName, expression) => {
-    useAppStore.getState().selection.forEach((node) => {
-      changePortExpression(node, portName, expression);
-    });
+  // Text fields commit late (on blur or unmount), so they bind the node they were
+  // opened for instead of reading the selection at commit time.
+  const isInNetwork = (node) => useAppStore.getState().network.nodes.includes(node);
+
+  const handleChangePortExpression = (node, portName, expression) => {
+    if (!isInNetwork(node)) return;
+    changePortExpression(node, portName, expression);
+  };
+
+  const handleChangePortText = (node, portName, value) => {
+    if (!isInNetwork(node)) return;
+    changePortValue(node, portName, value);
   };
 
   const handleTriggerButton = (port) => {
@@ -624,7 +632,7 @@ export default function ParamsEditor() {
           label={port.label}
           expression={port._value.expression}
           disabled={network.isConnected(port)}
-          onChange={(expr) => handleChangePortExpression(port.name, expr)}
+          onChange={(expr) => handleChangePortExpression(node, port.name, expr)}
         />
       );
     } else if (port.type === PORT_TYPE_TRIGGER) {
@@ -677,7 +685,7 @@ export default function ParamsEditor() {
           label={port.label}
           value={port.value}
           disabled={network.isConnected(port)}
-          onChange={(value) => handleChangePortValue(port.name, value)}
+          onChange={(value) => handleChangePortText(node, port.name, value)}
           onBeforeChange={handlePushSnapshot}
         />
       );
@@ -799,7 +807,9 @@ export default function ParamsEditor() {
           <ProjectionQuadEditor node={node} width={editorSplitterWidth - 16} height={Math.round((editorSplitterWidth - 16) * 0.6)} />
         </div>
       )}
-      <div className="params__grid grid ">{node.inPorts.map((port) => renderPort(network, node, port))}</div>
+      <div className="params__grid grid " key={node.id}>
+        {node.inPorts.map((port) => renderPort(network, node, port))}
+      </div>
     </div>
   );
 }
