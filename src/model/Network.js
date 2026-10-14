@@ -86,6 +86,8 @@ export const getDefaultNetwork = () => ({
   },
 });
 
+const START_GRACE_MS = 3000;
+
 export default class Network {
   constructor(library) {
     this.started = false;
@@ -336,9 +338,28 @@ export default class Network {
     }
   }
 
-  async start() {
+  // A node's onStart can await something that never settles, such as a fetch that keeps
+  // retrying while an external service is down. start() waits at most `graceMs` per node, then
+  // moves on; the node is skipped during rendering until its onStart settles. Pass
+  // `waitForAll: true` when every node must be fully started (headless rendering).
+  async start({ waitForAll = false, graceMs = START_GRACE_MS } = {}) {
     for (const node of this.nodes) {
-      await this._startNode(node);
+      const started = this._startNode(node);
+      if (waitForAll) {
+        await started;
+      } else {
+        let timer;
+        const timedOut = await Promise.race([
+          started.then(() => false),
+          new Promise((resolve) => {
+            timer = setTimeout(() => resolve(true), graceMs);
+          }),
+        ]);
+        clearTimeout(timer);
+        if (timedOut) {
+          console.warn(`${node.name} (${node.type}) is still starting after ${graceMs}ms; continuing without it.`);
+        }
+      }
     }
     this.started = true;
     this.startTime = Date.now();
@@ -406,19 +427,32 @@ export default class Network {
   }
 
   async _startNode(node) {
-    if (node.onStart) {
-      try {
-        await node.onStart(node);
-        node.error = null;
-      } catch (err) {
-        console.error(err && err.stack);
-        node.error = err && err.stack ? err.stack : String(err);
-        debugger;
-      }
+    if (!node.onStart) return;
+    node.isStarting = true;
+    node.startError = null;
+    try {
+      await node.onStart(node);
+      node.error = null;
+    } catch (err) {
+      console.error(err && err.stack);
+      node.startError = err && err.stack ? err.stack : String(err);
+      node.error = node.startError;
+    } finally {
+      node.isStarting = false;
+      // Render the node (and everything downstream) on the next frame now that it's ready.
+      if (this.nodes.includes(node)) this.markNodeDirty(node);
     }
   }
 
   async _renderNode(node) {
+    // Leave the node dirty so it renders once its onStart settles.
+    if (node.isStarting) return;
+    // A node whose onStart failed is missing whatever onStart sets up, so don't render it.
+    // Keep its start error visible: changing a parameter clears node.error.
+    if (node.startError) {
+      node.error = node.startError;
+      return;
+    }
     if (node.isDirty && node.onRender) {
       const markName = `node-${node.type}-${node.id}`;
       performance.mark(markName + '-start');
