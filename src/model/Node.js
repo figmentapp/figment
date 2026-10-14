@@ -33,6 +33,8 @@ export default class Node {
     this.isDirty = true;
     this._timeDependent = false;
     this.error = null;
+    this.isStarting = false;
+    this.startError = null;
   }
 
   _markDirty() {

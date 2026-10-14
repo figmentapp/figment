@@ -47,7 +47,7 @@ async function loadProject(filePath) {
   const network = new Network(useAppStore.getState().library);
   useAppStore.setState({ filePath, network, selection: new Set() });
   network.parse(project);
-  await network.start();
+  await network.start({ waitForAll: true });
   return network;
 }
 

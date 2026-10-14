@@ -616,6 +616,8 @@ export default function NetworkEditor() {
       let borderColor = COLORS.gray700;
       if (node.error) {
         borderColor = COLORS.red500;
+      } else if (node.isStarting) {
+        borderColor = COLORS.orange500;
       } else if (selection.has(node)) {
         borderColor = COLORS.blue600;
       }
