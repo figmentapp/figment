@@ -25,6 +25,7 @@ export {
   skeletonStyle,
 } from './landmark-drawing.js';
 export { createNormalizeNode, POSE_RECIPE, FACE_RECIPE } from './landmark-normalize.js';
+export { rokokoToPose } from './rokoko-pose.js';
 import { withOrt, fetchModelBytes as _fetchModelBytes } from './mediapipe-gpu.js';
 import { convertModel, describeModel } from './onnx/convert.js';
 import { optimizeModel, loadOptimizedModel, optimizedPathsFor, PSNR_FLOOR_DB, EXACT_FLOOR_DB } from './onnx/optimize.js';

@@ -348,4 +348,13 @@ describe('drawSkeleton', () => {
     ld.drawSkeleton(a, lms, ld.SKELETONS.pose, { ...style, drawPoints: false });
     expect(a.count).toBe(POSE_CONNECTIONS.length);
   });
+
+  test('visibilityMin hides a landmark and its connections, as Receive Rokoko does for joints behind the camera', () => {
+    const hidden = lms.map((lm, i) => ({ ...lm, visibility: i === 0 ? 0 : 1 }));
+    const a = new ld.OverlayBatch();
+    a.begin(100, 100);
+    ld.drawSkeleton(a, hidden, ld.SKELETONS.pose, { ...style, visibilityMin: 0 });
+    const noseConnections = POSE_CONNECTIONS.filter((c) => c.includes(0)).length;
+    expect(a.count).toBe(32 + POSE_CONNECTIONS.length - noseConnections);
+  });
 });
