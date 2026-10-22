@@ -378,16 +378,23 @@ export function skeletonStyle(ports) {
 // Adds one skeleton to `batch`. Per-limb coloring gives every landmark and
 // limb a fixed hue, so an image-to-image model trained on these drawings
 // can tell limbs and sides apart; the points and lines colors are ignored
-// in that mode. A skeleton without a palette draws solid.
+// in that mode. A skeleton without a palette draws solid. `visibilityMin`,
+// when set, hides landmarks at or below that visibility and their limbs.
 export function drawSkeleton(batch, landmarks, skeleton, style) {
   const perLimb = style.coloring === 'per limb' && skeleton.landmarkColors;
+  const visibilityMin = style.visibilityMin;
   if (style.drawPoints) {
-    batch.landmarks(landmarks, { color: perLimb ? skeleton.landmarkColors : style.pointsColor, radius: style.pointsRadius });
+    batch.landmarks(landmarks, {
+      color: perLimb ? skeleton.landmarkColors : style.pointsColor,
+      radius: style.pointsRadius,
+      visibilityMin,
+    });
   }
   if (style.drawLines) {
     batch.connectors(landmarks, skeleton.connections, {
       color: perLimb ? skeleton.connectionColors : style.linesColor,
       lineWidth: style.linesWidth,
+      visibilityMin,
     });
   }
 }

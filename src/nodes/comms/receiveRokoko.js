@@ -4,13 +4,13 @@
  * @category comms
  */
 
-const backgroundIn = node.colorIn('background', [0, 0, 0, 1]);
-const pointsToggleIn = node.toggleIn('draw points', true);
-const pointsColorIn = node.colorIn('points color', [255, 255, 255, 1]);
-const pointsRadiusIn = node.numberIn('points radius', 2, { min: 0, max: 20, step: 0.1 });
-const linesToggleIn = node.toggleIn('draw lines', true);
-const linesColorIn = node.colorIn('lines color', [255, 255, 255, 1]);
-const linesWidthIn = node.numberIn('lines width', 2, { min: 0, max: 20, step: 0.1 });
+// The `pose` skeleton maps the Rokoko joints onto BlazePose's 33 landmarks
+// (src/rokoko-pose.js) and draws them with Detect Pose's drawing code, so
+// an image-to-image model trained on Detect Pose output sees the same
+// picture from motion capture. The `rokoko` skeleton draws the joints as
+// the stream sends them.
+const skeletonIn = node.selectIn('skeleton', ['pose', 'rokoko'], 'pose');
+const drawing = figment.skeletonPorts(node); // shared with Detect Pose
 
 const widthIn = node.numberIn('width', 1920);
 const heightIn = node.numberIn('height', 1080);
@@ -27,11 +27,6 @@ udpPortIn.label = 'UDP port';
 const imageOut = node.imageOut('out');
 const detectedOut = node.booleanOut('detected');
 const landmarksOut = node.objectOut('landmarks');
-
-pointsColorIn.label = 'Color';
-pointsRadiusIn.label = 'Radius';
-linesColorIn.label = 'Color';
-linesWidthIn.label = 'Line Width';
 
 let _target, _overlay;
 let _currentBody = null;
@@ -63,6 +58,7 @@ let _listener;
 
 widthIn.onChange = drawResults;
 heightIn.onChange = drawResults;
+skeletonIn.onChange = drawResults;
 
 node.onStart = async () => {
   _target = new figment.RenderTarget({ label: 'receiveRokoko' });
@@ -83,7 +79,6 @@ node.onStart = async () => {
       const body = json?.scene?.actors?.[0]?.body;
       if (!body) return;
       _currentBody = body;
-      landmarksOut.set(body?.joints ? { type: 'rokoko', body } : null);
       drawResults();
       if (node.network) {
         node.network.markNodeDirty(node);
@@ -120,51 +115,51 @@ function drawResults() {
   const height = heightIn.value;
   const batch = _overlay.begin(width, height);
 
-  if (_currentBody) {
-    const { landmarks, connections } = _extractLandmarksAndConnections(_currentBody, width, height);
-    if (landmarks.length) {
-      detectedOut.set(true);
-      // Joints behind the camera get visibility 0; hide them and their bones.
-      if (linesToggleIn.value && connections.length) {
-        batch.connectors(landmarks, connections, {
-          color: linesColorIn.value,
-          lineWidth: linesWidthIn.value,
-          visibilityMin: 0,
-        });
-      }
-      if (pointsToggleIn.value) {
-        batch.landmarks(landmarks, {
-          color: pointsColorIn.value,
-          radius: pointsRadiusIn.value,
-          visibilityMin: 0,
-        });
-      }
-    } else {
-      detectedOut.set(false);
-    }
+  const projected = _currentBody ? _projectBody(_currentBody, width, height) : null;
+  if (projected) {
+    const { landmarks, skeleton, type } = projected;
+    detectedOut.set(true);
+    landmarksOut.set(type === 'pose' ? { type, landmarks: [landmarks] } : { type, body: _currentBody });
+    // Joints behind the camera get visibility 0; hide them and their bones.
+    figment.drawSkeleton(batch, landmarks, skeleton, { ...figment.skeletonStyle(drawing), visibilityMin: 0 });
   } else {
     detectedOut.set(false);
+    landmarksOut.set(null);
   }
 
-  _overlay.draw(_target, backgroundIn.value);
+  _overlay.draw(_target, drawing.background.value);
   imageOut.set(_target);
 }
 
-function _extractLandmarksAndConnections(body, width, height) {
+// The body's joints as 2D landmarks in the chosen skeleton, with the
+// connection table to draw them, or null without a usable body.
+function _projectBody(body, width, height) {
   const joints = body || {};
-  const names = Object.keys(joints);
-  if (!names.length || !joints.hip?.position) return { landmarks: [], connections: [] };
+  if (!joints.hip?.position) return null;
+
+  const type = skeletonIn.value;
+  let positions, skeleton;
+  if (type === 'pose') {
+    positions = figment.rokokoToPose(joints);
+    if (!positions) return null;
+    skeleton = figment.SKELETONS.pose;
+  } else {
+    const names = Object.keys(joints);
+    positions = names.map((name) => joints[name]?.position || { x: 0, y: 0, z: 0 });
+    const nameToIdx = Object.fromEntries(names.map((name, i) => [name, i]));
+    const connections = ROKOKO_BODY_CONNECTIONS.map(([p, c]) => [nameToIdx[p], nameToIdx[c]]).filter(
+      (pair) => pair[0] !== undefined && pair[1] !== undefined,
+    );
+    skeleton = { connections };
+  }
 
   // Center model at origin using hip position if treadmill is on
   const center = treadmillIn.value ? joints.hip.position : { x: 0, y: 0, z: 0 };
-  const positions3D = names.map((name) => {
-    const pos = joints[name]?.position || { x: 0, y: 0, z: 0 };
-    return {
-      x: -((pos.x ?? 0) - (center.x ?? 0)),
-      y: (pos.y ?? 0) - (center.y ?? 0),
-      z: (pos.z ?? 0) - (center.z ?? 0),
-    };
-  });
+  const positions3D = positions.map((pos) => ({
+    x: -((pos.x ?? 0) - (center.x ?? 0)),
+    y: (pos.y ?? 0) - (center.y ?? 0),
+    z: (pos.z ?? 0) - (center.z ?? 0),
+  }));
 
   // Get camera parameters
   const cameraPos = { x: cameraXIn.value, y: cameraYIn.value, z: cameraZIn.value };
@@ -180,13 +175,7 @@ function _extractLandmarksAndConnections(body, width, height) {
     };
   });
 
-  const nameToIdx = Object.fromEntries(names.map((name, i) => [name, i]));
-
-  const connections = ROKOKO_BODY_CONNECTIONS.map(([p, c]) => [nameToIdx[p], nameToIdx[c]]).filter(
-    (pair) => pair[0] !== undefined && pair[1] !== undefined,
-  );
-
-  return { landmarks, connections };
+  return { landmarks, skeleton, type };
 }
 
 function perspectiveProjectPoint(point, cameraPos, fov, width, height) {
@@ -216,13 +205,10 @@ function perspectiveProjectPoint(point, cameraPos, fov, width, height) {
   const x = 0.5 + x_ndc / 2;
   const y = 0.5 - y_ndc / 2;
 
-  const visible = x >= 0 && x <= 1 && y >= 0 && y <= 1;
-
-  return {
-    x: Math.max(0, Math.min(1, x)),
-    y: Math.max(0, Math.min(1, y)),
-    visible,
-  };
+  // Points outside the frame keep their coordinates, as Detect Pose's
+  // landmarks do, so a limb that leaves the frame draws toward its real
+  // position instead of bending to the edge.
+  return { x, y, visible: true };
 }
 
 //// LZ4 DECOMPRESSION ////
